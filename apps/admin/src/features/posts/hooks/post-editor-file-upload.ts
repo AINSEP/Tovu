@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { type Translate, interpolate } from "@jini-ai/core/text";
 import { readFileAsDataUrl } from "../rules";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**

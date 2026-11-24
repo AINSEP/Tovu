@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AssistantConversation } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
-import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
+import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 import { useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
 
 /**

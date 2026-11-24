@@ -4575,7 +4575,149 @@
     },
     {
       "id": "0c815aaf66d8",
-      "reason": "Moved with the code to Jini @jini-ai/admin pages/ThemePageDetailsModal.hooks.tsx (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/ThemePageDetailsModal.hooks.tsx (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept.",
+      "id": "5ad7ac065e8c",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "6c40d8d311a1",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "a2893b848a06",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "8a61f8a8898d",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "344ba8ada123",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "faedfcbfea6e",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "31bfdcf15b66",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/dock-header-rules (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "f7ca9a4c84fa",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "286aae0432a7",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropConfirmation (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "3a1b25097ae2",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropError (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "65cb968662f6",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "ce75f4486c31",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "11bb03a29676",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "aaef8209d97b",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "701711ad8bdb",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "369517802fb6",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "572ffcbc5bd4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "41d41123d496",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "2e0c44267c5d",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "5dc673872273",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e2ae7f66dec5",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/hooks/assistant-chats-port.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "27e8c5cc87d4",
+      "reason": "Deleted as a duplicate of @jini-ai/admin/react useBrowserTelemetryFeed (w4-admin-shell); that hook's header carries the same why (signing in on the same route counts as arriving), and the debounce note stays with the host telemetry module."
+    },
+    {
+      "id": "61a8bcca3eb3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/__tests__/agent-screenshot.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "f89f0af6e3d5",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/__tests__/agent-screenshot.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e85fb298544d",
+      "reason": "The allow-list row it explained (assistant-dock-i18n CHAT_PANE_I18N_DICT) is gone with the move to Jini (w4-admin-shell); the replacement rows for the app-i18n host overlays carry a new why-comment in place."
+    },
+    {
+      "id": "f98f7f3382b4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "b492c78ee384",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "24705d91a0c3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "3062a8d3d8e3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "75e2db755691",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "5179a7a6abcd",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "6d2966c282f8",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "1431ddb9bbe4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "897742a9e109",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e6c411d1bdf6",
+      "reason": "The popup-position half of this test file moved to Jini @jini-ai/admin/shell/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx (w4-admin-shell batch J) with this header; the Tovu half keeps a rewritten header naming where the popup tests went."
+    },
+    {
+      "id": "78e2e1ebdb48",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields (w4-admin-shell batch I); host file names reworded to the host in words, every why-sentence kept."
     }
   ]
 }

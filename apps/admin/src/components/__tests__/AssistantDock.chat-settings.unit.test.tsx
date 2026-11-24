@@ -8,8 +8,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { AssistantDock as RealAssistantDock } from "../AssistantDock/AssistantDock";
 import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../AssistantDock/chat-display-preferences";
 import type { ChatDisplayPreferencesController } from "../AssistantDock/hooks/use-chat-display-preferences.hooks";
-import type { ChatAgentPlugins } from "../AssistantDock/chat-agent-plugin-preferences";
-import type { ChatAgentPluginsController } from "../AssistantDock/hooks/use-chat-agent-plugins.hooks";
+import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
+import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 import { useChatDisplayPreferences as useStoredDisplayPreferences } from "../AssistantDock/hooks/use-chat-display-preferences.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";

@@ -3,7 +3,8 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "../../styles/media-content-editor.css";
 import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
-import { useHtmlAttributeRows } from "./HtmlAttributeRows.hooks";
+import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
+import { htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes } from "./media-content-rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -25,7 +26,7 @@ export interface HtmlAttributeRowsProps {
 }
 
 export function HtmlAttributeRows({ value, onChange, t = (key) => key, agentHandle: base, useRows = useHtmlAttributeRows }: HtmlAttributeRowsProps) {
-  const vm = useRows({ value, onChange });
+  const vm = useRows({ value, onChange, htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes });
   return (
     <div className="html-attribute-rows">
       {vm.rows.map((row, index) => (

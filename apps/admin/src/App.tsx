@@ -13,12 +13,12 @@ import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } fr
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { isPanelAccessible, withoutInaccessiblePanels } from "@jini-ai/core/admin-runtime";
-import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
+import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useBrowserTelemetryFeed, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
-import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
-import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
+import { ADMIN_BASE, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
+import { useDesktopViewRelease } from "@jini-ai/admin/shell/hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
 import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
 import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
@@ -36,7 +36,7 @@ import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useDrawerActiveItemCentring } from "@jini-ai/admin/shell/hooks/use-drawer-active-item-centring.hooks";
 import { useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
-import { useAdminTelemetry } from "./hooks/use-admin-telemetry.hooks";
+import { adminTelemetry } from "./lib/browser-telemetry";
 import { useSidebarEmptyClickToggle } from "@jini-ai/admin/shell/hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
@@ -533,7 +533,7 @@ function useShellRoute({ user, checking }: { user: AdminUser | null; checking: b
   // Tells the assistant which screen each message is sent from; an editor adds its open entry.
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
   // The admin's own page views (route template only) and errors, relayed by the server.
-  useAdminTelemetry({ signedIn: Boolean(user), routePath, params: route.params });
+  useBrowserTelemetryFeed({ signedIn: Boolean(user), routePath, params: route.params, base: ADMIN_BASE, telemetry: adminTelemetry });
   return { routePath, route };
 }
 

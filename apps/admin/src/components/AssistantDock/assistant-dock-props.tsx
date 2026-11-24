@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
-import type { ChatPane } from "@jini-ai/chat/react";
+import { useT, type ChatPane } from "@jini-ai/chat/react";
 
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
-import { FolderPathButton } from "./FolderPathButton";
+import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
 import { isDesktopAdmin } from "../../features/settings/ai-agent-presentation";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
@@ -94,7 +94,7 @@ export function composerFooterLeading(input: { readonly folderPicker: UseNativeF
   if (!input.folderPicker.available) return input.voice;
   return (
     <>
-      <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />
+      <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} useTHook={useT} />
       {input.voice}
     </>
   );

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
 import { guideToPendingCredentialCard, onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
-import { createChatI18nAdapter } from "../../components/AssistantDock/assistant-dock-i18n";
+import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 
 describe("credential paste guidance", () => {
   it("focuses the only pending credential iframe", () => {
@@ -59,7 +60,7 @@ describe("credential paste guidance", () => {
   it("uses Jini translations for both credential notices in every locale", () => {
     for (const [locale, dictionary] of Object.entries(SETTINGS_DIALOG_DICTIONARIES)) {
       for (const key of [SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE]) {
-        expect(createChatI18nAdapter({ locale }).t(key)).toBe(dictionary![key]);
+        expect(createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale }).t(key)).toBe(dictionary![key]);
       }
     }
   });

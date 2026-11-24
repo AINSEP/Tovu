@@ -3,7 +3,8 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { insertBlockAtom } from "./block-atom-insert";
-import { useWiredMediaEmbedNodeView, type MediaPreviewKind } from "./media-embed-extension.hooks";
+import { useWiredMediaEmbedNodeView } from "./media-embed-extension.hooks";
+import type { MediaPreviewKind } from "@jini-ai/admin/shell/lib/media-embed-extension.hooks";
 
 /**
  * @file `Media` — the generic media doc node (2026-09-11, owner-directed: "don't add a `video` node

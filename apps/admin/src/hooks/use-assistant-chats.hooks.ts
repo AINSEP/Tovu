@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createAssistantChatsClient, type LastConversationStore, type AssistantChatsPort as SharedPort } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
+import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 import { HttpError, type AssistantConversation } from "../lib/assistant-chats";
 import { createAssistantLastConversationStore, defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
 export interface UseAssistantChats {

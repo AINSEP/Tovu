@@ -25,9 +25,11 @@ const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
   "lib/i18n-common.ts:DRAFT_RECOVERY_I18N": "common dictionary initialization",
   "lib/i18n-common.ts:CODE_WRAP_I18N": "common dictionary initialization",
-  // `createChatI18nAdapter` feeds `@jini-ai/chat/react`'s own I18nAdapter contract (`t(key, vars)`
-  // with `{token}` interpolation), keyed by that package's strings, not by admin copy.
-  "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
+  // The dock dictionaries moved to `@jini-ai/admin`; these are the product-naming entries this app
+  // keeps and hands to the package's dock `t` / `createChatI18nAdapter` as `hostDictionary`. The
+  // package translator does the lookup (and the common-dictionary fallback), not this app.
+  "app-i18n.ts:ASSISTANT_DOCK_HOST_I18N": "host overlay for the Jini dock translator",
+  "app-i18n.ts:CHAT_PANE_HOST_I18N": "host overlay for the Jini chat adapter",
 };
 
 /** Each registered owner assembles its translator; fragments are initialization inputs only. */

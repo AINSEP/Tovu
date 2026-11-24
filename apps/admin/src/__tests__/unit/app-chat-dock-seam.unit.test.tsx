@@ -10,7 +10,7 @@ import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
 import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
-import { ASSISTANT_DOCK_DICT } from "../../components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_DICT } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 
 const useAdminLocaleHook = useHostAdminLocale;

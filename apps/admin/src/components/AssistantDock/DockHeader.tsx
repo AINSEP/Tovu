@@ -1,16 +1,20 @@
 import { useCallback, type ComponentProps } from "react";
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
+import { ChatSettingsSegmented, ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { SubagentsIndicator } from "./SubagentsIndicator";
+import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
+import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockHeaderTip } from "./DockHeaderTip";
-import { DockSettingsMenu } from "./DockSettingsMenu";
-import { dockSettingsMenuSections, type DockRuntimeSwitches } from "./dock-header-rules";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
+import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
 import { renameActiveConversation } from "./assistant-dock-props";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
-import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
+import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 
 type SubagentsIndicatorProps = ComponentProps<typeof SubagentsIndicator>;
 
@@ -78,7 +82,7 @@ export function DockHeader({
           </h2>
         </div>
         {/* Beside the conversation switcher, not under the title (owner, 2026-10-10). */}
-        <SubagentsIndicator mode={mode} agentId={agentId}
+        <SubagentsIndicator mode={mode} agentId={agentId} useSettings={useWiredAssistantSubagentsSettings}
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
         <DockHeaderTip label={t({ key: "Chats" })}>
@@ -104,8 +108,9 @@ export function DockHeader({
         </DockHeaderTip>
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
         <DockHeaderTip label={t({ key: "Settings" })}>
-          <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }) }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
-            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined} />
+          <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
+            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined}
+            useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />
         </DockHeaderTip>
       </div>
       {empty ? (

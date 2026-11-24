@@ -4,7 +4,7 @@ import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-quer
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { AdminSubagents } from "../AdminSubagents";
-import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
+import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
 import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

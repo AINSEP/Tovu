@@ -6,7 +6,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { HttpError, type AssistantConversation } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
-import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
+import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 import { useAssistantChats } from "../use-assistant-chats.hooks";
 
 /**

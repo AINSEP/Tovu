@@ -1,4 +1,5 @@
-import { createMediaImageTranslator, createMediaImageReplace } from "./media-image-extension.hooks";
+import { createMediaImageTranslator, createMediaImageReplace } from "@jini-ai/admin/shell/lib/media-image-extension.hooks";
+import { t as translateForMediaImage } from "../app-i18n";
 import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
@@ -59,7 +60,7 @@ export function MediaImageNodeView({
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
   const locale = useWiredAdminLocaleHook();
-  const t = createMediaImageTranslator({ locale });
+  const t = createMediaImageTranslator({ locale, translate: translateForMediaImage });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
   const previewSrc = isRef ? mediaApi.mediaOriginalUrl({ id: assetId }) : legacySrc;

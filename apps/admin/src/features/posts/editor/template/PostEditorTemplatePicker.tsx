@@ -1,4 +1,4 @@
-import { ViewTemplateButton } from "../../../../components/TemplateSource/ViewTemplateButton";
+import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { type Translate } from "@jini-ai/core/text";
 
@@ -60,7 +60,7 @@ export function PostEditorTemplatePicker({
               still sees the control, just inert, matching this screen's own precedent for the
               theme-with-zero-templates `<select>` below rather than the row disappearing.
               `ViewTemplateButton` (shared with `PageEditor.tsx`'s own template picker,
-              `components/TemplateSource/ViewTemplateButton.tsx`) owns the icon-only markup and
+              `@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton`) owns the icon-only markup and
               its `aria-label`/`title` — this call site only supplies what differs per editor. */}
           <ViewTemplateButton
             disabled={!templateChoice}

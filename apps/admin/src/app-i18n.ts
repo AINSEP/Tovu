@@ -1,3 +1,6 @@
+import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
+
 import { COMMON_I18N } from "./lib/i18n-common";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';
@@ -255,3 +258,161 @@ const APP_DICT: Record<string, Record<string, string>> = {
 };
 
 export const t = createDictionaryTranslator({ featureDictionary: APP_DICT }, { commonDictionary: COMMON_I18N });
+
+/**
+ * The assistant dock copy that names the product, per locale — kept here, not in the reusable
+ * package's dock dictionary. The dock's `t` (`@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n`)
+ * checks it first as its `hostDictionary`: the dock's own title, shown in the pane header, the
+ * mobile-sheet bar and as the fallback conversation title.
+ */
+const ASSISTANT_DOCK_HOST_I18N: Record<string, Record<string, string>> = {
+  es: {
+    "Tovu assistant": "Asistente de Tovu",
+  },
+  id: {
+    "Tovu assistant": "Asisten Tovu",
+  },
+  de: {
+    "Tovu assistant": "Tovu-Assistent",
+  },
+  "zh-CN": {
+    "Tovu assistant": "Tovu 助手",
+  },
+  "zh-TW": {
+    "Tovu assistant": "Tovu 助理",
+  },
+  "pt-BR": {
+    "Tovu assistant": "Assistente Tovu",
+  },
+  ru: {
+    "Tovu assistant": "Ассистент Tovu",
+  },
+  fa: {
+    "Tovu assistant": "دستیار Tovu",
+  },
+  ar: {
+    "Tovu assistant": "مساعد Tovu",
+  },
+  ja: {
+    "Tovu assistant": "Tovuアシスタント",
+  },
+  ko: {
+    "Tovu assistant": "Tovu 어시스턴트",
+  },
+  pl: {
+    "Tovu assistant": "Asystent Tovu",
+  },
+  hu: {
+    "Tovu assistant": "Tovu asszisztens",
+  },
+  fr: {
+    "Tovu assistant": "Assistant Tovu",
+  },
+  uk: {
+    "Tovu assistant": "Асистент Tovu",
+  },
+  tr: {
+    "Tovu assistant": "Tovu Asistanı",
+  },
+  th: {
+    "Tovu assistant": "ผู้ช่วย Tovu",
+  },
+  it: {
+    "Tovu assistant": "Assistente Tovu",
+  },
+  hi: {
+    "Tovu assistant": "Tovu सहायक",
+  },
+  ur: {
+    "Tovu assistant": "Tovu اسسٹنٹ",
+  },
+  bn: {
+    "Tovu assistant": "Tovu সহকারী",
+  },
+};
+
+/** What this app passes the dock's `t` beside `locale` and `key`: its product copy. */
+export const ASSISTANT_DOCK_HOST_FIELDS: { hostDictionary: Record<string, Record<string, string>> } = {
+  hostDictionary: ASSISTANT_DOCK_HOST_I18N,
+};
+
+/** The chat-pane adapter's product-naming copy: the composer footer's notice that the folder window
+ *  opened on the computer running Tovu (rendered inside `JiniChatProvider` through `useT()`). */
+const CHAT_PANE_HOST_I18N: Record<string, Record<string, string>> = {
+  es: {
+    "Folder window opened on the computer running Tovu": "Se abrió una ventana de carpetas en el equipo donde se ejecuta Tovu",
+  },
+  id: {
+    "Folder window opened on the computer running Tovu": "Jendela folder terbuka di komputer yang menjalankan Tovu",
+  },
+  de: {
+    "Folder window opened on the computer running Tovu": "Ordnerfenster auf dem Computer geöffnet, auf dem Tovu läuft",
+  },
+  "zh-CN": {
+    "Folder window opened on the computer running Tovu": "文件夹窗口已在运行 Tovu 的电脑上打开",
+  },
+  "zh-TW": {
+    "Folder window opened on the computer running Tovu": "資料夾視窗已在執行 Tovu 的電腦上開啟",
+  },
+  "pt-BR": {
+    "Folder window opened on the computer running Tovu": "Janela de pastas aberta no computador que executa o Tovu",
+  },
+  ru: {
+    "Folder window opened on the computer running Tovu": "Окно выбора папки открыто на компьютере, где работает Tovu",
+  },
+  fa: {
+    "Folder window opened on the computer running Tovu": "پنجرهٔ پوشه روی رایانه‌ای که Tovu را اجرا می‌کند باز شد",
+  },
+  ar: {
+    "Folder window opened on the computer running Tovu": "فُتحت نافذة المجلدات على الكمبيوتر الذي يشغّل Tovu",
+  },
+  ja: {
+    "Folder window opened on the computer running Tovu": "Tovu を実行しているコンピューターでフォルダーウィンドウが開きました",
+  },
+  ko: {
+    "Folder window opened on the computer running Tovu": "Tovu를 실행 중인 컴퓨터에서 폴더 창이 열렸습니다",
+  },
+  pl: {
+    "Folder window opened on the computer running Tovu": "Okno folderów otwarte na komputerze, na którym działa Tovu",
+  },
+  hu: {
+    "Folder window opened on the computer running Tovu": "A mappaablak a Tovut futtató számítógépen nyílt meg",
+  },
+  fr: {
+    "Folder window opened on the computer running Tovu": "Fenêtre de dossiers ouverte sur l’ordinateur qui exécute Tovu",
+  },
+  uk: {
+    "Folder window opened on the computer running Tovu": "Вікно вибору теки відкрито на комп’ютері, де працює Tovu",
+  },
+  tr: {
+    "Folder window opened on the computer running Tovu": "Klasör penceresi Tovu’nun çalıştığı bilgisayarda açıldı",
+  },
+  th: {
+    "Folder window opened on the computer running Tovu": "หน้าต่างโฟลเดอร์เปิดอยู่บนคอมพิวเตอร์ที่รัน Tovu",
+  },
+  it: {
+    "Folder window opened on the computer running Tovu": "Finestra delle cartelle aperta sul computer che esegue Tovu",
+  },
+  hi: {
+    "Folder window opened on the computer running Tovu": "फ़ोल्डर विंडो उस कंप्यूटर पर खुली है जिस पर Tovu चल रहा है",
+  },
+  ur: {
+    "Folder window opened on the computer running Tovu": "فولڈر ونڈو اس کمپیوٹر پر کھلی ہے جس پر Tovu چل رہا ہے",
+  },
+  bn: {
+    "Folder window opened on the computer running Tovu": "Tovu চলছে এমন কম্পিউটারে ফোল্ডার উইন্ডো খুলেছে",
+  },
+};
+
+/** Everything this app passes `createChatI18nAdapter` beside `locale`: its product copy, plus the
+ *  settings dialog's dictionaries for the two keys that dialog owns (the secret-redacted notice and
+ *  the credential-card guidance), which the reusable package cannot import itself. */
+export const CHAT_I18N_HOST_FIELDS: {
+  hostDictionary: Record<string, Record<string, string>>;
+  settingsDialogKeys: readonly string[];
+  settingsDialogDictionaries: typeof SETTINGS_DIALOG_DICTIONARIES;
+} = {
+  hostDictionary: CHAT_PANE_HOST_I18N,
+  settingsDialogKeys: [SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE],
+  settingsDialogDictionaries: SETTINGS_DIALOG_DICTIONARIES,
+};

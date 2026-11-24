@@ -7,7 +7,7 @@ import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 
 /**
  * Client report (2026-11-21, Tovu desktop): opening a post showed "Cannot read properties of null

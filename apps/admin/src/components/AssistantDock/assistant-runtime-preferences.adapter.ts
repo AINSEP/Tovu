@@ -2,10 +2,10 @@
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
 import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
 import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
-import { loadAssistantRuntimePreferences, saveAssistantRuntimePreferences } from './assistant-runtime-preferences';
+import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, loadAssistantRuntimePreferences, saveAssistantRuntimePreferences } from './assistant-runtime-preferences';
 import {
   useAssistantRuntimePreferences, type AssistantRuntimePreferencesController, type AssistantRuntimePreferencesPort,
-} from './hooks/use-assistant-runtime-preferences.hooks';
+} from '@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks';
 
 const ledger: ChatDisplayLedgerPort = {
   load: ({ namespace }) => loadNamespaceValues({ namespace }),
@@ -23,5 +23,5 @@ export const assistantRuntimePreferencesPort: AssistantRuntimePreferencesPort = 
 
 /** Composition hook used by the dock; the controller itself only receives an injected port. */
 export function useAssistantRuntimePreferencesPreference(): AssistantRuntimePreferencesController {
-  return useAssistantRuntimePreferences({ port: assistantRuntimePreferencesPort });
+  return useAssistantRuntimePreferences({ port: assistantRuntimePreferencesPort, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES });
 }

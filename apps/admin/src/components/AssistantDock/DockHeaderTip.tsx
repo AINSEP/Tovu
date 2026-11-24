@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { infoTipBubbleStyle } from "@jini-ai/ui/admin-widgets";
+import { infoTipBubbleStyle, useInfoTip } from "@jini-ai/ui/admin-widgets";
 
-import { useDockHeaderTip } from "./DockHeaderTip.hooks";
+import { useDockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks";
 
 /**
  * Wraps one dock-header icon button (close, conversations, settings) with the same white bubble
@@ -13,7 +13,7 @@ import { useDockHeaderTip } from "./DockHeaderTip.hooks";
 export function DockHeaderTip({ label, children, useTip = useDockHeaderTip }: {
   label: string; children: ReactNode; useTip?: typeof useDockHeaderTip;
 }) {
-  const tip = useTip();
+  const tip = useTip({ useTip: useInfoTip });
   return (
     <span ref={tip.anchorRef} className="dock-header-tip" {...tip.handlers}>
       {children}

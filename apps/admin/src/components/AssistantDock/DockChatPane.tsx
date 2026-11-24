@@ -5,8 +5,9 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
-import { dockSettingsMenuSections } from "./dock-header-rules";
-import { chatPaneDisplayProps } from "./chat-display-preferences";
+import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, chatPaneDisplayProps } from "./chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
@@ -254,7 +255,7 @@ export function DockChatPane({ dock }: { dock: DockState }) {
       />
       <ConfirmDialog {...conversationDelete.dialog} />
       <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={(key) => t({ key })}
-        displaySections={dockSettingsMenuSections({ t: (key) => t({ key }) }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
+        displaySections={dockSettingsMenuSections({ t: (key) => t({ key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

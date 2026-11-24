@@ -2,8 +2,8 @@
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
 import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
 import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
-import { loadChatAgentPlugins, saveChatAgentPlugins, type ChatAgentPlugins } from './chat-agent-plugin-preferences';
-import { useChatAgentPlugins, type ChatAgentPluginsController, type ChatAgentPluginsPort } from './hooks/use-chat-agent-plugins.hooks';
+import { loadChatAgentPlugins, saveChatAgentPlugins, type ChatAgentPlugins } from '@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences';
+import { useChatAgentPlugins, type ChatAgentPluginsController, type ChatAgentPluginsPort } from '@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks';
 
 /** The ledger and settings-feed operations the port is built from; production passes `ledger-slice`'s
  *  and `settings-refresh-bus`'s own functions, tests pass hand-written fakes. */
@@ -23,8 +23,8 @@ export function createChatAgentPluginsPreferencePort(
     save: async ({ namespace, scope, candidates }) => { await saveEntries({ namespace, scope, candidates }); },
   };
   return {
-    load: (_input: Record<string, never> = {}, _options = {}) => loadChatAgentPlugins({ port: ledger }),
-    save: ({ next, previous }: { next: ChatAgentPlugins; previous: ChatAgentPlugins }, _options = {}) => saveChatAgentPlugins({ next, previous, port: ledger }),
+    load: (_input: Record<string, never> = {}, _options = {}) => loadChatAgentPlugins({ port: ledger, namespace: CHAT_DISPLAY_NAMESPACE }),
+    save: ({ next, previous }: { next: ChatAgentPlugins; previous: ChatAgentPlugins }, _options = {}) => saveChatAgentPlugins({ next, previous, port: ledger, namespace: CHAT_DISPLAY_NAMESPACE }),
     subscribe: ({ listener }: { listener: () => void }, _options = {}) => subscribe(scope => {
       if (scope === null || scope.includes(CHAT_DISPLAY_NAMESPACE)) listener();
     }),
@@ -40,5 +40,5 @@ export const chatAgentPluginsPreferencePort: ChatAgentPluginsPort = createChatAg
 
 /** Composition hook used by the dock; the controller itself only receives an injected port. */
 export function useChatAgentPluginsPreference(): ChatAgentPluginsController {
-  return useChatAgentPlugins({ port: chatAgentPluginsPreferencePort });
+  return useChatAgentPlugins({ port: chatAgentPluginsPreferencePort, namespace: CHAT_DISPLAY_NAMESPACE });
 }

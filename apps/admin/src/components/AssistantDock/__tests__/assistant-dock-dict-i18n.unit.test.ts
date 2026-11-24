@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
+import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "@/app-i18n";
 
 /**
  * @file `ASSISTANT_DOCK_DICT` cross-locale coverage — same idiom as
@@ -59,6 +60,6 @@ describe("ASSISTANT_DOCK_DICT: cross-locale key parity", () => {
 describe("ASSISTANT_DOCK_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though ASSISTANT_DOCK_DICT.de never carries it", () => {
     expect(ASSISTANT_DOCK_DICT.de.Cancel).toBeUndefined();
-    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });

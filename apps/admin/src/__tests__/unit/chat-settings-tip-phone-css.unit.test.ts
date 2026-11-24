@@ -40,7 +40,7 @@ it.each([
 
 it.each([
   ".jini-chat-settings-legend .info-tip-icon::before",
-  ".dock-settings-menu-heading-row .info-tip-icon::before",
+  ".jini-dock-settings-menu-heading-row .info-tip-icon::before",
 ])("keeps the invisible 44px hit area on %s at phone width, not only on coarse pointers", (selector) => {
   expect(declarationsIn(MEDIA, selector)).toMatchObject({ inset: "-13px" });
 });

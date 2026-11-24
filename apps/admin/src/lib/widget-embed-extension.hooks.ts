@@ -5,7 +5,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { widgetsApi } from "../features/widgets/api/widgets-api";
 import { describeApiError } from "./admin-http/request";
-import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
+import type { MediaEditDialogValue } from "@jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "@jini-ai/admin/shell/lib/widget-embed-placement-content";
 

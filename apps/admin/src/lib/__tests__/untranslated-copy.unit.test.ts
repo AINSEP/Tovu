@@ -4,6 +4,7 @@ import { ADMIN_LOCALES } from "../../../../website/src/contracts/core/admin-loca
 import { COMMON_I18N } from "../i18n-common";
 import * as adminNavI18n from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import * as editorFailureI18n from "@jini-ai/admin/shell/lib/editor-failure-i18n";
+import * as assistantDockI18n from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -30,10 +31,11 @@ const MODULES: Record<string, Record<string, unknown>> = {
   ...import.meta.glob<Record<string, unknown>>(["../../**/*-i18n.ts", "../../**/*-i18n.tsx", "../i18n-common.ts", "!../../**/__tests__/**"], {
     eager: true,
   }),
-  // These two moved to @jini-ai/admin with the shell, but the admin still ships their copy, so they
+  // These moved to @jini-ai/admin with the shell, but the admin still ships their copy, so they
   // stay in this check under their former paths (the glob cannot reach a package).
   "../admin-nav-i18n.ts": adminNavI18n,
   "../editor-failure-i18n.ts": editorFailureI18n,
+  "../../components/AssistantDock/assistant-dock-i18n.ts": assistantDockI18n,
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */
