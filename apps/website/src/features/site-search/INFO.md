@@ -7,15 +7,10 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
 
 ## Responsibilities
 
-- `index-state-store.ts` — `createSqlSearchIndexStore({ kernel, now })` returns
-  `{ indexState, targets }`: `SearchIndexStatePort` and `SearchTargetPort` on the
-  tables of migration `0027_search_index` (`search_index_state`,
-  `search_index_watermarks`, `search_index_targets`) and `0028_search_index_retired`
-  (`search_index_retired`). One Kysely body for SQLite, PGlite and Postgres.
-  `promote` is a single compare-and-swap UPDATE on the building AND active
-  pointers, so `replaced` is exactly what the switch displaced; the same
-  transaction records `replaced` as retired until its index drop is confirmed.
-  `settle` is a compare-and-swap UPDATE on the observed revision and task id.
+- The SQL index-state and target stores live in Jini (`@jini-ai/search/site/index-state-store`,
+  `createSqlSearchIndexStore({ kernel, now, tables })`). `server/runtime/composition/modules/site-search.ts`
+  binds them to the content kernel and the table names of migrations `0027_search_index` and
+  `0028_search_index_retired` (`SEARCH_INDEX_TABLES`).
 - `cms-document-source.ts` — `createCmsSearchDocumentSources({ kernel, now })`:
   `post` and `page` sources (the two `kind`s of `posts`). `documentIdOf` claims
   only post.ts's `entry.published|updated|unpublished` with its own

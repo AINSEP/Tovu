@@ -7,6 +7,7 @@ import {
   type SearchProviderContext, type SearchProviderRegistry, type SearchService, type SearchSourceEvent, type SearchTarget, type SearchTargetPort,
 } from "@jini-ai/search";
 import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
+import { createSqlSearchIndexStore, type SearchIndexTables } from "@jini-ai/search/site/index-state-store";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
@@ -15,7 +16,6 @@ import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
-import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -401,6 +401,14 @@ export interface SiteSearchBindings {
   isPluginActive(required: { readonly pluginId: string }): Promise<boolean>;
 }
 
+/** The tables migrations 0027_search_index and 0028_search_index_retired create on the content database. */
+const SEARCH_INDEX_TABLES: SearchIndexTables = {
+  state: "search_index_state",
+  watermarks: "search_index_watermarks",
+  targets: "search_index_targets",
+  retired: "search_index_retired",
+};
+
 /**
  * Bind the site's content database, settings, vault, member sessions and plugin loader to the
  * runtime's ports.
@@ -415,7 +423,7 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
     sources: createCmsSearchDocumentSources({ kernel, now }),
-    ...createSqlSearchIndexStore({ kernel, now }),
+    ...createSqlSearchIndexStore({ kernel, now, tables: SEARCH_INDEX_TABLES }),
     access: createCmsSearchAccessPort({ kernel, now }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {
