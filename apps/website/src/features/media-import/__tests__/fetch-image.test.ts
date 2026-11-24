@@ -61,6 +61,11 @@ const MP4_HEADER = Buffer.concat([
  *  `EBML_SIGNATURE`, `0x1A 0x45 0xDF 0xA3`, is the only byte sequence `isWebm` checks). */
 const WEBM_HEADER = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]);
 
+/** `ftyp` headers whose MAJOR brand is `qt  ` / `M4V ` — sniff as `video/quicktime` / `video/x-m4v` (iPhone `.mov`, Apple `.m4v`). */
+const ftypHeader = (brand: string): Buffer => Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x14]), Buffer.from(`ftyp${brand}`, "ascii"), Buffer.from([0x00, 0x00, 0x02, 0x00]), Buffer.from(brand, "ascii")]);
+const MOV_HEADER = ftypHeader("qt  ");
+const M4V_HEADER = ftypHeader("M4V ");
+
 const HTML_BODY = Buffer.from("<!DOCTYPE html>\n<html><head><title>Sign in</title></head><body>nope</body></html>", "utf8");
 const SVG_BODY = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', "utf8");
 
@@ -217,6 +222,17 @@ test("a WebM served with no content-type header round-trips byte-for-byte and sn
   assert.equal(fetched.contentType, "video/webm");
 });
 
+for (const [label, header, type] of [[".mov", MOV_HEADER, "video/quicktime"], [".m4v", M4V_HEADER, "video/x-m4v"]] as const) {
+  test(`a ${label} (${type}) round-trips byte-for-byte through the URL import allow-list`, async () => {
+    const client = new FakeHttpClient([imageResponse(header, { headers: {} })]);
+
+    const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
+
+    assert.deepStrictEqual(Buffer.from(fetched.bytes), header);
+    assert.equal(fetched.contentType, type);
+  });
+}
+
 test("an SVG served as image/png is detected for downstream ingest sanitization", async () => {
   const client = new FakeHttpClient([imageResponse(SVG_BODY, { headers: { "content-type": "image/png" } })]);
 
@@ -234,7 +250,7 @@ test("a '.png.html' double-extension URL is decided by its bytes, not by either 
 test("IMPORTABLE_CONTENT_TYPES includes SVG for sanitized ingest alongside raster images and video", () => {
   assert.deepEqual(
     [...IMPORTABLE_CONTENT_TYPES].sort(),
-    ["image/avif", "image/gif", "image/jpeg", "image/png", "image/svg+xml", "image/webp", "video/mp4", "video/webm"]
+    ["image/avif", "image/gif", "image/jpeg", "image/png", "image/svg+xml", "image/webp", "video/mp4", "video/quicktime", "video/webm", "video/x-m4v"]
   );
 });
 
