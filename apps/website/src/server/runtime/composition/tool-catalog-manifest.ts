@@ -131,7 +131,7 @@ import { contributeIdentityTools } from "#src/features/identity/tool-registratio
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
 import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
-import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";

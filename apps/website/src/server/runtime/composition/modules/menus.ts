@@ -7,6 +7,7 @@ import { menuGetRoute } from "@jini-ai/cms/admin-http/routes/menus/get-by-id";
 import { menuListRoute } from "@jini-ai/cms/admin-http/routes/menus/list";
 import { menuUpdateTreeRoute } from "@jini-ai/cms/admin-http/routes/menus/update-tree";
 import { normalizeMenuHtml } from "@jini-ai/cms/navigation/node";
+import { trashMenu, type TrashMenuInput } from "@jini-ai/cms/navigation/site/trash-menu";
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -98,11 +99,12 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, 
   ));
 };
 
-/** The spec runs the trash move itself over this request's repo, `removeMenu` (the generic trash
- *  pipeline) and clock. */
+/** The host binds the trash step over this request's repo, `removeMenu` (the generic trash
+ *  pipeline) and clock; the spec calls it. */
 export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   const deleteDeps = {
-    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, removeMenu: deps.removeMenu, clock: deps.clock, outwardErrorMessage,
+    ...menuPortDeps({ deps }), outwardErrorMessage,
+    trashMenu: (input: TrashMenuInput) => trashMenu(input, { menuRepo: deps.menuRepo, remove: deps.removeMenu, clock: deps.clock }),
   };
   mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/menus/delete", authorization: "guarded" }));
 };

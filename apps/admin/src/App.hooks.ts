@@ -750,7 +750,7 @@ export function buildAdminCapabilityExecutors(
   return {
     "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
       if (capabilityId === PUBLISH_CONTENT_CAPABILITY.id) {
-        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput(input)) });
+        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput({ input })) });
       }
       if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
         throw new Error(`no admin capability serves "${capabilityId}"`);

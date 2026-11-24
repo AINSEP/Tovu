@@ -14,7 +14,7 @@ import { fieldMaxChars } from "@jini-ai/cms/forms/field-length-caps";
 import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, FORM_PRESENTATION_NAMES } from "#src/server/inbound/public-http/http/site/form-wire-policy";
 
 /** The legacy class names the entries widgets always emitted; the site's theme CSS targets them. */

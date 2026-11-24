@@ -2,7 +2,7 @@ import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express } from "express";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import {
   publishTrustChallengeRoute,
   publishTrustIdentityRoute,
