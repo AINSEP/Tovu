@@ -1,19 +1,16 @@
 import type { Express } from "express";
 import { detectAgents, listProviderModels, testProviderConnection } from "@jini-ai/agent-runtime";
-import { detectAgentsRoute } from "@jini-ai/cms/admin-http/routes/assistant/detect-agents";
-import { listModelsRoute } from "@jini-ai/cms/admin-http/routes/assistant/list-models";
-import type { ProbeCredentialResolvers } from "@jini-ai/cms/admin-http/routes/assistant/stored-credential-probe";
-import { testAgentRoute } from "@jini-ai/cms/admin-http/routes/assistant/test-agent";
-import { testConnectionRoute } from "@jini-ai/cms/admin-http/routes/assistant/test-connection";
-import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
-import { ADMIN_ASSISTANT_PERMISSION, resolveExecutionCredential, resolveSiteAssistantApiKey } from "#src/assistant/index";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { assistantDetectAgentsRoute, type DetectAgentsFn } from "@jini-ai/cms/admin-http/routes/assistant/detect-agents";
 import { assistantListModelsRoute, type ListModelsFn } from "@jini-ai/cms/admin-http/routes/assistant/list-models";
 import { assistantTestAgentRoute, type TestAgentFn } from "@jini-ai/cms/admin-http/routes/assistant/test-agent";
 import { assistantTestConnectionRoute, type TestConnectionFn } from "@jini-ai/cms/admin-http/routes/assistant/test-connection";
 import type { ResolveProbeCredentialFn } from "@jini-ai/cms/admin-http/routes/assistant/execution-shared";
-import { type AdminJsonRouteMountOptions, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+
+import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
+import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
+import {
+  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
+} from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveProbeCredential } from "#src/server/inbound/admin-http/routes/assistant/stored-credential-probe";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -39,12 +36,6 @@ import type { ServerModuleHandle } from "./types.js";
  * `ADMIN_ASSISTANT_PERMISSION` and live in the same route directory because
  * they are both part of the AI Assistant admin section, not because they
  * share dependencies.
- *
- * All 4 routes are Jini route specs (`@jini-ai/cms/admin-http/routes/assistant/*`) mounted behind the
- * admin ports. The per-agent check's registrar binds the detection boundary: an injected
- * `deps.detectAgents`, else the assistant inventory's runtime, else Jini's PATH/process probe —
- * resolved per request, as before. The probe registrars bind the stored-credential readers, the
- * runtime's DNS/transport seams and Tovu's empty-key copy.
  */
 
 /**

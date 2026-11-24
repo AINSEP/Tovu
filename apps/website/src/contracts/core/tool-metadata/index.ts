@@ -52,7 +52,7 @@ import { toolMetadata as site_guide } from './site-guide.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
 import { toolMetadata as sites } from './sites.js';
 import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
-import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/mail-status';
+import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';
 import { toolMetadata as taxonomy } from '@jini-ai/cms/taxonomy/site/tool-metadata';
 import { toolMetadata as theme } from './theme.js';
 import { toolMetadata as trash } from './trash.js';

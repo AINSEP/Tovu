@@ -25,12 +25,7 @@ import { serverLogsRoute } from "@jini-ai/cms/admin-http/routes/system/server-lo
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 import type { ServerLogFilters } from "@jini-ai/core/contracts/site/platform-server-logs";
-import { registerAdminMailStatusRoute } from "../../../inbound/admin-http/routes/system/mail-status.js";
-import { registerAdminMailProviderRoutes } from "../../../inbound/admin-http/routes/system/mail-providers.js";
-import { registerAdminMailDnsRoutes } from "../../../inbound/admin-http/routes/system/mail-dns.js";
-import { registerAdminMailTestSendRoute } from "../../../inbound/admin-http/routes/system/mail-test-send.js";
-import { registerAdminMailActivityRoutes } from "../../../inbound/admin-http/routes/system/mail-activity.js";
-import { registerAdminServerLogsRoute } from "../../../inbound/admin-http/routes/system/server-logs.js";
+import { registerAdminMailStatusRoute, registerAdminMailProviderRoutes, registerAdminMailDnsRoutes, registerAdminMailTestSendRoute, registerAdminMailActivityRoutes } from "../modules/system-mail.js";
 import { createDnsChangeDepsFactory } from "../dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { assistantDaemonRestartRoute, type AdminAssistantDaemonDeps } from "@jini-ai/cms/admin-http/routes/system/assistant-daemon";
@@ -100,7 +95,7 @@ export function registerAdminServerLogsRoute(
   const logs = optional.logs ?? processServerLogSource;
   mountAdminJsonRoute({ app, spec: serverLogsRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize,
     parseServerLogFilters, readServerLogs: (filters) => readServerLogs({ logs }, filters as ServerLogFilters),
-    isServerLogFilterError: (error): error is Error => error instanceof ServerLogFilterError } },
+    serverLogFilterReply: ({ error }) => (error instanceof ServerLogFilterError ? error.message : undefined) } },
   { authorization: "direct", failure: { operation: "routes/system/server-logs", code: "INTERNAL_ERROR" } });
 }
 

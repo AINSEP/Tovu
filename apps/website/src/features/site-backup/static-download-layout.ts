@@ -1,7 +1,11 @@
 import path from "node:path";
 import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
 import { downloadDocumentBase } from "@jini-ai/devops/backup/site/static-download-html";
-import * as sourceEdits from "#src/platform/html/source-edits";
+import * as htmlSourceEdits from "@jini-ai/cms/html/site/source-edits";
+import { escapeHtml } from "@jini-ai/core/text";
+
+/** The HTML editor the backup package injects: the source-located edits plus this host's attribute escaping. */
+const sourceEdits = { ...htmlSourceEdits, escapeHtml };
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
 import { allocateStaticExportThemes, type StaticExportTheme } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";

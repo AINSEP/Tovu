@@ -1,27 +1,6 @@
-import { deleteExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-execution-credential";
-import { deleteSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-site-credential";
-import { getExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-execution-credential";
-import { getAssistantSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-settings";
-import { getSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-site-credential";
-import { putExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-execution-credential";
-import { putAssistantSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-settings";
-import { putSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-site-credential";
-import type { AssistantCredentialErrorKind } from "@jini-ai/cms/admin-http/routes/assistant/shared";
-import {
-  ADMIN_ASSISTANT_PERMISSION, ExecutionCredentialSecretStoreUnconfiguredError, ExecutionCredentialValidationError,
-  PublicAssistantSettingsValidationError, SiteAssistantCredentialValidationError, SiteAssistantSecretStoreUnconfiguredError,
-  deleteExecutionCredential, deleteSiteAssistantCredential, getExecutionCredential, getPublicAssistantSettings,
-  getSiteAssistantCredential, setExecutionCredential, setPublicAssistantSettings, setSiteAssistantCredential,
-} from "#src/assistant/index";
-import { ValueValidationFailedError } from "#src/features/settings/index";
-import { configureVisitorToolsRoute, listVisitorToolsRoute, type VisitorToolsErrorKind } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
 import type { Express } from "express";
-import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
-import type { VisitorToolsManagementPort } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
-import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
-import type { RouteDeps } from "#src/server/routes/types";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { ForbiddenError, ValueValidationFailedError as CoreValueValidationFailedError } from "@jini-ai/core/settings";
+
 import { assistantDeleteExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-execution-credential";
 import { assistantDeleteSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-site-credential";
 import { assistantGetExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-execution-credential";
@@ -35,8 +14,20 @@ import {
   assistantVisitorToolsConfigureRoute, assistantVisitorToolsListRoute, type VisitorToolsConfigureRouteDeps, type VisitorToolsConfigureRoutePort,
   type VisitorToolsListRouteDeps, type VisitorToolsListRoutePort,
 } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
-import { type AdminJsonRouteMountOptions, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import {
+  ADMIN_ASSISTANT_PERMISSION, ExecutionCredentialSecretStoreUnconfiguredError, ExecutionCredentialValidationError,
+  PublicAssistantSettingsValidationError, SiteAssistantCredentialValidationError, SiteAssistantSecretStoreUnconfiguredError,
+  deleteExecutionCredential, deleteSiteAssistantCredential, getExecutionCredential, getPublicAssistantSettings, getSiteAssistantCredential,
+  setExecutionCredential, setPublicAssistantSettings, setSiteAssistantCredential,
+} from "#src/assistant/index";
+import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
+import type { VisitorToolsManagementPort } from "#src/contracts/site-assistant/visitor-tools-management";
+import { ValueValidationFailedError, VisitorToolsRevisionConflictError } from "#src/features/settings/index";
+import {
+  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
+} from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -56,11 +47,6 @@ import type { ServerModuleHandle } from "./types.js";
  * route's own small deps from the slice below. The Tovu-owned pieces are injected here: the settings
  * ledger read/write, the sealed credential stores, `ADMIN_ASSISTANT_PERMISSION`, the visitor-tools
  * service, and every error class with its refusal copy (the `TOVU_SITE_KEY` operator hints).
- *
- * The 8 settings/credential routes are Jini route specs (`@jini-ai/cms/admin-http/routes/assistant/*`)
- * mounted behind the admin ports; the registrars below bind Tovu's services, permission name and
- * `TOVU_SITE_KEY` copy into each spec's small deps. Visitor tools (GET/PUT) is a pair of Jini specs too;
- * its registrar binds the service and classifies Tovu's typed visitor-tools errors.
  *
  * Distinct from `modules/assistant.ts`, which is the session-gated reverse proxy in front of the
  * agent-daemon process. The two share a word and nothing else: this one holds repos and serves

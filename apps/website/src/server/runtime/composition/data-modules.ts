@@ -2,8 +2,8 @@
  * Never populate this registry from an imported archive or activate imported plugins. */
 import { createNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { COMMENTS_DATA_MODULE } from "../../../features/comments/types.js";
-import { STORE_MANIFEST } from "@jini-ai/plugins/site/store/manifest";
-import { LIPAY_MANIFEST } from "@jini-ai/plugins/site/lipay/manifest";
+import { createStoreManifest } from "@jini-ai/plugins/site/store/manifest";
+import { createLipayManifest } from "@jini-ai/plugins/site/lipay/manifest";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 /** The stored provenance publisher of every bundled data module. `checkNamespaceAdoption` compares it
@@ -46,4 +46,4 @@ export const FIRST_PARTY_PUBLISHER = "tovu-core";
  * `declareDataModule` and {@link FIRST_PARTY_PUBLISHER}, and `createNewsletterDataModule` is in {@link FIRST_PARTY_DATA_MODULES}.
  */
 
-export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [STORE_MANIFEST, LIPAY_MANIFEST, createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER }), COMMENTS_DATA_MODULE];
+export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [createStoreManifest({ publisher: FIRST_PARTY_PUBLISHER }), createLipayManifest({ publisher: FIRST_PARTY_PUBLISHER }), createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER }), COMMENTS_DATA_MODULE];

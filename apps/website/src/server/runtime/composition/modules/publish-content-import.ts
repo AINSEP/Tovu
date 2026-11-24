@@ -12,7 +12,8 @@ import {
 } from "@jini-ai/cms/admin-http/routes/publish-content/import";
 import { executePublishContentImport } from "@jini-ai/cms/publish/content/execute-import";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
-import { authorizeForHooks, confirm, execute, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";

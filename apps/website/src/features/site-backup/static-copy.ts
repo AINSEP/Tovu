@@ -4,7 +4,11 @@ import path from "node:path";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import { shareFileStem } from "./share-service.js";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
-import * as sourceEdits from "#src/platform/html/source-edits";
+import * as htmlSourceEdits from "@jini-ai/cms/html/site/source-edits";
+import { escapeHtml } from "@jini-ai/core/text";
+
+/** The HTML editor the backup package injects: the source-located edits plus this host's attribute escaping. */
+const sourceEdits = { ...htmlSourceEdits, escapeHtml };
 
 export interface StaticSiteMetadata {
   exportedAt: string;
