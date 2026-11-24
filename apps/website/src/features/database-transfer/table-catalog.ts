@@ -2,107 +2,84 @@ import { is, SQL } from "drizzle-orm";
 import { getTableConfig, PgDialect, type IndexedColumn, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
-import { quoteIdent, type SourceColumn, type SourceTableLayout, type TransferSource } from "@jini-ai/db/transfer";
+import {
+  collectCatalogSchemaTables, collectCatalogTransferTables, planCatalogSnapshotTables, planIntrospectedSnapshotTables,
+  type CatalogIntrospection, type CatalogSchemaPorts, type SnapshotTablePlan, type TransferSource, type TransferTable,
+} from "@jini-ai/db/transfer";
 
 /**
- * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}
- * (with its full Postgres layout: columns, defaults, identity, primary key, indexes, foreign keys and
- * checks) or left out with a reason — never silently dropped ({@link planSnapshotTables}).
+ * @file Tovu's binding of Jini's generic transfer catalog (`@jini-ai/db/transfer`): what a copy carries.
+ * Every table in the site's snapshot is either a transfer table (full Postgres layout) or left out with a
+ * reason — never silently dropped. Jini owns the projection and planning; this file supplies the drizzle
+ * introspection port, the exclusion tables ({@link EXCLUDED_CORE_TABLES}) and Tovu's table/ledger names.
  *
  * - Core tables take their layout from `schema.postgres.ts` (generated from the SQLite schema).
  * - Every other table (a plugin's `p_<id>__*` tables, for example) takes the layout the snapshot
- *   itself declares, translated by SQLite type affinity: INTEGER -> bigint (a lone INTEGER primary key
- *   is SQLite's auto-numbered row id, so it becomes an identity column), REAL -> double precision,
- *   BLOB -> bytea, anything else -> text. Only plain literal defaults are carried.
+ *   itself declares (see `introspectedTable` in Jini).
  */
 
-// Transfer types and affinity/exclusion rationale now live in @jini-ai/db/transfer.
-// DDL and constraint rationale live there too; identifier quoting uses the shared owner directly.
-import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
 
-function quoteLiteral({ value }: { value: string }, _options = {}): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
-
-function coreDefault(column: PgColumn): string | undefined {
-  if (!column.hasDefault || column.default === undefined) return undefined;
-  const value: unknown = column.default;
-  if (is(value, SQL)) return dialect.sqlToQuery(value).sql;
-  if (typeof value === "string") return quoteLiteral({ value });
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  throw new Error(`schema.postgres.ts: '${column.name}' has a default this copier cannot write`);
-}
-
-function coreColumn(column: PgColumn): TransferColumn {
-  const base = { name: column.name, sqlType: column.getSQLType(), notNull: column.notNull };
-  const fallback = coreDefault(column);
-  const identity = (column as unknown as { generatedIdentity?: { type: "always" | "byDefault" } }).generatedIdentity;
-  return {
-    ...base,
-    ...(fallback === undefined ? {} : { default: fallback }),
-    ...(identity === undefined ? {} : { identity: identity.type === "always" ? "ALWAYS" : "BY DEFAULT" }),
-  };
-}
-
-/** Project the trusted Drizzle schema into Jini's DDL contract; plugin SQL never enters here.
- * @complexity O(index terms + columns + unique constraints); no I/O or source mutation.
- */
-function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
-  const declared = cfg.indexes.map((index) => ({
-    name: index.config.name ?? `${cfg.name}_idx`,
-    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => {
-      const name = (column as IndexedColumn).name;
-      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
-      return name;
-    }),
-    // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
-    // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
-    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column => {
-      if (is(column, SQL)) return `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})`;
-      const name = (column as IndexedColumn).name;
-      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
-      return quoteIdent({ name });
-    }) } : {}),
-    unique: index.config.unique,
-    // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
-    ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),
-  }));
-  const uniqueColumns = cfg.columns.filter((column) => column.isUnique).map((column) => ({ name: column.uniqueName ?? `${cfg.name}_${column.name}_unique`, columns: [column.name], unique: true }));
-  const uniqueConstraints = cfg.uniqueConstraints.map((constraint) => ({ name: constraint.getName() ?? `${cfg.name}_unique`, columns: constraint.columns.map((column) => column.name), unique: true }));
-  return [...declared, ...uniqueColumns, ...uniqueConstraints];
-}
-
-function coreTable(table: PgTable): TransferTable {
-  const cfg = getTableConfig(table);
-  const inline = cfg.columns.filter((column) => column.primary).map((column) => column.name);
-  const composite = cfg.primaryKeys.flatMap((pk) => pk.columns.map((column) => column.name));
-  const keep = PARTIALLY_EXCLUDED_TABLES[cfg.name]?.keep;
-  return {
-    name: cfg.name,
-    columns: cfg.columns.map(coreColumn),
-    primaryKey: inline.length > 0 ? inline : composite,
-    ...(keep === undefined ? {} : { keep }),
-    indexes: coreIndexes(cfg),
-    foreignKeys: cfg.foreignKeys.map((fk) => {
-      const reference = fk.reference();
-      return {
-        name: fk.getName(),
-        columns: reference.columns.map((column) => column.name),
-        foreignTable: getTableConfig(reference.foreignTable).name,
-        foreignColumns: reference.foreignColumns.map((column) => column.name),
-        onDelete: fk.onDelete ?? "no action",
-        onUpdate: fk.onUpdate ?? "no action",
-      };
-    }),
-    checks: cfg.checks.map((check) => ({ name: check.name, sql: dialect.sqlToQuery(check.value).sql })),
-  };
-}
+/** Reads drizzle's Postgres table config into the neutral shape Jini's catalog consumes. */
+const drizzleIntrospection: CatalogIntrospection = {
+  tableName: (table) => getTableConfig(table as PgTable).name,
+  isTable: (value) => Symbol.for("drizzle:IsDrizzleTable") in (value as object),
+  isSql: (value) => is(value, SQL),
+  renderSql: ({ value, indexTerm }) => indexTerm === true
+    ? dialect.sqlToQuery(new SQL((value as SQL).queryChunks).inlineParams(), "indexes").sql
+    : dialect.sqlToQuery(value as SQL).sql,
+  tableConfig: (table) => {
+    const cfg = getTableConfig(table as PgTable);
+    return {
+      name: cfg.name,
+      columns: cfg.columns.map((column: PgColumn) => {
+        const identity = (column as unknown as { generatedIdentity?: { type: "always" | "byDefault" } }).generatedIdentity;
+        return {
+          name: column.name, sqlType: column.getSQLType(), notNull: column.notNull, primary: column.primary,
+          isUnique: column.isUnique, uniqueName: column.uniqueName, hasDefault: column.hasDefault, default: column.default,
+          ...(identity === undefined ? {} : { identity: identity.type }),
+        };
+      }),
+      indexes: cfg.indexes.map((index) => ({
+        name: index.config.name,
+        // Drizzle's index terms are a column or an SQL expression.
+        terms: index.config.columns.map((column) => is(column, SQL) ? { kind: "sql" as const, sql: column } : { kind: "column" as const, name: (column as IndexedColumn).name }),
+        unique: index.config.unique,
+        where: index.config.where,
+      })),
+      uniqueConstraints: cfg.uniqueConstraints.map((constraint) => ({ name: constraint.getName(), columns: constraint.columns.map((column) => column.name) })),
+      primaryKeys: cfg.primaryKeys.map((pk) => ({ columns: pk.columns.map((column) => column.name) })),
+      foreignKeys: () => cfg.foreignKeys.map((fk) => {
+        const reference = fk.reference();
+        return {
+          name: fk.getName(),
+          columns: reference.columns.map((column) => column.name),
+          foreignTable: getTableConfig(reference.foreignTable).name,
+          foreignColumns: reference.foreignColumns.map((column) => column.name),
+          onDelete: fk.onDelete,
+          onUpdate: fk.onUpdate,
+        };
+      }),
+      checks: cfg.checks.map((check) => ({ name: check.name, value: check.value })),
+    };
+  },
+};
 
 export interface CoreTableCatalogPorts {
   schema: Readonly<Record<string, PgTable | undefined>>;
   copyOrder: () => readonly string[];
   derivedNames: ReadonlySet<string>;
+}
+
+const EXCLUDED_TABLE_REASONS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]]),
+);
+
+function jiniCatalog({ catalog }: { catalog: CoreTableCatalogPorts }, _optional = {}): CatalogSchemaPorts {
+  return {
+    introspection: drizzleIntrospection, schema: catalog.schema, copyOrder: catalog.copyOrder, derivedNames: catalog.derivedNames,
+    schemaLabel: "schema.postgres.ts", partiallyExcluded: PARTIALLY_EXCLUDED_TABLES, excludedTables: EXCLUDED_TABLE_REASONS,
+  };
 }
 
 /**
@@ -111,13 +88,7 @@ export interface CoreTableCatalogPorts {
  * @complexity O(tables + foreign keys).
  */
 export function collectTransferTables({ catalog }: { catalog: CoreTableCatalogPorts }, _optional: Record<string, never> = {}): TransferTable[] {
-  const byExportName = catalog.schema;
-  return catalog.copyOrder().flatMap((exportName) => {
-    const table = byExportName[exportName];
-    if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
-    if (getTableConfig(table).name in EXCLUDED_CORE_TABLES) return [];
-    return [coreTable(table)];
-  });
+  return collectCatalogTransferTables({ catalog: jiniCatalog({ catalog }) });
 }
 
 /**
@@ -127,21 +98,7 @@ export function collectTransferTables({ catalog }: { catalog: CoreTableCatalogPo
  * @complexity O(tables + foreign keys).
  */
 export function collectSchemaTables({ catalog }: { catalog: CoreTableCatalogPorts }, _optional: Record<string, never> = {}): TransferTable[] {
-  const byExportName = catalog.schema;
-  return catalog.copyOrder().map((exportName) => {
-    const table = byExportName[exportName];
-    if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
-    return coreTable(table);
-  });
-}
-
-/** Every SQL table name `schema.postgres.ts` declares, copied or not. */
-function coreTableNames(schema: CoreTableCatalogPorts["schema"]): Set<string> {
-  const names = new Set<string>();
-  for (const value of Object.values(schema) as unknown[]) {
-    if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in value) names.add(getTableConfig(value as PgTable).name);
-  }
-  return names;
+  return collectCatalogSchemaTables({ catalog: jiniCatalog({ catalog }) });
 }
 
 /** Migration ledgers stay behind: the target's runner owns its applied history. */
@@ -157,26 +114,12 @@ const CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"]
  */
 const LEGACY_CONTENT_CHAT_REASON = "conversations are copied from chat.db; chat history still left in content.db from before the chat.db split is not copied";
 export function planSnapshotTables({ source, catalog }: { source: TransferSource; catalog: CoreTableCatalogPorts }, _optional = {}): SnapshotTablePlan {
-  return planGenericSnapshot({ source, policy: {
-    coreTables: collectTransferTables({ catalog }), coreNames: coreTableNames(catalog.schema),
-    excludedTables: {
-      ...Object.fromEntries(Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]])),
-      ...Object.fromEntries(CHAT_TABLES.map(name => [name, LEGACY_CONTENT_CHAT_REASON])),
-    },
-    derivedNames: catalog.derivedNames, migrationLedgers: MIGRATION_LEDGERS,
+  return planCatalogSnapshotTables({ source, catalog: jiniCatalog({ catalog }), policy: {
+    migrationLedgers: MIGRATION_LEDGERS, foreignOwnedTables: CHAT_TABLES, foreignOwnedReason: LEGACY_CONTENT_CHAT_REASON,
     bookkeepingPrefixes: ["sqlite_", "_plugin_", "_vault_backup_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
   } });
 }
 /** chat.db's raw-SQL schema is introspected separately; never use content's Drizzle catalog here. */
 export function planChatSnapshotTables(source: TransferSource): SnapshotTablePlan {
-  const plan = planGenericSnapshot({ source, policy: {
-    coreTables: [], coreNames: new Set(), excludedTables: {}, derivedNames: new Set(),
-    migrationLedgers: MIGRATION_LEDGERS, bookkeepingPrefixes: ["sqlite_", "_plugin_"],
-    // Chat transcript/session columns are data, not credential records; copy all three raw-SQL tables.
-    secretColumnPattern: /(?!)/,
-  } });
-  return { ...plan, tables: [...plan.tables].sort((a, b) => {
-    const rank = ({ name }: { name: string }, _options = {}) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
-    return rank({ name: a.name }) - rank({ name: b.name }) || a.name.localeCompare(b.name);
-  }) };
+  return planIntrospectedSnapshotTables({ source, ownedTables: CHAT_TABLES, migrationLedgers: MIGRATION_LEDGERS, bookkeepingPrefixes: ["sqlite_", "_plugin_"] });
 }
