@@ -39,7 +39,7 @@ test("a face that cannot follow logs the same [agent-plugins] server line as bef
   const lines: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { lines.push(args); });
   const failing: ProviderFacePorts = { ...fakeFaces({}, { metrics: "metrics-provider" }).ports, reconcileFace: async () => { throw new Error("disk full"); } };
-  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: failing, warn: warnProviderFace });
+  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: failing, reportFollowFailure: warnProviderFace });
   await repo.save(row("metrics-provider", true));
   assert.deepEqual(lines, [["[agent-plugins] the assistant face of 'metrics-provider' could not follow it; the next start retries: disk full"]]);
 });
@@ -69,7 +69,7 @@ test("production ports read the shipped links and switch the real activation rec
     [["opentelemetry", "observability-opentelemetry"], ["posthog", "analytics-posthog"], ["sentry", "observability-sentry"]]);
   assert.equal(links.has("vercel"), false);
   assert.equal(await ports.isFaceActive({ pluginId: "posthog" }), false, "bundled faces seed inactive");
-  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports, warn: warnProviderFace });
+  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports, reportFollowFailure: warnProviderFace });
   await repo.save(row("analytics-posthog", true));
   // These shipped faces are "Soon" plugins (`soon-lock.ts`, owner 2026-11-10): locked off, so the
   // real record stays off even when the provider plugin is switched on.
@@ -92,7 +92,7 @@ test("a delayed older mirror reads current provider state inside the lifecycle o
       if (++scans === 1) { started.resolve(); await release.promise; }
       return new Map([["face", "provider"]]);
     } };
-    const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports, warn: warnProviderFace });
+    const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports, reportFollowFailure: warnProviderFace });
     const earlier = repo.save(row("provider", !finalEnabled));
     await started.promise;
     await repo.save(row("provider", finalEnabled));

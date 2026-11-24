@@ -37,7 +37,7 @@ export function composeStoreBasics(required: ComposeStoreBasicsRequired, _option
     log: entry => console.error("[tool-audit]", entry) });
   // One vendor, one switch (owner 2026-10-25): a provider plugin's linked agent plugin face follows
   // every write of its activation row (`provider-plugin-link.ts`).
-  const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId, warn: warnProviderFace,
+  const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId, reportFollowFailure: warnProviderFace,
     ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle }) });
   return { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo };
 }

@@ -211,7 +211,7 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
   // Same one-switch rule as the SQLite composition (deps.ts): a provider plugin's linked agent plugin
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
-  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id, warn: warnProviderFace,
+  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id, reportFollowFailure: warnProviderFace,
     ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root, ...providerFaceLifecycle }) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => references.routeDeps().pluginHost,

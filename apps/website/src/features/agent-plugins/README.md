@@ -28,7 +28,7 @@ card identity, product copy and the bindings that hand them to the portable Jini
   `lifecycle.ts`'s `listInstalledPlugins`, `readBundledAgentPluginDigests`, `preferBundledAgentPluginDigests`,
   `readTrustedPluginFile`), spread into `bindProviderFacePorts` at every call site (`bootstrap.ts`,
   `store-basics.ts`, `app.ts`, `agent-plugin-service-ports.ts`, `set-enabled.ts`); `warnProviderFace` (the
-  `[agent-plugins]`-prefixed `console.warn` line) passed as `followProviderActivations`' `warn` in
+  `[agent-plugins]`-prefixed `console.warn` line) passed as `followProviderActivations`' `reportFollowFailure` in
   `store-basics.ts` and `app.ts`; and `AgentPluginLinkedError`, whose copy names Tovu's real switch.
 - `@jini-ai/agent-plugins/site/host-plugin-guidance`: `host-plugin-guidance.ts` keeps `agentPluginOverlaysDir`
   (product root / `TOVU_AGENT_PLUGIN_OVERLAYS_DIR`, re-exported by `composition/site-paths.ts`) and
