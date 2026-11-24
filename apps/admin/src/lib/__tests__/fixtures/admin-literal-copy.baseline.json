@@ -43,20 +43,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/collections/ContentTypeFieldsSection.tsx",
-      "line": 48,
-      "kind": "placeholder",
-      "text": "e.g. prep_time",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
-      "file": "features/collections/NewContentTypeDialog.tsx",
-      "line": 48,
-      "kind": "placeholder",
-      "text": "e.g. recipe",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "features/email/EmailSenderTab.tsx",
       "line": 59,
       "kind": "placeholder",
