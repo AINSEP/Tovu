@@ -4969,6 +4969,18 @@
     {
       "id": "8ba488396f4a",
       "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts."
+    },
+    {
+      "id": "3feb345f9e19",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/contract.ts; only the host path to the admin API client is reworded (guard N2)."
+    },
+    {
+      "id": "4829953424c4",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/contract.ts (overwrite-capability field doc); host build wording neutralised (guard N1)."
+    },
+    {
+      "id": "b82de0671a46",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts (@file Task 11 header); host admin path reworded (guard N2)."
     }
   ]
 }
