@@ -529,7 +529,7 @@ export function localDateTimeInputToIso({ value }: { value: string }, _options: 
 }
 
 /** Whether a published row is still waiting for its go-live time — the admin mirror of the server's
- *  `isScheduledAt` (`@jini-ai/core/contracts/site/scheduled-publish`). @complexity O(1). */
+ *  `isScheduledAt` (`@jini-ai/core/scheduled-publish`). @complexity O(1). */
 export function isScheduledPost({ input, nowMs }: { input: { status: "draft" | "published"; publishAt: string | null }; nowMs: number }, _options: Record<string, never> = {}): boolean {
   return input.status === "published" && input.publishAt !== null && Date.parse(input.publishAt) > nowMs;
 }
