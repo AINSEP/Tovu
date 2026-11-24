@@ -2,8 +2,7 @@
 
 ## Wiring
 
-- `resolveMediaPublicUrls` is imported from `tool-registrations.ts` (its owner) by
-  `server/runtime/composition/modules/media.ts` and the admin media routes
+- `public-urls.ts` binds the host's content-type store and transform repo to Jini's `@jini-ai/cms/media/site/public-urls` (rendition selection, batched lookups); `tool-registrations.ts`, `server/runtime/composition/modules/media.ts` and the admin media routes
   (`list.ts`, `import-url.ts`, `stored-media-response.ts`).
 - `SqlMediaProviderCredentialRepo` (`media-provider-credential-repo.ts`) binds the composed
   content kernel to Jini's `SqlSecretsVaultRepo`; it is constructed directly

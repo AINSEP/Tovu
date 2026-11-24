@@ -6,7 +6,7 @@ import type { MediaRecord, TransformDefinitionRecord, TransformDefinitionRepoPor
 import { InMemoryTransformDefinitionRepo, registerTransform } from "../index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
-import { resolveMediaPublicUrls } from "../tool-registrations.js";
+import { resolveMediaPublicUrls } from "../public-urls.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

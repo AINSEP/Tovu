@@ -83,7 +83,7 @@ import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media"
  * on the way out. That distinction was real but not a reason to reject the request: `media_upload_asset`
  * already lets an agent put an arbitrary video's bytes in the library today (it accepts
  * `DEFAULT_ALLOWED_MIME_TYPES` verbatim, video included — `@jini-ai/cms/media`'s `agent-tools.ts`),
- * and `resolveMediaPublicUrls` (`features/media/tool-registrations.ts`) already branches on the
+ * and `resolveMediaPublicUrls` (`features/media/public-urls.ts`) already branches on the
  * sniffed content type to hand back the byte-passthrough `/m/{id}/original` route for anything
  * `video/`-prefixed — so accepting a video HERE adds no new capability the assistant could not
  * already reach one hop earlier (fetch the bytes itself, base64-encode them, call
