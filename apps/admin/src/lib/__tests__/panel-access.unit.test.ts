@@ -125,9 +125,12 @@ const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
 /** Route specs that moved into `@jini-ai/cms` (ex5-fnd-routes): their permission literal now lives in
  *  the package's built route module, which ships in `dist/` for both linked and registry installs. */
 const CMS_ROUTES = "../../../node_modules/@jini-ai/cms/dist/admin-http/routes";
+/** Operator and role specs moved into `@jini-ai/user-management` the same way. */
+const USER_ROUTES = "../../../node_modules/@jini-ai/user-management/dist/admin-http/routes";
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
-  pages: `${ROUTES}/pages/list.ts`,
+  // The pages specs check `content.read` through `authorizePageRead`, defined in the family's shared module.
+  pages: `${CMS_ROUTES}/pages/shared.js`,
   posts: `${ROUTES}/posts/list.ts`,
   media: `${ROUTES}/media/list.ts`,
   // Library lists `media?kind=document` through the same route and permission.
@@ -136,12 +139,14 @@ const SERVER_EVIDENCE: Record<string, string> = {
   menus: `${CMS_ROUTES}/menus/list.js`,
   taxonomy: `${ROUTES}/taxonomy/list.ts`,
   forms: `${ROUTES}/forms/list.ts`,
-  users: `${ROUTES}/users/list.ts`,
-  roles: `${ROUTES}/users/list-roles.ts`,
-  members: `${ROUTES}/members/list.ts`,
+  users: `${USER_ROUTES}/users/list.js`,
+  // list-roles checks `role.manage` through `authorizeRoleManage`, defined in the access-shared module.
+  roles: `${USER_ROUTES}/users/access-shared.js`,
+  // The member specs check `member.manage` through `authorizeMemberManage`, defined in the family's shared module.
+  members: `${CMS_ROUTES}/members/shared.js`,
   comments: `${ROUTES}/comments/moderation-queue.ts`,
-  themes: `${ROUTES}/themes/list.ts`,
-  appearance: `${ROUTES}/themes/list.ts`,
+  themes: `${CMS_ROUTES}/themes/list.js`,
+  appearance: `${CMS_ROUTES}/themes/list.js`,
   plugins: `${CMS_ROUTES}/plugins/list.js`,
   "agent-plugins": `${CMS_ROUTES}/agent-plugins/list.js`,
   skills: `${CMS_ROUTES}/skills/list.js`,
@@ -151,7 +156,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   observability: `${ROUTES}/system/observability-status.ts`,
   email: `${CMS_ROUTES}/system/mail-status.js`,
   settings: `${CMS_ROUTES}/settings/get-effective.js`,
-  consent: `${ROUTES}/consent/routes.ts`,
+  consent: `${CMS_ROUTES}/consent/routes.js`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
   // The SEO specs check `SEO_MANAGE_PERMISSION`; the literal lives where that constant is defined.
@@ -161,7 +166,8 @@ const SERVER_EVIDENCE: Record<string, string> = {
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
   // The routable-only webhook deliveries drill-down (`/admin/integrations/:subscriptionId`).
-  integrations: `${ROUTES}/integrations/deliveries.ts`,
+  // Its spec checks `admin.integrations.manage` through `authorizeIntegrations`, defined in the family's shared module.
+  integrations: `${CMS_ROUTES}/integrations/shared.js`,
 };
 
 const here = dirname(fileURLToPath(import.meta.url));

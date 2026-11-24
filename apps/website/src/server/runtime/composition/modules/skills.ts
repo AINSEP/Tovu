@@ -64,7 +64,7 @@ function skillSourcesLoader({ deps }: { deps: SkillsRouteDeps }, _optional: Reco
 }
 
 /** Every skills route was guarded (`authorizeOrRespond`): a publishing credential answers from its grant. */
-function mountOptions(operation: string, message?: string) {
+function mountOptions({ operation }: { operation: string }, { message }: { message?: string } = {}) {
   return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) } };
 }
 
@@ -77,7 +77,7 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = ({ app, deps }, _op
   mountAdminJsonRoute({ app, spec: skillListRoute, deps: {
     ...skillsPortDeps({ deps }),
     listManagedSkills: () => listManagedSkills({ ...siteContext({ deps }), workspaceId: deps.workspaceId }),
-  } }, mountOptions("routes/skills/list"));
+  } }, mountOptions({ operation: "routes/skills/list" }));
 };
 
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
@@ -93,13 +93,13 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _op
     fileLimits: PLUGIN_PACKAGE_FILE_LIMITS, installRecordFileName: SKILL_STATE_FILE,
   } },
   // Path errors can contain private server paths; match the plugin files refusal.
-  mountOptions("routes/skills/files"));
+  mountOptions({ operation: "routes/skills/files" }));
 };
 
 /** Session-gated routes; one validator/service owns every installation transport. Same order as before:
  *  install, enable/disable, remove, guidance. */
 export const registerSkillsManagementRoutes = ({ app, deps }: { app: Express; deps: SkillsManagementDeps }, _optional = {}): void => {
-  const options = mountOptions("routes/skills/manage", "Could not change skills. Try again.");
+  const options = mountOptions({ operation: "routes/skills/manage" }, { message: "Could not change skills. Try again." });
   const isSkillInputError = ({ err }: { err: unknown }) => err instanceof SkillInputError;
   const port = skillsPortDeps({ deps });
   mountAdminJsonRoute({ app, spec: skillInstallRoute, deps: { ...port, isSkillInputError,

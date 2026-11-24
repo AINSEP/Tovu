@@ -68,7 +68,10 @@ export interface AdminJsonRouteMountOptions {
    *  request open; the route-table pin sees the same registration as before the move. */
   forwardRejection?: boolean;
   /** Refuse every credential but a session with `rejectUnlessSessionCredential`'s exact 403, in
-   *  `authenticate` — after the workspace 404, before parse, authorization or any side effect. */
+   *  `authenticate` — after the workspace 404, before parse, authorization or any side effect.
+   *  Not combinable with {@link AdminJsonRouteMountOptions.deferMissingPrincipal} (refused at registration):
+   *  a deferred missing principal would skip this gate, and gating first would throw on the missing
+   *  credential kind and defeat the deferral. No hand-written route needed both. */
   sessionCredentialOnly?: SessionCredentialGate;
   /** The route's own denial reply (media where-used/import-url), instead of `authorizeOrRespond`'s
    *  403 body. Given the decision that was denied; whatever it answers is written as-is. */
@@ -143,6 +146,7 @@ function writeAdminFailure({ res, error, options }: { res: Response; error: unkn
 }
 
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
+ * @throws At registration, for `deferMissingPrincipal` together with `sessionCredentialOnly`.
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
  */
@@ -150,6 +154,9 @@ export function createAdminJsonRoutePorts(
   required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean } = {},
   _optional: Record<string, never> = {},
 ): AdminPorts {
+  if (required.deferMissingPrincipal && required.sessionCredentialOnly) {
+    throw new Error("an admin mount cannot set both deferMissingPrincipal and sessionCredentialOnly: the deferral would skip the credential gate");
+  }
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.

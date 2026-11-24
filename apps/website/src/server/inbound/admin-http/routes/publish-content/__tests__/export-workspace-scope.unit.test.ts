@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { listPublishContentContributors, registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 
-import { registerPublishContentExportRoute } from "../export.js";
+import { registerPublishContentExportRoute } from "#src/server/runtime/composition/modules/publish-content-blobs";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { BASE, routeApp, routeDeps } from "./route-fixture.js";
 
 /**
  * @file Closes the mutation-sweep gap on `export.ts:51`'s
@@ -52,6 +54,9 @@ function buildHandler(deps: Partial<PublishContentRouteDeps>) {
 function fakeRes() {
   const state = { status: 0, body: null as unknown };
   const res = {
+    // The raw mount listens for a client disconnect on the response before its gates run.
+    on: () => res,
+    off: () => res,
     status(code: number) {
       state.status = code;
       return res;
@@ -71,7 +76,7 @@ test("GET .../publish-content/export: an absent workspaceId param is normalized 
   const handler = buildHandler({ workspaceId: "undefined" });
   const { res, state } = fakeRes();
 
-  await handler({ params: {} }, res);
+  await handler({ params: {}, query: {}, headers: {} } as never, res);
 
   assert.equal(state.status, 404, "an absent workspaceId param must never match a configured workspace id, however it is spelled");
   assert.deepEqual(state.body, { error: "workspace was not found" });
@@ -81,7 +86,7 @@ test("GET .../publish-content/export: a null workspaceId param is normalized to 
   const handler = buildHandler({ workspaceId: "null" });
   const { res, state } = fakeRes();
 
-  await handler({ params: { workspaceId: null } }, res);
+  await handler({ params: { workspaceId: null }, query: {}, headers: {} } as never, res);
 
   assert.equal(state.status, 404);
   assert.deepEqual(state.body, { error: "workspace was not found" });
@@ -103,23 +108,14 @@ test("export ends a failed partial stream without claiming a complete JSON bundl
       pack: async function* () { yield entity; failed = true; throw new Error("contributor failed after first entity"); },
     } as any) }
                                     });
-  const handler = buildHandler({ workspaceId: "ws-stream", authorize: async () => ({ allowed: true, reason: "matched" }), workspaceRepo: { findById: async () => ({ name: "Stream fixture" }) } as any });
-  const chunks: string[] = [];
-  let ended = 0;
-  const res = {
-    locals: { principal: { id: "owner" } }, headersSent: false,
-    setHeader: () => {},
-    write: (chunk: string) => { res.headersSent = true; chunks.push(chunk); },
-    end: () => { ended++; },
-    status: () => { assert.fail("a partial stream cannot become a new error response"); },
-    json: () => { assert.fail("a partial stream cannot append an error envelope"); },
-  };
-  await handler({ params: { workspaceId: "ws-stream" } }, res);
+  // Through the mounted registrar (the spec moved to `@jini-ai/cms`): the body must end cleanly
+  // after the entities already sent, with no error envelope appended and no closing brackets.
+  const deps = routeDeps({ workspaceRepo: { findById: async () => ({ name: "Stream fixture" }) } as any });
+  const server = await startTestServer(routeApp(registerPublishContentExportRoute, deps), t);
+  const response = await fetch(`${server}${BASE}/export`);
+  assert.equal(response.status, 200);
+  const text = await response.text();
   assert.equal(failed, true, "packing must advance past the first persisted output to the failure");
-  assert.deepEqual(chunks, [
-    '{"artifactFormatVersion":1,"hashVersion":1,"sourceLabel":"Stream fixture","entities":[',
-    JSON.stringify(entity),
-  ]);
-  assert.equal(ended, 1);
-  assert.throws(() => JSON.parse(chunks.join("")), SyntaxError);
+  assert.equal(text, '{"artifactFormatVersion":1,"hashVersion":1,"sourceLabel":"Stream fixture","entities":[' + JSON.stringify(entity));
+  assert.throws(() => JSON.parse(text), SyntaxError);
 });

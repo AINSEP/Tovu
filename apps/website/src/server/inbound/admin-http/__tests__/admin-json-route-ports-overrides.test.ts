@@ -111,5 +111,10 @@ test("an authorization check without an entity type sends no entityType key", as
 // `parse` (and any body 400) for a non-session caller. No mount sets both; the combination is refused at
 // registration (gating first would instead throw on the missing credential kind and defeat the deferral).
 test("deferMissingPrincipal together with sessionCredentialOnly is refused at registration", async () => {
-  await assert.rejects(() => serve({ sessionCredentialOnly: gate, deferMissingPrincipal: true }), /deferMissingPrincipal.*sessionCredentialOnly/);
+  const mounted = await serve({ sessionCredentialOnly: gate, deferMissingPrincipal: true }).catch((error: unknown) => error);
+  if (!(mounted instanceof Error)) {
+    await mounted.close();
+    assert.fail("the mount accepted deferMissingPrincipal with sessionCredentialOnly");
+  }
+  assert.match(mounted.message, /deferMissingPrincipal.*sessionCredentialOnly/);
 });
