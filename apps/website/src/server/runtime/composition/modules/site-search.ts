@@ -18,7 +18,7 @@ import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 
 /**
@@ -423,7 +423,7 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
     sources: createCmsSearchDocumentSources({ kernel, now }),
-    ...createSqlSearchIndexStore({ kernel, now, tables: SEARCH_INDEX_TABLES }),
+    ...createSqlSearchIndexStore({ kernel: schemaErasedKernel({ store: kernel }), now, tables: SEARCH_INDEX_TABLES }),
     access: createCmsSearchAccessPort({ kernel, now }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {

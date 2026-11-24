@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlSiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
 import { InMemorySiteTitlePreservationStore } from "../site-title.js";
@@ -18,7 +19,7 @@ const adapters: Array<[string, (recorded: string[]) => SiteTitlePreservationStor
     tables: ["site_title_preexisting_workspaces"],
     make: (kernel) => (recorded: string[]) =>
       new SqlSiteTitlePreservationStore({
-        kernel: heldUntil(
+        kernel: schemaErasedKernel({ store: heldUntil(
           kernel,
           (async () => {
             for (const workspaceId of recorded) {
@@ -27,7 +28,7 @@ const adapters: Array<[string, (recorded: string[]) => SiteTitlePreservationStor
               );
             }
           })()
-        ),
+        ) }),
         tables: { preexistingWorkspaces: "site_title_preexisting_workspaces" },
       }),
   }).map((each): [string, (recorded: string[]) => SiteTitlePreservationStorePort] => [each.name, (recorded) => each.make()(recorded)]),
