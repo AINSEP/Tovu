@@ -4508,6 +4508,454 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "4bbbfbfa321d",
+      "reason": "Moved to Jini @jini-ai/chat embed-widget/browser/embed-send-bridge.ts (installEmbedSendBridge doc: conversation owner, no parallel transport, one in-flight request per pane), reworded neutral; the comparison-frame opt-in sentence stays on Tovu site-chat-comparison.ts's bridge config doc."
+    },
+    {
+      "id": "c16ec5335e76",
+      "reason": "Moved to Jini @jini-ai/chat embed-widget/browser/embed-send-bridge.ts (ChatPane agent-control adapter doc: reuses the existing send capability, ordinary visitors omit it), reworded neutral."
+    },
+    {
+      "id": "b8ebc2fe90d6",
+      "reason": "Test file deleted with the module-level notifier (batch I); its coverage and header moved to Jini @jini-ai/mcp federation/__tests__/roster-change.unit.test.ts (last-wins, waitMs cap, throwing listener, plus lowering/isolation/reset)."
+    },
+    {
+      "id": "60e3bc6d1e8a",
+      "reason": "Reworded in place: the test now pins only Tovu's admin copy; the exact-upstream-wording mechanics it described are certified in Jini @jini-ai/daemon http/__tests__/lost-frontend-binding.test.ts (header names this split)."
+    },
+    {
+      "id": "cd0efabd6536",
+      "reason": "The ask-choice store adapter that forwarded Jini open() args moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (batch E); the DYNAMIC_BINDINGS entry this explained was deleted with the host code, so there is no host binding left to justify."
+    },
+    {
+      "id": "96ffb13e6f80",
+      "reason": "Reworded in place in the same test's @file header (now pins only Tovu's copy; detection/pass-through/wrapping certified in Jini @jini-ai/agentic core/__tests__/page-navigate-error.test.ts)."
+    },
+    {
+      "id": "3fea6f6c213b",
+      "reason": "Tovu's withPageNavigateErrorRewrap wiring was deleted (batch E); the wiring half moved to Jini @jini-ai/agentic core/page-navigate-error.ts and is tested there, so this test no longer exercises it."
+    },
+    {
+      "id": "e0d3dbf4bb56",
+      "reason": "Reworded in place in the same test's @file header (host integration of the rebindable discovery catalog; the catalog itself is owned and unit-tested by @jini-ai/registry/tool-catalog-builder)."
+    },
+    {
+      "id": "cb2a38acaaec",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (extractDeclaredSurfaceId doc), reworded neutral (route param named generically)."
+    },
+    {
+      "id": "b11d4dd9d837",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (A2UI post validator doc: shared by every hop that accepts the post), reworded neutral."
+    },
+    {
+      "id": "d4f24aee640c",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (409 not-waiting body doc, citing surfaceNotPendingBody's identical reasoning), reworded neutral."
+    },
+    {
+      "id": "086191724788",
+      "reason": "Header of the deleted createLiveToolCatalogQuery re-export (batch F); discovery now reseeds on registry revision via Jini @jini-ai/registry createRefreshingToolCatalogQuery (query.ts doc), bound in Tovu tool-catalog-query.ts."
+    },
+    {
+      "id": "852a09efbf2b",
+      "reason": "Header of the deleted agent-discovery.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "9f2257595b94",
+      "reason": "Split on the move: the option/answer-splitting rationale moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts @file (reworded neutral); the QuestionForm match and @jini-ai/ui 0.7.0 CSS-reveal bridge note stay on Tovu ask-choice-custom-answer.ts's reworded @file."
+    },
+    {
+      "id": "2a5014787ed3",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (CUSTOM_CHOICE_VALUE doc), reworded neutral ('before the answer is classified')."
+    },
+    {
+      "id": "21ff2464452e",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (CustomAnswerCopy.withPicksNote doc), reworded neutral (operator, not administrator)."
+    },
+    {
+      "id": "0a9ec77a7f51",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (addCustomAnswerFields radio comment), reworded neutral."
+    },
+    {
+      "id": "7d6ef221fafa",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (splitCustomAnswer doc), reworded neutral."
+    },
+    {
+      "id": "c5eee3937e83",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (single-select typed-answer helper doc), reworded neutral."
+    },
+    {
+      "id": "191aa81b8414",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (mergeCustomAnswer doc), reworded neutral."
+    },
+    {
+      "id": "76756966f7ba",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (exchange-store wrapper doc), reworded neutral."
+    },
+    {
+      "id": "43a962079359",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts @file, reworded neutral (host BYOK tool surface named generically)."
+    },
+    {
+      "id": "afd7513c2a85",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (meta-tool result type doc), now citing agent-runtime's ProviderToolExecutor instead of the deleted Tovu ByokToolExecutor."
+    },
+    {
+      "id": "df87d952211f",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (comment above the non-array record guard), reworded neutral."
+    },
+    {
+      "id": "04c217f7cbe2",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (resolveDelegatedInput / DelegatedInputResolution doc), reworded neutral."
+    },
+    {
+      "id": "5fd899922042",
+      "reason": "@file of the deleted byok-provider-turn.ts wrapper (Jini batch L); the implementation is Jini @jini-ai/agent-runtime providers/tool-turn.ts, and the 'no provider-specific browser branches' reason lives at Tovu assistant-byok.ts's onEvent relay comment (translateRunAgentPayload, zero new cases)."
+    },
+    {
+      "id": "1673e22c5f5d",
+      "reason": "Explained the wrapper's re-declared four-protocol union; the wrapper was deleted (Jini batch L) and callers use @jini-ai/agent-runtime's ProviderProtocol/resolveProviderProtocol, so no host re-declaration remains."
+    },
+    {
+      "id": "00699b94308e",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn.ts (resolveProviderProtocol doc), reworded neutral."
+    },
+    {
+      "id": "942b26e06e0f",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (ProviderChatMessage.images doc: shared attachment pixels translated at the wire adapter seam), reworded."
+    },
+    {
+      "id": "6d2f5c064430",
+      "reason": "Type deleted with the byok-provider-turn.ts wrapper (Jini batch L); callers use Jini ProviderTurnEvent, and the load-bearing identity with translateRunAgentPayload is stated at Tovu assistant-byok.ts's onEvent relay comment."
+    },
+    {
+      "id": "4b969c204d59",
+      "reason": "Moved to Jini: @jini-ai/daemon byok-meta-tool-result.ts (ProviderToolResultBlock-identical type doc) and @jini-ai/agent-runtime providers/tool-turn-types.ts ProviderToolResultBlock doc (restored this audit), reworded neutral."
+    },
+    {
+      "id": "e939c362227d",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (ProviderToolExecutor doc), reworded neutral."
+    },
+    {
+      "id": "08983e404146",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (maxToolTurns doc), reworded neutral (host injects its policy value)."
+    },
+    {
+      "id": "a5430c1d7c3b",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (getTools / getToolSnapshot docs: read immediately before each request), reworded."
+    },
+    {
+      "id": "f0682facbe57",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (onSchemaFallback doc: value-free diagnostic, host still validates), reworded."
+    },
+    {
+      "id": "830aec0e17a0",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (onUnexposedToolCall doc: audit and word the refusal, never execute), reworded."
+    },
+    {
+      "id": "4265e81451f7",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn.ts (runProviderToolTurn doc: provider mapping constraints, Gemini schema and reference-cap reasoning), reworded neutral."
+    },
+    {
+      "id": "ebf7ba04c59c",
+      "reason": "'Temporary host binding until Jini publishes' is obsolete: the Tovu cli-probe-cache.ts binding was deleted and the cache is Jini @jini-ai/agent-runtime cli-probe-cache.ts, whose header keeps the settled-snapshot sentence."
+    },
+    {
+      "id": "51686f839b05",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (dispatchByIdPresence doc), reworded neutral."
+    },
+    {
+      "id": "7a43b9314ff3",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (selector projection doc), reworded neutral (generic from/to selector)."
+    },
+    {
+      "id": "be648206090e",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (selector translation doc), reworded neutral ('remain with the batch owner')."
+    },
+    {
+      "id": "1ec680af3e69",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (union input-schema builder doc), reworded neutral."
+    },
+    {
+      "id": "8334549b764c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts @file, reworded neutral (host daemon's PromptAugmenter)."
+    },
+    {
+      "id": "4ef89b324617",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (GetEffective type doc), reworded neutral; module-cycle reasoning kept."
+    },
+    {
+      "id": "b78756b6a8c7",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (settingsReady doc), reworded neutral (host's settings-tabs-ready promise)."
+    },
+    {
+      "id": "5f79ecccde14",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (getEffective dep doc), reworded neutral (host composition root)."
+    },
+    {
+      "id": "6efea06b23ca",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (instructionsNamespace dep doc), reworded neutral."
+    },
+    {
+      "id": "49640ff1f36f",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (createCustomInstructionsCache doc), reworded neutral (host daemon)."
+    },
+    {
+      "id": "a6073000990c",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (a2uiActionOf doc), reworded neutral."
+    },
+    {
+      "id": "b037bb1c88cf",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (a2uiActionOf doc, second paragraph), reworded neutral."
+    },
+    {
+      "id": "a699d4931d52",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (validatedA2uiMessage doc), reworded neutral."
+    },
+    {
+      "id": "11f30f58102f",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (withA2uiExchange doc: exchange opened before any message is sent), reworded neutral."
+    },
+    {
+      "id": "5da9843d9257",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (A2uiExchangeSession.surfaceId doc), reworded neutral."
+    },
+    {
+      "id": "fc11162d8bad",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (A2uiExchangeSession.emit doc), reworded."
+    },
+    {
+      "id": "b5cb3a1dbddd",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (withA2uiExchange doc: idempotent close, real cleanup only on early return or abort), reworded neutral."
+    },
+    {
+      "id": "5017634a93ed",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts @file, reworded neutral (every host root that federates)."
+    },
+    {
+      "id": "b6f19591da5d",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (FederationRuntime.reload doc), reworded neutral."
+    },
+    {
+      "id": "e14f24d150d1",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (configuredConnectionIds doc), reworded neutral."
+    },
+    {
+      "id": "46b040a6ca2f",
+      "reason": "The named report alias it justified was deleted with the host accounting (batch N); Jini @jini-ai/mcp federation/runtime.ts uses its own exported types, so there is no Awaited<ReturnType<...>> spelling left to name."
+    },
+    {
+      "id": "f3406a761c19",
+      "reason": "Reworded at Tovu mcp-federation/bootstrap.ts's console-sink doc (the error rides along as a second console argument), where the host sink now lives."
+    },
+    {
+      "id": "870eda8e3cc9",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (connect-failure merge doc), reworded neutral."
+    },
+    {
+      "id": "30afe9236a7e",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (local helper copy doc), reworded."
+    },
+    {
+      "id": "60c012d98f98",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts @file (createMcpRosterChangeBus), reworded neutral; module-level Map replaced by an instance-owned bus."
+    },
+    {
+      "id": "a2fc7d69e88f",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (McpRosterChangeListener doc), reworded neutral."
+    },
+    {
+      "id": "d3f12beafbd1",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (default waitMs doc), reworded neutral."
+    },
+    {
+      "id": "729ee62329ed",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (on() doc and @file keyed-rather-than-list paragraph), reworded neutral."
+    },
+    {
+      "id": "a6fb6f7bc83c",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (best-effort refresh and lowering docs), reworded neutral."
+    },
+    {
+      "id": "eb6967f868da",
+      "reason": "The module-level registry it reset no longer exists (batch I: instance-owned Jini bus); the Tovu reset helper's doc was reworded in place to reset this process's bus."
+    },
+    {
+      "id": "56232ba4bcec",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts @file, reworded neutral."
+    },
+    {
+      "id": "5e868f920d5c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (getLiveClaudeModels doc), reworded neutral."
+    },
+    {
+      "id": "7c13513464b6",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (createLiveModelDiscovery doc), reworded neutral (a host may be multi-workspace)."
+    },
+    {
+      "id": "4580aa3786df",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (client-safe projection comment), reworded neutral."
+    },
+    {
+      "id": "a9be76ed95d0",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts @file, reworded neutral (host-worded reload, injected messages)."
+    },
+    {
+      "id": "56f2415e73d8",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts (FrontendDisconnectedError doc), reworded neutral."
+    },
+    {
+      "id": "1b8564a2a397",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts (createLostFrontendBindings maxRuns param doc), reworded."
+    },
+    {
+      "id": "81be82681fee",
+      "reason": "Explained a FederatedAdmissionReport import the Tovu bootstrap no longer has (batch N); the report type stays canonical in Jini @jini-ai/mcp federation/bootstrap.ts."
+    },
+    {
+      "id": "424d44d80a27",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (AttachFederatedToolsResult.reports doc), reworded neutral; the Tovu adapter no longer redeclares the result type."
+    },
+    {
+      "id": "e501a1301ddd",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (isPreset doc), reworded neutral; the Tovu adapter no longer redeclares it."
+    },
+    {
+      "id": "b3a26e9d0158",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (connectFailures doc), reworded neutral; the Tovu adapter no longer redeclares it."
+    },
+    {
+      "id": "efa4a7264501",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (defaulted-inputs resolver doc; origin tagging deduped onto exported withPresetOrigin), reworded neutral."
+    },
+    {
+      "id": "3497f2b930e6",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (Shape-2 result-mapping doc), reworded neutral."
+    },
+    {
+      "id": "76236644d1e2",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (exchangeId field doc), reworded."
+    },
+    {
+      "id": "f6adb9797118",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (callback body validator doc), reworded neutral."
+    },
+    {
+      "id": "51873652cd5e",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (validator doc: answer shape decided before the allowlist check), reworded neutral."
+    },
+    {
+      "id": "b650fac4ade1",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (exchange-id read comment), reworded neutral."
+    },
+    {
+      "id": "d8e6a4e7051f",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (typed-answer predicate doc), reworded."
+    },
+    {
+      "id": "692999af359f",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (unregistered-toolId catch comment), reworded neutral."
+    },
+    {
+      "id": "8a3f61b8c87a",
+      "reason": "Moved to Jini @jini-ai/daemon page-approval-context.ts (approval context port doc), reworded neutral ('Host wiring')."
+    },
+    {
+      "id": "8d1cb8608bca",
+      "reason": "Reworded in place in the same test's @file header; hashSessionKey/chatExpiryFor tests moved to Jini @jini-ai/chat store/runtime chat-principal.test.ts."
+    },
+    {
+      "id": "8418cc0c0b27",
+      "reason": "Moved to Jini @jini-ai/chat store/runtime/chat-principal.ts (ChatStoreFactory doc), reworded neutral (host route deps, raw database handle)."
+    },
+    {
+      "id": "97fb1b48b3cf",
+      "reason": "Header of the deleted prompt-guidance.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "b7d0b0b81b47",
+      "reason": "Split on the move: detection/wrapping rationale moved to Jini @jini-ai/agentic core/page-navigate-error.ts @file (neutral); the CMS-vocabulary collision is kept in Tovu rewrap-page-navigate-error.ts's reworded @file."
+    },
+    {
+      "id": "58a8525a3bee",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (PAGE_NAVIGATE_TOOL_ID doc: capability ids become tool ids verbatim), reworded."
+    },
+    {
+      "id": "b509b62edad2",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (refusal regex doc), reworded neutral."
+    },
+    {
+      "id": "273b499fa724",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (rewrapPageNavigateError doc), reworded neutral."
+    },
+    {
+      "id": "16ebbdfd943d",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (withPageNavigateErrorRewrap doc), reworded neutral; host call-site references dropped."
+    },
+    {
+      "id": "73a7c28d4216",
+      "reason": "Moved to Jini @jini-ai/daemon http/run-active-context.ts (ActiveContext id doc), reworded neutral ('host path')."
+    },
+    {
+      "id": "0ee8b090dddb",
+      "reason": "Moved to Jini @jini-ai/daemon http/run-active-context.ts (path doc), reworded neutral ('host route path')."
+    },
+    {
+      "id": "7ce7de8cdd42",
+      "reason": "Header of the deleted runtime-settings.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "7ba56c8844c0",
+      "reason": "Header of the deleted session-services.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "b3419b5027fe",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-publication.ts (publishedPageActionNeedsConfirmation doc), reworded."
+    },
+    {
+      "id": "b20261b92e58",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-publication.ts (reviewed action-class table doc), reworded."
+    },
+    {
+      "id": "4b42fbb083a0",
+      "reason": "Moved to Jini @jini-ai/agentic core/published-page-input.ts (summarizePageTargets doc), reworded."
+    },
+    {
+      "id": "c7977cf73b8c",
+      "reason": "Mechanics moved to Jini @jini-ai/core settings/guarded-reads.ts (read-failure policy type and readEffectiveFailClosed @throws docs); the Tovu doc was reworded in place to point there."
+    },
+    {
+      "id": "8192bc9828db",
+      "reason": "Header of the deleted tool-catalog-live-query.ts (batch F); the swap-on-reload wrapper was replaced by revision-driven reseeding in Jini @jini-ai/registry tool-catalog-builder/query.ts (createRefreshingToolCatalogQuery doc), bound in Tovu tool-catalog-query.ts."
+    },
+    {
+      "id": "d03744026797",
+      "reason": "API doc of the deleted swappable LiveToolCatalogQuery (batch F); Jini createRefreshingToolCatalogQuery has no rebind step, so the 'pass exactly once' identity note has nothing left to describe."
+    },
+    {
+      "id": "f659fb658cc2",
+      "reason": "API doc of the deleted LiveToolCatalogQuery.swap (batch F); reseeding is now revision-driven in Jini @jini-ai/registry createRefreshingToolCatalogQuery."
+    },
+    {
+      "id": "ed0c8d581381",
+      "reason": "@param doc of the deleted createLiveToolCatalogQuery (batch F); Jini createRefreshingToolCatalogQuery takes a seed function instead of an initial snapshot."
+    },
+    {
+      "id": "b38d79f90b2a",
+      "reason": "Moved to Jini @jini-ai/daemon core/tool-family.ts (createPrefixToolFamilyPort doc), reworded neutral (host group id injected)."
+    },
+    {
+      "id": "55f9d8ad5423",
+      "reason": "Moved to Jini @jini-ai/daemon core/tool-family.ts (createPrefixToolFamilyPort doc, second paragraph and params), reworded neutral."
+    },
+    {
+      "id": "8284ba38f0d5",
+      "reason": "Moved to Jini @jini-ai/registry tool-catalog-builder/declared-keywords.ts (keyword append doc), reworded neutral; Tovu keeps the isKnownTool comment."
+    },
+    {
+      "id": "c98f3cd214e8",
+      "reason": "Header of the deleted visitor-services.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
     }
   ]
 }
