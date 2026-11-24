@@ -18,6 +18,7 @@ import { isHttpsRequest } from "../../../../../../platform/express/public-origin
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
+import { preConsentCacheControl } from "./pre-consent-cache.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -150,6 +151,8 @@ export async function sendPublicPage({ req, res, deps, html, perVisitor }: {
   req: Request; res: Response; deps: RouteDeps; html: string; perVisitor: PerVisitorResponse;
 }): Promise<void> {
   // Live comments never enter browser/CDN caches; approval, selection and disable take effect on the next request.
-  const cacheControl = html.includes('data-comments-surface') ? 'private, no-store' : perVisitor.cacheControl;
+  const routeCacheControl = html.includes('data-comments-surface') ? 'private, no-store' : perVisitor.cacheControl;
+  // G7-8: a pre-consent page carrying consent-gated tracking scripts never enters a shared cache.
+  const cacheControl = preConsentCacheControl({ html, request: req, cacheControl: routeCacheControl });
   res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml({ req, html, formResult: perVisitor.result, deps }));
 }
