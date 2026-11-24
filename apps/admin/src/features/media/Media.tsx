@@ -44,7 +44,7 @@ import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import { RemoteImageImport, type ImportDialogKit } from "@jini-ai/cms/react/media";
+import { RemoteImageImport, useRemoteImageImport, type ImportDialogKit } from "@jini-ai/cms/react/media";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { describeApiError } from "@/lib/admin-http/request";
 import { defaultMediaImportPort } from "./hooks/media-import-dependencies.hooks";
@@ -1255,7 +1255,7 @@ function MediaLibraryPanel(
             activeTab={activeTab}
             t={t}
           />
-          <RemoteImageImport t={t} kit={IMPORT_DIALOG_KIT} HeaderTip={DockHeaderTip} port={defaultMediaImportPort}
+          <RemoteImageImport useRemoteImageImportHook={useRemoteImageImport} t={t} kit={IMPORT_DIALOG_KIT} HeaderTip={DockHeaderTip} port={defaultMediaImportPort}
             describeError={describeApiError} useFetchMutation={useFetchMutation} />
         </div>
       </div>
