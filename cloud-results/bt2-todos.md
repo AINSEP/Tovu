@@ -1,4 +1,4 @@
-PARTIAL a2e00ac4d e4966cb84: left = WAIT-M19 wiring/patches (site-update + H5 mounts, mail_clear_captured patch, .mov URL import, media description, G7-1/4/9/11, A212, B224, 108 rest, G8.3, H4 schema columns, api:update) + merge-19 not merged (no combine-19.md yet); NEEDS-OWNER release-feed URL; xAI provider-plugin move needs design
+PARTIAL 1839042be 1eda2c6ea: merged integ/merge-19 (PARTIAL) into both; left = items still held by unmerged w5-admin/w5-runtime-assistant files (H5 mount, mail_clear_captured patch, .mov URL import msg pin, G7-1/4/9/11, G8.3, 108 rest, H4 schema columns, media-description search + MEDIA_FIELDS, api:update), B224 factory-site wiring, site-update host runtime + SiteBackup/MigrationReadiness adapters; NEEDS-OWNER release-feed URL; xAI provider-plugin move needs design
 
 # bt2-todos — deferred TODOs (AFTER-COMBINE / AFTER-MERGE / owner-decided) — 2026-11-24
 
@@ -38,7 +38,7 @@ PARTIAL a2e00ac4d e4966cb84: left = WAIT-M19 wiring/patches (site-update + H5 mo
 | 112 / U2 «Update available» · `site_update_check` | DONE (tool); admin notice PARTIAL; wiring WAIT-M19 | T `2be36f1f5` | `features/site-update/__tests__/check-tool.test.ts` 6/6 (mutation: drop notes → red) |
 | 113 / U3 one-click update behind approval | DONE (tool) | T `c326f1779` | `apply-tool.test.ts` 11/11: «cancel: nothing is applied», «a version other than the one on offer is refused…» (mutations: no card → 4 red; approval names 0.0.0 → 4 red) |
 | 122 desktop + self-hosted same path (owner YES) | DONE | T `1afdde660` | `host-runtime.test.ts` 6/6: both host kinds go through the same card; «nothing is automatic» (mutation: self-hosted not routed → red) |
-| site-update wiring | WAIT-M19 | – | `contracts/core/tool-metadata/index.ts` (+ `site_update`), `composition/tool-catalog-manifest.ts` (register `contributeSiteUpdateTools()`), host composition passes `createSiteUpdateRuntime({host, shared})`. Then run `mcp-ui-allowlist-completeness`. Still to write: the real `SiteBackupPort` + `MigrationReadinessPort` adapters |
+| site-update wiring | registration DONE after merge-19 (T `bf3cea774`); host runtime still to pass | – | `contracts/core/tool-metadata/index.ts` (+ `site_update`), `composition/tool-catalog-manifest.ts` (register `contributeSiteUpdateTools()`), host composition passes `createSiteUpdateRuntime({host, shared})`. Then run `mcp-ui-allowlist-completeness`. Still to write: the real `SiteBackupPort` + `MigrationReadinessPort` adapters |
 | release-feed adapter | UNVERIFIABLE-IN-CLOUD / NEEDS-OWNER | – | Which feed URL per host kind? Today only desktop auto-update points at GitHub releases (`apps/desktop/electron-builder.yml:147`). `ReleaseFeedPort` stays injected |
 | G11·P10-H6 handler idempotency export | DONE | J `6aaf998d6` | infra `outbox/__tests__/processed-event-guard.export.test.ts` «reachable from the outbox entry» (red: not a constructor; mutations: drop release → 2 red, drop export → red). `packages/infra/README.md` pointer line WAIT-M19 |
 | G11·P10-H5 per-principal catalog | Jini DONE; Tovu factory DONE; mount WAIT-M19 | J `bfbe821c2`; T `8b39f0244`, `a2e00ac4d` | J `daemon/src/http/__tests__/tool-catalog-principal.test.ts` (3/3 red→green; mutations: fixed principal → red, cached view → red). T `assistant/__tests__/tool-catalog-principal-scope.test.ts` 3/3 (mutation: drop filter → 3 red). Mount: AVOID `server/inbound/assistant/agent-daemon-scope-http.ts:255-261` + test helper `__tests__/helpers/daemon-catalog.ts`. J `route-table.ts` `gatedJsonRoute` generalisation also WAIT-M19 |
@@ -57,8 +57,8 @@ PARTIAL a2e00ac4d e4966cb84: left = WAIT-M19 wiring/patches (site-update + H5 mo
 | G7-2 inject dev CORS (optional) | DONE | T `9c798cf5f` | `composition/__tests__/app.dev-cors-injection.test.ts` (mutation → red) |
 | B258 desktop `redactTovuLocalText` | STALE | – | All 5 named files already call `redactTovuLocalText`; pinned by `apps/desktop/src/redactor-bindings.test.ts` |
 | A287 / B258 `pnpm api:update` | WAIT-M19 | – | `api-baseline/*.json` are AVOID. This run's cms/devops/infra/daemon/agent-plugins additions also need `api:update` |
-| B224 widget slug → id at write | WAIT-M19 | – | AVOID `features/pages/html-document-store{,.memory}.ts` |
-| A212 big agent video via local file import | WAIT-M19 | – | AVOID `features/media/tool-registrations.ts` (`.map(withLargeUploadRouting)`) |
+| B224 widget slug → id at write | PARTIAL (store half DONE after merge-19) | T `fd67567f8` | `features/pages/__tests__/html-document-store.memory.test.ts` 3 B224 tests (mutation: skip normalisation → 2 red). Left: pass `widgetSlugLookup` at `site-deps/route-deps-content-chat.ts:135`, `memory-deps/route-deps/trash-and-content.ts:160` (need `entryRepo` threaded in) and AVOID `peer-site-reads.ts:235` |
+| A212 big agent video via local file import | DONE (after merge-19) | T `d2a385c79`, type fix `1839042be` | `features/media/__tests__/tool-registrations.test.ts` «the registered media_upload_asset routes a video over 10 MB to the local file import path» (mutation: drop the map → red) |
 | xAI media entries → provider plugin | PARTIAL / NEEDS-DESIGN | – | The old id is already read: `MEDIA_PROVIDER_ID_ALIASES['xai-grok-imagine']='grok'` (`integrations/src/media-providers/providers.ts:31`), so writes use `grok`. provider-plugins has no media precedent. Plan: `provider-plugins/src/media-xai/` + register through `dispatch/media-provider-registry.ts`. Open question: should integrations depend on provider-plugins, or should the registry take entries by injection (recommended)? |
 | G7-1 new-site password wiring | WAIT-M19 | – | AVOID `composition/site-deps/identity-settings.ts` (+ `identity/wiring.ts` call) |
 | G7-4 trash retention 30 d | WAIT-M19 | – | Apply both `cloud-results/bt-dec-b/g7-4-*.patch` together; AVOID `apps/admin/src/features/trash/Trash.tsx` |
@@ -86,12 +86,30 @@ PARTIAL a2e00ac4d e4966cb84: left = WAIT-M19 wiring/patches (site-update + H5 mo
   - `apps/desktop` was not touched, so desktop gates were not needed (the pre-push hook skipped them).
 
 ## Merge-19
-- At report time, `origin/integ/merge-19-2026-11-24` existed but had no `cloud-results/combine-19.md`. Its DONE/PARTIAL precondition was not met, so it was **not merged**, and the WAIT-M19 rows above stay open.
-- Order to apply after merge-19:
-  1. The site-update and H5 one-line wirings.
-  2. Both `clear-captured-tool` patches.
-  3. Re-pick `363a8df97` with the message pin.
-  4. Re-pick `a38a264c9` with `MEDIA_FIELDS` + list-page.
+- At 13:16 UTC, `cloud-results/combine-19.md` started with **PARTIAL**: w5-content was merged; w5-admin and w5-runtime-assistant were not.
+- I merged `origin/integ/merge-19-2026-11-24` into both branches with **no conflicts**: Tovu `817231ea0`, Jini `b97329d6a`.
+- I then recomputed AVOID from the still-unmerged w5-admin and w5-runtime-assistant branches (Tovu 1,293 paths, Jini 524). That freed three items, now done: site-update registration, A212, and B224 (store half).
+- **Regressions found after the merge, and fixed:**
+  - H5 made the daemon characterization harness answer 500. Its Proxy treated the optional `catalogFor` as a present, throwing dependency. The harness now declares it absent. Route code is unchanged. Fix J `1eda2c6ea`: characterization + principal + tool-catalog tests 305/305.
+  - A212 caused TS7006 in `media/tool-registrations.ts`. An explicit return type fixes it (T `1839042be`), and the Tovu root tsc is back to 0.
+- **Post-merge gates:**
+  - Jini: `pnpm -r build` 0, `pnpm typecheck` 0, guard shows only the base HW3 violation.
+  - Jini vitest (touched packages): infra, devops, agent-plugins and admin are all green.
+  - Jini red, all checked as not caused by bt2-todos:
+    - cms `forms/package-boundary`: CHANGELOG heading 0.7.2 vs 0.7.3-next.2, already on base.
+    - cms `result-html`, `expand-partials`: `RegExp.escape` is missing on the container's Node 22. The team uses Node 24.
+    - cms `universal-entries.boundary`: jsdom reached through a merge-19 universal entry. Likely merge-19; not confirmed on a clean base.
+    - agent-runtime `connection-guard`: sandbox socket EINVAL.
+    - platform `source-boundaries`: a base test file.
+  - Tovu: root tsc 0, admin tsc 0.
+  - Tovu node run over all changed files (which after the merge include merge-19's own): our files are green. The red seen is all in merge-19 or postgres suites: `tool-read-wording` (lists `run-has-write-access.ts`, `site-portability.ts`), `tool-registrations.contracts`, custom-credentials card flow, postgres notifications.
+- **Still to apply once w5-admin / w5-runtime-assistant land:**
+  1. The H5 mount in `agent-daemon-scope-http.ts`.
+  2. Both `clear-captured-tool` patches, plus the `BATCH_OPT_OUT` line.
+  3. Re-pick `363a8df97` with the message pin in `import-local-file.test.ts`.
+  4. Re-pick `a38a264c9`, plus `MEDIA_FIELDS.description` (now free) and the cms `list-page.ts` search.
   5. Both G7-4 patches.
-  6. The schema columns for H4.
-  7. `pnpm api:update`.
+  6. G7-1, G7-11, G8.3.
+  7. The H4 schema columns.
+  8. `siteUpdateRuntime` on `AssistantToolRegistryDeps` (`assistant/tool-registrations.ts`).
+  9. `pnpm api:update`.
