@@ -1,7 +1,5 @@
-import { createPasskeyStore } from "./sql-stores.js";
-import { createMfaStore } from "./mfa.repo.js";
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
-import { createRecoveryCodeStore } from "./sql-stores.js";
+import { createMfaStore, createPasskeyStore, createRecoveryCodeStore } from "./sql-stores.js";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
