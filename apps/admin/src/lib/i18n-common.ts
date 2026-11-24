@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createCollectionsDictionary } from "@jini-ai/admin/screens/collections/collections-i18n";
 import { createTaxonomyDictionary } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 import { createMenusDictionary } from "@jini-ai/admin/screens/menus/menus-i18n";
 import { createCommentsDictionary } from "@jini-ai/admin/screens/comments/comments-i18n";
@@ -101,3 +102,6 @@ export const { t: tMenus } = createMenusDictionary({ commonDictionary: COMMON_I1
 
 /** The taxonomy dictionary, bound once to this app's common fallback. */
 export const { t: tTaxonomy } = createTaxonomyDictionary({ commonDictionary: COMMON_I18N });
+
+/** The collections dictionary, bound once to this app's common fallback. */
+export const { t: tCollections } = createCollectionsDictionary({ commonDictionary: COMMON_I18N });

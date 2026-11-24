@@ -14,7 +14,7 @@ import {
   type DraftField,
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t as translate } from "../collections-i18n";
+import { tCollections as translate } from "../../../lib/i18n-common";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
