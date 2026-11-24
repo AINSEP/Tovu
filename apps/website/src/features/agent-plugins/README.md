@@ -5,6 +5,7 @@ card identity, product copy and the bindings that hand them to the portable Jini
 
 ## Wiring
 
+- `@jini-ai/agent-plugins/lifecycle` capability projection: `lifecycle.ts` exports the owner's `mcpServerTrustClassifier` and installed skill/`mcp.json` readers (callers: `federate-mcp.ts`, `enable-access.ts`, `connect-tool.ts`, `access-token-tool.ts`, `host-tool-ports.ts`, `composition/plugin-host.ts`); `onEvent` keeps the `[agent-plugins]` warning prefix.
 - `@jini-ai/agent-plugins/site/retired-plugin-tool-aliases`: `server/runtime/composition/installed-extension-tools.ts`
   injects `replacements` (`bundled-catalog.ts`'s `RETIRED_PLUGIN_REPLACEMENTS`) and `toToolId`
   (`bundled-catalog.ts`'s `toAgentPluginToolId`).
