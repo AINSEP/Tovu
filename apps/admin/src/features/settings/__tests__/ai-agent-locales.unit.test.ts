@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS_DIALOG_DICTIONARIES } from '@jini-ai/ui';
 import { ADMIN_LOCALES } from '@/lib/settings-tabs';
-import { t, aiAgentPanelDictionaries } from '../settings-execution-i18n';
+import { t, aiAgentPanelDictionaries } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 import { t as tSecurity } from '../../../integrations/jini-admin/security-i18n';
 import { AI_ASSISTANT_DICT } from '../../ai-assistant/ai-assistant-i18n';
 
@@ -127,7 +127,7 @@ describe('AI agent copy in every supported locale', () => {
     expect(t({ locale: locale, key: 'AI agent' })).toBe(title);
     expect(t({ locale: locale, key: 'Detected on this computer.' })).toBe(scope);
     expect(t({ locale: locale, key: 'Authentication required. Sign in before sending.' })).toBe(warning);
-    const dictionaries = aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES });
+    const dictionaries = aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES, locales: ADMIN_LOCALES });
     expect(dictionaries[locale]?.['Execution mode']).toBe(title);
     expect(dictionaries[locale]?.['AI agent']).toBe(title);
     expect(tSecurity({ locale: locale, key: 'Settings · AI agent' }).split(' · ')[1]).toBe(title);

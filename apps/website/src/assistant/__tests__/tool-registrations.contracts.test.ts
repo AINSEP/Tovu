@@ -1,6 +1,6 @@
 // Before any catalog module: the hosting plugins ship from @jini-ai/agent-plugins (see the fixture).
 import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
-import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
+import { consentAgentToolCatalog } from '@jini-ai/cookie-consent/site/tool-registrations';
 import { observabilityAgentToolCatalog } from '#src/features/observability/tool-registrations';
 import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -76,7 +76,7 @@ import { catalog as skillsInstallCatalog } from "../../features/skills/install-t
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
-import { uiLocalesAgentToolCatalog } from "../../features/settings/ui-locales-tool.js";
+import { uiLocalesAgentToolCatalog } from "@jini-ai/cms/settings/site/ui-locales-tool";
 import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
 import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
@@ -104,7 +104,7 @@ import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
-import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
+import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
 import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
 import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";

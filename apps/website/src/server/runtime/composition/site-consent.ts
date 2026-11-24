@@ -1,12 +1,15 @@
 /** @file Composition-only bindings for site consent administration and public delivery. */
 import path from 'node:path';
 import { getEffective, set } from '@jini-ai/core/settings';
-import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-defaults';
-import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
-import { resolveSiteTitle } from '#src/features/settings/site-title';
+import { ensureSitePrivacyDefaults } from '@jini-ai/cookie-consent/site/ensure-privacy-defaults';
+import { createPost } from '#src/features/post/index';
+import { consentServiceHostPorts } from '#src/features/consent/host-bindings';
+import { SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
+import { resolveSiteTitle } from '@jini-ai/cms/settings/site/site-title';
+import { siteTitleHostBindings } from '#src/features/settings/site-title-legacy';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
-import { createSiteConsentService } from '#src/features/consent/service';
-import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
+import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '@jini-ai/cookie-consent/site/settings';
 import { fetchPublishedPage } from '#src/features/site-inspection/published-page';
 import { resolveSitePath } from '#src/features/site-inspection/site-path-policy';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -31,7 +34,7 @@ export function bindSiteConsentService({ deps }: { deps: RouteDeps }, _options =
  * @complexity O(1) setup. */
 export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): Parameters<typeof createSiteConsentService>[0]["ports"] {
   return {
-    workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
+    ...consentServiceHostPorts, workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
     published: async () => { await deps.cookieConsent?.refresh?.(); },
@@ -88,7 +91,8 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
   const deps = await pendingDeps;
   return ensureSitePrivacyDefaults({
     workspaceId: deps.workspaceId, ids: deps.idGen,
-    post: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo },
+    post: { repo: deps.postRepo },
+    createPost: ({ input }) => createPost({ deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo }, input }),
     pagesHtmlStore: deps.pagesHtmlStore,
     readUrl: async () => {
       const value = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: SITE_CONSENT_NAMESPACE,
@@ -107,7 +111,7 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
       const principalId = await deps.ownerPrincipalId;
       const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
       const siteTitle = await resolveSiteTitle({ settingsRepo: deps.settingsRepo, preservationStore: deps.siteTitlePreservationStore,
-        workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName }, { workspaceId: deps.workspaceId });
+        workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName, ...siteTitleHostBindings }, { workspaceId: deps.workspaceId });
       return { principalId, siteTitle, email: owner?.email };
     },
   });

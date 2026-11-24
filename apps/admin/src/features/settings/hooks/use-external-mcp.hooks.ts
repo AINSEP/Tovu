@@ -28,7 +28,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
-import { t as tExternalMcp } from "../external-mcp-i18n";
+import { t as tExternalMcp } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "../rules";
 
 /**

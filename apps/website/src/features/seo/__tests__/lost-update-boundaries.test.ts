@@ -7,7 +7,10 @@ import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
-import { buildSeoRegistrations } from "../tool-registrations.js";
+import { buildSeoRegistrations } from "@jini-ai/cms/seo/site/tool-registrations";
+import { seoSettingsHostBindings } from "../index.js";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 
 function conflict() {
   return new RecordVersionConflictError({ recordKind: "entry", recordId: "post-home", expectedVersion: 1, currentVersion: 2 });
@@ -17,7 +20,7 @@ test("SEO tool requires the read version and reports a conflict as not applied",
   const deps = createRouteDeps();
   await deps.seoReady;
   deps.authorize = async () => ({ allowed: true, reason: "test" });
-  const tool = buildSeoRegistrations(deps).find((item) => item.descriptor.id === "seo_set_entry_overrides");
+  const tool = buildSeoRegistrations({ deps, toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings }).find((item) => item.descriptor.id === "seo_set_entry_overrides");
   assert.ok(tool);
   const context = (input: unknown) => ({ executionId: "exec", principal: { id: "editor" }, run: { id: "run" }, input, signal: new AbortController().signal }) as ToolExecutionContext;
   await assert.rejects(tool.handler(context({ entryId: "post-home", title: "First" })), /content_read\.seo_entry_meta/);

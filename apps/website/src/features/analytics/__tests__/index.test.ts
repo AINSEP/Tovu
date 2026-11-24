@@ -1,18 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  AnalyticsDisabledError,
-  AnalyticsPiiRejectedError,
-  AnalyticsValidationError,
-  AnalyticsWorkspaceUnresolvedError,
-} from "../index.js";
+import { AnalyticsDisabledError, AnalyticsPiiRejectedError, AnalyticsValidationError, AnalyticsWorkspaceUnresolvedError } from "@jini-ai/analytics/site/ports";
 import {
   AnalyticsDisabledError as DirectAnalyticsDisabledError,
   AnalyticsPiiRejectedError as DirectAnalyticsPiiRejectedError,
   AnalyticsValidationError as DirectAnalyticsValidationError,
   AnalyticsWorkspaceUnresolvedError as DirectAnalyticsWorkspaceUnresolvedError,
-} from "../ports.js";
+} from "@jini-ai/analytics/site/ports";
 
 /**
  * @file `index.ts` is this module's ADR-009 typed-call boundary ("other modules import from here,

@@ -13,9 +13,9 @@ import {
 } from "#src/features/form-destinations/index";
 import { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination } from "@jini-ai/cms/forms/destinations/pull";
 import type { FormDestinationAddress, FormDestinationRegistry } from "@jini-ai/cms/forms";
-import { readFormDestinationSetting } from "#src/features/settings/form-destination";
-import { readFormsAutoPull } from "#src/features/settings/index";
-import type { SettingsRepoPort } from "@jini-ai/core/settings";
+import { readFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
+import { readFormsAutoPull } from "@jini-ai/cms/settings/site/form-delivery";
+import { getEffective, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { importRemoteFormSubmissions, type FormImportCounts, type FormSubmissionReceiptPort, type RemoteImportResult, type RemoteSubmissionInput } from "@jini-ai/cms/forms/html";
 import { buildFormDestinationManifest } from "@jini-ai/cms/forms/site/form-destination-manifest";
 import type { FormDestinationPullReport, FormPullCounts, FormSubmissionsPullPort, FormSubmissionsPullResult, FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
@@ -44,7 +44,7 @@ export interface FormSubmissionsCompositionDeps {
   readonly idGen: IdGenerator;
   readonly credentials: CustomCredentialWriteDeps;
   readonly loadFormDestinations: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<FormDestinationRegistry>;
-  /** For the site's `core.forms` `receiver` read (`features/settings/form-destination.ts`). */
+  /** For the site's `core.forms` `receiver` read (`@jini-ai/cms/settings/site/form-destination`). */
   readonly settingsRepo: SettingsRepoPort;
 }
 
@@ -59,7 +59,7 @@ export function composeFormSubmissions(
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
     credentials: required.credentials,
     loadRegistry: required.loadFormDestinations,
-    readSetting: ({ workspaceId }) => readFormDestinationSetting({ settingsRepo: required.settingsRepo, workspaceId }),
+    readSetting: ({ workspaceId }) => readFormDestinationSetting({ settingsRepo: required.settingsRepo, workspaceId, getEffective }),
   });
   return {
     destination,
@@ -67,7 +67,7 @@ export function composeFormSubmissions(
     autoPull: {
       run: async ({ workspaceId }) => {
         // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
-        if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
+        if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId, getEffective })) return;
         await pullAll({ deps: required, workspaceId, drains }, { ...optional, trigger: "automatic" });
       },
       drained: async () => { await Promise.all(drains); },

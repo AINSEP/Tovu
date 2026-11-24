@@ -10,9 +10,9 @@ import {
   OriginNotVerifiedError,
   type OriginRegistryPort,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { ensureSeoSettingDefinitions } from "../settings.js";
+import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "../index.js";
+import { createSeoDeps, seoSettingsHostBindings } from "../index.js";
 import { setEntrySeoOverrides } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -64,7 +64,7 @@ function fakeOriginRegistry(): OriginRegistryPort {
 async function makeHarness(posts: PostRecord[]) {
   const postRepo = new InMemoryPostRepo({}, { initialRows: posts });
   const settingsRepo = new InMemorySettingsRepo();
-  const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
+  const settingsDeps = { ...seoSettingsHostBindings, settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
   await ensureSeoSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE, systemPrincipalId: "system-seo" });
 
   const deps = {

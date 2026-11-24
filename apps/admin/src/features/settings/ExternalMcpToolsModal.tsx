@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useT } from "@jini-ai/ui";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
-import { useExternalMcpToolsModalEscape } from "./ExternalMcpToolsModal.hooks";
+import { useExternalMcpToolsModalEscape } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal.hooks";
 import { ExternalMcpToolPicker } from "./ExternalMcpToolPicker";
 
 /**

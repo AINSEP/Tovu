@@ -1,5 +1,5 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { SiteTitlePreservationStorePort } from "./site-title.js";
+import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 
 /**
  * @file SPEC-050 (NC-3 = A): THE `SiteTitlePreservationStorePort` adapter over

@@ -13,7 +13,9 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
-import { contributeRedirectPublish } from "../publish-content.js";
+import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import { createRedirect, tombstoneRedirect, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
@@ -96,7 +98,7 @@ const PINNED_HASHES: Record<string, string> = {
 };
 
 test("pack(): pinned contentHash, schemaVersion and packed state per redirect; disabled rows skipped", async () => {
-  const handler = contributeRedirectPublish().build(publishDeps(await seeded()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(await seeded()));
   const packed: PackedEntity[] = [];
   for await (const e of handler.pack()) packed.push(e);
 
@@ -123,7 +125,7 @@ test("pack(): pinned contentHash, schemaVersion and packed state per redirect; d
 });
 
 test("inspect(): the destination's hash equals the pinned pack hash", async () => {
-  const handler = contributeRedirectPublish().build(publishDeps(await seeded()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(await seeded()));
   for (const [id, hash] of Object.entries(PINNED_HASHES)) {
     assert.equal((await handler.inspect({ id }))?.hash, hash);
   }
@@ -132,7 +134,7 @@ test("inspect(): the destination's hash equals the pinned pack hash", async () =
 test("pack(): wildcard state, title and independently calculated content hash are pinned", async () => {
   const deps = makeWriteDeps();
   await createRedirect({ deps, input: { workspaceId: WORKSPACE_ID, matchType: "wildcard", fromPattern: "/legacy/*", toTarget: "/new/$1", statusCode: 301, actorId: ACTOR_ID } });
-  const handler = contributeRedirectPublish().build(publishDeps(deps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(deps));
   const rows: PackedEntity[] = [];
   for await (const row of handler.pack()) rows.push(row);
   assert.equal(rows.length, 1);
@@ -143,12 +145,12 @@ test("pack(): wildcard state, title and independently calculated content hash ar
 });
 
 test("precheck(): exact reason strings", async () => {
-  const unwired = contributeRedirectPublish().build(publishDeps(undefined));
+  const unwired = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(undefined));
   assert.equal(
     await unwired.precheck({ entity: entity("exact:/x", {}) }),
     "redirect entity 'exact:/x' cannot be prechecked — no redirect port wired for this deps bag"
   );
-  const handler = contributeRedirectPublish().build(publishDeps(await seeded()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(await seeded()));
   assert.equal(
     await handler.precheck({ entity: entity("no-colon", {}) }),
     "redirect entity 'no-colon' has a malformed natural key (expected 'matchType:fromPattern')"
@@ -164,13 +166,13 @@ test("precheck(): exact reason strings", async () => {
 });
 
 test("apply(): exact blocked text; unwired throws naming the port", async () => {
-  const handler = contributeRedirectPublish().build(publishDeps(makeWriteDeps()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(makeWriteDeps()));
   const state = { matchType: "exact", fromPattern: "/off", toTarget: "https://not-allowed.example/x", statusCode: 301, status: "active", override: false, priority: 0 };
   await assert.rejects(
     () => handler.apply({ entity: entity("exact:/off", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "k1" }),
     (err: unknown) => err instanceof PublishContentApplyRowError && err.rowOutcome === "blocked" && err.message === "toTarget 'https://not-allowed.example/x' is not an allowed redirect destination"
   );
-  const unwired = contributeRedirectPublish().build(publishDeps(undefined));
+  const unwired = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(undefined));
   await assert.rejects(
     () => unwired.apply({ entity: entity("exact:/x", {}), expectedVersion: undefined, principalId: "op", idempotencyKey: "k2" }),
     /^Error: publish-content: redirect\.apply\(\) requires PublishContentDeps\.ports\.redirect/
@@ -178,7 +180,7 @@ test("apply(): exact blocked text; unwired throws naming the port", async () => 
 });
 
 test("apply(): a vanished destination row is a conflict (text changes to changedSincePlan by the plan)", async () => {
-  const handler = contributeRedirectPublish().build(publishDeps(makeWriteDeps()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(makeWriteDeps()));
   const state = { matchType: "exact", fromPattern: "/gone", toTarget: "/x", statusCode: 301, status: "active", override: false, priority: 0 };
   await assert.rejects(
     () => handler.apply({ entity: entity("exact:/gone", state), expectedVersion: 1, principalId: "op", idempotencyKey: "k3" }),
@@ -188,7 +190,7 @@ test("apply(): a vanished destination row is a conflict (text changes to changed
 
 test("apply(): update keeps the destination row id as changeSetId and ignores the synthetic title", async () => {
   const writeDeps = await seeded();
-  const handler = contributeRedirectPublish().build(publishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(publishDeps(writeDeps));
   const before = (await writeDeps.repo.list({ workspaceId: WORKSPACE_ID })).find((r) => r.fromPattern === "/old-promo")!;
   const { changeSetId } = await handler.apply({
     entity: entity("exact:/old-promo", { matchType: "exact", fromPattern: "/old-promo", toTarget: "/newest", statusCode: 301, status: "active", override: true, priority: 0, title: "/old-promo → /newest" }),

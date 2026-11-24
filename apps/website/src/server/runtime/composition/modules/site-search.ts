@@ -1,8 +1,11 @@
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import { afterSettled } from "@jini-ai/core/errors/idioms";
-import type { SetValueRequired, SettingsRepoPort } from "@jini-ai/core/settings";
-import { BUILTIN_SEARCH_PROVIDER_ID, createSearchIndexer, createSearchProviderRegistry, createSearchService, searchIndexName, type SearchAccessPort, type SearchDocumentSource, type SearchIndexer, type SearchIndexStatePort, type SearchProviderContext, type SearchProviderRegistry, type SearchService, type SearchSourceEvent, type SearchTarget, type SearchTargetPort } from "@jini-ai/search";
-import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
+import { getEffective, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
+import {
+  BUILTIN_SEARCH_PROVIDER_ID, createSearchIndexer, createSearchProviderRegistry, createSearchService, searchIndexName,
+  type SearchAccessPort, type SearchDocumentSource, type SearchIndexer, type SearchIndexStatePort, type SearchProvider,
+  type SearchProviderContext, type SearchProviderRegistry, type SearchService, type SearchSourceEvent, type SearchTarget, type SearchTargetPort,
+} from "@jini-ai/search";
 import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -10,10 +13,11 @@ import { loadSearchProviderContributions, type LoadedSearchProviders } from "#sr
 import type { MemberContext } from "#src/features/members/index";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { set } from "#src/features/settings/index";
-import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
-import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
+import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
+import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
+import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
 import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
-import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
+import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -405,15 +409,15 @@ export interface SiteSearchBindings {
  */
 export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Record<string, never> = {}): SiteSearchPorts {
   const { workspaceId, kernel, now } = required;
-  const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo });
+  const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo, getEffective });
   const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps, writeSetting: set });
   return {
     workspaceId,
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
-    sources: createCmsSearchDocumentSources({ kernel, now }),
+    sources: createCmsSearchDocumentSources({ kernel, now, ...CMS_SEARCH_RULES }),
     ...createSqlSearchIndexStore({ kernel, now }),
-    access: createCmsSearchAccessPort({ kernel, now }),
+    access: createCmsSearchAccessPort({ kernel, now, ...CMS_SEARCH_RULES }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {
       const resolved = await required.resolveCredentialByLabel({ workspaceId, label });

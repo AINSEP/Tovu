@@ -14,7 +14,8 @@ import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budge
 import { VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
-import { readVisitorToolsSnapshot } from "#src/features/settings/visitor-tools-write";
+import { readVisitorToolsSnapshot } from "@jini-ai/cms/settings/site/visitor-tools-write";
+import { VISITOR_TOOLS_HOST } from "#src/features/settings/settings-write-policies";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
 import { randomBytes } from "node:crypto";
@@ -817,7 +818,7 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
         const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
           initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
           readSnapshot: async () => {
-            const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId });
+            const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId, visitorTools: VISITOR_TOOLS_HOST });
             return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
           },
           ...visitorConfirmationChannel({ confirmations, res }),

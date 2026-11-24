@@ -29,8 +29,8 @@ import {
   Authentication,
   Roles,
   SettingsUi,
-  Seo,
-  Redirects,
+  Seo, SeoModuleLoading, useModulePanel,
+  Redirects, RedirectsModuleLoading,
   Plugins,
   AgentPlugins,
   FormsList,
@@ -1128,7 +1128,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["settings.read"],
     // Administration, beside Settings (owner, 2026-10-21; the 2026-10-19 debate leaned Marketing, a
     // one-line move). Same `?tab=` convention as `deployment`/`settings`: the deployment gate's
-    // "Fix now" choice links to `/consent?tab=overview` (`features/consent/service.ts`).
+    // "Fix now" choice links to `/consent?tab=overview` (`@jini-ai/cookie-consent/site/service`).
     render: (ctx, _options = {}) => <CookieConsent tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Cookie Consent",
@@ -1231,7 +1231,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useAdminLocaleHook={ctx.useAdminLocaleHook} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
@@ -1242,7 +1242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "redirects",
     description: "Manage URL redirects and retired destinations.",
     anyOfPermissions: ["admin.redirects.manage"],
-    render: (ctx) => <Redirects useAdminLocaleHook={ctx.useAdminLocaleHook} />,
+    render: () => <Redirects useModulePanel={useModulePanel} ModuleLoading={RedirectsModuleLoading} />,
     nav: {
       label: "Redirects",
       group: "Marketing",

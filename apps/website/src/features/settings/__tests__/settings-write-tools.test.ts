@@ -15,8 +15,8 @@ import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
-import { set } from "../site-title-write.js";
-import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
+import { set } from "../settings-write-policies.js";
+import type { DetectedAgent } from "@jini-ai/agent-runtime";
 import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
 import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 

@@ -3,12 +3,13 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import type { RouteDeps } from "../../../routes/types.js";
-import { type SiteDisplayNameSource } from "#src/features/settings/site-title";
+import { type SiteDisplayNameSource } from "@jini-ai/cms/settings/site/site-title";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { applyOwnerPasswordReset } from "@jini-ai/user-management/identity/owner-reset-env";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
-import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
+import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
+import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
 import { formatErrorForLog } from "@jini-ai/core";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -19,20 +20,21 @@ import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-ti
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
-import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
+import { ensureAdminInterfaceSettingDefinitions } from "@jini-ai/cms/settings/site/admin-interface";
+import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
 import { ensureCommerceSetting } from "../commerce-settings.js";
-import { ensureFormDeliverySettings } from "#src/features/settings/index";
-import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
-import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
-import { ensureMailSenderSettings } from "#src/features/settings/index";
-import { ensureSettingDefinitions } from "@jini-ai/core/settings";
+import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
+import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
+import { ensureMailProviderSettings } from "@jini-ai/cms/settings/site/mail-provider";
+import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
+import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, set } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
-import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
-import { ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
-import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
-import { preserveLegacySiteTitles } from "#src/features/settings/site-title";
+import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
+import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
+import { ensureSiteTitleSettingDefinition } from "@jini-ai/cms/settings/site/site-title";
+import { preserveLegacySiteTitles } from "@jini-ai/cms/settings/site/site-title";
+import { LEGACY_SITE_TITLE, siteTitlePreservationHostBindings } from "#src/features/settings/site-title-legacy";
 import { resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { startSettingsRegistration } from "../settings-registration.js";
 import { startupSecretEnvironment } from "../../../../platform/secrets/startup-secrets.js";
@@ -82,25 +84,25 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   });
 
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
+  // SPEC-050 `core.site.title` (`@jini-ai/cms/settings/site/site-title`): registration, then the one-time
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions };
   const { siteSettingsReady, siteTitleReady } = startPersistentSiteSettings({ analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore });
   return { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady };
 }
 
 function startPersistentSiteSettings(required: {
   analyticsSettingsReady: Promise<void>;
-  siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
+  siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; ensureSettingDefinitions: typeof ensureSettingDefinitions; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
   siteTitlePreservationStore: SqliteSiteTitlePreservationStore;
 }, _options = {}) {
   const { analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore } = required;
   const siteSettingsReady = analyticsSettingsReady
-    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
+    // `core.interface` (`@jini-ai/cms/settings/site/admin-interface`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -108,22 +110,22 @@ function startPersistentSiteSettings(required: {
     .then(() => ensureMediaObjectStoreSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, ensureSettingDefinitions }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
+    // `core.mail.senderEmail`/`senderName` (`@jini-ai/cms/settings/site/mail-sender`): system mail's From.
     .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // `core.mail.provider`/`testMode` (`features/settings/mail-provider.ts`): explicit provider per lane.
+    // `core.mail.provider`/`testMode` (`@jini-ai/cms/settings/site/mail-provider`): explicit provider per lane.
     .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
+    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }))
+    // Bug D: `core.site.timezone` (`@jini-ai/cms/settings/site/site-timezone`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureCommerceSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
   // Public title reads already handle pending pins; consent must not inherit this migration wait.
   const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
-        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw, ...siteTitlePreservationHostBindings },
+        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }
       )
     )
     .then(() => undefined);
@@ -206,6 +208,8 @@ function compositionSiteDisplaySources(
   // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
+    getEffective,
+    reportFallback: createSiteTimeZoneFallbackReporter(),
     ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
   });
   return { siteDisplayName, siteTimeZone };

@@ -12,11 +12,12 @@ import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapt
 import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headless/plugin-host";
 
 import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
-import { ensureMailProviderSettings, readMailProviderSetting, writeMailProviderSetting } from "#src/features/settings/mail-provider";
+import { ensureMailProviderSettings, readMailProviderSetting, writeMailProviderSetting } from "@jini-ai/cms/settings/site/mail-provider";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createSiteMailer, type SiteMailerRequired } from "../site-mailer.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file `createSiteMailer` composes the settings-backed provider port (waiting for the definitions),
@@ -179,7 +180,7 @@ for (const [before, expected] of [
   test(`disable clears only owned selections and is idempotent: ${JSON.stringify(before)}`, async () => {
     const { required, release, settingsRepo } = await rig();
     release(); await required.settingsReady;
-    await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
+    await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
     let active = true;
     required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => active || adapter.pluginId !== PLUGIN_TOGGLE.pluginId) });
     const calls: SetAgentPluginEnabledInput[] = [];
@@ -206,7 +207,7 @@ for (const [before, expected] of [
 test("enabling or a rejected disable leaves lane selections untouched", async () => {
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const before = { transactional: "first_adapter", bulk: "second_adapter" };
-  await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
   required.resolve.loadMailAdapters = async () => ({ refusals: [], list: mailAdapters });
   const site = createSiteMailer(required, { setAgentPluginEnabled: async (input) => {
     if (!input.enabled) throw new Error("activation refused");
@@ -291,7 +292,7 @@ test("mail provider access card refuses an intervening selection at the real set
 test("disable cleanup preserves a concurrent provider selection without overwriting its lanes", async () => {
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
-  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
   required.resolve.loadMailAdapters = async () => ({ refusals: [], list: mailAdapters });
   const site = createSiteMailer(required, { setAgentPluginEnabled: async input => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: [] }) });
   await site.ready;
@@ -299,7 +300,7 @@ test("disable cleanup preserves a concurrent provider selection without overwrit
   required.settings.authorize = async () => {
     if (!changed) {
       changed = true;
-      await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "new_provider", bulk: "new_provider" } });
+      await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "new_provider", bulk: "new_provider" } });
     }
     return { allowed: true, reason: "test" };
   };
@@ -311,7 +312,7 @@ test("disable cleanup preserves a concurrent provider selection without overwrit
 for (const takeover of [false, true]) test(`disable retries selective cleanup and preserves ${takeover ? "a new owner of the same provider id" : "the other writer's lane"}`, async () => {
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
-  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
   let active = true;
   required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => active ? mailAdapters() : [] });
   const site = createSiteMailer(required, { setAgentPluginEnabled: async input => {
@@ -324,7 +325,7 @@ for (const takeover of [false, true]) test(`disable retries selective cleanup an
     if (!changed) {
       changed = true;
       if (takeover) required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'first_adapter' } })) });
-      await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "new_provider" } });
+      await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "new_provider" } });
     }
     return { allowed: true, reason: "test" };
   };
@@ -338,7 +339,7 @@ test("a disable retry clears missing owned adapters and preserves a newer live p
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
   const before = { transactional: "first_adapter", bulk: "second_adapter" };
-  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
   let active = true;
   required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => active ? mailAdapters() : [] });
   const site = createSiteMailer(required, { setAgentPluginEnabled: async input => {
@@ -348,7 +349,7 @@ test("a disable retry clears missing owned adapters and preserves a newer live p
   await site.ready;
   let conflict = true;
   required.settings.authorize = async () => {
-    if (conflict) await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
+    if (conflict) await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: before });
     return { allowed: true, reason: "test" };
   };
   await assert.rejects(site.setAgentPluginEnabled(PLUGIN_TOGGLE), /Setting revision changed/);
@@ -372,7 +373,7 @@ test("disable cleanup recovers an inactive plugin's provider ownership after a f
   await writeFile(path.join(workspace.root, 'bundled-digests.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { archiveDigest: digest } } }));
   await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { enabled: false, origin: 'bundled', updatedAt: '2026-10-21T00:00:00Z', updatedBy: 'owner' } } }));
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
-  await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: 'owner', value: { transactional: 'firstadapter', bulk: 'sharedid' } });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: 'owner', value: { transactional: 'firstadapter', bulk: 'sharedid' } });
   required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'sharedid' } })) });
   const site = createSiteMailer(required, { setAgentPluginEnabled: async input => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: [] }) });
   await site.ready;

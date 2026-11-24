@@ -5,7 +5,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createSettingsPrincipalLookup, InMemorySettingsRepo } from "../../settings/index.js";
 import type { SettingValueRecord } from "../../settings/index.js";
-import { ANALYTICS_NAMESPACE, createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../config.settings.js";
+import { ANALYTICS_NAMESPACE, createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "@jini-ai/analytics/site/config.settings";
 
 /**
  * @file `config.settings.ts` had no direct test — everything in it was only ever exercised as a

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
-import type { NormalizedHit } from "@jini-ai/core/contracts/site/analytics";
-import { createLocalAnalyticsSink } from "../jini-adapters.js";
-import { buildAnalyticsRegistrations, contributeAnalyticsTools, analyticsDerivedRisk } from "../tool-registrations.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
+import { buildAnalyticsRegistrations, contributeAnalyticsTools, analyticsDerivedRisk } from "@jini-ai/analytics/site/tool-registrations";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 const hit = (path: string, overrides: Partial<NormalizedHit> = {}): NormalizedHit => ({ workspaceId: "ws", occurredAt: "2026-10-01T00:00:00Z", kind: "pageview", path, referrerHost: null, deviceClass: "desktop", browserFamily: "Firefox", eventName: null, eventProps: null, utm: { source: null, medium: null, campaign: null, term: null, content: null }, visitorHash: "secret", sessionId: "session", osFamily: null, country: null, region: null, ...overrides });

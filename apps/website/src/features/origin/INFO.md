@@ -184,7 +184,7 @@ wrapper retirement; references to their former paths describe the pre-migration 
  * ambiguity ADR-040 F3 requires rejecting outright instead of tolerating.
  *
  * Load-bearing for the redirect READ path too, not just this oracle (t91 B2, 2026-09-16):
- * `features/redirects/phase-handler.ts` builds a relative location's oracle candidate by
+ * `@jini-ai/cms/redirects/site/phase-handler` builds a relative location's oracle candidate by
  * CONCATENATING it onto the canonical origin, and Express's `res.redirect` does not percent-encode
  * `\`, so a stored template `\` plus a request tail `/evil.example` becomes `Location:
  * \/evil.example`, which a browser follows to `evil.example`. `platform/routing`'s

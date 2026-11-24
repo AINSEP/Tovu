@@ -44,11 +44,11 @@ import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.j
 import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
-import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
+import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
-import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -625,8 +625,8 @@ export interface SettingsDeps {
    */
   settingsRepo: SettingsRepoPort;
   /** Site-owned immutable policies; omitted only by hermetic callers without a durable store. */
-  consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
-  siteConsent?: import('#src/features/consent/service').SiteConsentService;
+  consentStore?: import('@jini-ai/cookie-consent/site/revisions').SiteConsentStore;
+  siteConsent?: import('@jini-ai/cookie-consent/site/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
   /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps;
@@ -741,10 +741,10 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
-  browserAnalytics?: import('#src/features/analytics/contracts').BrowserAnalyticsSource;
+  browserAnalytics?: import('@jini-ai/analytics/site/contracts').BrowserAnalyticsSource;
   /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
-  visitorAnalyticsProof?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
-  visitorAnalyticsDeliveryAllowed?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
+  visitorAnalyticsProof?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
+  visitorAnalyticsDeliveryAllowed?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
   /** One facade for product events, redacted/deduplicated errors and scoped tracing.
@@ -801,7 +801,7 @@ export interface AnalyticsDeps {
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
-   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`features/analytics/forwarding.ts`,
+   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`@jini-ai/analytics/site/forwarding`,
    * `.cloud-coord/analytics-DESIGN.md`). Real composition only: the hermetic root leaves it absent,
    * so its beacon keeps the built-in sink alone and no hooks — the pre-forwarding path.
    */
@@ -832,7 +832,7 @@ export interface AnalyticsDeps {
    * Independent of title preservation: public reads must work while a title pin is pending. */
   siteConsentReady: Promise<void>;
   /**
-   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
+   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `@jini-ai/cms/settings/site/site-timezone`).
    * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.
    */
   siteTimeZone?: SiteTimeZonePort;

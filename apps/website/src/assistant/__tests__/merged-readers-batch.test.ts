@@ -19,7 +19,9 @@ import { contributeNewsletterTools } from "../../features/newsletter/tool-regist
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { buildPostRecord } from "../../features/post/__tests__/post-record.fixture.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
-import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
@@ -81,7 +83,7 @@ async function harness() {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-  for (const contribution of [contributePostTools(), contributeNewsletterTools(), contributeRedirectsTools(), contributeWidgetsTools()]) {
+  for (const contribution of [contributePostTools(), contributeNewsletterTools(), contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }), contributeWidgetsTools()]) {
     contributions.contributors.register({ contribution });
   }
   const build = (workspaceId = WORKSPACE, batch = true) => buildAssistantToolRegistrations(
