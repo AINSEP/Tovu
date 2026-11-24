@@ -1679,7 +1679,7 @@ describe("useWiredPostEditor", () => {
   it("composes the real port and real navigate without throwing", async () => {
     const fetchSpy = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ error: "not found" }), { status: 404 }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { result } = renderHook(() => useWiredPostEditor({ postId: "nonexistent" }));
+    const { result } = renderHook(() => useWiredPostEditor({ postId: "nonexistent", routeKeys: createPostEditorRouteKeyStore() }));
     await waitFor(() => expect(result.current.error).toBe("not found"));
     const postRequest = fetchSpy.mock.calls.find(([url]) => url === "/api/admin/v1/workspaces/workspace-local/posts/nonexistent");
     expect(postRequest).toBeDefined();

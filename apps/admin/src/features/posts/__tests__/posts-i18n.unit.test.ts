@@ -161,7 +161,7 @@ for (const copy of LOCALIZED) {
       function useEditor({ postId }: { postId: string }) {
         return usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
       }
-      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      render(h(PostEditor, { routeKeys: createPostEditorRouteKeyStore(), postId: port.post.slug, usePostEditorHook: useEditor }));
       await screen.findByTitle(copy.drag);
       fireEvent.click(screen.getByTitle(translate("Insert image by URL")));
       expect(await screen.findByRole("textbox", { name: copy.alt })).toBeInTheDocument();
@@ -179,7 +179,7 @@ for (const copy of LOCALIZED) {
         controller = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
         return controller;
       }
-      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      render(h(PostEditor, { routeKeys: createPostEditorRouteKeyStore(), postId: port.post.slug, usePostEditorHook: useEditor }));
       await waitFor(() => expect(controller.post).not.toBeNull());
       await waitFor(() => expect(controller.editor).not.toBeNull());
       if (kind === "saved") {
@@ -199,7 +199,7 @@ for (const copy of LOCALIZED) {
         return controller;
       }
       // New Post now opens an unsaved local editor; creation happens on its first Save.
-      render(h(PostEditor, { postId: "", usePostEditorHook: useEditor }));
+      render(h(PostEditor, { routeKeys: createPostEditorRouteKeyStore(), postId: "", usePostEditorHook: useEditor }));
       await waitFor(() => expect(controller.post).not.toBeNull());
       await waitFor(() => expect(controller.editor).not.toBeNull());
       fireEvent.change(screen.getByRole("textbox", { name: translate("Post title") }), { target: { value: "Keep this title" } });
@@ -243,7 +243,7 @@ for (const copy of LOCALIZED) {
         controller = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
         return controller;
       }
-      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      render(h(PostEditor, { routeKeys: createPostEditorRouteKeyStore(), postId: port.post.slug, usePostEditorHook: useEditor }));
       if (action !== "editorLoad") {
         await waitFor(() => expect(controller.post).not.toBeNull());
         await waitFor(() => expect(controller.editor).not.toBeNull());

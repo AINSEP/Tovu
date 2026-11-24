@@ -141,7 +141,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     featuredMediaId: "m1",
   };
   const mediaPort = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-  const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port: mediaPort } });
+  const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { port: mediaPort } });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {
     const controller = usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } });

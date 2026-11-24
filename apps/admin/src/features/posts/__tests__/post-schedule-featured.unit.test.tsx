@@ -150,7 +150,7 @@ describe("usePostFeaturedImage", () => {
   it("closing the picker cancels without changing the current image", () => {
     const onChange = vi.fn();
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage({ value: "m7", onChange: onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port } }));
+    const { result } = renderHook(() => usePostFeaturedImage({ value: "m7", onChange: onChange, deps: { port } }));
 
     act(() => result.current.openPicker());
     expect(result.current.pickerOpen).toBe(true);
@@ -164,7 +164,7 @@ describe("usePostFeaturedImage", () => {
   it("selecting stores the asset id and closes; clear sends null; preview uses the media URL", () => {
     const onChange = vi.fn();
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: onChange, deps: { port } }), {
       initialProps: { value: null as string | null },
     });
     expect(result.current.previewUrl).toBeNull();
@@ -181,13 +181,13 @@ describe("usePostFeaturedImage", () => {
 
   it("asks the picker for images only", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage({ value: null, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port } }));
+    const { result } = renderHook(() => usePostFeaturedImage({ value: null, onChange: vi.fn(), deps: { port } }));
     expect(result.current.accept).toEqual(["image/*"]);
   });
 
   it("a preview that fails to load is reported until the value changes", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port } }), {
       initialProps: { value: "m-video" as string | null },
     });
     expect(result.current.previewFailed).toBe(false);
@@ -200,7 +200,7 @@ describe("usePostFeaturedImage", () => {
   it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const renditionUrl = ({ id }: { id: string }) => `/m/${id}/og.v1/image.jpg`;
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port, renditionUrl } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port, renditionUrl } }), {
       initialProps: { value: "m1" as string | null },
     });
     expect(result.current.previewUrl).toBe("/m/m1/og.v1/image.jpg");

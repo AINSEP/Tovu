@@ -199,7 +199,7 @@ afterEach(() => {
 async function renderRealPostEditor() {
   let ctrl!: PostEditorController;
   function useHook({ postId }: { postId: string }) {
-    ctrl = useWiredPostEditor({ postId: postId });
+    ctrl = useWiredPostEditor({ postId: postId, routeKeys: createPostEditorRouteKeyStore() });
     return ctrl;
   }
   render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
