@@ -28,7 +28,7 @@
  * is purely a layout no-op wrapped around a real accessibility fix.
  */
 /* `.jini-menu-page-link-label` aliases this: `@jini-ai/admin`'s `MenuPageLinkFields` uses engine-prefixed classes. */
-.a11y-label-wrap, .jini-menu-page-link-label {
+.a11y-label-wrap, .jini-menu-page-link-label,.jini-a11y-label-wrap {
   display: contents;
 }
 
@@ -42,7 +42,7 @@
  * layered on top of (not replacing) the border-bottom color swap, which stays this control's own
  * visual signature. This selector has the same specificity as `styles.css`'s — it wins purely on
  * source order, since `main.tsx` imports this file after `styles.css`. */
-.editor-title:focus {
+.editor-title:focus,.jini-editor-title:focus {
   outline: none;
   box-shadow: var(--jini-control-shadow-focus);
   border-bottom-color: var(--accent-text);
@@ -123,9 +123,9 @@
  * currently owned by another agent's concurrent edit; see this file's header for the same reasoning
  * the Preview-tab rules above already follow). Indented to sit under the row it belongs to, same
  * `.menu-item-row[style*="margin-left"]` left-border convention `styles.css` uses for nested rows. */
-.menu-item-advanced { margin: 0.35rem 0 0; font-size: 0.85rem; }
-.menu-item-advanced > summary { cursor: pointer; color: var(--muted); width: fit-content; }
-.menu-item-advanced-fields {
+.jini-menu-item-advanced { margin: 0.35rem 0 0; font-size: 0.85rem; }
+.jini-menu-item-advanced > summary { cursor: pointer; color: var(--muted); width: fit-content; }
+.jini-menu-item-advanced-fields {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
@@ -133,10 +133,10 @@
   padding-left: 0.9rem;
   border-left: 2px solid var(--border);
 }
-.menu-item-advanced-fields input[type="text"],
-.menu-item-advanced-fields input:not([type]) { flex: 1 1 9rem; min-width: 7rem; font-size: 0.85rem; padding: 0.35rem 0.55rem; }
+.jini-menu-item-advanced-fields input[type="text"],
+.jini-menu-item-advanced-fields input:not([type]) { flex: 1 1 9rem; min-width: 7rem; font-size: 0.85rem; padding: 0.35rem 0.55rem; }
 /* Same shape as `styles.css`'s `.term-picker-checkbox` — inline-flex row, small gap, no box. */
-.menu-item-advanced-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; }
+.jini-menu-item-advanced-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; }
 
 /* Preview fullscreen control. A translucent symbol floating on the preview itself (owner's ask,
    2026-09-15) rather than a labelled button in the toolbar: the same control in the same place
@@ -230,12 +230,12 @@
  * content's min-content width. The `field-sizing: content` input below makes that the whole slug's
  * width, so a long slug pushed the group (and the input with it) ~516px wide on a 390px phone and the
  * page clipped it; `max-width: 100%` on the input only works once the group itself can't overflow. */
-.content-editor-header > .editor-slug { margin-left: auto; margin-top: 0.4rem; min-width: 0; }
+.content-editor-header > .editor-slug,.content-editor-header > .jini-editor-slug { margin-left: auto; margin-top: 0.4rem; min-width: 0; }
 /* The slug box is as wide as the slug (owner, 2026-10-10), never wider than the row, and capped at
  * half of what a long slug filled (~500px -> 16rem) so the title gets the freed space; a longer slug
  * scrolls inside the input. One cap for Edit post and Edit page: both render `.content-editor-header`. */
 .content-editor-header { --editor-slug-max-width: 16rem; }
-.content-editor-header > .editor-slug input {
+.content-editor-header > .editor-slug input,.content-editor-header > .jini-editor-slug input {
   width: auto; field-sizing: content; min-width: 6rem; max-width: min(100%, var(--editor-slug-max-width)); flex: 0 1 auto;
 }
 /* Above the phone breakpoint the slug group is pinned to the row's right edge (`margin-left: auto`
@@ -261,12 +261,12 @@
  * the owner asked for them together. */
 .page > .editor-action-row.content-action-row { justify-content: flex-start; }
 .content-action-group { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; min-width: 0; }
-.editor-action-row .content-action-group .btn-danger { margin-left: 0; order: 0; }
+.editor-action-row .content-action-group .btn-danger, .editor-action-row .content-action-group .jini-btn-danger { margin-left: 0; order: 0; }
 .content-action-row > .post-settings-trigger { margin-left: auto; }
 
 /* Owner, 2026-10-10 ("too much whitespace" on the Edit page screen): the toolbar sat 40px under the
  * slug (its own 1rem top margin plus the page's 24px gap) and its wrapped rows were 16px apart. */
-.content-editor-page > .page-editor-toolbar { margin-top: calc(var(--space-3) - var(--space-6)); row-gap: var(--space-2); }
+.content-editor-page > .page-editor-toolbar,.content-editor-page > .jini-page-editor-toolbar { margin-top: calc(var(--space-3) - var(--space-6)); row-gap: var(--space-2); }
 
 /* Layout half, keyed on the PANE (2026-10-11): it pairs with the container rules above and with
  * `styles.css`'s shared editor-toolbar rule, which is container-based too — a viewport rule here
@@ -279,11 +279,11 @@
   .content-editor-toolbar-start .page-editor-width { display: none; }
   /* Tighter tab and device buttons so the view tabs and the device icons share one row on a 390px
      phone (they needed ~390px of a 366px row and the device icons took a row of their own). */
-  .content-editor-toolbar-start .segmented button { padding-inline: 8px; }
-  .content-editor-toolbar-start .segmented[role="group"] button { padding-inline: 7px; }
+  .content-editor-toolbar-start .segmented button,.content-editor-toolbar-start .jini-segmented button { padding-inline: 8px; }
+  .content-editor-toolbar-start .segmented[role="group"] button,.content-editor-toolbar-start .jini-segmented[role="group"] button { padding-inline: 7px; }
   /* Title takes the row beside Back; the slug drops to its own full row below. */
   .content-editor-header .content-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
-  .content-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
+  .content-editor-header > .editor-slug,.content-editor-header > .jini-editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
   /* The settings gear stays on the action row (owner bug 11-01): a draft's Draft + Publish + Save +
      Delete + gear needed ~372px of a 351px row at 375px, so the gear fell to a row of its own. The
      group now takes the row's free width and wraps INSIDE itself on very narrow panes (or beside
@@ -295,14 +295,16 @@
   .content-action-row > .content-action-group { flex: 1 1 0; flex-wrap: wrap; row-gap: 5px; }
   .content-action-group > button { padding-inline: 9px; }
   .content-action-row > .post-settings-trigger { align-self: flex-end; }
-  .content-action-row > .save-ok, .content-action-row > .save-error { order: -1; flex-basis: 100%; }
+  .content-action-row > .save-ok, .content-action-row > .save-error, .content-action-row > .jini-save-ok, .content-action-row > .jini-save-error,.content-action-row > .jini-save-ok { order: -1; flex-basis: 100%; }
   /* The shared phone rule stretches the template group across the row and its select with it;
      here the select keeps its own width and the group stays right-aligned. */
-  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end,.content-editor-page .jini-page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker,
-  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker,.content-editor-page .jini-page-editor-toolbar .page-editor-toolbar-end .editor-template-picker,
+  .content-editor-page .jini-page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker { flex: none; }
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select,
-  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker select { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker select,.content-editor-page .jini-page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select,
+  .content-editor-page .jini-page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker select { flex: none; }
 }
 @media (max-width: 640px) {
   /* The status/Save/Delete group stays together at its natural size (owner: the stretched
@@ -313,8 +315,8 @@
      (6 header rows). The 44px device buttons cannot shrink; the tabs' padding and both groups'
      gap and padding give ~37px instead (~341px). Here, not in the container block above: a narrow
      desktop pane has no tap floor and fits at the roomier values. */
-  .content-editor-toolbar-start .segmented { gap: 2px; padding: 2px; }
-  .content-editor-toolbar-start .segmented button { padding-inline: var(--space-1); }
+  .content-editor-toolbar-start .segmented,.content-editor-toolbar-start .jini-segmented { gap: 2px; padding: 2px; }
+  .content-editor-toolbar-start .segmented button,.content-editor-toolbar-start .jini-segmented button { padding-inline: var(--space-1); }
   /* On a phone the previewed theme's own menu button sits in the same top-right corner, so the
      floating full-screen control covered it. Here it leaves the preview: in flow, right-aligned on
      its own line just above the frame (`order: -1`; it follows the pane in the DOM), as a plain

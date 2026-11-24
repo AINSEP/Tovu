@@ -370,6 +370,20 @@ describe("useTaxonomy — injected port", () => {
     expect(networkMock).not.toHaveBeenCalled();
   });
 
+  it("reads the HTML-embed copy action from the injected kit hook, not a directly imported one", async () => {
+    const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
+    const copyHtmlEmbed = vi.fn();
+    const useTaxonomyHtmlEmbed = vi.fn(() => ({ copyHtmlEmbed, copyFeedback: "injected" }));
+    const kit = { ...taxonomyHostKit, useTaxonomyHtmlEmbed };
+
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit }), { wrapper });
+
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    expect(useTaxonomyHtmlEmbed).toHaveBeenCalledWith(expect.objectContaining({ failures: kit.failures }));
+    expect(result.current.copyHtmlEmbed).toBe(copyHtmlEmbed);
+    expect(result.current.copyFeedback).toBe("injected");
+  });
+
   it("surfaces a non-Error delete rejection on the page banner instead of treating it as already gone", async () => {
     const base = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
     const port = { ...base, trashTerm: () => Promise.reject("socket closed") };

@@ -12,7 +12,7 @@ it("groups copy embed with the taxonomy row actions at the right of the header",
   }, terms: [] }] });
   render(<FetchQueryProvider><Taxonomy useTaxonomyHook={() => useTaxonomy({ port, locale: "en", t: (key) => key, kit: taxonomyHostKit })} /></FetchQueryProvider>);
   const copy = await screen.findByRole("button", { name: "Copy HTML embed" });
-  expect(copy.parentElement).toHaveClass("page-actions");
+  expect(copy.parentElement).toHaveClass("jini-page-actions");
   expect(copy.parentElement?.parentElement).toHaveClass("jini-taxonomy-namespace-group-header");
   expect(copy.parentElement?.contains(screen.getByRole("heading", { name: "Categories", level: 2 }))).toBe(false);
 });
