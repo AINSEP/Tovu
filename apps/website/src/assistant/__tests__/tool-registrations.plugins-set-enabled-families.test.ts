@@ -13,7 +13,8 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
+import { MCP_UI_MIME_TYPE } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -27,7 +28,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import {
   buildPluginsRegistrations,

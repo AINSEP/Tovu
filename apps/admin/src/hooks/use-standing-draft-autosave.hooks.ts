@@ -1,7 +1,7 @@
 /** Entry transport adapter; @jini-ai/ui/panel-kit owns debounce, refusal recovery and exit flushing. */
 import { useMemo } from "react";
 import { useStandingDraftAutosave as useAutosave, type StandingDraftAutosavePort as JiniPort, type StandingDraftAutosaveOptions } from "@jini-ai/ui/panel-kit";
-import { standingDraftLocalBackup } from "../lib/standing-draft-local-backup";
+import { standingDraftLocalBackup } from "../lib/shell-collaborators";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@jini-ai/ui/panel-kit";
 export type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot, StandingDraftAutosaveController, StandingDraftStaleBasis } from "@jini-ai/ui/panel-kit";
 export interface StandingDraftAutosavePort {

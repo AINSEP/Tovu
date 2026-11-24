@@ -11,9 +11,10 @@ import { skillUninstallRoute } from "@jini-ai/cms/admin-http/routes/skills/unins
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
-import { installSkill, listManagedSkills, setSkillEnabled, SkillInputError, uninstallSkill } from "#src/features/skills/install-service";
+import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "@jini-ai/agentic/skills/site/install-service";
+import { SkillInputError } from "@jini-ai/agentic/skills/install";
 import { SKILL_STATE_FILE } from "#src/features/skills/state";
-import { buildSkillToolRegistrations, loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
+import { buildSkillToolRegistrations, loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";

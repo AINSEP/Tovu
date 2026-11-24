@@ -10,14 +10,14 @@ import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
-import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
+import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "../../integrations/jini-admin/security-i18n";
 import { ACCESS_TOKEN_CATEGORIES, type AccessTokenCategoryId, type AccessTokenRowCategoryId } from "./rules";
 import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
 import { invalidAdditionalHostsEntries } from "./custom-credential-forms";
 import { accessTokensCountText } from "./other-credential-stores";
 import { extraFieldsAroundToken, providerGroupHandleLabel, providerGroupSubtitleKeys, tokenRowHandleLabel, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "./access-token-providers";
 import { type AccessTokenRow } from "./access-token-rows";
-import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "./security-visuals";
+import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import type {
   AccessTokenAddFormState,

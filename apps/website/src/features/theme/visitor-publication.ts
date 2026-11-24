@@ -2,7 +2,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { agentHandle, agentHandleSegment } from '@jini-ai/core/agent-handles';
-import type { PagePublication, PublishedPageAction, PublishedPageElement } from '@jini-ai/agentic/core';
+import type { PagePublication, PublishedPageAction, PublishedPageElement } from "@jini-ai/core/contracts/site/agentic-core";
 import { checkSiteRelativeTarget } from '#src/platform/routing/index';
 import { escapeHtml } from '@jini-ai/core/text';
 

@@ -1,4 +1,4 @@
-import { issueApiKey } from "#src/features/identity/api-key-service";
+import { issueApiKey } from "#src/features/identity/api-key-binding";
 import { toApiKeyIssueResponse } from "#src/server/inbound/admin-http/http/api-keys";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import {

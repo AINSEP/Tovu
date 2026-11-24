@@ -244,7 +244,7 @@ test("AC-18 (REQ-02): the literal appears in no non-test module under apps/websi
     }
   };
   walk(srcRoot);
-  assert.deepEqual(offenders.sort(), ["features/settings/site-title.ts"]);
+  assert.deepEqual(offenders.sort(), ["features/settings/site-title-legacy.ts"]);
 });
 
 test("AC-19 (REQ-02): a Liquid template's {{ site.title }} renders the owner-set title in the templated preview", async (t) => {

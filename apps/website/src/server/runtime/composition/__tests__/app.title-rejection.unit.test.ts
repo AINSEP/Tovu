@@ -1,7 +1,7 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemorySiteTitlePreservationStore } from "#src/features/settings/site-title";
+import { InMemorySiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title";
 import { createRouteDeps } from "../app.js";
 
 test("a failed background title pin is observed immediately and still rejects for consumers", async t => {

@@ -89,11 +89,11 @@ vi.mock("../../hooks/use-assistant-chats.hooks", async (importOriginal) => {
 
 // `useFolderDropBridge` (SPEC-053) only wires `useFolderDrop`'s return value to a callback prop —
 // its own logic (composer insertion, custom-root set/retry/dismiss) is `useFolderDrop`'s, already
-// covered directly by `features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts`. Mocked
+// covered directly by `@jini-ai/admin`'s own `use-folder-drop.hooks.unit.test.ts`. Mocked
 // here, by the SAME specifier `AssistantDock.hooks.tsx` itself imports it through, so this suite can
 // assert the bridging in isolation without re-driving every `useFolderDrop` branch.
 const mockUseFolderDrop = vi.hoisted(() => vi.fn());
-vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
+vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 
@@ -120,12 +120,12 @@ import {
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { localCliSelectionFromConfig } from "../AssistantDock/execution-config-write";
-import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+import { writeAgentsSnapshot } from "../../lib/shell-collaborators";
 import {
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
-} from "../../features/plugins/composer-capabilities";
-import type { TovuComposerCapability } from "../../features/plugins/composer-capabilities";
+} from "@jini-ai/admin/screens/plugins/composer-capabilities";
+import type { ComposerCapability as TovuComposerCapability } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
@@ -2235,6 +2235,8 @@ describe("useWorkingDirectoryAccess", () => {
     expect(result.current).toBe(first);
     await expect(result.current!.pickWorkingDirectory()).resolves.toBe("picked-project");
     expect(picker).toHaveBeenCalledTimes(1);
+    // The host's pre-move key, so recent-folder lists already saved in browsers keep loading.
+    expect(localStorage.getItem("tovu.assistant.recentWorkingDirectoryNames")).toBe(JSON.stringify(["picked-project"]));
     localStorage.clear();
   });
 

@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
+import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-host-config.ts";
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from "../contracts/app-version.ts";
 import { RUNNER_RESOURCES_GET_CHANNEL } from "../contracts/resources.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS as VIEWS } from "../contracts/site-view-preference.ts";

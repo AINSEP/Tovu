@@ -4,7 +4,7 @@ import { createPublishJobStore, type PublishJobSnapshot, type DeployPublishProgr
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";
 import { publicPublishConfigFields } from "./publish-history.js";
-import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
+import type { StaticPublishOutcome, StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /**
  * @file This sub-feature's process-local single-flight state for a real publish, extracted out of

@@ -1,4 +1,4 @@
-import { createMemberAccessResolver } from "#src/features/members/index";
+import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
@@ -12,7 +12,8 @@ import { resolveMediaAssetMetadataForRender, resolveMediaTransformVersionsForRen
 import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
 import { resolveHtmlEmbedsForRender, resolveWidgetsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/widgets";
 import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
-import { resolveSiteTitle } from "#src/features/settings/index";
+import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
+import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
 
 import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
@@ -55,6 +56,7 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
         preservationStore: deps.siteTitlePreservationStore,
         workspaceRepo: deps.workspaceRepo,
         siteDisplayName: deps.siteDisplayName,
+        ...siteTitleHostBindings,
       },
       { workspaceId: deps.workspaceId }
     ),

@@ -10,10 +10,11 @@ import test from "node:test";
 const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
-import { type IdentityRepos, GrantExceedsIssuerError, IdentityForbiddenError } from "@jini-ai/user-management";
+import { GrantExceedsIssuerError, IdentityForbiddenError } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { identityAgentToolCatalog, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding, createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";

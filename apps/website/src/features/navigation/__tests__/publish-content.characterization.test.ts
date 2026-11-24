@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "../index.js";
 import { contributeMenusPublish } from "../publish-content.js";

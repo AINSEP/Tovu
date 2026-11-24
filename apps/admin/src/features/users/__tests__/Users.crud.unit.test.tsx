@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Users } from "../UsersPanel";
+import { Users } from "..";
 
 /**
  * @file `Users` — covers the create-user form, the loading/error/empty states, and the expanded

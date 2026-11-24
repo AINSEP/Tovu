@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -125,11 +126,11 @@ const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
 /** Route specs that moved into `@jini-ai/cms` (ex5-fnd-routes): their permission literal now lives in
  *  the package's built route module, which ships in `dist/` for both linked and registry installs. */
 const CMS_ROUTES = "../../../node_modules/@jini-ai/cms/dist/admin-http/routes";
-/** Operator and role specs moved into `@jini-ai/user-management` the same way. */
+/** Users/roles route specs that moved into `@jini-ai/user-management` (w3-rtfnd T7, rv1123l). */
 const USER_ROUTES = "../../../node_modules/@jini-ai/user-management/dist/admin-http/routes";
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
-  // The pages specs check `content.read` through `authorizePageRead`, defined in the family's shared module.
+  // `pages/list` authorizes through `authorizePageRead`; the literal lives in its shared module.
   pages: `${CMS_ROUTES}/pages/shared.js`,
   posts: `${ROUTES}/posts/list.ts`,
   media: `${ROUTES}/media/list.ts`,
@@ -140,9 +141,9 @@ const SERVER_EVIDENCE: Record<string, string> = {
   taxonomy: `${ROUTES}/taxonomy/list.ts`,
   forms: `${ROUTES}/forms/list.ts`,
   users: `${USER_ROUTES}/users/list.js`,
-  // list-roles checks `role.manage` through `authorizeRoleManage`, defined in the access-shared module.
+  // `users/list-roles` authorizes through `authorizeRoleManage`; the literal lives in its shared module.
   roles: `${USER_ROUTES}/users/access-shared.js`,
-  // The member specs check `member.manage` through `authorizeMemberManage`, defined in the family's shared module.
+  // `members/list` authorizes through the members shared module, which holds the literal.
   members: `${CMS_ROUTES}/members/shared.js`,
   comments: `${ROUTES}/comments/moderation-queue.ts`,
   themes: `${CMS_ROUTES}/themes/list.js`,
@@ -153,20 +154,20 @@ const SERVER_EVIDENCE: Record<string, string> = {
   database: `${CMS_ROUTES}/database/timeline.js`,
   recovery: `${CMS_ROUTES}/recovery/status.js`,
   deployment: `${CMS_ROUTES}/system/deployment-overview.js`,
-  observability: `${ROUTES}/system/observability-status.ts`,
+  // The observability-status route is a Jini spec now; its permission literal ships in the package.
+  observability: "@jini-ai/cms/admin-http/routes/system/observability-status",
   email: `${CMS_ROUTES}/system/mail-status.js`,
   settings: `${CMS_ROUTES}/settings/get-effective.js`,
   consent: `${CMS_ROUTES}/consent/routes.js`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
-  // The SEO specs check `SEO_MANAGE_PERMISSION`; the literal lives where that constant is defined.
+  // `seo/get-settings` authorizes through the seo shared module, which holds the literal.
   seo: `${CMS_ROUTES}/seo/shared.js`,
   redirects: `${CMS_ROUTES}/redirects/shared.js`,
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
   // The routable-only webhook deliveries drill-down (`/admin/integrations/:subscriptionId`).
-  // Its spec checks `admin.integrations.manage` through `authorizeIntegrations`, defined in the family's shared module.
   integrations: `${CMS_ROUTES}/integrations/shared.js`,
 };
 
@@ -181,7 +182,9 @@ describe("panel permission ids match the server's checks", () => {
   it.each(gated.map((panel) => [panel.id, panel.anyOfPermissions ?? []] as const))(
     "%s declares only ids its server route checks",
     (panelId, permissions) => {
-      const source = readFileSync(resolve(here, SERVER_EVIDENCE[panelId] ?? ""), "utf8");
+      const evidence = SERVER_EVIDENCE[panelId] ?? "";
+      const file = evidence.startsWith("@jini-ai/") ? createRequire(import.meta.url).resolve(evidence) : resolve(here, evidence);
+      const source = readFileSync(file, "utf8");
       for (const permission of permissions) expect(source).toMatch(new RegExp(`["']${permission.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`));
     },
   );

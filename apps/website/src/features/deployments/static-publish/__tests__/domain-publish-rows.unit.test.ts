@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { domainPublishRows } from '../domain-publish-rows.js';
-import type { DeployTargetInspection } from '../../deploy-targets/types.js';
+import { domainPublishRows } from '@jini-ai/devops/deploy/site/static-publish/domain-publish-rows';
+import type { DeployTargetInspection } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 
 const route = { id: 'route-1', pattern: '*byho.io/*', script: 'legacy' };
 const inspection: DeployTargetInspection = {

@@ -1,7 +1,8 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
-import { CREDENTIAL_MESSAGES, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
@@ -10,7 +11,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
-import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-providers/catalog';
+import type { MediaModel, MediaProvider } from "@jini-ai/core/contracts/site/media-providers-catalog";
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";

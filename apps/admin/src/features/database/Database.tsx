@@ -1,20 +1,22 @@
 import { navigateDatabaseTab } from "./Database.hooks";
 import { Icon } from "@jini-ai/ui";
-import type { AdminLedgerRow } from "./api/database-api.types";
+import type { AdminLedgerRow } from "@jini-ai/admin/core";
 
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { ServerLabel } from "@/components/status-labels";
 
-import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
-import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
-import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
+import { navigateToRecoveryWithDeepLink } from "@jini-ai/admin/screens/database/hooks/use-timeline-section.hooks";
+import { useWiredTimelineSection } from "./hooks/timeline-section-dependencies.hooks";
+import type { MigrateForwardSectionController } from "@jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks";
+import { useWiredMigrateForwardSection } from "./hooks/migrate-forward-section-dependencies.hooks";
+import { useWiredSchemaStateSection } from "./hooks/schema-state-section-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t, planReadyMessage } from "./database-i18n";
-import { viewInRecoveryAccessibleName } from "./rules";
+import { t, planReadyMessage } from "@jini-ai/admin/screens/database/database-i18n";
+import { viewInRecoveryAccessibleName } from "@jini-ai/admin/screens/database/rules";
 
 import { formatTimestamp, resolveActiveTabId } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
@@ -23,8 +25,8 @@ import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
  * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`@jini-ai/ui/tab-strip`)
  * with two tabs — Timeline, Migrate forward. Markup only.
  *
- * State and API calls live in `hooks/use-timeline-section.hooks.ts` and
- * `hooks/use-migrate-forward-section.hooks.ts` — one per section, matching the two independent
+ * State and API calls live in the package's `use-timeline-section.hooks.ts` and
+ * `use-migrate-forward-section.hooks.ts` (`@jini-ai/admin/screens/database/hooks/`, bound in `hooks/*-dependencies.hooks.ts`) — one per section, matching the two independent
  * pieces of screen state. Structural reference: `Analytics.tsx`'s "raw ingest, said so explicitly"
  * pattern (design-spec.md §0.3).
  *
@@ -94,7 +96,7 @@ export interface TimelineSectionProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Mirrored below (`MigrateForwardSectionProps`) since each section owns
    *  independent state. Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see
-   *  `use-timeline-section.hooks.ts`'s own `useWiredTimelineSection`. */
+   *  `timeline-section-dependencies.hooks.ts`'s own `useWiredTimelineSection`. */
   useTimelineSectionHook?: typeof useWiredTimelineSection;
 }
 
@@ -203,12 +205,12 @@ function timelineColumns(
           <button
             type="button"
             className="database-restore-point-link"
-            onClick={() => navigateToRecoveryWithDeepLink(row)}
+            onClick={() => navigateToRecoveryWithDeepLink({ row, navigate })}
             // Every row's visible text is the identical "View in Recovery →", and every row's
             // button is on screen at once (not a per-row menu item) — see `rules.ts`'s
             // `viewInRecoveryAccessibleName` doc comment for why that is ambiguous to anything
             // resolving elements by accessible name rather than table position.
-            aria-label={viewInRecoveryAccessibleName({ locale, row })}
+            aria-label={viewInRecoveryAccessibleName({ locale, row, viewerTimeZone: VIEWER_TIME_ZONE })}
             {...agentHandle({ handle: handleForRestorePointCell(row.id) }, {
               role: "button",
               label: "Open this ledger entry's restore point in Recovery",
@@ -315,7 +317,7 @@ function TimelineSection({ useTimelineSectionHook = useWiredTimelineSection }: T
 
 export interface MigrateForwardSectionProps {
   /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-migrate-forward-
-   *  section.hooks.ts`'s own `useWiredMigrateForwardSection`. */
+   *  section-dependencies.hooks.ts`'s own `useWiredMigrateForwardSection`. */
   useMigrateForwardSectionHook?: typeof useWiredMigrateForwardSection;
 }
 

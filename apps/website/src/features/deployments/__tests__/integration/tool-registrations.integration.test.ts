@@ -9,7 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ToolInputError } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile.js";
+import { readDockerfileSource, writeDockerfileSource } from "@jini-ai/devops/deploy/site/dockerfile";
 import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../tool-registrations.js";
 
 /**

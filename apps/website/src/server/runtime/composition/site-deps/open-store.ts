@@ -8,7 +8,7 @@ import { mkdirSync } from "node:fs";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
-import { startMailRetention } from "#src/features/mail/retention";
+import { startMailRetention } from "@jini-ai/platform/mail/sql";
 import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
 import { type CreateSiteRouteDepsOverrides, resolveSiteBindingOverride } from "./overrides.js";
 
@@ -126,7 +126,7 @@ function startOwnerSweeps(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
-  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }, { onError: () => console.warn("[mail-retention] purge failed") }) : async () => {};
   return { stopChatSweep, stopSubmissionIpSweep, stopMailRetention };
 }
 

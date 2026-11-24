@@ -7,7 +7,7 @@ import test from "node:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { setCustomFsRoot } from "../custom-root-store.js";
+import { setCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 
 import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";

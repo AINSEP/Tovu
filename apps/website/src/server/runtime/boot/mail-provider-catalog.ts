@@ -1,13 +1,8 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createProviderMailer as createEngineProviderMailer, defaultMailProviderSetup } from "@jini-ai/platform/mail";
 import type { UUID } from "@jini-ai/core/primitives";
-import {
-  createConsoleMailProvider,
-  createMailProviderRegistry,
-  createSmtpMailProvider,
-  type MailAdapterCredential,
-  type MailProviderModule,
-} from "@jini-ai/platform/mail";
+import { createConsoleMailProvider, createMailProviderRegistry, createSmtpMailProvider, type MailProviderModule } from "@jini-ai/platform/mail";
+import type { MailAdapterCredential } from "@jini-ai/core/contracts/mail";
 
 import {
   resolveCustomCredentialByLabel,
@@ -15,13 +10,13 @@ import {
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import type { MailProviderSetup } from "#src/platform/mail/index";
+import { contributeMailProviders } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
+import type { MailProviderSetup, PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
   type CreateNodemailerSmtpTransportConfig,
-  type MailerPort,
   type SmtpTransport,
 } from "#src/platform/mail/index";
 import { toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";

@@ -7,7 +7,7 @@ import { pluginSetEnabledRoute, type PluginSetEnabledInput } from "@jini-ai/cms/
 import { pluginUninstallRoute, type PluginUninstallInput } from "@jini-ai/cms/admin-http/routes/plugins/uninstall";
 import { projectKeyUseRoute } from "@jini-ai/cms/admin-http/routes/plugins/project-key-use";
 import { pluginProviderSettingsGetRoute, pluginProviderSettingsSaveRoute, type ProviderSettingsRouteDeps as ProviderSettingsSpecDeps } from "@jini-ai/cms/admin-http/routes/plugins/provider-settings";
-import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import {
   PluginAlreadyInTrashError, PluginConflictError, PluginEnabledError, PluginHookFailedError, PluginIncompatibleError, PluginInvalidError,

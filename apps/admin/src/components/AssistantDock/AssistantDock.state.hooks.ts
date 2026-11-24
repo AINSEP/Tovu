@@ -1,5 +1,7 @@
+import { isAbortError } from '@jini-ai/core/text';
 import { useConfirmRequest } from "@jini-ai/admin/react";
-import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
+import { useNativeFolderPicker } from "@jini-ai/admin/screens/fs-files/use-native-folder-picker.hooks";
+import { nativeFolderPickerDeps } from "../../features/fs-files/api/fs-files-api";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
@@ -12,7 +14,7 @@ import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
 import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
-import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
+import { useAdminBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import {
   ChatPane,
@@ -20,7 +22,7 @@ import {
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { useAgentFailureSurface } from "./AgentFailureCard.hooks";
+import { useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { selectedLocalCliReasoning } from "../../lib/execution-settings";
 // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
@@ -59,7 +61,7 @@ function useDockChrome({ props }: { props: DockProps }, { useChrome = useAssista
   const { useAdminLocale } = props;
   const renderers = useDockRendererRegistry();
   const { mcpUiToolCaller } = renderers;
-  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
+  const { enabled: webMcpEnabled } = useAdminBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
@@ -224,7 +226,7 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
   const folderDrop = useDropBridge({ input: { composerHandle: voiceInput.composerHandle }, onReady: onFolderDropCaptureReady }, { proposeSkillFiles: skillInstall.proposeFiles, onSkillDropError: skillInstall.fail });
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
-  const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
+  const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint }, nativeFolderPickerDeps);
 
   return {
     composerCapabilities, selectedPluginRefIds, removePluginRef, selectedSkills, discoveryDraft, captureComposerClick,
@@ -259,7 +261,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
   const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t({ key: "Tovu assistant" }) });
   // One policy-gated selection handler for both the failure card and the picker.
   const handleSelectionChange = executionPolicy.selectionChange({ change: handleLocalCliSelectionChange });
-  const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
+  const failureSurface = useAgentFailureSurface({ transport, isAbortError, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
   const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });

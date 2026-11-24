@@ -1,9 +1,9 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { t } from "./email-i18n";
-import type { MailDnsRecordStatus, MailDnsStatus } from "./email-api";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
+import type { MailDnsRecordStatus, MailDnsStatus } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, CopyButton, Loaded, Section, when, type Tone } from "./EmailParts";
-import type { EmailSenderController } from "./hooks/use-email-sender.hooks";
+import type { EmailSenderController } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 
 /**
  * @file The Sender & DNS tab: the From name and address (saved settings; the next email uses

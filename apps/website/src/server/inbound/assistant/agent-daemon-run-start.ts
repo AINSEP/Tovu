@@ -30,7 +30,7 @@ import { assemblePromptWithPluginPrefix } from "./plugin-prompt-assembly.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "./assistant-system-overlay.js";
 import { createAssistantChromeProbe, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
-import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
+import { getCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, createConversationStartLock } from "#src/assistant/agent-session-preset";
 import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";

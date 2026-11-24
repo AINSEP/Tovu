@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { AdminTokenSignInPlugin } from "@/features/sites/api/sites-api.types";
+import type { AdminTokenSignInPlugin } from "@jini-ai/core/contracts/site/admin-sites";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, tokensForCreate } from "../rules";
-import type { SitesPort } from "./sites-port.hooks";
+import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 
 /**
  * @file The create form's optional "connect a service now" fields (2026-09-29, owner: "the option of

@@ -6,7 +6,7 @@ import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
 import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
-import type { AgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfacesPort } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useAgentPluginSurfaces } from "./hooks/use-agent-plugin-surfaces.hooks";
 import {
   useWiredAgentPluginDetailsModal,

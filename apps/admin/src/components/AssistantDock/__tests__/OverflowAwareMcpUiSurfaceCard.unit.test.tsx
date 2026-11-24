@@ -104,7 +104,7 @@ describe("OverflowAwareMcpUiSurfaceCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show in modal" }));
 
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
     expect(dialog.querySelector(".fake-mcp-ui-surface-card")).toBeInTheDocument();
     expect(mcpUiSurfaceCardSpy).toHaveBeenLastCalledWith(baseProps);
@@ -115,7 +115,7 @@ describe("OverflowAwareMcpUiSurfaceCard", () => {
   it("closes the modal and remounts the surface inline, still never two at once", () => {
     render(<OverflowAwareMcpUiSurfaceCard {...baseProps} useOverflowDetectionHook={useOverflowDetectionHook(true)} />);
     fireEvent.click(screen.getByRole("button", { name: "Show in modal" }));
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));

@@ -9,7 +9,7 @@ import { requireInputRecord, requireString } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
@@ -25,9 +25,9 @@ import {
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { inspectSiteKeyMaterial } from "../webhooks/index.js";
-import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/index.js";
-import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
+import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
+import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
+import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/index.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";

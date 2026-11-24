@@ -1,7 +1,10 @@
 import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
-import type { MigrateForwardExecuteResult } from "@/features/database/api/database-api.types";
+import type { MigrateForwardResult } from "@jini-ai/admin/core";
 import { databaseApi } from "@/features/database/api/database-api";
-import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
+import type { MigrateForwardSectionPort } from "@jini-ai/admin/screens/database/hooks/migrate-forward-section-port.hooks";
+import { useMigrateForwardSection, type MigrateForwardSectionController, type MigrateForwardSectionHost } from "@jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**
  * @file The only place `use-migrate-forward-section.hooks.ts` reaches `lib/api` — see
@@ -19,7 +22,7 @@ export const defaultMigrateForwardSectionPort: MigrateForwardSectionPort = {
 export interface FakeMigrateForwardSectionPortOptions {
   plan?: GatedPlanResult;
   confirmationToken?: string;
-  executeResult?: MigrateForwardExecuteResult;
+  executeResult?: MigrateForwardResult;
   /** When set, `planMigrateForward()` rejects with this instead of resolving — for plan-failure
    *  tests. */
   planError?: Error;
@@ -57,4 +60,23 @@ export function createFakeMigrateForwardSectionPort(
       return options.executeResult ?? { migrated: true };
     },
   };
+}
+
+/** This admin's collaborators for the package's migrate-forward hook: its locale query and API-error
+ *  wording. Module-level, so the hook field keeps its identity. */
+export const MIGRATE_FORWARD_SECTION_HOST: MigrateForwardSectionHost = {
+  useLocale: () => useWiredAdminLocale(),
+  describeError: (required) => describeApiError(required),
+};
+
+/**
+ * Binds the real `/api/.../database/migrate-forward` client — see `defaultMigrateForwardSectionPort`
+ * above. The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Database.tsx`
+ * composes this and a test composes the package's `useMigrateForwardSection` with
+ * `createFakeMigrateForwardSectionPort`.
+ *
+ * @returns Same controller shape as `useMigrateForwardSection`, bound to the real port and this admin's host.
+ */
+export function useWiredMigrateForwardSection(): MigrateForwardSectionController {
+  return useMigrateForwardSection({ port: defaultMigrateForwardSectionPort, host: MIGRATE_FORWARD_SECTION_HOST });
 }

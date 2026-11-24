@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { connect } from "node:net";
 import test from "node:test";
 import express from "express";
-import type { MailFeedbackRequest, MailFeedbackRoute } from "#src/features/mail/index";
+import type { MailFeedbackRequest, MailFeedbackRoute } from "@jini-ai/platform/mail";
 import { parsePublicJsonBody } from "../../../shared/json-body-parsers.js";
 import { startTestServer } from "../../../../__tests__/helpers/http-test-server.js";
 import { MAIL_FEEDBACK_PATH, registerMailFeedbackRoute } from "../mail-feedback.js";

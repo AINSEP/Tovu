@@ -718,7 +718,7 @@ test("plugin guidance carries maturity and warns before keys/actions for every m
 });
 
 test("L025b guidance pins selection guards, reader recovery and sanitized unknown names", async () => {
-  const source: import("../../tool-registrations.js").AgentPluginToolSource = {
+  const source: import("@jini-ai/agent-plugins/lifecycle/host-tools").AgentPluginToolSource = {
     id: "agent_plugin_pinned", pluginId: "pinned", archiveDigest: "a".repeat(64), description: "Pinned guidance", defaultSkillName: "pinned",
     skills: [{ name: "pinned", summary: "Default", markdown: "DEFAULT" }, { name: "other", summary: "x".repeat(400), markdown: "OTHER" }],
   };

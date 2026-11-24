@@ -9,7 +9,8 @@
  * the current session, off a client-side `File` cache keyed by upload path
  * (`apps/admin/.../attachment-preview-cache.ts`): anything from an earlier turn, or anything at all
  * after a reload, could never be previewed. This module is the server half that makes those bytes
- * reachable; `routes/assistant/get-chat-attachment.ts` is the HTTP half.
+ * reachable; `@jini-ai/cms/admin-http/routes/assistant/get-chat-attachment` (bound in
+ * `server/runtime/composition/modules/assistant-attachment-read.ts`) is the HTTP half.
  *
  * ## Why this reads the store's on-disk records instead of calling the store
  *
@@ -58,7 +59,7 @@
  * - not gated by an additional `authorize()` permission either, and that is not an omission: the
  *   upload route itself requires only `requireAdminSession` (`modules/assistant.ts`), so a
  *   permission gate here would refuse a principal their own upload. Same reasoning the admin BYOK
- *   execution-credential routes give for having no `authorize()` call (`routes/assistant/deps.ts`):
+ *   execution-credential routes give for having no `authorize()` call (`server/runtime/composition/modules/assistant-settings.ts`):
  *   the record is scoped to the principal, so there is no other principal's data to reach.
  *
  * Deliberately NOT narrower: an attachment already claimed by a run is still readable by its owner.
@@ -101,9 +102,7 @@ import { dirname, resolve } from "node:path";
 
 import { isUnchangedAttachment } from "@jini-ai/daemon/http";
 
-import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult, type ChatAttachmentRefusal } from '../../contracts/headless/index.js';
-export { CHAT_ATTACHMENT_REF_PATTERN } from '../../contracts/headless/index.js';
-export type { ChatAttachmentReadResult, ChatAttachmentRefusal } from '../../contracts/headless/index.js';
+import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult, type ChatAttachmentRefusal } from '@jini-ai/core/contracts/headless/chat-attachment';
 
 /**
  * Accepted batch id shape — kept identical to `attachments.ts`'s own `BATCH_ID_PATTERN`, because

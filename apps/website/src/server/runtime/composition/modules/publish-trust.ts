@@ -14,10 +14,10 @@ import {
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
-import { isGrantActive, type PublishTrustGrant } from "#src/features/publish-trust/grant";
-import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
+import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
+import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
-import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
 /**

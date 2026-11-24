@@ -1,18 +1,20 @@
 import { agentPluginFilesRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/files";
 import { agentPluginsListRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/list";
 import { agentPluginSetEnabledRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/set-enabled";
+import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
 import {
-  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError,
+  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginNotReadyError } from "#src/features/agent-plugins/soon-lock";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";

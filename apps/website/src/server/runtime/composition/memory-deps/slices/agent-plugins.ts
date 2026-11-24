@@ -4,7 +4,8 @@ import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/life
 import { bundledAgentPluginsDir } from "../../site-paths.js";
 import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
-import { resolveSkillLayout } from "#src/features/skills/layout";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import type { NewsletterRouteDeps } from "../../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
@@ -25,7 +26,7 @@ export function composeMemoryAgentPlugins(required: { routeDeps: () => Newslette
     mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: routeDeps }),
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
-  const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
+  const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir, host: SKILL_SITE_HOST });
   // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
   // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.

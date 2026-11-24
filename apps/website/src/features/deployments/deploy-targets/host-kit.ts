@@ -18,7 +18,7 @@ import {
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import type { DeployFetchTimeouts, SigV4Client  } from "./types.js";
+import type { DeployFetchTimeouts, SigV4Client  } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 
 /**

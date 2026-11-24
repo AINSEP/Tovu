@@ -8,8 +8,13 @@ import { registerPublishContentContributor } from "#src/features/publish-content
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
-import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
-import { contributeSiteSettingPublish } from "#src/features/settings/publish-content";
+import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
+import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { contributeSiteSettingPublish } from "@jini-ai/cms/settings/site/publish-content";
+import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";
 import { contributeThemeFilesPublish } from "#src/features/theme/publish-content";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
@@ -53,7 +58,7 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributePostPublish() });
   registerPublishContentContributor({ contributor: contributePagePublish() });
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributeRedirectPublish() });
+  registerPublishContentContributor({ contributor: contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }) });
   registerPublishContentContributor({ contributor: contributeMenusPublish() });
   registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   registerPublishContentContributor({ contributor: contributeFormPublish() });
@@ -63,7 +68,7 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });
   registerPublishContentContributor({ contributor: contributeWidgetPublish() });
   registerPublishContentContributor({ contributor: contributeWidgetAreaPublish() });
-  registerPublishContentContributor({ contributor: contributeSiteSettingPublish() });
+  registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });
   registerPublishContentContributor({ contributor: contributeActiveThemePublish() });
   registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   registerPublishContentContributor({ contributor: contributeRawFilePublish() });

@@ -1,0 +1,22 @@
+# plugin-runtime
+
+## Wiring
+
+- `plugin-host-copy.ts` binds this host's product copy into the model-facing plugin text owned by
+  `@jini-ai/plugins/runtime/*`: `PLUGIN_HOST_COPY` (`productName`, `sitePluginFormat`,
+  `localInstallEnv`, `pluginListToolName`) goes to `createPluginAgentToolCatalog`, `createPluginSourceAgentToolCatalog`,
+  `createInstallToolCatalog` (with `PLUGIN_INSTALL_SOURCE_SCHEMA` from `#src/contracts/headless`),
+  `createPluginToolMessages` and `createPluginInstallMessages`; `createCapabilityCard` gets the Plugins
+  admin path. `host-tool-binding.ts`, `install-tool-binding.ts` and `server/runtime/composition/site-guide.ts`
+  read the bound values from there; `PLUGINS_SET_ENABLED_TOOL_ID`, `PluginFamily` and
+  `PLUGINS_INSTALL_TOOL_ID` are imported straight from `@jini-ai/plugins/runtime/*`.
+
+## Wiring (forwarding lines removed)
+
+`capability-tool-registrations.ts` re-exports nothing: `PluginCapabilityToolSource` and
+`PluginCapabilityFieldSource` come from `@jini-ai/plugins/host`.
+
+`host-tool-binding.ts` passes `describeEnableApproval` (`@jini-ai/plugins/runtime/enable-confirmation-ui`)
+and `describeUninstallApproval` (`@jini-ai/plugins/runtime/uninstall-confirmation-ui`) as the
+management tools' `descriptions`; the returned `HumanConfirmSpec` type is imported from
+`@jini-ai/core/contracts/site/human-confirm` and rendered by `contracts/core/human-confirm.ts`.

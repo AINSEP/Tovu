@@ -4,7 +4,7 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 
 | file | what it is |
 |---|---|
-| `Pages.tsx` | List view. Same `DataTable` + `RowMenu` shape as `features/posts`'s `Posts.tsx`, backed by the pages-filtered endpoints (`GET/POST .../pages`). |
+| `Pages.tsx` | Host wiring for the list view, which renders from `@jini-ai/admin/pages/Pages` (same `DataTable` + `RowMenu` shape as `features/posts`'s `Posts.tsx`). Binds `useWiredPages` (`hooks/use-pages.hooks.ts`, over `@jini-ai/admin/pages/hooks/use-pages.hooks`), the Theme Pages hook + tab, `PublishSectionButton`, `ServerLabel`, `lib/admin-post-list-sort.ts` and the `rules.ts` link rules. |
 | `PageEditor.tsx` | The editor itself — bespoke HTML preview/source view, not Tiptap. Markup only; state lives in `hooks/use-page-editor.hooks.ts`. Reached via `/admin/pages/{pageId}` (`panels.tsx`'s `pages` section, `page-editor` view). |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
@@ -13,6 +13,19 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 - `hooks/use-page-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
   `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
   separate from the editor's save settlement).
+- `hooks/page-editor-wiring.hooks.ts` binds the editor's two `@jini-ai/admin` leaf hooks for
+  `usePageEditor`: `useWiredInteractiveEditorFlush` gives
+  `@jini-ai/admin/pages/hooks/use-interactive-flush.hooks` this app's `isEditorSourceError`
+  (`@jini-ai/ui/html-editor`), `normalizeEmbedMarkerQuoting` (`@jini-ai/cms/widgets/markers`) and
+  `adminLogger` (`lib/shell-collaborators.ts`); `useWiredEditorHtmlJump` gives
+  `@jini-ai/admin/pages/hooks/use-editor-html-jump.hooks` `findEditorBlockOpening`
+  (`@jini-ai/ui/html-editor`). Their tests moved with them to `@jini-ai/admin`.
+- `page-editor-i18n.ts` binds `@jini-ai/admin/pages/page-editor-i18n`'s `createPageEditorTranslator`
+  to this app's `COMMON_I18N` and routes the shared editor vocabulary to `features/posts/posts-i18n.ts`'s
+  `t`; its exported `t` is unchanged for every call site.
+- The editor's pure rules come from `@jini-ai/admin/pages/page-editor-rules`; `rules.ts` keeps the link
+  rules (`pageAdminPath`, `pagePublicPath`, `PAGES_RESOURCE`), the theme-backed rules (`pagePickerValue`,
+  `pageEditorSurface`, `themePageRowMenuItems`) and the version-conflict aliases over `lib/version-conflict`.
 
 ## What this feature does not own
 
@@ -25,6 +38,6 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 
 ## Notes for anyone editing here
 
-`Pages.tsx` has **no unit test** — treat a change there as unverified until you have driven it in a
-browser. `PageEditor.tsx` does now (`__tests__/PageEditor.unit.test.tsx`, characterisation tests
+`Pages.tsx` is driven end to end by `__tests__/Pages.unit.test.tsx` (through this wiring and the
+real kits); the list's own pure/seam tests live with it in `@jini-ai/admin`. `PageEditor.tsx` does now (`__tests__/PageEditor.unit.test.tsx`, characterisation tests
 written 2026-08-06).

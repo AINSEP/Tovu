@@ -9,7 +9,8 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { contributeRawRowPublish, rawRowId, undoRawRow } from "../raw-row-contributor.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { BackstopRefusal } from "../backstop-policy.js";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 function fixture(t: test.TestContext) {
   const db = new Database(":memory:");

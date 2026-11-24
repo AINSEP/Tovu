@@ -1,4 +1,4 @@
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 
 /**
  * @file `DbOpsPort` for a site stored on Postgres/PGlite (R1 plan R1f, `pgOnlyServices`): restore

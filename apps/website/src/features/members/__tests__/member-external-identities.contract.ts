@@ -1,8 +1,8 @@
 /** Storage contract for the amended 2026-10-24 Google login design, shard S1. */
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import type { MemberExternalIdentityRepoPort } from "../ports.js";
-import type { MemberExternalIdentityRecord } from "../types.js";
+import type { MemberExternalIdentityRepoPort } from "@jini-ai/user-management/members/ports";
+import type { MemberExternalIdentityRecord } from "@jini-ai/user-management/members/types";
 
 const LINKED = "2026-10-24T20:00:00.000Z";
 const UNLINKED = "2026-10-24T20:01:00.000Z";

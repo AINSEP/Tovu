@@ -1,9 +1,10 @@
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
-import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import { findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
-import { CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint, CredentialConnection } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';

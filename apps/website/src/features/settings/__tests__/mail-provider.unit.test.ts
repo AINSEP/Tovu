@@ -8,7 +8,8 @@ import { createSettingsPrincipalLookup, set } from "../index.js";
 import {
   ensureMailProviderSettings, MAIL_PROVIDER_KEY, MAIL_PROVIDER_NAMESPACE, MAIL_TEST_MODE_KEY,
   parseMailProviderSetting, parseMailTestMode, readMailProviderSetting, readMailProviderSelection, readMailTestMode, writeMailProviderSetting,
-} from "../mail-provider.js";
+} from "@jini-ai/cms/settings/site/mail-provider";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file `core.mail.provider` / `core.mail.testMode`: "never stored" is distinct from an explicit
@@ -38,9 +39,9 @@ test("readMailProviderSetting is null while never stored, and when the definitio
 
 test("writeMailProviderSetting stores both lanes, including an explicit unconfigured value", async () => {
   const { settingsRepo, deps } = await ledger();
-  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "smtp", bulk: "resend" } });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "smtp", bulk: "resend" } });
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "smtp", bulk: "resend" });
-  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: null, bulk: null } });
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: null, bulk: null } });
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: null, bulk: null });
 });
 

@@ -76,7 +76,7 @@ export interface RunServeCommandInput {
   host?: string;
   /**
    * Print a single-use loopback boot token on stdout once the listener is up, for a launching
-   * process to exchange for an admin session (`features/identity/boot-session-token.ts`). Default
+   * process to exchange for an admin session (`features/identity/boot-session-token-binding.ts`). Default
    * OFF: an operator running this by hand must never have a secret appear in their terminal, and a
    * server that mints nothing has the redemption route permanently closed.
    */

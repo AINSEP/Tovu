@@ -3,8 +3,8 @@ import {
   isGrantActive,
   type PublishTrustGrant,
   type PublishingCapability,
-} from "./grant.js";
-import { verifyPublishSignature } from "./keys.js";
+} from "@jini-ai/cms/publish/trust/grant";
+import { verifyPublishSignature } from "@jini-ai/cms/publish/trust/keys";
 
 /**
  * @file Zero-setup publishing auth — proof of possession.

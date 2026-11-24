@@ -77,7 +77,7 @@ import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.j
 import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
-import type { WorkspaceToolDeps } from "../features/workspace/index.js";
+import type { WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
@@ -90,13 +90,14 @@ import type { MembersToolDeps } from "../features/members/tool-registrations.js"
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
 import type { NewsletterDeliveryToolDeps } from "../features/newsletter/delivery/tool-registrations.js";
-import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
-import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
+import type { SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
-import type { PeerSiteReads as GenericPeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { PeerSiteReads as GenericPeerSiteReads, AssistantHistoryHostDeps } from "./host-contracts.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { nowIso } from "@jini-ai/core/primitives";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -124,7 +125,7 @@ export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contract
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/tool-registrations").ConsentToolDeps & ToolGapsToolDeps & import("@jini-ai/agentic/skills/site/install-tool").SkillsInstallToolDeps & import("@jini-ai/analytics/site/tool-registrations").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
     commerce?: import("./host-contracts.js").CommerceToolHost;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
@@ -137,6 +138,8 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   AssistantHistoryHostDeps &
   import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
+  Pick<import("@jini-ai/platform/mail/feedback-setup").MailFeedbackSetupDeps, "listCustomCredentials" | "mailWebhookSecretLabels"> &
+  Required<Pick<import("@jini-ai/platform/mail/use-readiness").MailUseReadinessDeps, "evaluateNewsletterLaunchGate">> &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
   { getEffective: typeof getEffectiveSetting } &
@@ -154,7 +157,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   PublishContentToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
-  SettingsToolDeps & import("../features/settings/tool-registrations.js").VisitorToolsToolDeps &
+  SettingsToolDeps & import("@jini-ai/cms/settings/site/visitor-tools-registrations").VisitorToolsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &
@@ -186,9 +189,9 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   ExternalMcpToolDeps &
   TrashToolDeps &
   TrashItemToolDeps &
-  import("../features/identity/delete-user-service.js").TrashUserToolDeps &
+  import("@jini-ai/user-management/identity/delete-user-service").TrashUserToolDeps &
   import("./admin-screen-link-tool.js").AdminScreenLinkToolDeps &
-  import("../features/observability/tool-registrations.js").ObservabilityToolDeps;
+  import("@jini-ai/diagnostics/observability/tool-registrations").ObservabilityToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.

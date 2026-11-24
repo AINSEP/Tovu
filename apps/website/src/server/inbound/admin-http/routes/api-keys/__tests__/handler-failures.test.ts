@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
-import { InMemoryApiKeyRepo } from "#src/features/identity/repo.memory";
+import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { ApiKeysRouteDeps, ApiKeysRouteRegistrar } from "../deps.js";

@@ -2,7 +2,7 @@ import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inboun
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
-import type { PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import type { PluginMaturity } from "@jini-ai/core/contracts/site/lifecycle-host-tools";
 import { agentPluginLifecycleFields } from "@jini-ai/cms/admin-http/http/agent-plugins";
 
 /**

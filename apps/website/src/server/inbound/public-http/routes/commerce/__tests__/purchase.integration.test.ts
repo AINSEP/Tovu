@@ -4,7 +4,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import express from "express";
-import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "#src/features/members/repo.memory";
+import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { registerCommerceRoutes, type CommerceHttpDeps } from "../purchase.js";
 
 const now = "2026-11-05T18:00:00.000Z";

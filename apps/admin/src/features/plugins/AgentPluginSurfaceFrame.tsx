@@ -1,6 +1,6 @@
 import { adminSurfaceFrameAttributes } from "@jini-ai/agent-plugins/admin-surfaces";
 
-import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./hooks/agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useAdminSurfaceFrame } from "./hooks/use-admin-surface-frame.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

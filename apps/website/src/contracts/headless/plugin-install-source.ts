@@ -1,5 +1,5 @@
 /** Chat attachment input belongs to the host contract, shared by both plugin families. */
-import type { ChatAttachmentReadResult } from './chat-attachment.js';
+import type { ChatAttachmentReadResult } from '@jini-ai/core/contracts/headless/chat-attachment';
 
 /** Host-owned byte access: composition scopes opaque refs by principal and accepted message/run. */
 export type InstallAttachmentReader = (

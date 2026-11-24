@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import type { ToolGapEntry } from "@jini-ai/daemon/tool-audit";
+import type { ToolGapEntry } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { createConversationStore, titleFrom, type ConversationStorePorts } from "./workspace-conversation-store.ts";
 
 /** An in-memory file plus a scripted clock and id source; every write is a deep copy, like disk. */

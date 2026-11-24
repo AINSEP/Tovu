@@ -8,7 +8,8 @@ import test from "node:test";
 import express from "express";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { installAgentPlugin, removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates, createAgentPluginToolGate } from "#src/features/agent-plugins/tool-registrations";
 import { listInstalledAgentPluginServers } from "#src/features/agent-plugins/import-access-token";
@@ -16,10 +17,10 @@ import { defaultResolveInstalledAgentPlugin } from "#src/features/agent-plugins/
 import { resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { pluginMemory } from "#src/features/agent-plugins/memory";
-import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "#src/features/skills/install-service";
-import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
+import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "@jini-ai/agentic/skills/site/install-service";
+import { loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { resolveFsRoots } from "#src/features/fs-files/layout";
-import { setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
+import { setCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 import { registerAgentPluginMemoryRoutes } from "#src/server/runtime/composition/modules/agent-plugin-memory-routes";
 import { registerAgentPluginFilesRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
 import { registerSkillFilesRoute } from "#src/server/runtime/composition/modules/skills";
@@ -40,7 +41,7 @@ async function withSites(work: (input: { siteA: string; siteB: string; agentPlug
     // Binding A wins over a conflicting ambient site B; explicit root overrides still win at boot.
     process.env.TOVU_SITE_DIR = siteB;
     const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteA }, { env: { TOVU_SITE_DIR: siteB } });
-    const skillLayout = resolveSkillLayout({ siteDir: siteA, env: { TOVU_SITE_DIR: siteB } });
+    const skillLayout = resolveSkillLayout({ siteDir: siteA, env: { TOVU_SITE_DIR: siteB }, host: SKILL_SITE_HOST });
     assert.equal(agentPluginLayout.root, path.join(siteA, "agent-plugins"));
     assert.equal(skillLayout.root, path.join(siteA, "skills"));
     process.env.TOVU_AGENT_PLUGINS_DIR = path.join(siteB, "agent-plugins");
@@ -136,7 +137,7 @@ test("admin memory and file handlers consume A's binding when env points at B", 
 
 for (const { resolve, key, folder } of [
   { resolve: ({ siteDir, env }: { siteDir: string; env: NodeJS.ProcessEnv }) => resolveAgentPluginLayout({ siteDir }, { env }), key: "TOVU_AGENT_PLUGINS_DIR", folder: "agent-plugins" },
-  { resolve: resolveSkillLayout, key: "TOVU_SKILLS_DIR", folder: "skills" },
+  { resolve: ({ siteDir, env }: { siteDir: string; env: NodeJS.ProcessEnv }) => resolveSkillLayout({ siteDir, env, host: SKILL_SITE_HOST }), key: "TOVU_SKILLS_DIR", folder: "skills" },
 ]) {
   test(`${folder}: explicit boot binding wins over ambient site while overrides stay validated`, () => {
     assert.equal(resolve({ siteDir: "/served/site-a", env: { TOVU_SITE_DIR: "/ambient/site-b" } }).root, path.join("/served/site-a", folder));

@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import type { OriginContext } from "@jini-ai/core/contracts/server";
+import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
@@ -12,14 +12,18 @@ import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, type A
  * gate and the redacted 500 the hand-written route answered. http-kit's `mountRawRoute` registers with
  * `app[method](path, handler)`, never `app.use`, so the route-table pin keeps its shape.
  *
- * A spec that sets `requireSameOrigin` needs the host's same-origin policy (`origin`): http-kit's gate
- * otherwise throws on every request. Both wrappers forward it and refuse a guarded spec without one at
- * registration, so the wiring bug stops the server from starting instead of answering 500s.
+ * `origin` is the host's same-origin context (rv1123l T5): http-kit's guard needs it for a spec with
+ * `requireSameOrigin: true`, so both wrappers forward it, and a guarded spec mounted without it is
+ * refused here at registration — never a per-request 500 after the workspace and session gates ran.
  */
 
-/** Throws at registration when a guarded spec has no origin context to check against. */
-function assertOriginContext({ spec, origin }: { spec: { path: string; requireSameOrigin?: boolean }; origin: OriginContext | undefined }, _optional: Record<string, never> = {}): void {
-  if (spec.requireSameOrigin && !origin) throw new Error(`raw route ${spec.path} sets requireSameOrigin but its mount has no origin context`);
+/** Refuse a same-origin-guarded spec mounted without the host's origin context.
+ * @throws Error at registration when `spec.requireSameOrigin` is set and `origin` is absent.
+ * @complexity O(1).
+ */
+function adapterFor({ spec, origin }: { spec: { path: string; requireSameOrigin?: boolean }; origin: RouteHostContext | undefined }, _optional: Record<string, never> = {}): { adapter?: RouteHostContext } {
+  if (spec.requireSameOrigin && !origin) throw new Error(`raw route ${spec.path}: requireSameOrigin needs the host's origin context — pass \`origin\` to the mount`);
+  return origin ? { adapter: origin } : {};
 }
 
 /** Mount a raw admin spec behind the admin ports; takes every `mountAdminJsonRoute` option.
@@ -33,14 +37,14 @@ function assertOriginContext({ spec, origin }: { spec: { path: string; requireSa
  * @example mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps }, { failure: { operation: "routes/plugins/install" } });
  */
 export function mountAdminRawRoute<Deps>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; handlerName?: string },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext; handlerName?: string },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
-  assertOriginContext({ spec: required.spec, origin: required.origin });
+  const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
   const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: optional.preflight });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, adapter: required.origin });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter });
 }
 
 /** The one-method app `mountRawRoute` registers on, naming the handler it is given. `mountRawRoute`
@@ -62,11 +66,11 @@ function registeringUnderName(
  * @example mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError } });
  */
 export function mountPublicRawRoute<Deps extends object>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string; origin?: OriginContext },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string; origin?: RouteHostContext },
   _optional: Record<string, never> = {},
 ): void {
-  assertOriginContext({ spec: required.spec, origin: required.origin });
+  const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
   const ports = createPublicJsonRoutePorts({ ...required.failure, workspaceId });
-  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, adapter: required.origin });
+  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter });
 }

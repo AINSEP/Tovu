@@ -287,7 +287,8 @@ export function createSiteWebFetchEgressPolicy({ origin }: { origin?: string | u
  * any PUBLIC host, http allowed (small sites still serve it). Unlike {@link WEB_FETCH_EGRESS_POLICY},
  * `maxRedirects: 0`: the screenshot router follows each hop itself as a new guarded request, so
  * every hop of the page and of every subresource is re-checked (see
- * `features/web-screenshot/request-guard.ts`'s header). 15 MiB is the per-resource cap.
+ * `@jini-ai/diagnostics/web-evidence/playwright`'s request router header, used by the capture adapter in
+ * `@jini-ai/diagnostics/web-evidence/playwright-page-capture`). 15 MiB is the per-resource cap.
  */
 export const WEB_SCREENSHOT_EGRESS_POLICY: EgressPolicy = {
   allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0,

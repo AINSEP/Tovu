@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
-import type { DeployTargetInspection } from '../deploy-targets/types.js';
+import type { DeployTargetInspection } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import type { FormDestinationForm } from '@jini-ai/core/contracts/site/cms-forms';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';
 import { redactDeployTargetMessage, toDeployTargetCredential } from './credentials.js';
-import type { StaticPublishConfig } from './types.js';
+import type { StaticPublishConfig } from '@jini-ai/devops/deploy/site/static-publish/types';
 
 export interface StaticPublishInspectionInput {
   readonly workspaceId: string;

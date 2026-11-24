@@ -2,7 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_REDIRECT_URI, FROZEN_SERVERS, FROZEN_SQL_PATH, FROZEN_WORKSPACE,

@@ -11,7 +11,8 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { planPublishToPeer } from "../push-plan.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const clock = { nowMs: () => Date.parse("2026-10-01T12:00:00.000Z") };
 const idGen = { newId: () => "id-1" };

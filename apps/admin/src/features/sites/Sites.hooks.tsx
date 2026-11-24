@@ -1,9 +1,8 @@
-import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
-import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
+import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
@@ -63,14 +62,6 @@ export function resolveCreateInputDisabled(args: { creating: boolean; switchingE
   return args.creating || !args.switchingEnabled;
 }
 
-/** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the
- *  directory entries), so they disambiguate one row's controls from another's — see `Sites.tsx`'s
- *  own history for this reasoning. */
-export function resolveSitesRowHandles({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): string[] {
-  return buildAgentListHandles({ prefix: "sites-row", ids: sites.map((site) => site.name) }
-  );
-}
-
 /** One grid card's `state` badge: the tone class and copy key together, so `Sites.tsx`'s
  *  `SiteCard` consumes one function's result rather than composing
  *  `siteRowStateToneClass`/`siteRowStateLabelKey` on top of its own `siteRowState` call. */
@@ -100,20 +91,6 @@ export function resolveSiteStateDisplay(
  */
 export function resolveSiteCardTitle(site: AdminSiteListEntry, _optional: Record<string, never> = {}): string {
   return site.dir;
-}
-
-/**
- * The card's second line, or `null` when there is nothing worth saying.
- *
- * `initSite` defaults `config.json.name` to the folder's own basename, so on most sites the display
- * name and the folder name are the same string — and rendering it twice is the kind of filler the
- * compact card has no room for. It appears only when an operator has actually given the site a
- * different display name.
- *
- * @complexity Time/space: O(1).
- */
-export function resolveSiteSubtitle(site: Pick<AdminSiteListEntry, "name" | "displayName">): string | null {
-  return site.displayName === site.name ? null : site.displayName;
 }
 
 /**
@@ -200,12 +177,6 @@ export function resolveSitesTabs(
     // so they work on hosts with no Sites section.
     ...(localManagementEnabled ? [{ id: "trash", label: t("Trash"), count: trashCount, handle: "sites-tab-trash", handleLabel: "Switch to the site Trash tab" }] : []),
   ];
-}
-
-/** Whether the site list renders its empty state instead of the grid. Its own function rather than
- *  a `sites.length === 0` written in the JSX, per this file's header. */
-export function resolveSitesEmpty({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): boolean {
-  return sites.length === 0;
 }
 
 /** One database backend the onboarding screen offers. `available` is the whole honesty seam: it is
@@ -387,16 +358,6 @@ export function resolveLocalSiteCard(
   };
 }
 
-/** Trash rows must opt in to permanent deletion individually; restoration needs no checkbox. */
-export function resolveTrashDeleteDisabled({ id, checked, busyName }: { id: string; checked: Record<string, boolean>; busyName: string | null }, _optional = {}) {
-  return checked[id] !== true || busyName !== null;
-}
-
-/** Trash card controls: the permanent-delete button exists only once its row is selected. */
-export function resolveTrashCardActions({ id, checked, busyName }: { id: string; checked: Record<string, boolean>; busyName: string | null }, _optional = {}) {
-  return { selected: checked[id] === true, restoreDisabled: busyName !== null, deleteDisabled: resolveTrashDeleteDisabled({ id, checked, busyName }) };
-}
-
 /** Overflow-menu entries a card can carry, in menu order — the destructive one always last. */
 export type SiteCardMenuAction = "make-default" | "switch" | "trash";
 
@@ -559,10 +520,4 @@ export function buildSiteCardMenuItems(
   // Before Delete…, which stays last.
   const hideItem: RowMenuItem = { key: "hide", label: hide.label, onSelect: hide.onSelect };
   return [...listed.filter((item) => item.key !== "trash"), hideItem, ...listed.filter((item) => item.key === "trash")];
-}
-
-/** The Sites page's cards in the shape the shared list view sorts: the folder name is the id, and
- *  `site` carries the rest through. @complexity O(n). */
-export function resolveSiteListItems({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
-  return sites.map((site) => ({ id: site.name, name: site.name, createdAt: site.createdAt, site }));
 }

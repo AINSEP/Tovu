@@ -14,7 +14,8 @@ import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
 import { POST_ENTITY_TYPE } from "#src/features/trash/index";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
+import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
@@ -67,7 +68,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
     assistantAgentInventory,
     workspaceId: workspaceId,
     peerSiteReads: createPeerSiteReads({ currentSiteDir: resolvedSiteBinding.dir }, {}),
-    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel }),
+    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel, kernelFor: schemaErasedKernel }),
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.

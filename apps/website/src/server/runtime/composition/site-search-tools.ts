@@ -5,7 +5,8 @@ import { buildSearchToolRegistrations, derivedRisk, SEARCH_TOOL_DOMAIN, type Sea
 import type { ToolContributor } from "@jini-ai/core";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { requireHumanConfirm, type HumanConfirmSpec } from "#src/contracts/core/human-confirm";
+import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/search";
 import type { SiteSearchRuntime } from "./modules/site-search.js";
 

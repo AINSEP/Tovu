@@ -186,13 +186,11 @@ so its missing-session 500 still comes before parse.
 - Keep every `registerAdmin…Route` export name and the module's registration order: the route-table
   pin (`create-app-route-table.pin.test.ts`) must not change (mounted handlers are `<anonymous>`, as before).
 - Public routes use `mountPublicJsonRoute({ app, spec, deps, failure: { operation, visitorError } })`.
-- Non-JSON routes (streams, uploads, HTML, downloads, redirects-as-302 + `Set-Cookie`) do **not** use
-  `defineJsonRoute`, but they DO keep the host ports: write the server-neutral raw spec of §9.3 and mount it
-  with `mountAdminRawRoute` / `mountPublicRawRoute` (same workspace 404, session, authorize and redacted 500
-  as a JSON mount). This is the one instruction for a converted route; §9.3 is its full contract. A core
-  `ServerRoute` factory dispatched through `@jini-ai/http-kit/node-bridge` `createNodeDispatcher` is only for
-  a route that needs none of the admin/public host ports (it brings its own gates, e.g. daemon routes and
-  the existing OAuth callbacks) — never pick it to skip a port the hand-written route ran.
+- Non-JSON routes (streams, downloads, `express.raw` uploads, HTML, XML/text, redirects-as-302) do **not** use
+  this JSON template: they use the raw mounts of §9.3 (`mountAdminRawRoute` / `mountPublicRawRoute`), behind the
+  SAME host ports. Only a core `ServerRoute` factory (SSE, a route shared with a non-Express host) goes through
+  `@jini-ai/http-kit/node-bridge`, and then behind a method-scoped host adapter (`app[method](path, …)`) in the
+  old route's position — never an `app.use` dispatcher layer. §9.3 is the one raw-route instruction.
 - Host ports (`admin-json-route-ports.ts`) are shared composition: a family conversion never edits them.
   If a family needs a port change, stop and raise it — the pilot needed two mount options (§6.2, §6.3),
   now available to every family as per-mount opt-ins.
@@ -529,6 +527,18 @@ before `authenticate`.
 ```ts
 mountAdminRawRoute({ app, spec: { ...exportRoute, requireSameOrigin: true }, deps, origin: { originPolicy } }, { failure });
 ```
+
+- **Origin context on guarded raw mounts.** A spec with `requireSameOrigin: true` needs the host's
+  `RouteHostContext` (`{ originPolicy }`); pass it as `origin` on the mount. Both wrappers forward it to
+  http-kit, and a guarded spec mounted WITHOUT it is refused at registration (rv1123l T5) — never a
+  per-request 500. Same-origin reaches the handler; cross-origin is http-kit's 403.
+  ```ts
+  mountAdminRawRoute({ app, spec: guardedRoute, deps, origin: routeHostContext }, { failure });
+  ```
+- **Route inventory vs handler-name parity.** `mountRawRoute`/`mountJsonRoute` register with
+  `app[method](path, …)`, so the route table keeps its rows (method + path, position). That does NOT prove
+  handler-name parity: mounted handlers are `<anonymous>`, so the route-table pin
+  (`create-app-route-table.pin.test.ts`) must still be rerun and pinned after every move.
 
 ### 9.4 Admin mount options (`AdminJsonRouteMountOptions`, also taken by `mountAdminRawRoute`)
 

@@ -4,7 +4,7 @@
  *
  * Custom items, not Electron's built-in `role: 'zoomIn'/'zoomOut'/'resetZoom'` — those operate on
  * `focusedWindow.webContents`, which is the sites home window's own TOP-level page. While a project
- * tab is the visible surface, that is the wrong target: the same routing problem `find-menu.ts`
+ * tab is the visible surface, that is the wrong target: the same routing problem the Find menu (`main/boot/boot-sequence.ts`)
  * solved for Cmd+F. `use-zoom.hooks.ts` decides which surface each command actually reaches.
  *
  * A hidden `CmdOrCtrl+=` duplicate rides along with Zoom In, mirroring Electron's own default menu:

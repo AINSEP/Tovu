@@ -7,11 +7,12 @@ import { DockLeadingAccessory } from "./DockLeadingAccessory";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
-import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
+import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
+import { SKILL_INSTALL_CONFIRMATION_HOST } from "../../features/skills/skill-install-confirmation-host";
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
-import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
-import { FailureSurfaceContext } from "./AgentFailureCard.hooks";
+import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
+import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import "../../styles/assistant.css";
@@ -238,7 +239,7 @@ export function DockChatPane({ dock }: { dock: DockState }) {
   return (
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
       <FailureSurfaceContext.Provider value={failureSurface.actions}>
-      <SkillInstallConfirmation install={skillInstall} locale={locale} />
+      <SkillInstallConfirmation install={skillInstall} locale={locale} {...SKILL_INSTALL_CONFIRMATION_HOST} />
       {pageActivationError && <div className="jini-chat-pane__notice" role="alert">{t({ key: pageActivationError })}</div>}
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}

@@ -7,7 +7,7 @@ import type { SurfaceEmission, ToolExecutionContext, ToolHandler } from '@jini-a
 import { createSystemClock } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import type { UIResource } from '@jini-ai/protocol/mcp-ui';
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from '../../__tests__/fixtures/site-layout-context.js';
 import { credentialSaveFixtureRegistrations } from '../../__tests__/support/credential-save.js';
 import type { PluginCredentialCard } from '../../contracts/core/plugin-credential-card.js';

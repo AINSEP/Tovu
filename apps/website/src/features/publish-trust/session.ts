@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { PublishingCapability } from "./grant.js";
+import type { PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**

@@ -8,7 +8,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";

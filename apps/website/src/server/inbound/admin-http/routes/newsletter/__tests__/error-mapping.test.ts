@@ -10,7 +10,7 @@ import {
   NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterConflictError,
   NewsletterDefaultListProtectedError, NewsletterForbiddenError, NewsletterLaunchGateBlockedError,
   NewsletterListNotFoundError, NewsletterSubscriberNotFoundError, NewsletterSubscriptionNotFoundError, NewsletterValidationError,
-} from "#src/features/newsletter/index";
+} from "@jini-ai/user-management/newsletter/errors";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAdminNewsletterListListsRoute } from "#src/server/runtime/composition/modules/newsletter";

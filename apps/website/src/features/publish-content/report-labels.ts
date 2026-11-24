@@ -1,5 +1,6 @@
 import { entityKey, packedEntityLabel } from "./plan-rows.js";
-import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
+import type { SkippedPackEntity } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Naming the rows of a report THIS instance did not produce.

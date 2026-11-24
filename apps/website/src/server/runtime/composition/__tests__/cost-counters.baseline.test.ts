@@ -21,13 +21,13 @@ import { AesGcmSecretSealer as PlatformSealer } from "@jini-ai/platform/secrets"
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { MailProviderSetting } from "@jini-ai/platform/mail";
+import type { MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { createResolvedMailer, type ResolveMailerDeps } from "#src/server/runtime/boot/resolve-mailer";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

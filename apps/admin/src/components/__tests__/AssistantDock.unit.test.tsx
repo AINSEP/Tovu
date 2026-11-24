@@ -4,7 +4,7 @@ import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
-import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
+import { browserAgentSettingsPort } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
 
 /**
@@ -58,7 +58,7 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
 }
 
-import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+import { writeAgentsSnapshot } from "../../lib/shell-collaborators";
 
 // `render` (from the kits helper) mounts the production query cache, kits and chat surfaces, as `main.tsx` does for the real dock.
 import {
@@ -75,7 +75,7 @@ import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDoc
 import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
-import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
+import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();
@@ -759,15 +759,15 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
   it("turns off only the chat pane's browser tools when the operator opts out", () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
     try {
-      act(() => setBrowserAgentEnabled({ enabled: false }));
+      act(() => browserAgentSettingsPort.setEnabled({ enabled: false }));
       const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { enabled?: boolean; webmcp?: boolean } };
       expect(props.agentControl?.webmcp).toBe(false);
       expect(props.agentControl?.enabled).toBe(true);
-      act(() => setBrowserAgentEnabled({ enabled: true }));
+      act(() => browserAgentSettingsPort.setEnabled({ enabled: true }));
       const next = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { webmcp?: boolean } };
       expect(next.agentControl?.webmcp).toBe(true);
     } finally {
-      act(() => setBrowserAgentEnabled({ enabled: true }));
+      act(() => browserAgentSettingsPort.setEnabled({ enabled: true }));
     }
   });
 });

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { parseFrame, readSseFrames } from "../sse-frames";
+import { parseFrame, readSseFrames } from "@tovu/assistant-run-events";
 
 /**
- * @file Direct unit coverage for `sse-frames.ts` — extracted (2026-08-18, ADR-059) so both the BYOK
+ * @file Direct unit coverage for `@tovu/assistant-run-events`' SSE frame reader (formerly re-exported by `sse-frames.ts`) — extracted (2026-08-18, ADR-059) so both the BYOK
  * and AG-UI transports share one SSE parser. `assistant-transport.ag-ui.unit.test.ts` exercises this
  * module only through frames shaped like the AG-UI wire format (`data: <json>\n\n`, no `event:`
  * field), which never reaches `parseFrame`'s `event:`-line branch or its no-`data:` `null` return —

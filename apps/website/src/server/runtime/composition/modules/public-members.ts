@@ -8,7 +8,10 @@ import { memberResetPasswordRoute } from "@jini-ai/cms/public-http/routes/member
 import { memberSetPasswordRoute } from "@jini-ai/cms/public-http/routes/members/set-password";
 import { memberSignOutRoute } from "@jini-ai/cms/public-http/routes/members/sign-out";
 import { MemberLoginError, NodeSessionTokens } from "@jini-ai/user-management/server";
-import { createMemberAccessResolver, MemberAuthError, prepareMemberChallenge, resetPassword, resolveMemberSession, setMemberPassword, type MemberRecord } from "#src/features/members/index";
+import { createMemberAccessResolver, resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
+import { MemberAuthError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
+import { resetPassword, setMemberPassword } from "@jini-ai/user-management/members/password-auth";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";

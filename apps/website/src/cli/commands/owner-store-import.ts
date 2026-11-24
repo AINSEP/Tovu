@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
-import type { SecretsVaultService, VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultArchiveEntry, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import type { ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 

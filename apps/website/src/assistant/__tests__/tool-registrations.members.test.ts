@@ -19,13 +19,9 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { decodeListCursor } from "@jini-ai/core/list-page";
-import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
-import {
-  InMemoryMagicLinkTokenRepo,
-  InMemoryMemberRepo,
-  InMemoryMemberSessionRepo,
-  type MemberRecord,
-} from "../../features/members/index.js";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
+import { type MemberRecord } from "@jini-ai/user-management/members/types";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import {

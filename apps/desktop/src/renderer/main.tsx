@@ -1,16 +1,16 @@
 /**
  * @file Renderer composition root: wires the real `document`, `createRoot` and `<App />` into
- * `mountRenderer` (tested in `mount-renderer.test.ts`). No logic of its own lives here.
+ * `mountRenderer` (from `@jini-ai/ui/browser`, tested there). No logic of its own lives here.
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TooltipLayer } from '@jini-ai/ui';
+import { mountRenderer } from '@jini-ai/ui/browser';
 import { UiKitProvider } from '@jini-ai/ui/react-kit';
 import { uiKit } from './jini-kits.js';
 import { ChatSurfacesProvider } from '@jini-ai/chat/react';
 import { chatSurfaces } from './jini-surfaces.js';
 import { App } from './App.js';
-import { mountRenderer } from './mount-renderer.js';
 import { installShellErrorReporting } from './product-telemetry.js';
 // Before `app.css`, whose `.sites-settings-dialog` rules override it. Imported here rather than in
 // `SitesFolders.tsx` so that module stays loadable (and testable) outside Vite.

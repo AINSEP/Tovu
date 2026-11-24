@@ -5,19 +5,20 @@ import path from 'node:path';
 import { withFileLock } from '@jini-ai/platform/fs/file-lock';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import type { PluginActivationRepoPort } from '@jini-ai/core/contracts/site/plugins-host';
-import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import type { AgentPluginHostCapability, PluginHostPort } from '@jini-ai/core/contracts/headless/plugin-host';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
 import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
-import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
+import { runAgentPluginUninstall } from '@jini-ai/agent-plugins/site/uninstall-tool';
+import { agentPluginUninstallHost, type AgentPluginUninstallHostDeps } from './agent-plugin-uninstall-host.js';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, tovuInstalledMcpReads } from '#src/features/agent-plugins/federate-mcp';
 import { classifyAgentPluginMcpServerTrust } from '#src/features/agent-plugins/capability-projection';
 import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-access';
 import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
-import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
+import { agentPluginMcpPortsOf, withAgentPluginMcpPorts, withOverrides } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { provisionAgentPluginMcpServers as provisionPortableMcpServers } from '@jini-ai/agent-plugins/connect';
 import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
@@ -30,7 +31,7 @@ const tovuPluginHostMessages: PluginHostMessages = {
   approvedLoadFailed: ({ detail }) => `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${detail}`,
 };
 
-export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
+export interface TovuPluginHostDeps extends AgentPluginUninstallHostDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
   readonly clock: Clock;
@@ -101,7 +102,7 @@ export function createTovuPluginHost(
       inactivePluginIds: () => readInactivePluginIds({ workspaceRoot: resolveWorkspaceRoot() }),
       assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
       setEnabled: input => setTovuPluginEnabled({ deps, input }),
-      uninstall: input => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
+      uninstall: input => runAgentPluginUninstall({ routeDeps: withOverrides({ target: deps, overrides: { uninstallHost: agentPluginUninstallHost } }), surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
     },
     withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),
     // Production ports already carry their pair (same instance passes through); only a legacy port

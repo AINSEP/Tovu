@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
 
-import { createNodemailerSmtpTransport, type SmtpMailPayload } from "../smtp.nodemailer.js";
+import type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
+import { createNodemailerSmtpTransport } from "../smtp.nodemailer.js";
 
 /**
  * @file `createNodemailerSmtpTransport` — exercised at nodemailer's createTransport boundary, without opening a socket.

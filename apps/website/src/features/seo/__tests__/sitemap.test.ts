@@ -8,9 +8,9 @@ import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import { resolveConfiguredOrigin } from "../../origin/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
-import { ensureSeoSettingDefinitions } from "../settings.js";
+import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "../index.js";
+import { createSeoDeps, seoSettingsHostBindings } from "../index.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /** Real SQLite configured-origin chain stays host-owned; portable cases moved to Jini/packages/cms/src/seo/__tests__/sitemap.test.ts. */
@@ -41,7 +41,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 async function makeDeps(posts: PostRecord[]) {
   const postRepo = new InMemoryPostRepo({}, { initialRows: posts });
   const settingsRepo = new InMemorySettingsRepo();
-  const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
+  const settingsDeps = { ...seoSettingsHostBindings, settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
   await ensureSeoSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE, systemPrincipalId: "system-seo" });
 
   return {

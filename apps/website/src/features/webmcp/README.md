@@ -11,3 +11,7 @@ or navigate to actual same-origin HTTP(S) anchor targets. They accept no argumen
 read no field values, skip duplicate names, and unregister on mutation/pagehide.
 Native forms keep their real submit handler, transport, validation and human
 submission; success belongs to that handler. Tool invocation is not authorization.
+
+## Moved to Jini
+
+`settings.ts` (published-site WebMCP switch) and `webmcp-i18n.ts` (site confirmation copy) now live in `@jini-ai/cms/webmcp/settings` and `@jini-ai/cms/webmcp/webmcp-i18n`; importers use those subpaths directly. `published-html.ts` stays here.

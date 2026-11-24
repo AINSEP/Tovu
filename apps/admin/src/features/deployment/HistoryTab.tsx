@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t } from "./deployment-i18n";
+import { t } from "./deployment-host-i18n";
 import { HistoryIcon } from "./deployment-visuals";
 
 /**

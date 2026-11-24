@@ -6,7 +6,7 @@ import test from "node:test";
 import { processComposedBundledSourceRootSync } from "../../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 
 import { FS_ROOT_DESCRIPTORS } from "../../../fs-files/layout.js";
-import { pluginAgentToolCatalog } from "../../agent-tools.js";
+import { pluginAgentToolCatalog } from "../../plugin-host-copy.js";
 
 /**
  * @file Guards agent-facing guidance against telling the model that no tool can enable an Agent

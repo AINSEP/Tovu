@@ -4,7 +4,7 @@ import express from "express";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
-import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-tools";
+import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";

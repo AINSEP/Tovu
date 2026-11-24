@@ -11,8 +11,9 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "@jini-ai/devops/source-control/site/credential-form";
-import { createSourceControlProviderKit } from "./provider-kit.js";
-import type { SourceControlHostFacts, SourceControlProvider, SourceControlProviderKit, SourceControlProviderModule } from "./provider-module.js";
+import { createSourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-kit";
+import { sourceControlKitHost } from "./provider-kit-host.js";
+import type { SourceControlHostFacts, SourceControlProvider, SourceControlProviderKit, SourceControlProviderModule } from "@jini-ai/devops/source-control/site/provider-module";
 
 /**
  * @file Loads the git-host providers Agent Plugins contribute — the generic seam that lets a plugin
@@ -205,7 +206,7 @@ export function isUnderWorkflowPath({ filePath, workflowPaths }: { filePath: str
 /** A loaded provider built over `kit`, carrying its plugin's declared host facts and its module's
  *  `validateTarget`. @complexity O(1). */
 export function buildLoadedSourceControlProvider({ loaded, kit }: { loaded: LoadedSourceControlProvider; kit: SourceControlProviderKit }, _optional: Record<string, never> = {}): SourceControlProvider {
-  return sourceControl.buildLoadedSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations>({ loaded, kit });
+  return sourceControl.buildLoadedSourceControlProvider<SourceControlProviderKit, import("@jini-ai/devops/source-control/site/provider-module").SourceControlProviderOperations>({ loaded, kit });
 }
 
 /** Loads a workspace's provider registry; injected so a test can read the plugin from source. */
@@ -231,8 +232,8 @@ export async function buildSourceControlProvider(
     readonly observability?: ObservabilityPort;
   },
 ): Promise<BuildSourceControlProviderResult> {
-  return sourceControl.buildSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
-    ...input, kit: createSourceControlProviderKit(input),
+  return sourceControl.buildSourceControlProvider<SourceControlProviderKit, import("@jini-ai/devops/source-control/site/provider-module").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit({ host: sourceControlKitHost(input) }, input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry, providerId }) => noSourceControlProviderMessage({ registry }, { providerId }),
   });
@@ -251,8 +252,8 @@ export async function buildSourceControlProviders(input: {
   /** Replaces the providers' retry timer (tests). */
   readonly sleep?: (ms: number) => Promise<void>;
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
-  return sourceControl.buildSourceControlProviders<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
-    ...input, kit: createSourceControlProviderKit(input),
+  return sourceControl.buildSourceControlProviders<SourceControlProviderKit, import("@jini-ai/devops/source-control/site/provider-module").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit({ host: sourceControlKitHost(input) }, input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   });
@@ -305,8 +306,8 @@ export async function buildSourceControlProviderForApi(input: {
   readonly httpClient: HttpClientPort;
   readonly observability?: ObservabilityPort;
 }): Promise<BuildSourceControlProviderResult> {
-  return sourceControl.buildSourceControlProviderForApi<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
-    ...input, kit: createSourceControlProviderKit(input),
+  return sourceControl.buildSourceControlProviderForApi<SourceControlProviderKit, import("@jini-ai/devops/source-control/site/provider-module").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit({ host: sourceControlKitHost(input) }, input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   }, { missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.` });

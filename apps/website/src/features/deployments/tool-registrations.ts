@@ -1,5 +1,5 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/deployments';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalString, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -10,9 +10,10 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
-import { deploymentsAgentToolCatalog } from "./agent-tools.js";
-import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
-import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
+import { deploymentsAgentToolCatalog } from "@jini-ai/devops/deploy/site/agent-tools";
+import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "@jini-ai/devops/deploy/site/dockerfile";
+import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun } from "./export-run-binding.js";
+import type { ExportEngine, ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps
@@ -180,7 +181,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "deployments",
-    catalogModule: "features/deployments/agent-tools.ts",
+    catalogModule: "@jini-ai/devops/deploy/site/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: deploymentsDerivedRisk,

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
+import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "@jini-ai/mcp/external/operations-tools";
+import { externalMcpOperationsHost } from "../../external-mcp-host-copy.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -16,6 +17,7 @@ function fixture(allow = true) {
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   } };
   const operations = {
+    ...externalMcpOperationsHost,
     probe: async ({ deps: receivedDeps, serverId: id }: { deps: unknown; serverId: string }) => {
       assert.equal(receivedDeps, deps);
       calls.push(id);

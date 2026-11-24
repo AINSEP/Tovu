@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
+import { createNodeAtomicFilesystem, readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
 import { persistActiveSite, readPersistedActiveSite } from "../../active-site.js";
 
 /**
@@ -98,6 +98,54 @@ test("persistActiveSite: upserts into an EXISTING .env without touching any othe
     persistActiveSite({ name: "new-site" }, { cwd });
     const written = fs.readFileSync(path.join(cwd, ".env"), "utf8");
     assert.equal(written, "TOVU_ADMIN_PASSWORD=super-secret\nTOVU_SITE=new-site\n");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("persistActiveSite: a fresh .env lands at 0600 and an overwrite keeps an established 0640 mode", () => {
+  const cwd = mkRepoRootFixture();
+  try {
+    const envPath = path.join(cwd, ".env");
+    persistActiveSite({ name: "first-site" }, { cwd });
+    assert.equal(fs.statSync(envPath).mode & 0o777, 0o600, "a brand-new .env may hold secrets: owner-only by default");
+    fs.chmodSync(envPath, 0o640);
+    persistActiveSite({ name: "second-site" }, { cwd });
+    assert.equal(fs.statSync(envPath).mode & 0o777, 0o640, "activating a site must never widen or narrow .env's mode");
+    assert.equal(fs.readFileSync(envPath, "utf8"), "TOVU_SITE=second-site\n");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("persistActiveSite: a directory-flush failure after the replacement surfaces instead of being swallowed", (t) => {
+  if (process.platform === "win32") {
+    t.skip("Windows cannot fsync directory handles; the owner skips the flush there");
+    return;
+  }
+  const cwd = mkRepoRootFixture();
+  try {
+    const native = createNodeAtomicFilesystem({}, {});
+    const flushFailure = Object.assign(new Error("injected directory flush failure"), { code: "EIO" });
+    const directoryDescriptors = new Set<number>();
+    let fileSyncs = 0;
+    const filesystem = {
+      ...native,
+      open: (required: { path: string; flags: "wx" | "r"; mode?: number }) => {
+        const descriptor = native.open(required);
+        if (required.flags === "r") directoryDescriptors.add(descriptor);
+        return descriptor;
+      },
+      sync: ({ descriptor }: { descriptor: number }) => {
+        if (directoryDescriptors.has(descriptor)) throw flushFailure;
+        fileSyncs += 1;
+        native.sync({ descriptor });
+      },
+    };
+    assert.throws(() => persistActiveSite({ name: "flushed-site" }, { cwd, filesystem }), (actual) => actual === flushFailure);
+    assert.equal(fileSyncs, 1, "the temp file's bytes must be fsynced before the rename");
+    assert.equal(directoryDescriptors.size, 1, "the containing directory must be opened for a metadata flush");
+    assert.equal(fs.readFileSync(path.join(cwd, ".env"), "utf8"), "TOVU_SITE=flushed-site\n", "the rename already landed; it is reported, not undone");
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }

@@ -29,7 +29,6 @@ import {
   type ResolvedAgentPluginForConnect,
   parsePluginCredentialCards,
 } from "@jini-ai/agent-plugins/connect";
-export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "@jini-ai/agent-plugins/connect";
 
 export const AGENT_PLUGIN_CONNECT_TOOL_ID = "agent_plugin_connect";
 

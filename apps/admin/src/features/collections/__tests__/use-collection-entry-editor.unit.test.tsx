@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
+import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";

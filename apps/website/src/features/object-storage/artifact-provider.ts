@@ -1,6 +1,5 @@
-import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+import type { ArtifactStorePort, DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";
 
-import type { DeployTargetCredential } from "@jini-ai/devops/deploy";
 
 import type { LoadedObjectStoreRegistry } from "./registry.js";
 

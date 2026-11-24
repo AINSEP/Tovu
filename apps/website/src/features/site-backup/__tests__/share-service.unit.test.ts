@@ -7,7 +7,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry, type SiteShareRecord } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, SHARE_DOWNLOAD_HEADERS, type ShareDelivery } from "../share-service.js";
 import { SHARE_LIMITS, SiteShareRefusal } from "../share-policy.js";

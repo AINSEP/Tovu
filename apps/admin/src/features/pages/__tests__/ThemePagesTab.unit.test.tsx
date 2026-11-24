@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemePagesTab } from "../ThemePagesTab";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 import { Pages } from "../Pages";
-import { PAGES_DICT, t as translate } from "../pages-i18n";
+import { PAGES_DICT, t as translate } from "@jini-ai/admin/pages/pages-i18n";
 import { defaultPagesPort, createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { defaultThemePagesPort, createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";

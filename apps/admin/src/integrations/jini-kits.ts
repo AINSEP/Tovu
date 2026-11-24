@@ -2,7 +2,8 @@ import { Badge, Button, ConfirmDialog, Dialog, IconButton, Menu, Notice, Select,
 import { useNativeDialog } from '@jini-ai/ui-kit/react/native';
 import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
   isProviderBaseUrlInvalid, invalidBaseUrlProviderIds, Icon, useT, SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES,
-  RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, useCodeWrap } from '@jini-ai/ui';
+  RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, useCodeWrap,
+  useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId } from '@jini-ai/ui';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
   createFailureChannel } from '@jini-ai/ui/panel-kit';
@@ -34,7 +35,7 @@ export const adminKit = {
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
   // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
   hooks: { useAdminLocale: useHostAdminLocale, useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
-    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown },
+    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
   mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
     isProviderBaseUrlInvalid, invalidBaseUrlProviderIds } },
@@ -43,7 +44,7 @@ export const adminKit = {
   // (`assistant-dock-i18n.ts`) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID,
     buildSandboxProxyDataUrl, openLightboxDialog, closeLightboxDialog, resolveTabBarTabIndex, hasPermission, standingDraftRecoveryMessage,
-    createStandingDraftLocalBackup, createFailureChannel },
+    createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab },
   // The chat library's own translator (its locale context, not ui's) and its run posters; callers keep
   // passing the host route, cookie fetch, tool id and redaction callback in the factories' two arg objects.
   chat: { useT: useChatT, createMidRunMessagePoster, createTypedAnswerPoster, createA2uiActionPoster,

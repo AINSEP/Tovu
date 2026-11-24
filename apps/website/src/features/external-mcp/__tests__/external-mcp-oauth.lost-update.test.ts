@@ -5,9 +5,11 @@ import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
+import { createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { applyExternalMcpAccess, externalMcpAccessSnapshot, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
+import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
 
 /**
  * @file Lost updates on the external-MCP row (design S1): a token refresh reads the row, calls the
