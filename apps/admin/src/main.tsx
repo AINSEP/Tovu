@@ -9,6 +9,9 @@ import { adminKit, uiKit, userManagementKit } from "./integrations/jini-kits";
 import { useHostAdminLocale } from "./hooks/admin-locale-dependencies.hooks";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
+// Settings-dialog chrome stylesheet: loaded from the host entry (not from individual screens) so it
+// keeps its place ahead of every feature stylesheet in the cascade.
+import "@jini-ai/ui/settings-dialog.css";
 import { App } from "./App";
 import { useAdminSession } from "./App.hooks";
 import { CommentQueueScopeProvider } from "@jini-ai/admin/comments/react";

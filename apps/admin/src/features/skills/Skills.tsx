@@ -1,9 +1,7 @@
 import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { Icon, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
-import { ErrorNotice } from "@jini-ai/ui/panel-kit";
-import "@jini-ai/ui/settings-dialog.css";
+import { ErrorNotice, Icon, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
 import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
 import { SkillRow } from "./SkillRow";
