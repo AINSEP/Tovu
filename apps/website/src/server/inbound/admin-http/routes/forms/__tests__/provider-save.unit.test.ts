@@ -4,8 +4,8 @@ import express from 'express';
 import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, type HtmlFormDefinitionRecord } from '@jini-ai/cms/forms';
 import { executeCommand, InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { registerAdminFormsCreateRoute } from '../create.js';
-import { registerAdminFormsAuthoringRoute } from '../authoring.js';
+import { registerAdminFormsCreateRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsAuthoringRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
 
