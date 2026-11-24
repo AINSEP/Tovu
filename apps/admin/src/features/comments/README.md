@@ -25,5 +25,11 @@ baseline prevents background reads from silently reverting another operator's sa
 
 ## Wiring
 
-- `panels.tsx` renders `@jini-ai/admin/screens/comments`'s `Comments` (re-exported eagerly by `panel-pages.ts`) and injects `useModulePanel` (`integrations/jini-admin/modules.hooks.ts`) and `CommentsModuleLoading` (`integrations/jini-admin/comments-module.hooks.ts`) as required props; it mounts the `comments.queue` module page.
+- `panels.tsx` renders `@jini-ai/admin/screens/comments`'s `Comments` (re-exported eagerly by `panel-pages.ts`) and spreads `commentsMount(...)` (`integrations/jini-admin/panel-mounts.ts`: `useModulePanel` from `integrations/jini-admin/modules.hooks.ts` and `CommentsModuleLoading` from `integrations/jini-admin/comments-module.hooks.ts`) as its required props; it mounts the `comments.queue` module page.
 - `comments-host-ports.ts` binds `@jini-ai/admin/screens/comments/api/comments-api`'s `createCommentsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `commentsApi` singleton from there.
+
+**Locale (P12 #6.T).** The screens take no locale. `CommentsModuleLoading`/`createHostCommentsModule` (`integrations/jini-admin/comments-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext` to `commentsMount`, which binds it
+into `CommentsModuleLoading` (one stable bound component per hook, so the loading notice does not remount); the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

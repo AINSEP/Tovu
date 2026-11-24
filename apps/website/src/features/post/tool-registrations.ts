@@ -3,7 +3,7 @@ import { restorePostForward, deletePost } from "./post-trash.js";
 import { getAdminPostById, listAdminPosts } from "@jini-ai/cms/posts/post-read";
 import { normalizeShowPostAuthor, normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
 import { createPost } from "./post-create.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/post';
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch

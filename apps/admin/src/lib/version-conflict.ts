@@ -1,3 +1,5 @@
+// VERSION_CONFLICT_CODE is the server's machine-readable code for a superseded basis version.
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/core/optimistic-concurrency";
 import { ApiError } from "./admin-http/request";
 
 /**
@@ -7,9 +9,6 @@ import { ApiError } from "./admin-http/request";
  * 409s (a slug already taken, a slug held by a trashed item) whose server message is the useful
  * copy, so a bare `status === 409` check would hide those behind "someone else changed this".
  */
-
-/** The server's machine-readable code for a superseded basis version. */
-export const VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
 
 /**
  * The English key (and copy) an editor without its own conflict banner shows for a lost
@@ -28,18 +27,6 @@ export const VERSION_CONFLICT_MESSAGE =
 export function isVersionConflict(required: { error: unknown }, _optional: Record<string, never> = {}): required is { error: ApiError } {
   const { error } = required;
   return error instanceof ApiError && error.status === 409 && error.code === VERSION_CONFLICT_CODE;
-}
-
-/** A rejected save whose basis version had already been superseded. */
-export interface SaveConflict {
-  /** The version the editor believed it was editing. `null` only if the server omitted it. */
-  expectedVersion: number | null;
-  /** The version actually stored now — what the other operator's save produced. `null` only if the
-   *  server omitted it. */
-  currentVersion: number | null;
-  /** The `statusOverride` (called `nextStatus` by the page editor) the rejected save was attempting, carried so an explicit retry re-runs the
-   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
-  attemptedStatus: "draft" | "published" | undefined;
 }
 
 /**

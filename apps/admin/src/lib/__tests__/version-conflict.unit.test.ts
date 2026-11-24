@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "../admin-http/request";
 import { COMMON_I18N } from "../i18n-common";
-import { isVersionConflict, readVersionConflict, VERSION_CONFLICT_CODE, VERSION_CONFLICT_MESSAGE } from "../version-conflict";
+import { VERSION_CONFLICT_CODE } from "@jini-ai/core/optimistic-concurrency";
+import { isVersionConflict, readVersionConflict, VERSION_CONFLICT_MESSAGE } from "../version-conflict";
 
 describe("isVersionConflict", () => {
   it("is true only for a 409 carrying the VERSION_CONFLICT code", () => {

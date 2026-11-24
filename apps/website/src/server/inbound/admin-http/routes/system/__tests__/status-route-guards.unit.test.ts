@@ -9,12 +9,12 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import type { MailerPort } from "#src/platform/mail/index";
 import { registerAdminAssistantDaemonRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
-import { registerAdminMailStatusRoute } from "../mail-status.js";
+import { registerAdminMailStatusRoute } from "#src/server/runtime/composition/modules/system-mail";
 import { registerAdminModuleStatusRoute } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import { registerAdminObservabilityStatusRoute } from "../observability-status.js";
 import { registerAdminServerLogsRoute } from "../server-logs.js";
 import { registerAdminDockerfileSourceRoute } from "../dockerfile-source.js";
-import { registerAdminDeploymentOverviewRoute } from "../deployment-overview.js";
+import { registerAdminDeploymentOverviewRoute } from "#src/server/runtime/composition/modules/system-deploy";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**

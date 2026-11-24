@@ -16,7 +16,7 @@ import express from "express";
 import { type Principal } from "@jini-ai/core";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
-import type { AttachmentStore } from "@jini-ai/daemon/http";
+import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
 import { type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";

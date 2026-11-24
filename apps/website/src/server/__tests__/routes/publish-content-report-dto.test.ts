@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
-import { toPublishContentReportDto } from "#src/server/inbound/admin-http/routes/publish-content/report-dto";
+import { toPublishContentReportDto } from "@jini-ai/cms/admin-http/http/publish-content";
 
 test("the HTTP report mapper preserves every client-visible field and creates a wire DTO", () => {
   const domain: PublishContentReport = {
@@ -33,7 +33,7 @@ test("the HTTP report mapper preserves every client-visible field and creates a 
     ],
   };
 
-  const dto = toPublishContentReportDto(domain);
+  const dto = toPublishContentReportDto({ report: domain });
   assert.deepEqual(dto, domain);
   assert.notEqual(dto, domain, "the HTTP boundary must explicitly map, not expose the domain object by identity");
   assert.notEqual(dto.rows, domain.rows);
@@ -76,7 +76,7 @@ test("the HTTP report mapper carries a row's referencedBy holders onto the wire,
     ],
   };
 
-  const dto = toPublishContentReportDto(domain);
+  const dto = toPublishContentReportDto({ report: domain });
 
   assert.deepEqual(dto.rows[0].referencedBy, [
     { entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about-old" },

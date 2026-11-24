@@ -1,6 +1,6 @@
 import type { SecurityHeaderSet } from "@jini-ai/core/contracts/server/security-headers";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 
 /**
  * @file Carries the live server's public-page security headers into a static export, which is

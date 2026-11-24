@@ -6,7 +6,7 @@ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { registerAdminMediaDeleteRoute, registerAdminMediaImportUrlRoute, registerAdminMediaTrashRoute, registerAdminMediaWhereUsedRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaListRoute } from '../list.js';
 import { registerAdminMediaOriginalRoute, resolveMediaOriginalBlob } from '../original.js';
-import { registerAdminMediaPutProvidersRoute } from '../put-providers.js';
+import { registerAdminMediaPutProvidersRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaReplaceRoute } from '../replace.js';
 import { registerAdminMediaTextRoute } from '../text.js';
 import { registerAdminMediaUploadRoute } from '../upload.js';

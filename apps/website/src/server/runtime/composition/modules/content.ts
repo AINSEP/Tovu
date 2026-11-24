@@ -103,6 +103,8 @@ export const registerAdminPostGetRoute: ContentRouteRegistrar = ({ app, deps }, 
     ...postReadPortDeps({ deps }),
     readPost: (input) => readAdminPost({ deps, input }),
     isPostNotFound: ({ err }) => err instanceof PostNotFoundError,
+    // The host passes the classified not-found message through (the spec's required outward-copy port).
+    outwardErrorMessage: ({ error }) => error.message,
   } }, { failure: { operation: "routes/posts/get-by-id", code: "INTERNAL_ERROR" } });
 };
 

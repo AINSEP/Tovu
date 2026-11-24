@@ -103,3 +103,5 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
   and injects it as `formsRateLimiter`.
 - `FormAnalyticsProvenance` comes from `@jini-ai/cms/forms/site/analytics-provenance`; the host's
   consent layer builds the value and passes it as the `analyticsProvenance` option of the submit path.
+- Form slugs come from `toSlug`, imported directly from `@jini-ai/cms/html/site/slug` in
+  `index.ts` (P12 cut #7). No host slug copy remains.

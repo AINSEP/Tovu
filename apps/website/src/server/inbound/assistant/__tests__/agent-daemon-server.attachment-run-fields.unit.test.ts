@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import type { prepareMessageAttachments } from "@jini-ai/daemon";
-import type { AttachmentStore } from "@jini-ai/daemon/http";
+import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 
 

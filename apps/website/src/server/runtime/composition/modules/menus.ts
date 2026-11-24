@@ -6,9 +6,9 @@ import { menuDeleteRoute } from "@jini-ai/cms/admin-http/routes/menus/delete";
 import { menuGetRoute } from "@jini-ai/cms/admin-http/routes/menus/get-by-id";
 import { menuListRoute } from "@jini-ai/cms/admin-http/routes/menus/list";
 import { menuUpdateTreeRoute } from "@jini-ai/cms/admin-http/routes/menus/update-tree";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import { normalizeMenuHtml } from "@jini-ai/cms/navigation/node";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -16,78 +16,95 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-040) — the `menus` server module (ADR-029 navigation menus admin
  * CRUD + location assignment).
  *
- * Owns all 6 registrations (list, get-by-id, create, update-tree, assign-location, delete) —
- * moved here verbatim from `app.ts`'s `createApp()`, same relative order. All six are Jini route
- * specs (`@jini-ai/cms/admin-http/routes/menus/*`) mounted behind the admin ports; each mount
- * builds the spec's own small deps from `MenuRouteDeps`, never passing it whole.
- */
-
-/**
- * Deps these routes need beyond the shared `RouteDeps`: `menuRepo` (the
- * local, navigation-owned `MenuRepoPort` — see `navigation/repo.memory.ts`'s
- * file header for why it is not a frozen ADR port) and
- * `navLocationBindingRepo` (the one real ADR-029 port,
- * `NavLocationBindingRepoPort`).
+ * K1 (RT-K1-adm-menus): all six routes are Jini route specs (`@jini-ai/cms/admin-http/routes/menus/*`)
+ * mounted behind the admin ports. `RouteDeps` is read only here, at registration: each mount builds
+ * that route's own small deps object, so a spec never sees the whole bag. The Tovu-owned policy the
+ * specs need is injected here too: the raw-HTML permission, the Node HTML normalizer, the outward
+ * error copy and the trash move's collaborators (`removeMenu`, `clock`).
  *
- * Declared here (it used to live beside the menus DTOs) rather than in `routes/types.ts` because
- * that file was a shared collision point parallel agents were editing for their own sections. It
- * is a genuine superset of `RouteDeps`, not a `Pick`-based narrowing like `TaxonomyRouteDeps`/
- * `ContentRouteDeps`.
+ * Owns all 6 registrations (list, get-by-id, create, update-tree, assign-location, delete), same
+ * relative order as before.
  */
-export interface MenuRouteDeps extends RouteDeps {
-  menuRepo: MenuRepoPort;
-  navLocationBindingRepo: NavLocationBindingRepoPort;
-}
 
-/** Registrar signature for the menus route modules (mirrors `RouteRegistrar`). */
+/** The deps the menus registrars read. `menuRepo`/`navLocationBindingRepo`/`removeMenu` already live
+ *  on `RouteDeps`; the name is kept so existing fixtures and the composition root read unchanged. */
+export interface MenuRouteDeps extends RouteDeps {}
+
+/** Registrar signature for the menus routes (mirrors `RouteRegistrar`). */
 export type MenuRouteRegistrar = (required: { app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
 
-/** The two port fields every menus mount passes. `authorize` is read per request, as the
- *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
-function menuPortDeps({ deps }: { deps: MenuRouteDeps }, _options: Record<string, never> = {}): AdminJsonRoutePortDeps {
+/** The two port fields every menus mount passes. `authorize` is read per request, as the hand-written
+ *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
+function menuPortDeps({ deps }: { deps: MenuRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** `"guarded"` for the routes that called `authorizeOrRespond` (create, delete); `"direct"` for the
- *  ones that called `authorizeDirectOrRespond`. Update-tree's raw-HTML check used the guarded helper
- *  while its main check was direct; menus are not on the publishing-credential route allowlist
- *  (`PUBLISH_TRUST_ROUTES`), so the two answer identically here. */
-const mountOptions = (operation: string, authorization: AdminRouteAuthorization) => ({ authorization, failure: { operation, code: "INTERNAL_ERROR" } });
+/** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization of each mount,
+ *  exactly as each hand-written route had them: read/update/assign never consulted the
+ *  publishing-credential override (`"direct"`); create and delete did (`"guarded"`). Switching any
+ *  of them is an authorization change, not a move.
+ *  - `authorizationByPermission`: update-tree's raw-HTML check went through `authorizeOrRespond`
+ *    (guarded) while its `admin.menus.update` check was direct — two decisions, two sources.
+ *  - `deferMissingPrincipal`: only create, update-tree and assign-location refused a bad body
+ *    before reading the session; the other three keep the old principal-first order. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  optional: Pick<AdminJsonRouteMountOptions, "authorizationByPermission" | "deferMissingPrincipal"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
+}
 
-/** The admin surface's outward copy for a classified domain error is that error's own message. */
+/** The admin surface's outward copy for a classified domain error is that error's own message. The
+ *  specs never put stored `error.message` text into a body themselves; this host port is where that
+ *  policy lives. */
 const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
 
-/** The menu service's write collaborators, shared by create and update-tree. */
-function menuWriteDeps({ deps }: { deps: MenuRouteDeps }, _options: Record<string, never> = {}) {
-  return { menuRepo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, normalizeMenuHtml, outwardErrorMessage };
+/** The write services' shared collaborators plus the host's HTML policy and outward error copy. */
+function menuWriteDeps({ deps }: { deps: MenuRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox,
+    rawHtmlPermission: MENU_RAW_HTML_PERMISSION, normalizeMenuHtml, outwardErrorMessage,
+  };
 }
 
 export const registerAdminMenuListRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuListRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions("routes/menus/list", "direct"));
+  mountAdminJsonRoute({ app, spec: menuListRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/list", authorization: "direct" }));
 };
 
 export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuGetRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions("routes/menus/get-by-id", "direct"));
+  mountAdminJsonRoute({ app, spec: menuGetRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/get-by-id", authorization: "direct" }));
 };
 
 export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuCreateRoute, deps: { ...menuPortDeps({ deps }), ...menuWriteDeps({ deps }) } }, mountOptions("routes/menus/create", "guarded"));
+  const options = mountOptions({ operation: "routes/menus/create", authorization: "guarded" }, { deferMissingPrincipal: true });
+  mountAdminJsonRoute({ app, spec: menuCreateRoute, deps: menuWriteDeps({ deps }) }, options);
 };
 
 export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuUpdateTreeRoute, deps: { ...menuPortDeps({ deps }), ...menuWriteDeps({ deps }) } }, mountOptions("routes/menus/update-tree", "direct"));
+  const options = mountOptions(
+    { operation: "routes/menus/update-tree", authorization: "direct" },
+    { authorizationByPermission: { [MENU_RAW_HTML_PERMISSION]: "guarded" }, deferMissingPrincipal: true },
+  );
+  mountAdminJsonRoute({ app, spec: menuUpdateTreeRoute, deps: menuWriteDeps({ deps }) }, options);
 };
 
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuAssignLocationRoute, deps: {
-    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, outwardErrorMessage,
-  } }, mountOptions("routes/menus/assign-location", "direct"));
+  const assignDeps = {
+    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo,
+    clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, outwardErrorMessage,
+  };
+  mountAdminJsonRoute({ app, spec: menuAssignLocationRoute, deps: assignDeps }, mountOptions(
+    { operation: "routes/menus/assign-location", authorization: "direct" }, { deferMissingPrincipal: true },
+  ));
 };
 
+/** The spec runs the trash move itself over this request's repo, `removeMenu` (the generic trash
+ *  pipeline) and clock. */
 export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: {
+  const deleteDeps = {
     ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, removeMenu: deps.removeMenu, clock: deps.clock, outwardErrorMessage,
-  } }, mountOptions("routes/menus/delete", "guarded"));
+  };
+  mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/menus/delete", authorization: "guarded" }));
 };
 
 export function createMenusModule(deps: MenuRouteDeps): ServerModuleHandle {

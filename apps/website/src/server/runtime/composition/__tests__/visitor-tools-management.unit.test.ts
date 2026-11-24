@@ -6,8 +6,8 @@ import express, { type Request } from "express";
 import { builtinVisitorToolsCatalog, composeVisitorToolsManagement } from "../visitor-tools-management.js";
 import { visitorSettingsFixture, ws } from "#src/features/settings/__tests__/visitor-tools.fixture";
 import { createAssistantSettingsModule } from "../modules/assistant-settings.js";
-import type { AssistantSettingsRouteDeps } from "#src/server/inbound/admin-http/routes/assistant/deps";
-import { ADMIN_VISITOR_TOOLS_PATH } from "#src/server/inbound/admin-http/routes/assistant/visitor-tools";
+import type { AssistantSettingsRouteDeps } from "#src/server/runtime/composition/modules/assistant-settings";
+import { ADMIN_VISITOR_TOOLS_PATH } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 test("the production catalog is the reviewed CMS reads and seven page capabilities, independent of the admin registry", async () => {

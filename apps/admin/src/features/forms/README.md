@@ -10,5 +10,11 @@ Host-only locale/dictionary tests remain in `__tests__/`; transferred screen/hoo
 
 ## Wiring
 
-- `panels.tsx` injects `useModulePanel` (`integrations/jini-admin/modules.hooks.ts`) and `FormsModuleLoading` (`integrations/jini-admin/forms-module.hooks.ts`) into both forms panels as required props.
+- `panels.tsx` spreads `formsMount(...)` (`integrations/jini-admin/panel-mounts.ts`: `useModulePanel` from `integrations/jini-admin/modules.hooks.ts` and `FormsModuleLoading` from `integrations/jini-admin/forms-module.hooks.ts`) into both forms panels as their required props.
 - `forms-host-ports.ts` binds `@jini-ai/admin/screens/forms/api/forms-api`'s `createFormsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `formsApi` singleton from there.
+
+**Locale (P12 #6.T).** The screens take no locale. `FormsModuleLoading`/`createHostFormsModule` (`integrations/jini-admin/forms-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext` to `formsMount`, which binds it
+into `FormsModuleLoading` (one stable bound component per hook, so the loading notice does not remount); the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

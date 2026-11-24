@@ -27,5 +27,11 @@ unchanged shared-component suites, then checks all four screens in Chrome before
 
 ## Wiring
 
-- `panels.tsx` injects `useModulePanel` (`integrations/jini-admin/modules.hooks.ts`) and `WidgetsModuleLoading` (`integrations/jini-admin/widgets-module.hooks.ts`) into all four `@jini-ai/admin/screens/widgets` panels as required props; `panel-pages.ts` re-exports them eagerly.
+- `panels.tsx` spreads `widgetsMount(...)` (`integrations/jini-admin/panel-mounts.ts`: `useModulePanel` from `integrations/jini-admin/modules.hooks.ts` and `WidgetsModuleLoading` from `integrations/jini-admin/widgets-module.hooks.ts`) into all four `@jini-ai/admin/screens/widgets` panels as their required props; `panel-pages.ts` re-exports them eagerly.
 - `widgets-host-ports.ts` binds `@jini-ai/admin/screens/widgets/api/widgets-api`'s `createWidgetsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `widgetsApi` singleton from there.
+
+**Locale (P12 #6.T).** The screens take no locale. `WidgetsModuleLoading`/`createHostWidgetsModule` (`integrations/jini-admin/widgets-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext` to `widgetsMount`, which binds it
+into `WidgetsModuleLoading` (one stable bound component per hook, so the loading notice does not remount); the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

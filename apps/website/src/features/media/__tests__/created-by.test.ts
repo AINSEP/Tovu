@@ -6,7 +6,7 @@ import { SqlMediaRepo, SqlAssetBlobRepo } from "#src/platform/db/repos/media-rep
 import { listColumns } from "@jini-ai/db/kernel";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, uploadMedia, updateMediaMetadata, type MediaRecord } from "../index.js";
-import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
+import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { duplicateMediaAsset } from "@jini-ai/cms/media/site/duplicate-asset";
 import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";

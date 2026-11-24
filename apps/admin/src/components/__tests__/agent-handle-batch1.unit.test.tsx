@@ -1,6 +1,7 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
 import { ImagePreviewModal, InfoTip, SeeMore } from "@jini-ai/ui/admin-widgets";
 import { Select, type SelectOption } from "../Select/Select";
@@ -20,6 +21,8 @@ import type { AdminExecutionCredentialController } from "../../hooks/use-admin-e
  * when omitted; explicit `false` preserves the original zero-markup opt-out. Product controls below
  * still omit addressing when their optional handle is absent.
  */
+
+const useAdminLocaleHook: UseAdminLocaleHook = () => "en";
 
 const AGENT_ELEMENT = "data-agent-element";
 const AGENT_ROLE = "data-agent-role";
@@ -212,19 +215,19 @@ describe("AdminByokSettingsFooter agentHandle", () => {
 
 describe("Placeholder / ComingSoonNotice agentHandle", () => {
   it("omits data-agent-* on the coming-soon notice when agentHandle is not passed", () => {
-    render(<Placeholder sectionId="newsletter" />);
+    render(<Placeholder sectionId="newsletter" useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText("Newsletter is coming soon.").closest(".page")).not.toHaveAttribute(AGENT_ELEMENT);
   });
 
   it("publishes the coming-soon notice as a status region under the caller's handle", () => {
-    render(<Placeholder sectionId="newsletter" agentHandle="newsletter-page" />);
+    render(<Placeholder sectionId="newsletter" agentHandle="newsletter-page" useAdminLocaleHook={useAdminLocaleHook} />);
     const page = screen.getByText("Newsletter is coming soon.").closest(".page");
     expect(page).toHaveAttribute(AGENT_ELEMENT, "newsletter-page");
     expect(page).toHaveAttribute(AGENT_ROLE, "status");
   });
 
   it("also publishes the Unknown section branch under the same prop", () => {
-    render(<Placeholder sectionId="does-not-exist-12345" agentHandle="unknown-notice" />);
+    render(<Placeholder sectionId="does-not-exist-12345" agentHandle="unknown-notice" useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText(/unknown section/i)).toHaveAttribute(AGENT_ELEMENT, "unknown-notice");
   });
 

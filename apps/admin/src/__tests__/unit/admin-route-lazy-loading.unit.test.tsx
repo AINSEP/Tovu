@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createElement, lazy, type ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { matchRoute } from "@jini-ai/admin/core";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import type { PanelRenderContext } from "../../panel-contracts";
 
 // Record module evaluation, rather than component mounting: eagerly imported pages can also
@@ -64,13 +65,13 @@ const routeProbes = {
   CollectionEntryEditor: ({ contentTypeKey, entryId }: { contentTypeKey: string; entryId: string | null }) =>
     createElement("h1", null, `Collection ${contentTypeKey} ${entryId ?? "new"}`),
 };
-vi.mock("../../hooks/use-admin-locale.hooks", () => ({ useWiredAdminLocale: () => "es" }));
-// panels.tsx binds the host module-panel hook and loading views into the eager bridges. The
+// panel-mounts.ts binds the host module-panel hook and loading views into the eager bridges. The
 // bridges are faked above and never call them, so stub the host admin scope rather than evaluate it.
 vi.mock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
 vi.mock("../../integrations/jini-admin/comments-module.hooks", () => ({ CommentsModuleLoading: () => null }));
 vi.mock("../../integrations/jini-admin/forms-module.hooks", () => ({ FormsModuleLoading: () => null }));
 vi.mock("../../integrations/jini-admin/widgets-module.hooks", () => ({ WidgetsModuleLoading: () => null }));
+const useAdminLocaleHook: UseAdminLocaleHook = () => "es";
 
 const Placeholder: PanelRenderContext["Placeholder"] = ({ sectionId }) => createElement("h1", null, sectionId);
 
@@ -113,7 +114,7 @@ describe("admin routes load only the page being visited", () => {
     expect([...loadedPages]).toEqual([]);
 
     const posts = ADMIN_PANELS.find(panel => panel.id === "posts")!;
-    const context = { view: null, params: {}, query: new URLSearchParams(), Placeholder };
+    const context = { view: null, params: {}, query: new URLSearchParams(), Placeholder, useAdminLocaleHook };
     // Constructing an element (as route selection does) must not start the import either.
     const element = posts.render(context);
     expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
@@ -144,7 +145,7 @@ describe("admin routes load only the page being visited", () => {
     expect(typeof pages[name as keyof typeof pages]).toBe("function");
     expect([...loadedPages]).toEqual([]);
     const route = matchRoute({ routePath, panels: ADMIN_PANELS });
-    const element = ADMIN_PANELS.find(panel => panel.id === route.panelId)!.render({ ...route, Placeholder });
+    const element = ADMIN_PANELS.find(panel => panel.id === route.panelId)!.render({ ...route, Placeholder, useAdminLocaleHook });
     expect([...loadedPages]).toEqual([]);
 
     const view = render(<>{element}</>);
@@ -207,7 +208,7 @@ describe("admin routes load only the page being visited", () => {
     const route = matchRoute({ routePath, panels: ADMIN_PANELS });
     expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
     const panel = ADMIN_PANELS.find(candidate => candidate.id === route.panelId)!;
-    render(<>{panel.render({ ...route, Placeholder })}</>);
+    render(<>{panel.render({ ...route, Placeholder, useAdminLocaleHook })}</>);
     await screen.findByRole("heading", { name: heading.trim() });
     expect([...loaded].sort()).toEqual([...new Set([...EAGER_MODULES, moduleId])].sort());
   });

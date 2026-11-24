@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerPublishContentPeerRoutes } from "../../admin-http/routes/publish-content/peers.js";
+import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content/peers";
 const CANARY = "SECRET_CANARY_PEER_CONTEXT";

@@ -39,7 +39,7 @@ export interface Tier2WorkerMainOptional {
  */
 export const TIER2_IMPORT_POLICY: Tier2ImportPolicy = {
   sdkSpecifiers: PLUGIN_SDK_SPECIFIERS,
-  trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "#src/platform/html/slug"] }],
+  trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug"] }],
 };
 
 /** Real `import()` of the plugin entry, used once `main()` has registered the SDK resolver.

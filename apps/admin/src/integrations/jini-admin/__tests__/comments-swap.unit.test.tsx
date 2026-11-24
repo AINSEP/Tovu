@@ -4,9 +4,9 @@ import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper
 import type { AdminComment, AdminCommentsPort, AdminCommentsQueuePage } from '@jini-ai/admin/comments';
 import { CommentQueueScopeProvider } from '@jini-ai/admin/comments/react';
 import { Comments } from '@jini-ai/admin/screens/comments';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { commentsEvents, createCommentsQueueScope } from '../comments-ports';
-import { CommentsModuleLoading } from '../comments-module.hooks';
+import { commentsMount } from '../panel-mounts';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
@@ -26,13 +26,13 @@ function fixture(_required: Record<string, never>, { permissions = ['*'], useLoc
     putCommentsSettings: vi.fn<AdminCommentsPort['putCommentsSettings']>(),
   };
   const me = vi.fn(async () => ({ user: { id: 'u1', username: 'operator' }, effectivePermissions: permissions }));
-  const runtime = createHostAdminScope({ permissions }, { commentsPorts: { commentsApi: api, commentsSession: { me }, commentsEvents }, useCommentsLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: useLocale }, { commentsPorts: { commentsApi: api, commentsSession: { me }, commentsEvents } });
   scopes.push(runtime);
   // The API, runtime and cache survive logout just as they do under main.tsx's session boundary.
   const node = ({ principalId = 'u1' }: { principalId?: string | null }, _optional: Record<string, never> = {}) =>
     <FetchQueryProvider><AdminModulesContext.Provider value={runtime}>
       {principalId === null ? <p>Signed out</p> :
-        <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId })}><Comments useModulePanel={useModulePanel} ModuleLoading={CommentsModuleLoading} /></CommentQueueScopeProvider>}
+        <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId })}><Comments {...commentsMount({ useAdminLocaleHook: useLocale })} /></CommentQueueScopeProvider>}
     </AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, me, runtime, node };
 }

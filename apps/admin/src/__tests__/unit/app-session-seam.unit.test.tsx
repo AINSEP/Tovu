@@ -6,6 +6,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file Proves `App`'s `useSession` seam (added alongside the `App.hooks.ts` extraction,
@@ -61,7 +64,7 @@ it("renders the authenticated shell immediately through a fake useSession, with 
   // possible. If `checking` still needed an async round trip to resolve, reading `container`
   // synchronously right after `render()` would be racing a state update instead of reading a
   // settled tree.
-  const { container } = render(<App useSession={() => fakeSession} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => fakeSession} />);
 
   // The seam is proven structurally by these two: `useSession` is a full replacement for
   // `useAdminSession` (`App.hooks.ts`), so ITS internal effect — the one that chains into

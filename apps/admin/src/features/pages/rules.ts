@@ -9,7 +9,7 @@ import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/core/optimistic-concurrency";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";

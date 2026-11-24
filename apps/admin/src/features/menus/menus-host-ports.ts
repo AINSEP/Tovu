@@ -9,7 +9,7 @@ import { pagePublicPath } from "../pages/rules";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
-import { toSlug } from "../../../../website/src/platform/html/slug";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 
 /**
  * @file The admin's menus binding: `@jini-ai/admin`'s menus API client, bound once to this host's

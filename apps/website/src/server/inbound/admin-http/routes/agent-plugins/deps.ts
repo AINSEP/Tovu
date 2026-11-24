@@ -6,7 +6,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Narrow `RouteDeps` slice for the `agent-plugins` admin HTTP surface (2026-09-09) — mirrors
- * `apps/website/src/server/inbound/admin-http/routes/plugins/deps.ts`'s `PluginsRouteDeps` narrowing pattern.
+ * `server/runtime/composition/modules/plugins.ts`'s `PluginsRouteDeps` narrowing pattern.
  *
  * Deliberately smaller than `PluginsRouteDeps`: this domain's read model,
  * `loadAgentPluginSearchCandidates()` (`features/agent-plugins/tool-registrations.ts`, shared with
@@ -16,8 +16,9 @@ import type { UUID } from "@jini-ai/core/primitives";
  * `agentPluginLayout` binds it to the booted site and `authorize` gates access.
  *
  * `authorize` gates both routes on this family's existing permissions — `admin.plugins.read` for
- * `list.ts` and `admin.plugins.enable` for `set-enabled.ts`, the same pair the `.tovu-plugin`
- * family already uses for the identical two operations. See `list.ts`'s own header for why reusing
+ * list and `admin.plugins.enable` for set-enabled (the Jini specs
+ * `@jini-ai/cms/admin-http/routes/agent-plugins/{list,set-enabled}`), the same pair the `.tovu-plugin`
+ * family already uses for the identical two operations. See the list spec's own header for why reusing
  * them rather than minting `admin.agent-plugins.*` is correct.
  *
  * Still no `idGen`/`changeSets`/`outbox` even though `set-enabled.ts` mutates: that mutation is a

@@ -4,11 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { createMemoryFormsApi } from '@jini-ai/admin/forms/adapters/memory';
 import { FormsList, FormEditor } from '@jini-ai/admin/screens/forms';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
-import { FormsModuleLoading } from '../forms-module.hooks';
-
-// The host binds its module-panel hook and loading view at every panel call site.
-const mount = { useModulePanel, ModuleLoading: FormsModuleLoading };
+import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
+import { formsMount } from '../panel-mounts';
 import { formsEvents } from '../forms-ports';
 import { formsCatalog } from '../forms-catalog-ports';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
@@ -25,16 +22,16 @@ function fixture({ useLocale = () => 'en', permissions = ['*'] }: { useLocale?: 
   const api = createMemoryFormsApi({}, { forms: [form], submissions: [{ id: 's1', formDefinitionId: 'f1', data: { email: 'visitor@example.com' }, sourceIp: '127.0.0.1', submittedAt: '2026-10-07T00:00:00Z' }] });
   const list = vi.spyOn(api, 'listFormDefinitions');
   const navigate = vi.fn();
-  const runtime = createHostAdminScope({ permissions }, { formsPorts: { formsApi: api, formsCatalog, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } }, useFormsLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: useLocale }, { formsPorts: { formsApi: api, formsCatalog, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } } });
   scopes.push(runtime);
   const node = (child: React.ReactNode) => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}>{child}</AdminModulesContext.Provider></FetchQueryProvider>;
-  return { api, list, runtime, node, navigate };
+  return { api, list, runtime, node, navigate, useAdminLocaleHook: useLocale };
 }
 
 describe('Jini Forms host switch', () => {
   it('mounts the list with the original handles, paths and expanded owner grant', async () => {
-    const { runtime, node } = fixture();
-    render(node(<FormsList {...mount} />));
+    const { runtime, node, useAdminLocaleHook } = fixture();
+    render(node(<FormsList {...formsMount({ useAdminLocaleHook })} />));
     expect(screen.getByText('Loading forms…')).toHaveClass('notice');
     expect(await screen.findByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/admin/forms/contact');
     expect(screen.getByRole('heading', { name: 'Forms' })).toHaveClass('page-title');
@@ -44,25 +41,25 @@ describe('Jini Forms host switch', () => {
 
   it('preserves an edited draft across locale and route-derived submissions tab changes', async () => {
     let locale = 'en';
-    const { node } = fixture({ useLocale: () => locale });
-    const view = render(node(<FormEditor formId="contact" tab="fields" {...mount} />));
+    const { node, useAdminLocaleHook } = fixture({ useLocale: () => locale });
+    const view = render(node(<FormEditor formId="contact" tab="fields" {...formsMount({ useAdminLocaleHook })} />));
     const name = await screen.findByLabelText('Name');
     fireEvent.change(name, { target: { value: 'Unsaved draft' } });
     locale = 'de';
-    view.rerender(node(<FormEditor formId="contact" tab="fields" {...mount} />));
+    view.rerender(node(<FormEditor formId="contact" tab="fields" {...formsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByRole('button', { name: 'Speichern' })).toBeInTheDocument();
     expect(view.container.querySelector('#form-name')).toBe(name);
     expect(name).toHaveValue('Unsaved draft');
-    view.rerender(node(<FormEditor formId="contact" tab="submissions" {...mount} />));
+    view.rerender(node(<FormEditor formId="contact" tab="submissions" {...formsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByText('visitor@example.com')).toBeInTheDocument();
-    view.rerender(node(<FormEditor formId="contact" tab="fields" {...mount} />));
+    view.rerender(node(<FormEditor formId="contact" tab="fields" {...formsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByLabelText('Name')).toHaveValue('Unsaved draft');
   });
 
   it('renders the new-form HTML authoring controls through the editor page', async () => {
     const user = userEvent.setup();
-    const { node } = fixture();
-    render(node(<FormEditor formId="new" tab="fields" {...mount} />));
+    const { node, useAdminLocaleHook } = fixture();
+    render(node(<FormEditor formId="new" tab="fields" {...formsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByLabelText('Name')).toHaveValue('');
     // The new editor paints before its effect-owned controller is attached; await the gesture.
     await user.click(screen.getByRole('button', { name: 'HTML' }));
@@ -71,17 +68,17 @@ describe('Jini Forms host switch', () => {
   });
 
   it('keeps tab navigation on the original history-pushed paths', async () => {
-    const { navigate, node } = fixture();
-    render(node(<FormEditor formId="contact" tab="fields" {...mount} />));
+    const { navigate, node, useAdminLocaleHook } = fixture();
+    render(node(<FormEditor formId="contact" tab="fields" {...formsMount({ useAdminLocaleHook })} />));
     const tab = await screen.findByRole('tab', { name: 'Submissions' });
     fireEvent.click(tab);
     expect(navigate).toHaveBeenCalledWith({ base: '/admin', routePath: '/forms/contact/submissions' });
   });
 
   it('confirms submission Trash through the original generic port and retains its payload', async () => {
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const trash = vi.spyOn(api.trash, 'trash');
-    render(node(<FormEditor formId="contact" tab="submissions" {...mount} />));
+    render(node(<FormEditor formId="contact" tab="submissions" {...formsMount({ useAdminLocaleHook })} />));
     fireEvent.click(await screen.findByRole('button', { name: 'View' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete submission' }));
     expect(await screen.findByRole('dialog', { name: 'Move to trash?' })).toBeInTheDocument();
@@ -96,8 +93,8 @@ describe('Jini Forms host switch', () => {
   });
 
   it('refreshes the mounted list and disposes its subscription on unmount', async () => {
-    const { list, node } = fixture();
-    const view = render(node(<FormsList {...mount} />));
+    const { list, node, useAdminLocaleHook } = fixture();
+    const view = render(node(<FormsList {...formsMount({ useAdminLocaleHook })} />));
     await screen.findByRole('link', { name: 'Contact' });
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
     act(() => publishContentRefresh({ resources: ['media'] }));
