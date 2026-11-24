@@ -1,11 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { adminKit } from "@/integrations/jini-kits";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { defaultSecurityPermissionsPort, useWiredSecurityPermissions } from "../security-permissions-dependencies.hooks";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => <AdminKitProvider kit={adminKit}><FetchQueryProvider>{children}</FetchQueryProvider></AdminKitProvider>;
 
 it("keeps site-key management unavailable until the wired auth request returns its permission", async () => {
   // Author Checklist F2.3/F2.6/F3.6/F7.1: real wired consumer, held load and exact route.
