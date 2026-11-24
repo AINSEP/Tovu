@@ -1,7 +1,7 @@
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 import { useEmail, type EmailController, type EmailPort } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
-import { useEmailActivity, type EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
+import { useCaptureClearFlow, useEmailActivity, type EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { useEmailOverview, type EmailOverviewController } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
 import { useEmailProvider, useProviderChoices, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
@@ -68,7 +68,7 @@ export function useWiredEmailTemplateEditor(required: { id: string }): EmailTemp
 /** The real API port; the session's permissions decide whether "Clear test emails" is offered (`undefined` until known or if unreadable, so it stays hidden). */
 export function useWiredEmailActivity(): EmailActivityController {
   const { view } = useLoad({ ApiError, load: readSessionPermissions });
-  return useEmailActivity({ api: emailApi, ApiError }, { permissions: view.kind === "loaded" ? view.data : undefined });
+  return useEmailActivity({ api: emailApi, ApiError, useLoadHook: useLoad, useCaptureClearFlowHook: useCaptureClearFlow }, { permissions: view.kind === "loaded" ? view.data : undefined });
 }
 
 /** The signed-in person's effective permissions (a module function, so its identity is stable for `useLoad`). */

@@ -2,7 +2,7 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import type { MailCaptureClearAnswer } from "@jini-ai/admin/screens/email/email-api.types";
+import type { MailCaptureClearAnswer } from "@jini-ai/core/contracts/mail";
 import { useEmailActivity, type CaptureClearState } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { EmailActivityTab } from "../EmailActivityTab";
 import { createTabHooks } from "./email-controller.test-helpers";

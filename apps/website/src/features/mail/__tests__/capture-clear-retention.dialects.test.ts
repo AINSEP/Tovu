@@ -6,7 +6,7 @@ import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerR
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
-import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
+import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/core/contracts/mail";
 import { planMailCaptureClear } from "../capture-clear";
 
 /**

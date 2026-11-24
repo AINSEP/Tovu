@@ -1,7 +1,8 @@
 import type { MailFeedbackSetupReport } from "@jini-ai/core/contracts/site/platform-mail";
+import type { MailCaptureClearAnswer, MailCaptureClearRequest } from "@jini-ai/core/contracts/mail";
 import type {
   EmailApi, EmailTemplateDetail, EmailTemplatePreview, EmailTemplateSummary, MailActivityDetail, MailActivityFilter,
-  MailActivityPage, MailCaptureClearAnswer, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
+  MailActivityPage, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
   MailProviderCredentialInput, MailSuppressionPage, MailSuppressionRemovalPlan, MailSuppressionScope, MailTestSendResult,
   MailUseRow,
 } from "@jini-ai/admin/screens/email/email-api.types";
@@ -62,7 +63,7 @@ export const emailApi: EmailApi & Required<Pick<EmailApi, "clearCaptured">> = {
   /** Without `confirm` this only previews (`plan`, `revision`); with it, `revision` must be the previewed one. */
   clearCaptured: (options: { confirm?: { revision: string } } = {}) =>
     send<MailCaptureClearAnswer>({ method: "POST", path: `${SYSTEM}/mail-capture/clear` }, {
-      body: options.confirm ? { confirmed: true, revision: options.confirm.revision } : {},
+      body: (options.confirm ? { confirmed: true, revision: options.confirm.revision } : {}) satisfies MailCaptureClearRequest,
     }),
   readFeedback: () => get<MailFeedbackSetupReport>({ path: `${SYSTEM}/mail-feedback` }),
 
