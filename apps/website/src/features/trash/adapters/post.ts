@@ -25,7 +25,7 @@ const POST_SEARCH_DOCUMENT_TABLE = "post_search_document";
  * @complexity O(1) to build.
  */
 export function createPostTrashAdapter(store: MarkerStore): TrashAdapter {
-  const kernel = lazyKernel(store);
+  const kernel = lazyKernel({ store });
   // The search projection exists only where the database has a full-text index built on it (SQLite's
   // FTS5); asked once, on the first purge.
   let hasSearchDocument: Promise<boolean> | undefined;

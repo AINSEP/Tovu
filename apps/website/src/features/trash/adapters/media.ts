@@ -34,7 +34,7 @@ export interface MediaTrashAdapterDeps {
 
 /** @complexity O(1) to build. */
 export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapter {
-  const kernel = lazyKernel(deps.db);
+  const kernel = lazyKernel({ store: deps.db });
 
   /** Reads just the version column — never the asset. @complexity O(1). */
   async function currentVersion({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}): Promise<number | null> {

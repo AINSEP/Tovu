@@ -25,7 +25,7 @@ const REDIRECT_LIVE_STATUS = "active";
 
 /** @complexity O(1) to build. */
 export function createRedirectTrashAdapter(store: MarkerStore): TrashAdapter {
-  const kernel = lazyKernel(store);
+  const kernel = lazyKernel({ store });
   return {
     entityType: REDIRECT_ENTITY_TYPE,
 

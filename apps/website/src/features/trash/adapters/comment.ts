@@ -27,7 +27,7 @@ const COMMENT_RESTORED_STATUS = "pending";
 
 /** @complexity O(1) to build. */
 export function createCommentTrashAdapter(store: MarkerStore): TrashAdapter {
-  const kernel = lazyKernel(store);
+  const kernel = lazyKernel({ store });
   return {
     entityType: COMMENT_ENTITY_TYPE,
 

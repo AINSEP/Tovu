@@ -229,7 +229,7 @@ function userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }: UserT
  */
 export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
   const { purge, idGen, clock } = deps;
-  const kernel = lazyKernel(deps.db);
+  const kernel = lazyKernel({ store: deps.db });
 
   /** Runs `body` in one transaction holding the principal's row lock. */
   const underPrincipalLock = <T>({ workspaceId, principalId, body }: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, _optional = {}): Promise<T> => {
