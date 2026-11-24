@@ -3751,6 +3751,14 @@
     { "id": "66aca9561e9a", "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.types.ts AdminPost.bodyFormat doc (w3-content), host contract/serializer paths reworded to 'the host's headless contracts and post serializer' (N2); the Tovu file is deleted." },
     { "id": "1696004df156", "reason": "Moved to Jini @jini-ai/admin posts/editor/template/PostEditorTemplatePicker.tsx doc (w3-content), verbatim plus one paragraph on the host's ViewTemplateButton arriving as a required prop; the Tovu file is deleted." },
     { "id": "85a688ae8de3", "reason": "Moved to Jini @jini-ai/admin posts/editor/template/PostEditorTemplatePicker.tsx ViewTemplateButton comment (w3-content), the host component path reworded to 'the host's, shared with its page editor's own template picker' (N2); the Tovu file is deleted." },
-    { "id": "e38e9779023b", "reason": "Moved to Jini @jini-ai/admin posts/editor/toolbar/ToolbarCharacterCount.tsx doc (w3-content), `styles.css` reworded to 'host stylesheet' (N2); the Tovu file is deleted." }
+    { "id": "e38e9779023b", "reason": "Moved to Jini @jini-ai/admin posts/editor/toolbar/ToolbarCharacterCount.tsx doc (w3-content), `styles.css` reworded to 'host stylesheet' (N2); the Tovu file is deleted." },
+    { "id": "025ffc6b5eda", "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts public-path resolver doc (w3-content), the routing source reworded to the injected entryPublicPath; the Tovu block's code left tool-registrations.ts." },
+    { "id": "27a009fadd4b", "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts in-admin edit path resolver doc (w3-content), host paths reworded neutral; the Tovu code is deleted." },
+    { "id": "27bbe21e5324", "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts view-with-paths type doc (w3-content), verbatim apart from neutral link targets; the Tovu declaration is deleted." },
+    { "id": "31a8cd4495ad", "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts toPostToolView-with-urls doc (w3-content), link targets follow the moved resolvers; the Tovu code is deleted." },
+    { "id": "b7d3da015420", "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts toPostToolView projection doc (w3-content), verbatim; the Tovu function is deleted." },
+    { "id": "32fedeacce2e", "reason": "Moved to Jini @jini-ai/admin screens/menus/hooks/use-menu-editor.hooks.ts @file (w3-content); the hook was split into state/writes/tree modules, and the header names them; Tovu keeps only useWiredMenuEditor." },
+    { "id": "508a292e1752", "reason": "Moved verbatim to Jini @jini-ai/admin screens/menus/hooks (menu editor tab-switch seeding doc, w3-content); the Tovu code is deleted." },
+    { "id": "85afbf8bb95a", "reason": "Moved verbatim to Jini @jini-ai/admin screens/menus/hooks/use-menu-editor.hooks.ts readable-slugs S6b redirect doc (w3-content); the host now injects slugRedirectPath through MenusHostKit." }
   ]
 }
