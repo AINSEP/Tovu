@@ -37,7 +37,14 @@ const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () 
  *  to match. */
 const TTL_MS = 5 * 60_000;
 
-function makeDeps({ nowMs = Date.now, discover = fetchLiveClaudeModels }: { nowMs?: () => number; discover?: typeof fetchLiveClaudeModels } = {}, _options = {}) {
+/** Mirrors the host binding in `server/runtime/composition/modules/assistant.ts`: Jini emits a
+ *  prefix-free line through the injected `warn`; Tovu's binding adds the `[assistant]` prefix on
+ *  `console.warn`, so the operator-visible log text is unchanged. */
+const hostWarn = (message: string) => console.warn(`[assistant] ${message}`);
+type Discover = (required: { apiKey: string; baseUrl: string }) => ReturnType<typeof fetchLiveClaudeModels>;
+const hostDiscover: Discover = (required) => fetchLiveClaudeModels({ ...required, warn: hostWarn });
+
+function makeDeps({ nowMs = Date.now, discover = hostDiscover }: { nowMs?: () => number; discover?: Discover } = {}, _options = {}) {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -376,7 +383,7 @@ test("a failed live call with an empty error body names only the failure kind, w
 });
 
 test("a failed listing that carries a detail names both the failure kind and the detail, then falls back", async () => {
-  const { result, warnings } = await captureWarnings(() => fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+  const { result, warnings } = await captureWarnings(() => fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async () => ({ ok: false, kind: "auth_failed", detail: "invalid x-api-key", latencyMs: 1 }),
   }));
   assert.equal(result, null);
@@ -386,7 +393,7 @@ test("a failed listing that carries a detail names both the failure kind and the
 
 test("a successful listing returns its models unchanged", async () => {
   const listed = [{ id: "claude-live-1", label: "Claude Live 1" }];
-  const models = await fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+  const models = await fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async () => ({ ok: true, kind: "success", latencyMs: 1, models: listed }),
   });
   assert.deepEqual(models, listed);
@@ -394,7 +401,7 @@ test("a successful listing returns its models unchanged", async () => {
 
 test("a successful listing that carries no models array resolves to null rather than an empty catalog", async () => {
   const calls: unknown[] = [];
-  const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9" }, {
+  const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async (input) => { calls.push(input); return { ok: true, kind: "success", latencyMs: 1 }; },
   });
   assert.equal(models, null);

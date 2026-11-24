@@ -766,7 +766,7 @@ export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { rou
     }),
     defaultBaseUrl: VENDOR_API_BASE_URLS.anthropic,
     clock: routeDeps.clock,
-    discover: fetchLiveClaudeModels,
+    discover: (required) => fetchLiveClaudeModels({ ...required, warn: (message) => console.warn(`[assistant] ${message}`) }),
   });
   return {
     name: "assistant",
