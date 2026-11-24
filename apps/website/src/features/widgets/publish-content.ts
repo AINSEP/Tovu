@@ -4,7 +4,7 @@ import { collectPlacementReferences } from "#src/features/publish-content/conten
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentReference } from "#src/features/publish-content/type-registry";
-import type { WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
 
 import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError, type EntryRecord } from "@jini-ai/cms/entries";
 import { getEntryLockState, collectWidgetConfigStrings, validateWidgetConfig } from "@jini-ai/cms/widgets";

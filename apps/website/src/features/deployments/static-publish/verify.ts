@@ -3,7 +3,7 @@ import { credentialText } from '@tovu/contracts/credential-copy';
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
 import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "../deploy-targets/types.js";
 import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";

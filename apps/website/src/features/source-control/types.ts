@@ -3,7 +3,7 @@ import type { CredentialTokenHint, CredentialConnection } from '@jini-ai/platfor
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";
-import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.js";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 
 /** Source-control identities are separate from deploy targets: they carry authentication,
  * never a repository, owner or branch. The store seals the complete connection as one blob.
@@ -79,7 +79,7 @@ export interface SourceControlCredentialSetRepoPort {
   readonly canonical?: CanonicalSourceControlKeys;
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
-   *  `vendor-credentials/project-scope.ts`: site first, then attached project rows; new rows go to the project
+   *  `@jini-ai/integrations/vendor-credentials/project-scope`: site first, then attached project rows; new rows go to the project
    *  unless saved "only for this site"). Absent = site only (Fly/production). */
   readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   insert(record: SourceControlCredentialSetRecord): Promise<void>;

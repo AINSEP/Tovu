@@ -12,7 +12,7 @@ import test from "node:test";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { CredentialProjectHalf } from "../../vendor-credentials/project-scope.js";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -32,7 +32,7 @@ import {
 
 /**
  * @file Source-control (git host) tokens are project-first (owner 2026-10-25), the same rule as custom
- * and publish keys (`vendor-credentials/project-scope.ts`): a save lands in the project store every
+ * and publish keys (`@jini-ai/integrations/vendor-credentials/project-scope`): a save lands in the project store every
  * site of the project shares; a site's own row (existing, or saved "only for this site") wins; no
  * project store (Fly) keeps today's site-only behaviour. Real AES-GCM, a separate key per store.
  */

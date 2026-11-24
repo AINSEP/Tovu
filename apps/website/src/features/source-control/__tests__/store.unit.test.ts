@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { credentialScope } from "../../vendor-credentials/vault-adapter.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";

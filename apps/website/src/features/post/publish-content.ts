@@ -14,7 +14,8 @@ import type {
   PublishContentReference,
   RetireTarget,
 } from "#src/features/publish-content/type-registry";
-import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 
 import { importPostEntity } from "./post-import.js";

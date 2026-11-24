@@ -59,7 +59,9 @@ import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
 
 import { listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
-import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
+import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
+import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
 
 /**
  * @file Wires readiness, connection, autonomous publishing and live-content pulls into the assistant catalog.

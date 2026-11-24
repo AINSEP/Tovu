@@ -1,6 +1,6 @@
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 
 /**
  * @file Zero-setup publishing auth — key material.

@@ -20,7 +20,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import {
   getMediaProviderCredentials,
   resolveMediaProviderCredential,

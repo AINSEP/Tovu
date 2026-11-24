@@ -6,12 +6,12 @@ import { ProjectKeyCreateConflictError } from "#src/contracts/core/credential-st
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
-import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
@@ -436,7 +436,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const validated = validateConnection({ raw: input.connection, registry });
   const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   const { providerId, ...fields } = validated.connection;
-  // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
+  // Project-first (`@jini-ai/integrations/vendor-credentials/project-scope`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
   const summary = await saveConnection({ target, providerId, input: {

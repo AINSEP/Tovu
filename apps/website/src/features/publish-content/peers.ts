@@ -7,7 +7,7 @@ import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import type { SealedSecret } from "#src/features/webhooks/index";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

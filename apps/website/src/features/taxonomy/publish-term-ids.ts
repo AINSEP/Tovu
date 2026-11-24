@@ -1,6 +1,6 @@
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 
 import { assignTerms, toTaxonomyOutbox, unassignTerms } from "@jini-ai/cms/taxonomy";
 

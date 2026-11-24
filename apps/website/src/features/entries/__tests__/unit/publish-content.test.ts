@@ -12,7 +12,7 @@ import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { contributeCollectionEntryPublish } from "../../publish-content.js";

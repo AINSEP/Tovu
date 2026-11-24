@@ -48,7 +48,7 @@ import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 // operation contract locally instead of importing the composition root's RouteDeps type.
 import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 

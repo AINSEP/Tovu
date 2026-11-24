@@ -6,7 +6,7 @@ import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 import type { DeployTargetRegistry } from "./deploy-targets/types.js";

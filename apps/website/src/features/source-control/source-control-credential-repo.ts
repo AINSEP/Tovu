@@ -2,7 +2,7 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secr
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { TovuCredentialSetVaultAdapter } from "#src/features/vendor-credentials/vault-adapter";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort } from "#src/features/source-control/types";
-import type { CredentialProjectHalf } from "#src/features/vendor-credentials/project-scope";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 
 /** Thin historical port mapping; Jini owns transactions, defaults, JSON patches and CAS. */

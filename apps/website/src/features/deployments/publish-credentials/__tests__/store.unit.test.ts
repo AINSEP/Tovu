@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import {
   createPublishCredential,

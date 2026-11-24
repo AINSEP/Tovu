@@ -1,7 +1,7 @@
 import { redactSecrets } from "@jini-ai/core";
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput } from "../publish-credentials/types.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";

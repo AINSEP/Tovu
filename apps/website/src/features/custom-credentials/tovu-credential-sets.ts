@@ -5,7 +5,7 @@ import { assertCredentialFreeField } from '../../contracts/core/credential-token
 import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import { credentialCreateTarget, credentialScopes } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
 import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "@jini-ai/integrations/credentialed-http/sets";
 import { CustomCredentialSecretStoreUnconfiguredError } from "@jini-ai/integrations/credentialed-http/sets";

@@ -4,10 +4,10 @@ import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, ty
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
-import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -112,7 +112,7 @@ export interface SourceControlCredentialReadDeps {
   sealer?: SecretSealerPort;
 }
 
-/** A row and the store holding it (`vendor-credentials/project-scope.ts`: this site's own vault first,
+/** A row and the store holding it (`@jini-ai/integrations/vendor-credentials/project-scope`: this site's own vault first,
  *  then the project half `types.ts`'s `repo.project` attaches), with the deps that open it. */
 interface Located<D> { readonly scoped: ScopedCredentialDeps<D>; readonly record: SourceControlCredentialSetRecord }
 
@@ -400,7 +400,7 @@ export async function createSourceControlCredential(
     return canonical.create({ workspaceId: input.workspaceId, connection });
   }
   const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
-  // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
+  // Project-first (`@jini-ai/integrations/vendor-credentials/project-scope`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
   const id = deps.idGen.newId();
