@@ -131,10 +131,20 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
   mountAdminJsonRoute({ app, spec: externalMcpAdmissionsRoute, deps: { ...externalMcpPortDeps({ deps }), readAdmissions } }, mountOptions({ operation: "routes/external-mcp/admissions" }));
 };
 
+/**
+ * The "Always allow" list and revoke, each bound to its own port over the approval store. A
+ * composition with no store (`externalMcpToolApprovalRepo` unset) can have saved nothing, so its
+ * list is empty and every revoke is a 404 — the truthful answer, not an error.
+ */
 export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const approvalDeps = { ...externalMcpPortDeps({ deps }), toolApprovalRepo: deps.externalMcpToolApprovalRepo };
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalsListRoute, deps: approvalDeps }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalRevokeRoute, deps: approvalDeps }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
+  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalsListRoute, deps: {
+    ...externalMcpPortDeps({ deps }),
+    listApprovals: async ({ workspaceId }) => (await deps.externalMcpToolApprovalRepo?.listByWorkspaceId(workspaceId)) ?? [],
+  } }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
+  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalRevokeRoute, deps: {
+    ...externalMcpPortDeps({ deps }),
+    revokeApproval: async (input) => (await deps.externalMcpToolApprovalRepo?.delete(input)) ?? false,
+  } }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
 };
 
 /** `DELETE .../mcp-servers/:serverId/oauth`; registered only when an OAuth service is wired. */

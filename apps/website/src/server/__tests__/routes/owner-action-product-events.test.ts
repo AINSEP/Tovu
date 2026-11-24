@@ -13,7 +13,7 @@ import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentAnalytics } from "../../runtime/composition/content-events.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerPluginSetEnabledRoute } from "../../inbound/admin-http/routes/plugins/set-enabled.js";
+import { registerPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/plugins";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**

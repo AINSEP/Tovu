@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { get } from "node:http";
 import test from "node:test";
 
 import express from "express";
@@ -9,6 +10,9 @@ import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "#src/server/runtime/composition/public-oauth-callbacks";
+import { clearedBrowserBindingCookie, EXTERNAL_MCP_BROWSER_BINDING } from "#src/features/api-connections/browser-binding";
+import type { OAuthCallbackFailureReason } from "@jini-ai/core/contracts/site/oauth-callback-page";
+import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
 
 /**
  * @file Route-level tests for the closed OAuth-callback failure-reason vocabulary
@@ -363,4 +367,64 @@ test("a non-Error rejection is logged by its string form and still renders the g
   assert.equal(response.status, 400);
   assert.deepEqual(extractPostMessagePayload(await response.text()), { type: "tovu:external-mcp-connected", reason: "exchange_failed" });
   assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [["external-mcp oauth callback failed: socket hang up"]]);
+});
+
+// ---- Wire parity with the hand-written route this registrar replaced (Tovu `6fdb2cf25f^1`,
+// `inbound/public-http/routes/external-mcp/oauth-callback.ts`). That route wrote every page with
+// Express `res.send`, so each answer carried a weak ETag (and answered a matching If-None-Match with
+// 304). `legacyPage` below is its writer, copied as it stood; the mounted Jini route must answer the
+// same status, headers and body.
+
+/** The legacy writer: headers set up front, the binding cookie appended once read, then `res.send`. */
+function legacyPage({ status, reason, cleared }: { status: number; reason?: OAuthCallbackFailureReason; cleared: boolean }): express.Express {
+  const app = express();
+  app.get(`/api/mcp-servers/oauth/callback/:serverId`, (_req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    if (cleared) res.append('Set-Cookie', clearedBrowserBindingCookie({}, EXTERNAL_MCP_BROWSER_BINDING));
+    res.status(status).type("html").send(renderOAuthCallbackPage(reason ? { ok: false, reason, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE } : { ok: true, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
+  });
+  return app;
+}
+
+/** Status, body and every header but the per-response `Date`, by name. */
+async function wire(response: Response): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+  const headers = Object.fromEntries([...response.headers].filter(([name]) => name !== "date"));
+  return { status: response.status, headers, body: await response.text() };
+}
+
+test("wire parity: every answer is the hand-written route's res.send answer (weak ETag, length, type, no-store, no-referrer, cleared cookie) byte for byte", async (t) => {
+  const denied = new OAuthError({ code: "OAUTH_ACCESS_DENIED", message: "authorization was declined", operatorAction: "Approve the request on the provider's consent screen, then connect again." }, { providerErrorCode: "access_denied" });
+  const cases: readonly { label: string; deps: ExternalMcpOAuthCallbackRouteDeps; query: string; headers: Record<string, string>; legacy: { status: number; reason?: OAuthCallbackFailureReason; cleared: boolean } }[] = [
+    { label: "rate_limited", deps: { oauth: fakeOAuthService(async () => {}), callbackLimiter: fixedRateLimiter({ allowed: false, retryAfterSeconds: 30 }) }, query: "?state=s&code=c", headers: BROWSER_HEADERS, legacy: { status: 429, reason: "rate_limited", cleared: false } },
+    { label: "no_state", deps: { oauth: fakeOAuthService(async () => {}), callbackLimiter: fixedRateLimiter({ allowed: true }) }, query: "?code=c", headers: BROWSER_HEADERS, legacy: { status: 400, reason: "no_state", cleared: false } },
+    { label: "browser_mismatch", deps: { oauth: fakeOAuthService(async () => {}), callbackLimiter: fixedRateLimiter({ allowed: true }) }, query: "?state=s&code=c", headers: {}, legacy: { status: 400, reason: "browser_mismatch", cleared: true } },
+    { label: "provider_denied", deps: { oauth: fakeOAuthService(async () => { throw denied; }), callbackLimiter: fixedRateLimiter({ allowed: true }) }, query: "?state=s&code=c", headers: BROWSER_HEADERS, legacy: { status: 400, reason: "provider_denied", cleared: true } },
+    { label: "success", deps: { oauth: fakeOAuthService(async () => {}), callbackLimiter: fixedRateLimiter({ allowed: true }) }, query: "?state=s&code=c", headers: BROWSER_HEADERS, legacy: { status: 200, cleared: true } },
+  ];
+  const errors = t.mock.method(console, "error", () => {});
+  for (const { label, deps, query, headers, legacy } of cases) {
+    const path = `/api/mcp-servers/oauth/callback/${SERVER_ID}${query}`;
+    const mounted = await wire(await fetch(`${await startTestServer(buildApp(deps), t)}${path}`, { headers }));
+    const handWritten = await wire(await fetch(`${await startTestServer(legacyPage(legacy), t)}${path}`, { headers }));
+    assert.match(mounted.headers.etag ?? "", /^W\/"/, `${label}: res.send's weak ETag`);
+    assert.deepEqual(mounted, handWritten, label);
+  }
+  // The one failure above logged as the hand-written route logged it: label, then the full message.
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [["external-mcp oauth callback failed: authorization was declined"]]);
+});
+
+test("wire parity: a repeat success request carrying the page's ETag is answered 304 with no body, as res.send answered it", async (t) => {
+  const baseUrl = await startTestServer(buildApp({ oauth: fakeOAuthService(async () => {}), callbackLimiter: fixedRateLimiter({ allowed: true }) }), t);
+  const url = `${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`;
+  const first = await fetch(url, { headers: BROWSER_HEADERS });
+  const etag = first.headers.get("etag") ?? "";
+  assert.equal(first.status, 200);
+  // Raw `node:http`, not `fetch`: fetch adds `Cache-Control: no-cache` to a conditional request, which Express (rightly) never answers 304.
+  const again = await new Promise<{ status: number | undefined; etag: string | undefined; body: string }>((resolve, reject) => {
+    get(url, { headers: { ...BROWSER_HEADERS, "if-none-match": etag } }, (response) => {
+      let body = "";
+      response.setEncoding("utf8").on("data", (chunk: string) => { body += chunk; }).on("end", () => resolve({ status: response.statusCode, etag: response.headers.etag, body }));
+    }).on("error", reject);
+  });
+  assert.deepEqual(again, { status: 304, etag, body: "" });
 });

@@ -1,7 +1,7 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
-import type { PluginsRouteDeps } from "./deps.js";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 
 /** The deps that decide whether this server takes local (folder/ZIP) plugin installs. */
 export type LocalInstallerDeps = Pick<PluginsRouteDeps, "pluginSourcePolicy" | "pluginInstaller">;
