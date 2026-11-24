@@ -6396,6 +6396,514 @@
     {
       "id": "fd4a490755d5",
       "reason": "Moved to Jini packages/admin/src/shell/lib/credential-submit-error.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "929713aeb070",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AdminFailureNotice/AdminFailureNotice.tsx (Tovu 13e1cb5773, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2073db0d2d74",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AssistantDock/MessageOverflowModal.tsx (Tovu 461845141a, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4228709b1a0f",
+      "reason": "Moved to Jini packages/admin/src/shell/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx (Tovu 9898709f48, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "320ae0e66987",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AssistantToggleRow.tsx (Tovu aaf531de0f, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "20a1584121e9",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/__tests__/folder-drop-port.unit.test.ts (Tovu c687d4cdf8, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "04d8ddebb66d",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/folder-drop-port.ts (Tovu c687d4cdf8, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ece83cec2560",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/folder-drop-port.ts (Tovu c687d4cdf8, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "23b148f61750",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/folder-drop-port.ts (Tovu c687d4cdf8, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "88d62cbcad7d",
+      "reason": "Moved to Jini packages/admin/src/screens/import-export/git-backup-rules.ts (Tovu 980dc8e31c, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "48ac1a99adfb",
+      "reason": "Moved to Jini packages/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (Tovu 980dc8e31c, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3fa47e44755f",
+      "reason": "Moved to Jini packages/admin/src/screens/import-export/import-export-i18n.ts (Tovu 980dc8e31c, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b96f0ce61b5b",
+      "reason": "Moved to Jini packages/admin/src/roles/hooks/use-roles.hooks.ts (Tovu 277ebdd69a, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f7c2deddfe54",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/use-site-card-preview.hooks.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "bedfb0a924fc",
+      "reason": "Moved to Jini packages/user-management/src/react/users/hooks/use-localized-users.hooks.ts (Tovu 4f78b0e1f2, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "60184467414c",
+      "reason": "Moved to Jini packages/agent-plugins/src/site/admin-surfaces/delivery-bindings.ts (Tovu d597c5121a, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "74329ba736c4",
+      "reason": "Obsolete: move note of the deleted external-mcp-shared-oauth.ts re-export shim (Tovu 9bf73880ae); the shim is gone and the code lives in Jini packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts."
+    },
+    {
+      "id": "461e98a5056d",
+      "reason": "Moved to Jini packages/cms/src/forms/field-length-caps.ts (Tovu f54179c73f, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c7df79c49888",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Tovu bfafabbd9d, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d06a4f4d7ece",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6cef3f0f62ca",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "50c0dc278cf3",
+      "reason": "Obsolete: comment of the deleted navigation/taxonomy html-render.ts compatibility re-export; no Tovu module imports it any more and public renderers import render-entry directly (Tovu 12d16bbdd0, dcf867ebf9)."
+    },
+    {
+      "id": "d36f8485a779",
+      "reason": "Moved to Jini packages/plugins/src/runtime/agent-tools.ts (Tovu 29945735e4, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d749a70b2935",
+      "reason": "Moved to Jini packages/cms/src/seo/agent-tools.ts (Tovu 29945735e4, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9f4aa5c41d37",
+      "reason": "Moved to Jini packages/devops/src/backup/upload.node.ts (Tovu a72c714e75, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a8c20c2f7c72",
+      "reason": "Moved to Jini packages/devops/src/backup/upload.node.ts (Tovu a72c714e75, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3d15903f4bad",
+      "reason": "Moved to Jini packages/devops/src/backup/upload.node.ts (Tovu a72c714e75, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "bd41b336deca",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/section-collector.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f6b6dc43d345",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/section-collector.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "102195c8d3d5",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-capabilities.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "22dcc4c2e857",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-capabilities.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b584ace3ec56",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-capabilities.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "972babd3dc8f",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-capabilities.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "321905b27992",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3729b967da84",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a70aec06a920",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "03cc4f3a8df9",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e292724d5e93",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9c0dbaa2628a",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "37eb84cfbe5a",
+      "reason": "Moved to Jini packages/cms/src/site-inspection/site-profile.ts (Tovu f214966ee9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "add5b4211c07",
+      "reason": "Moved to Jini packages/cms/src/themes/files/__tests__/original-source.test.ts (Tovu 7167a14396, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "92431b8dfe31",
+      "reason": "Moved to Jini packages/cms/src/themes/files/__tests__/original-source.test.ts (Tovu 7167a14396, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fed77ecb16bf",
+      "reason": "Moved to Jini packages/cms/src/themes/files/__tests__/original-source.test.ts (Tovu 7167a14396, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "13fe8eee6e38",
+      "reason": "Moved to Jini packages/cms/src/listing/entry-list.ts (Tovu f54179c73f, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6a68568c4db8",
+      "reason": "Moved to Jini packages/integrations/src/web-screenshot/web-screenshot.ts (Tovu bb98e2ba69, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "02aa5fec18fb",
+      "reason": "Moved to Jini packages/integrations/src/webhooks/site/delivery.ts (Tovu feb8d2ca34, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "38c02d2ff757",
+      "reason": "Obsolete: header of features/webhooks/index.ts, deleted as a comment-only barrel (Tovu 38d8a5d6e3, rv1123m T18); the exports it fronted live in Jini packages/integrations/src/webhooks."
+    },
+    {
+      "id": "abedf8e08ab8",
+      "reason": "Obsolete: note in features/webhooks/index.ts, deleted as a comment-only barrel (Tovu 38d8a5d6e3, rv1123m T18); the in-memory adapters it described live in Jini packages/integrations/src/webhooks/site/repo.memory.ts."
+    },
+    {
+      "id": "2cf8783fcbc6",
+      "reason": "Moved to Jini packages/db/src/events/repo.rows.ts (Tovu da4394a72e, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d2a370aa21ef",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "441cc0f0e67c",
+      "reason": "Obsolete: note on the deleted platform/mail/ports.ts re-export (Tovu 875d107f0b: MailerPort is Jini's PositionalMailer); the re-export it annotated is gone."
+    },
+    {
+      "id": "5703a48c4603",
+      "reason": "Obsolete: note on the deleted platform/mail/ports.ts re-export (Tovu 875d107f0b: MailerPort is Jini's PositionalMailer); the re-export it annotated is gone."
+    },
+    {
+      "id": "cd365946d13f",
+      "reason": "Obsolete: header of the deleted admin-http/http/plugins.ts re-export shim (Tovu cb609baa0b); the shim is gone and the DTO lives in Jini packages/core/src/contracts/site/cms-plugins.ts."
+    },
+    {
+      "id": "c2cea94ec61a",
+      "reason": "Moved to Jini packages/cms/src/admin-http/http/workspace.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ce1df06bcd24",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/agent-plugins/memory.ts (Tovu df4ec5affb, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "eb49e8b8e906",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/agent-plugins/memory.ts (Tovu df4ec5affb, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e1de9cb0bcc0",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/put-site-credential.ts (Tovu 71cf41e43b, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c6b6f08675da",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/change-sets/revert.ts (Tovu 2698e7dc68, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ecaf258e79b8",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/consent/routes.ts (Tovu dd6c2f5d67, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "73bb28db7d63",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/consent/routes.ts (Tovu dd6c2f5d67, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7353b9344fad",
+      "reason": "Moved to Jini packages/platform/src/mail/email-template-operations.ts (Tovu 2698e7dc68, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9bf3936b9090",
+      "reason": "Moved to Jini packages/cms/src/media/__tests__/metadata-fields.test.ts (Tovu 7c4818ea6d, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "279a2459ffb7",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/import-url.ts (Tovu 31a93e8b6d, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b6cb9e407b8d",
+      "reason": "Moved to Jini packages/cms/src/media/metadata-fields.ts (Tovu 7c4818ea6d, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "92ceb73d8529",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/replace.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "880d044603b9",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/text.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "dd4611868935",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/text.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "82c086aa6324",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/upload.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d6664528dc86",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/upload.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8ea713798ac6",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/media/upload.ts (Tovu df612c1861, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d924faf599a2",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/members/request-magic-link.ts (Tovu f11350a0ec, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "09ba27d2b2f6",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/create.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "de938b8fc987",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/create.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c60d3a6a4185",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "320d96f450bf",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4ffb5dffd335",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "42c7ba120148",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/update-html.ts (Tovu f4a94a88af, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9457a9c9867e",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "499c3916706c",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/pages/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "41886f628a88",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c5628db53085",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/plugins/provider-settings.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7c6e07b2133d",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/plugins/provider-settings.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4514f1c070e6",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/plugins/provider-settings.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e7d46064657b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/plugins/provider-settings.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8df8cfc9d762",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/create.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "af4ea9fe558b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/create.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f6fdb6904cf1",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/create.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "070817b16467",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7dd73e1d33ef",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "85866362c684",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/delete.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f8fc7db68a6b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e534a98bfe05",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "788480550e6d",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "30e1def8a60b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "727927861d8f",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6e2cc96dad21",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f1440dda0055",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "022f4224d407",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/posts/update.ts (Tovu 75c2df1595, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "17fc80bc4ff9",
+      "reason": "Moved to Jini packages/core/src/contracts/headless/contracts.ts (Tovu 1239a2b9a0, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cb37915300f5",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/presentation/patch.ts (Tovu 1239a2b9a0, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a803938a36b0",
+      "reason": "Moved to Jini packages/core/src/contracts/headless/contracts.ts (Tovu 1239a2b9a0, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6e2b0a97a45c",
+      "reason": "Moved to Jini packages/core/src/contracts/headless/contracts.ts (Tovu 1239a2b9a0, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "793299c29493",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/backstop.ts (Tovu f11350a0ec, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b2d0cf43e489",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/backstop.ts (Tovu f11350a0ec, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "af5069797595",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b7ea11de3426",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a223f9c8b753",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "48595f04ff02",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "499f405470ac",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9bff7f2dc84d",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts (Tovu 5a197c3843, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4c9214f5a41c",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/skills/list.ts (Tovu f9d768509e, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7b302828f83d",
+      "reason": "Moved to Jini packages/user-management/src/admin-http/routes/users/remove-policy-permission.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "dff6a2966587",
+      "reason": "Moved to Jini packages/user-management/src/admin-http/routes/users/remove-policy-permission.ts (Tovu ec092e5501, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "215328c773fd",
+      "reason": "Moved to Jini packages/user-management/src/admin-http/routes/users/update-policy.ts (Tovu 85fa0a0468, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0a63613f6e03",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/create.ts (Tovu 1636ca4ad7, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "be771be0b3e2",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/delete.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cafa1d5def9e",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/delete.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7d09b13f2a15",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/get.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "45c01cfbfe5b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/list.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7a1ec8d43677",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/list.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d87daffa98d5",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/update.ts (Tovu 357ed211c9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cb8dcf542328",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0d79bcdae56a",
+      "reason": "Moved to Jini packages/cms/src/forms/result-query.ts (Tovu 900ba1e7d4, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "389afe32d3ce",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3ffe96f891e5",
+      "reason": "Moved to Jini packages/cms/src/seo/types.ts (Tovu e9dcd5df5c, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1021e795b3f2",
+      "reason": "Moved to Jini packages/cms/src/presentation/page-head.ts (Tovu e9dcd5df5c, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f5d06192c373",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/members/reset-password.ts (Tovu 892e8722a9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2e761cc810cf",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/members/set-password.ts (Tovu 892e8722a9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
     }
   ]
 }
