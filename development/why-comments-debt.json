@@ -4938,6 +4938,10 @@
     {
       "id": "72917d3a567e",
       "reason": "Obsolete: boot/plugin-sdk-resolver.ts was a compatibility re-export and is now the host binding with its own docs (w5-webfeat)"
+    },
+    {
+      "id": "e77b6042179c",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-preservation (w5-webfeat); table name reworded as host-injected"
     }
   ]
 }

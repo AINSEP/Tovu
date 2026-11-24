@@ -15,7 +15,7 @@ import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../configuration/seed.js";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
-import { SqlSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation";
+import { SqlSiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title-preservation";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -86,7 +86,7 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
-  const siteTitlePreservationStore = new SqlSiteTitlePreservationStore(kernel);
+  const siteTitlePreservationStore = new SqlSiteTitlePreservationStore({ kernel, tables: { preexistingWorkspaces: "site_title_preexisting_workspaces" } });
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const { siteSettingsReady, siteTitleReady } = startPersistentSiteSettings({ analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore });

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlSiteTitlePreservationStore } from "../site-title-preservation.js";
-import { InMemorySiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "../site-title.js";
+import { SqlSiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
+import { InMemorySiteTitlePreservationStore } from "../site-title.js";
 
 /**
  * @file SPEC-050 (NC-3 = A): both `SiteTitlePreservationStorePort` adapters honour one contract, the
@@ -17,8 +17,8 @@ const adapters: Array<[string, (recorded: string[]) => SiteTitlePreservationStor
   ...eachDialect({
     tables: ["site_title_preexisting_workspaces"],
     make: (kernel) => (recorded: string[]) =>
-      new SqlSiteTitlePreservationStore(
-        heldUntil(
+      new SqlSiteTitlePreservationStore({
+        kernel: heldUntil(
           kernel,
           (async () => {
             for (const workspaceId of recorded) {
@@ -27,8 +27,9 @@ const adapters: Array<[string, (recorded: string[]) => SiteTitlePreservationStor
               );
             }
           })()
-        )
-      ),
+        ),
+        tables: { preexistingWorkspaces: "site_title_preexisting_workspaces" },
+      }),
   }).map((each): [string, (recorded: string[]) => SiteTitlePreservationStorePort] => [each.name, (recorded) => each.make()(recorded)]),
 ];
 

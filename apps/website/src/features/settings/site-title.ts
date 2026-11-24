@@ -14,6 +14,7 @@ import {
   type SettingsRepoPort,
 } from "@jini-ai/core/settings";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
+import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -82,20 +83,6 @@ export function normalizeSiteTitle({ value }: { value: JsonValue | undefined }, 
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= SITE_TITLE_MAX_LENGTH ? trimmed : undefined;
-}
-
-/**
- * The pre-existing-workspace marker (REQ-06, NC-3 = A). A workspace is recorded once, by the schema
- * migration, and stays pending until the pin writes or skips it. The SQLite adapter reads the
- * migration's table; the in-memory composition root has no pre-existing workspaces (EC-03).
- */
-export interface SiteTitlePreservationStorePort {
-  /** Recorded workspaces whose pin has not landed yet, sorted by id. */
-  listPendingWorkspaceIds(): Promise<UUID[]>;
-  /** True only for a recorded workspace whose pin has not landed yet. */
-  isPending(required: { workspaceId: UUID }, optional?: Record<string, never>): Promise<boolean>;
-  /** Resolves one pending workspace. A no-op for an unrecorded or already resolved id. */
-  markPreserved(required: { workspaceId: UUID; preservedAt: string }): Promise<void>;
 }
 
 /** {@link SiteTitlePreservationStorePort} over a process-local set. */
