@@ -37,7 +37,7 @@ import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.
 import { TOOL_ERROR_ID_PATTERN } from "../tool-recovery-preset.js";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
