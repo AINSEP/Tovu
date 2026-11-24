@@ -5,6 +5,7 @@ import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
+import { EXTERNAL_MCP_PRODUCT_VARS } from "@/integrations/jini-admin/settings-external-mcp-copy";
 /**
  * @file `ExternalMcpToolPicker.tsx`'s own derived-value logic, split out per the
  * `<Name>.tsx`/`<Name>.hooks.tsx` pattern (admin TSX-logic-sweep, 2026-09-05) — this repo's rule
@@ -76,7 +77,7 @@ export function describeToolRowBadges({ row, t }: { row: ToolPickerRow; t: Trans
  *  @complexity O(1). */
 export function describeToolRowLock({ row, t }: { row: ToolPickerRow; t: Translate }, _optional: Record<string, never> = {}): string | null {
   if (!isToolRowLocked(row)) return null;
-  return t("The server marks this tool as destructive. Tovu does not enable destructive external tools.");
+  return interpolate({ template: t("The server marks this tool as destructive. {productName} does not enable destructive external tools."), vars: EXTERNAL_MCP_PRODUCT_VARS });
 }
 
 /** The "N of M enabled" line, or the stronger zero-state sentence when this connection would

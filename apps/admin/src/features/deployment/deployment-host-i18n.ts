@@ -1,0 +1,182 @@
+import { createDeploymentTranslator, type DeploymentHostDictionary } from "@jini-ai/admin/deployment/deployment-i18n";
+
+/**
+ * @file This admin's own Deployment-screen strings: the ones that name Tovu, its server or
+ * `TOVU_ADMIN_PASSWORD`. The rest of the panel's dictionary (and its `{error}` templates) is
+ * `@jini-ai/admin/deployment/deployment-i18n`; this file layers these entries over it per locale and
+ * binds the `t` every Deployment screen and hook here uses. Keys are the exact English strings
+ * `rules.ts` and the tab components look up.
+ */
+const DEPLOYMENT_HOST_I18N: DeploymentHostDictionary = {
+  es: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Sigue siendo la predeterminada — configura TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "El servidor completo de Tovu — administración, asistente, pago, todo funciona.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu escribe cada publicación publicada, la página de inicio, los productos y las páginas del tema en la carpeta que indiques.",
+    "token. Pick which one Tovu publishes with.": "token guardado. Elige cuál usa Tovu para publicar.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Guarda tu {credential} para que Tovu pueda publicar en tu nombre.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Se almacena cifrado en el servidor. Una vez guardado, Tovu nunca vuelve a mostrarlo.",
+  },
+  id: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Masih default — atur TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Server Tovu yang lengkap — admin, asisten, checkout, semuanya berfungsi.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.",
+    "token. Pick which one Tovu publishes with.": "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Simpan {credential} Anda agar Tovu dapat memublikasikan atas nama Anda.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Disimpan terenkripsi di server. Setelah disimpan, Tovu tidak akan pernah menampilkannya lagi.",
+  },
+  de: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Noch der Standard — TOVU_ADMIN_PASSWORD setzen.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Der vollständige Tovu-Server — Admin, Assistent, Checkout, alles funktioniert.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.",
+    "token. Pick which one Tovu publishes with.": "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Speichern Sie die Zugangsdaten ({credential}), damit Tovu in Ihrem Namen veröffentlichen kann.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Wird verschlüsselt auf dem Server gespeichert. Nach dem Speichern zeigt Tovu es nie wieder an.",
+  },
+  "zh-CN": {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "仍是默认值 — 请设置 TOVU_ADMIN_PASSWORD。",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "完整的 Tovu 服务器 — 后台、助手、结账,一切都能正常工作。",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。",
+    "token. Pick which one Tovu publishes with.": "令牌。请选择 Tovu 用于发布的令牌。",
+    "Save your {credential} so Tovu can publish on your behalf.": "保存您的{credential}，以便 Tovu 代表您发布。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式存储在服务器上。保存后，Tovu 将不再显示它。",
+  },
+  "zh-TW": {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "仍為預設值 — 請設定 TOVU_ADMIN_PASSWORD。",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "完整的 Tovu 伺服器 — 管理後台、助理、結帳,一切都能運作。",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。",
+    "token. Pick which one Tovu publishes with.": "權杖。請選擇 Tovu 用於發佈的權杖。",
+    "Save your {credential} so Tovu can publish on your behalf.": "儲存您的{credential}，讓 Tovu 能代表您發布。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式儲存於伺服器。儲存後，Tovu 將不再顯示它。",
+  },
+  "pt-BR": {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Ainda é a padrão — defina TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "O servidor completo do Tovu — admin, assistente, checkout, tudo funciona.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.",
+    "token. Pick which one Tovu publishes with.": "token salvo. Escolha qual o Tovu usa para publicar.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Salve sua credencial ({credential}) para que o Tovu possa publicar em seu nome.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Armazenado criptografado no servidor. Depois de salvo, o Tovu nunca mais o exibe.",
+  },
+  ru: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Всё ещё стандартный — задайте TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Полноценный сервер Tovu — админка, ассистент, оформление заказа, всё работает.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu записывает каждую опубликованную запись, главную страницу, товары и страницы темы в указанную вами папку.",
+    "token. Pick which one Tovu publishes with.": "— выберите, каким из них Tovu публикует.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Сохраните учётные данные ({credential}), чтобы Tovu мог публиковать от вашего имени.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Хранится в зашифрованном виде на сервере. После сохранения Tovu больше никогда его не покажет.",
+  },
+  fa: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "هنوز مقدار پیش‌فرض است — TOVU_ADMIN_PASSWORD را تنظیم کنید.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "سرور کامل Tovu — پنل مدیریت، دستیار، تسویه‌حساب، همه‌چیز کار می‌کند.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu هر نوشتهٔ منتشرشده، صفحهٔ اصلی، محصولات و صفحه‌های پوسته را در پوشه‌ای که نام می‌برید می‌نویسد.",
+    "token. Pick which one Tovu publishes with.": "دارد. انتخاب کنید Tovu با کدام منتشر کند.",
+    "Save your {credential} so Tovu can publish on your behalf.": "{credential} خود را ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "به‌صورت رمزنگاری‌شده روی سرور ذخیره می‌شود. پس از ذخیره، Tovu دیگر هرگز آن را نمایش نمی‌دهد.",
+  },
+  ar: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "ما زالت الافتراضية — اضبط TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "خادم Tovu الكامل — لوحة التحكم، المساعد، الدفع، كل شيء يعمل.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "يكتب Tovu كل منشور منشور والصفحة الرئيسية والمنتجات وصفحات السمة في المجلد الذي تحدده.",
+    "token. Pick which one Tovu publishes with.": "— اختر الرمز الذي ينشر به Tovu.",
+    "Save your {credential} so Tovu can publish on your behalf.": "احفظ {credential} حتى يتمكن Tovu من النشر نيابةً عنك.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "يُخزَّن مشفّرًا على الخادم. بعد الحفظ، لن تعرضه Tovu مرة أخرى أبدًا.",
+  },
+  ja: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "まだデフォルトのままです — TOVU_ADMIN_PASSWORD を設定してください。",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "完全なTovuサーバー — 管理画面、アシスタント、決済、すべてが動作します。",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。",
+    "token. Pick which one Tovu publishes with.": "トークンがあります。Tovu が公開に使うものを選んでください。",
+    "Save your {credential} so Tovu can publish on your behalf.": "Tovu があなたに代わって公開できるよう、{credential}を保存してください。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "サーバー上に暗号化して保存されます。保存後、Tovu が再び表示することはありません。",
+  },
+  ko: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "아직 기본값입니다 — TOVU_ADMIN_PASSWORD를 설정하세요.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "완전한 Tovu 서버 — 관리자, 어시스턴트, 결제까지 모든 것이 작동합니다.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.",
+    "token. Pick which one Tovu publishes with.": "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Tovu가 대신 게시할 수 있도록 {credential}을(를) 저장하세요.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "서버에 암호화되어 저장됩니다. 저장 후에는 Tovu가 다시는 표시하지 않습니다.",
+  },
+  pl: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Nadal domyślne — ustaw TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Pełny serwer Tovu — panel administracyjny, asystent, płatności, wszystko działa.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu zapisuje każdy opublikowany wpis, stronę główną, produkty i strony motywu w folderze, który wskażesz.",
+    "token. Pick which one Tovu publishes with.": "— wybierz, którym Tovu ma publikować.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Zapisz dane uwierzytelniające ({credential}), aby Tovu mógł publikować w Twoim imieniu.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Przechowywany zaszyfrowany na serwerze. Po zapisaniu Tovu nigdy więcej go nie wyświetli.",
+  },
+  hu: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Még mindig az alapértelmezett — állítsd be a TOVU_ADMIN_PASSWORD-öt.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "A teljes Tovu szerver — admin, asszisztens, fizetés, minden működik.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "A Tovu minden közzétett bejegyzést, a kezdőlapot, a termékeket és a téma oldalait a megadott mappába írja.",
+    "token. Pick which one Tovu publishes with.": "token van. Válassza ki, melyikkel tegyen közzé a Tovu.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Mentse el a hitelesítő adatot ({credential}), hogy a Tovu az Ön nevében publikálhasson.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Titkosítva tárolva a szerveren. Mentés után a Tovu többé nem jeleníti meg.",
+  },
+  fr: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Toujours celui par défaut — définissez TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Le serveur Tovu complet — administration, assistant, paiement, tout fonctionne.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.",
+    "token. Pick which one Tovu publishes with.": "jeton enregistré. Choisissez celui que Tovu utilise pour publier.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Enregistrez vos identifiants ({credential}) pour que Tovu puisse publier en votre nom.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Stocké chiffré sur le serveur. Une fois enregistré, Tovu ne l'affiche plus jamais.",
+  },
+  uk: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Досі стандартний — встановіть TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Повноцінний сервер Tovu — адмінка, асистент, оформлення замовлення, все працює.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu записує кожен опублікований допис, головну сторінку, товари та сторінки теми у вказану вами теку.",
+    "token. Pick which one Tovu publishes with.": "— виберіть, яким із них Tovu публікує.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Збережіть облікові дані ({credential}), щоб Tovu міг публікувати від вашого імені.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Зберігається в зашифрованому вигляді на сервері. Після збереження Tovu більше ніколи його не покаже.",
+  },
+  tr: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Hâlâ varsayılan — TOVU_ADMIN_PASSWORD'ü ayarlayın.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Eksiksiz Tovu sunucusu — yönetim paneli, asistan, ödeme, her şey çalışır.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu yayımlanan her gönderiyi, ana sayfayı, ürünleri ve tema sayfalarını belirttiğiniz klasöre yazar.",
+    "token. Pick which one Tovu publishes with.": "tokenı var. Tovu'nun hangisiyle yayımlayacağını seçin.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Tovu'nun sizin adınıza yayınlayabilmesi için kimlik bilgisini ({credential}) kaydedin.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Sunucuda şifrelenmiş olarak saklanır. Kaydedildikten sonra Tovu onu bir daha göstermez.",
+  },
+  th: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "ยังคงเป็นค่าเริ่มต้น — ตั้งค่า TOVU_ADMIN_PASSWORD",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "เซิร์ฟเวอร์ Tovu แบบสมบูรณ์ — ระบบผู้ดูแล ผู้ช่วย การชำระเงิน ทุกอย่างทำงานได้",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu เขียนโพสต์ที่เผยแพร่ทุกโพสต์ หน้าแรก สินค้า และหน้าของธีมลงในโฟลเดอร์ที่คุณระบุ",
+    "token. Pick which one Tovu publishes with.": "ที่บันทึกไว้มากกว่าหนึ่งรายการ เลือกว่าจะให้ Tovu เผยแพร่ด้วยรายการใด",
+    "Save your {credential} so Tovu can publish on your behalf.": "บันทึก {credential} เพื่อให้ Tovu เผยแพร่แทนคุณได้",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "จัดเก็บแบบเข้ารหัสไว้บนเซิร์ฟเวอร์ เมื่อบันทึกแล้ว Tovu จะไม่แสดงอีก",
+  },
+  it: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "Ancora quella predefinita — imposta TOVU_ADMIN_PASSWORD.",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "Il server Tovu completo — amministrazione, assistente, checkout, tutto funziona.",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.",
+    "token. Pick which one Tovu publishes with.": "token salvato. Scegli quale usa Tovu per pubblicare.",
+    "Save your {credential} so Tovu can publish on your behalf.": "Salva le credenziali ({credential}) così Tovu può pubblicare per tuo conto.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Archiviato in modo crittografato sul server. Una volta salvato, Tovu non lo mostra mai più.",
+  },
+  hi: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "अभी भी डिफ़ॉल्ट है — TOVU_ADMIN_PASSWORD सेट करें।",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "संपूर्ण Tovu सर्वर — एडमिन, असिस्टेंट, चेकआउट, सब कुछ काम करता है।",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu हर प्रकाशित पोस्ट, होम पेज, उत्पाद और थीम पेज आपके बताए फ़ोल्डर में लिखता है।",
+    "token. Pick which one Tovu publishes with.": "टोकन हैं। चुनें कि Tovu किससे प्रकाशित करे।",
+    "Save your {credential} so Tovu can publish on your behalf.": "अपना {credential} सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "सर्वर पर एन्क्रिप्टेड रूप में संग्रहीत। सहेजे जाने के बाद, Tovu इसे फिर कभी नहीं दिखाएगा।",
+  },
+  ur: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "ابھی بھی ڈیفالٹ ہے — TOVU_ADMIN_PASSWORD سیٹ کریں۔",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "مکمل Tovu سرور — ایڈمن، اسسٹنٹ، چیک آؤٹ، سب کچھ کام کرتا ہے۔",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu ہر شائع شدہ پوسٹ، ہوم پیج، مصنوعات اور تھیم کے صفحات آپ کے بتائے فولڈر میں لکھتا ہے۔",
+    "token. Pick which one Tovu publishes with.": "ٹوکن ہیں۔ منتخب کریں کہ Tovu کس سے شائع کرے۔",
+    "Save your {credential} so Tovu can publish on your behalf.": "اپنا {credential} محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "سرور پر خفیہ کاری کے ساتھ محفوظ ہوتا ہے۔ محفوظ ہونے کے بعد، Tovu اسے دوبارہ کبھی نہیں دکھائے گا۔",
+  },
+  bn: {
+    "Still the default — set TOVU_ADMIN_PASSWORD.": "এখনও ডিফল্ট রয়েছে — TOVU_ADMIN_PASSWORD সেট করুন।",
+    "The complete Tovu server — admin, assistant, checkout, everything works.": "সম্পূর্ণ Tovu সার্ভার — অ্যাডমিন, সহায়ক, চেকআউট, সবকিছু কাজ করে।",
+    "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu প্রতিটি প্রকাশিত পোস্ট, হোম পেজ, পণ্য ও থিম পেজ আপনার বলা ফোল্ডারে লেখে।",
+    "token. Pick which one Tovu publishes with.": "টোকেন আছে। Tovu কোনটি দিয়ে প্রকাশ করবে বেছে নিন।",
+    "Save your {credential} so Tovu can publish on your behalf.": "আপনার {credential} সংরক্ষণ করুন যাতে Tovu আপনার পক্ষ থেকে প্রকাশ করতে পারে।",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "সার্ভারে এনক্রিপ্ট করা অবস্থায় সংরক্ষিত থাকে। সংরক্ষণের পর, Tovu এটি আর কখনো দেখাবে না।",
+  },
+};
+
+/** The Deployment screen translator, bound to this admin's own entries. */
+export const t = createDeploymentTranslator({ hostDictionary: DEPLOYMENT_HOST_I18N });

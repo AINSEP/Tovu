@@ -9,12 +9,14 @@ import { adminKit, uiKit, userManagementKit } from "./integrations/jini-kits";
 import { useHostAdminLocale } from "./hooks/admin-locale-dependencies.hooks";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
+// Settings-dialog chrome stylesheet: loaded from the host entry (not from individual screens) so it
+// keeps its place ahead of every feature stylesheet in the cascade.
+import "@jini-ai/ui/settings-dialog.css";
 import { App } from "./App";
 import { useAdminSession } from "./App.hooks";
 import { CommentQueueScopeProvider } from "@jini-ai/admin/comments/react";
 import { createCommentsQueueScope } from "./integrations/jini-admin/comments-ports";
-import { AdminFailureNotice } from "./components/AdminFailureNotice/AdminFailureNotice";
-import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
+import { TovuAdminFailureNotice, TovuServerRestartingBanner } from "./lib/shell-notices-wiring";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "@jini-ai/admin/shell/lib/router";
 import { bindShellFailureLogger } from "@jini-ai/admin/shell/lib/shell-failure-log";
@@ -95,8 +97,8 @@ ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemet
       <AdminKitProvider kit={adminKit}>
       <UserManagementKitProvider kit={userManagementKit}>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
-      <ServerRestartingBanner />
-      <AdminFailureNotice />
+      <TovuServerRestartingBanner />
+      <TovuAdminFailureNotice />
       <SessionApp />
       </UserManagementKitProvider>
       </AdminKitProvider>

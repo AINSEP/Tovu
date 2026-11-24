@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureSettingDefinitions, getEffective, ForbiddenError, InMemorySettingsRepo, ValueValidationFailedError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { readVisitorToolPolicy } from "../../../assistant/site/visitor-tool-settings.js";
-import { clear, resetNamespace, set } from "../site-title-write.js";
-import { guardVisitorToolsRevision, readVisitorToolsRevision, readVisitorToolsSnapshot, writeVisitorTools, VisitorToolsRevisionConflictError } from "../visitor-tools-write.js";
+import { clear, resetNamespace, set, SETTINGS_WRITE_POLICIES, VISITOR_TOOLS_HOST } from "../settings-write-policies.js";
+import { guardVisitorToolsRevision, readVisitorToolsRevision, readVisitorToolsSnapshot, writeVisitorTools, VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING } from "../../../contracts/site-assistant/visitor-tools.js";
 
 import { visitorSettingsFixture, ws, off } from "./visitor-tools.fixture.js";
@@ -58,24 +58,24 @@ test("invalid input and wrong scope cannot reach the ledger", async () => {
 
 test("revision CAS accepts the unset snapshot and rolls back both value and revision on stale writes", async () => {
   const f = await visitorSettingsFixture();
-  assert.equal((await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws })).revisionSeq, 0);
-  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws }), 0);
-  const args = { deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" };
+  assert.equal((await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST })).revisionSeq, 0);
+  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), 0);
+  const args = { visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" };
   const saved = await writeVisitorTools(args, { expectedRevisionSeq: 0 });
   const before = await f.repo.maxRevisionSeq();
   await assert.rejects(writeVisitorTools({ ...args, value: { version: 1, tools: {} } }, { expectedRevisionSeq: 0 }), VisitorToolsRevisionConflictError);
   assert.equal(await f.repo.maxRevisionSeq(), before);
-  assert.deepEqual((await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws })).policy, saved.value);
+  assert.deepEqual((await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST })).policy, saved.value);
   const next = await writeVisitorTools(args, { expectedRevisionSeq: saved.revisionSeq });
   assert.ok(next.revisionSeq > saved.revisionSeq);
   const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   const row = (await f.repo.getWorkspaceValue({ workspaceId: ws, settingId: definition.settingId }))!;
   await f.repo.saveWorkspaceValue({ ...row, state: "cleared" });
-  const cleared = await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws });
+  const cleared = await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST });
   assert.equal(cleared.revisionSeq, next.revisionSeq);
-  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws }), next.revisionSeq);
+  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), next.revisionSeq);
   assert.deepEqual(cleared.policy, { version: 1, tools: {} });
-  await assert.rejects(readVisitorToolsSnapshot({ repo: new InMemorySettingsRepo(), workspaceId: ws }), /definition is unavailable/);
+  await assert.rejects(readVisitorToolsSnapshot({ repo: new InMemorySettingsRepo(), workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), /definition is unavailable/);
 });
 
 test("revision-only CAS refuses a stale corrupt row and can repair it at the real row seq", async () => {
@@ -84,10 +84,10 @@ test("revision-only CAS refuses a stale corrupt row and can repair it at the rea
   const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   const row = (await f.repo.getWorkspaceValue({ workspaceId: ws, settingId: definition.settingId }))!;
   await f.repo.saveWorkspaceValue({ ...row, valueJson: { version: 2 } });
-  assert.deepEqual(await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws }), { policy: null, revisionSeq: saved.revisionSeq });
-  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws }), row.seq);
+  assert.deepEqual(await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), { policy: null, revisionSeq: saved.revisionSeq });
+  assert.equal(await readVisitorToolsRevision({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), row.seq);
   const before = await f.repo.maxRevisionSeq();
-  const args = { deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" };
+  const args = { visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" };
   await assert.rejects(writeVisitorTools(args, { expectedRevisionSeq: 0 }), VisitorToolsRevisionConflictError);
   assert.equal(await f.repo.maxRevisionSeq(), before);
   assert.deepEqual((await f.repo.getWorkspaceValue({ workspaceId: ws, settingId: definition.settingId }))?.valueJson, { version: 2 });
@@ -100,15 +100,15 @@ test("unexpected transaction and snapshot failures propagate rather than becomin
   const f = await visitorSettingsFixture();
   const failure = new Error("disk unavailable");
   t.mock.method(f.repo, "transaction", async () => { throw failure; });
-  await assert.rejects(writeVisitorTools({ deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" }, { expectedRevisionSeq: 0 }), error => error === failure);
+  await assert.rejects(writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" }, { expectedRevisionSeq: 0 }), error => error === failure);
   t.mock.method(f.repo, "getWorkspaceValue", async () => { throw failure; });
-  await assert.rejects(readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws }), error => error === failure);
+  await assert.rejects(readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), error => error === failure);
 });
 
 test("the revision adapter preserves methods/metadata and compares only after appendRevision acquires the ledger lock", async t => {
   const f = await visitorSettingsFixture();
   const tagged = Object.assign(f.repo, { adapterTag: "memory-fixture" });
-  const guarded = guardVisitorToolsRevision({ repo: tagged, workspaceId: ws, expectedRevisionSeq: 0 });
+  const guarded = guardVisitorToolsRevision({ repo: tagged, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST, expectedRevisionSeq: 0 });
   assert.equal(Reflect.get(guarded, "adapterTag"), "memory-fixture");
   assert.equal(await guarded.maxRevisionSeq(), await f.repo.maxRevisionSeq());
   const append = f.repo.appendRevision.bind(f.repo);
@@ -123,7 +123,7 @@ test("the revision adapter preserves methods/metadata and compares only after ap
     events.push("read-current-revision");
     return read(input);
   });
-  await writeVisitorTools({ deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" }, { expectedRevisionSeq: 0 });
+  await writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: f.deps, value: off, workspaceId: ws, callerPrincipalId: "owner" }, { expectedRevisionSeq: 0 });
   assert.ok(events.indexOf("lock-acquired") >= 0);
   assert.ok(events.lastIndexOf("read-current-revision") > events.indexOf("lock-acquired"));
 });

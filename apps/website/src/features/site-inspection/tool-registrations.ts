@@ -1,9 +1,10 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/site-inspection.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import type { HttpClientPort } from "#src/platform/http/index";
-import { readPageBodyOptions } from "./page-body.js";
-import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./live-url.js";
+import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
+import { readPageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveEgressRefusal, type LiveOriginPolicy } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
@@ -12,9 +13,10 @@ import type { ToolContributor } from "@jini-ai/core";
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
-import { fetchPublishedPage } from "./published-page.js";
-import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
-import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
+import { fetchPublishedPage, type FetchPublishedPageDeps } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
+import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 
 /**
  * @file Maps the Site Inspection catalog onto `buildSiteProfile()` / `buildSiteCapabilities()` /
@@ -61,6 +63,16 @@ export type { SiteInspectionToolDeps } from "./deps.js";
  * — independent of the catalog's `sideEffects` declaration, which `assertToolIsWirable` refuses to
  * let drift from this map.
  */
+/**
+ * Binds the host's reserved-path policy and its outbound-span tracker (`trackFetch`) onto the
+ * route deps the published-page fetch reads. The
+ * route deps are the prototype rather than spread, so every field (including any lazily computed
+ * one) is still read at the moment the fetch reads it, exactly as before the policy was injected.
+ */
+function withReservedSegments({ routeDeps }: { routeDeps: SiteInspectionToolDeps }, _optional = {}): FetchPublishedPageDeps {
+  return Object.create(routeDeps, { reservedSegments: { value: RESERVED_SEGMENTS }, trackFetch: { value: trackFetch } }) as FetchPublishedPageDeps;
+}
+
 export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> buildSiteProfile(): five concurrent reads (posts, in-memory themes, presentation settings,
   //    plugin discovery + activations, settings, content types). No writes anywhere on the path.
@@ -134,7 +146,11 @@ function readSections<N extends string>(input: Record<string, unknown>, vocabula
   return raw as N[];
 }
 
-export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: FetchLiveUrlDeps): ToolRegistration[] {
+/** The live-fetch collaborators a composition supplies; this module binds the URL-space and egress policy. */
+type HostLiveUrlDeps = Omit<FetchLiveUrlDeps, "reservedSegments" | "isEgressRefusal">;
+const isEgressRefusal: LiveEgressRefusal = (error): error is EgressRefusedError => error instanceof EgressRefusedError;
+
+export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: HostLiveUrlDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     site_get_profile: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input ?? {} });
@@ -157,19 +173,19 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
     fetch_live_url: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const path = requireString({ input: input, key: "path" });
-      const options = readPageBodyOptions(input);
+      const options = readPageBodyOptions({ input });
       if (input.origin !== undefined && typeof input.origin !== "string") throw new ToolInputError({ message: "fetch_live_url: origin must be a known HTTPS origin string." });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
       if (!liveDeps) throw new ToolInputError({ message: "fetch_live_url: the guarded live HTTP client is not wired on this host." });
-      return fetchLiveUrl(liveDeps, { path, origin: input.origin as string | undefined, ...options });
+      return fetchLiveUrl({ ...liveDeps, reservedSegments: RESERVED_SEGMENTS, isEgressRefusal }, { path, origin: input.origin as string | undefined, ...options });
     },
     fetch_published_page: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const path = requireString({ input: input, key: "path" });
-      const options = readPageBodyOptions(input);
+      const options = readPageBodyOptions({ input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
 
-      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => fetchPublishedPage({ deps: routeDeps, input: { path } }, options) });
+      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => fetchPublishedPage({ deps: withReservedSegments({ routeDeps }), input: { path } }, options) });
     },
   };
 
@@ -189,13 +205,17 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * module. Same seam every other converted domain uses; this module never imports `server/`, and
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
+ *
+ * `live` carries the guarded client plus the host's publish-peer rule (which unkeyed peer row is the
+ * connected destination); the composition root binds that rule, so this feature does not import the
+ * publish-content feature. Omitted (tests, older compositions): `fetch_live_url` has no live deps.
  */
-export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor<SiteInspectionToolDeps, unknown> {
+export function contributeSiteInspectionTools(live?: { httpClient: HttpClientPort } & LiveOriginPolicy): ToolContributor<SiteInspectionToolDeps, unknown> {
   return {
     domain: "site-inspection",
-    build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {
-      httpClient,
-      listKnownOrigins: () => listKnownLiveOrigins(deps),
+    build: deps => buildSiteInspectionRegistrations(deps, live ? {
+      httpClient: live.httpClient,
+      listKnownOrigins: () => listKnownLiveOrigins({ ...deps, selectConnectedDestination: live.selectConnectedDestination }),
       observeFetch: event => console.info(JSON.stringify({
         timestamp: new Date().toISOString(), level: "info", service: "site-inspection",
         message: "fetch_live_url", context: event,

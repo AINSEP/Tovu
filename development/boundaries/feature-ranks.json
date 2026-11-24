@@ -12,7 +12,6 @@
   "database": 0,
   "database-transfer": 3,
   "deployments": 8,
-  "domain-dns": 0,
   "email-templates": 8,
   "entries": 4,
   "external-mcp": 5,
@@ -36,7 +35,6 @@
   "pages": 7,
   "permanent-delete": 0,
   "plugin-runtime": 0,
-  "plugins": 0,
   "post": 6,
   "presentation": 0,
   "project-keys": 0,
@@ -66,6 +64,5 @@
   "web-screenshot": 0,
   "webhooks": 0,
   "webmcp": 0,
-  "widgets": 7,
-  "workspace": 0
+  "widgets": 7
 }

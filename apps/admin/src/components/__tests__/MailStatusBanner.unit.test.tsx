@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MailStatusBanner } from "../MailStatusBanner/MailStatusBanner";
+import { MailStatusBanner } from "@jini-ai/admin/shell/components/MailStatusBanner/MailStatusBanner";
 import {
   MAIL_BANNER_DISMISSED_KEY,
   MAIL_SET_UP_LABEL,
@@ -10,6 +10,7 @@ import {
   readMailBannerDismissed,
   writeMailBannerDismissed,
   type MailBannerStorage,
+  useMailStatusBanner,
 } from "../MailStatusBanner/hooks/use-mail-status-banner.hooks";
 
 /**
@@ -71,13 +72,13 @@ describe("readMailBannerDismissed / writeMailBannerDismissed", () => {
 describe("MailStatusBanner", () => {
   it("renders a blocking alert once the status says unconfigured", async () => {
     const fetchStatus = vi.fn(async () => ({ mailDeliveryAvailable: false, state: "unconfigured" as const }));
-    render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
+    render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(MAIL_UNCONFIGURED_TEXT);
     expect(fetchStatus).toHaveBeenCalledTimes(1);
   });
 
   it("links Set up email to the Email screen's Provider tab instead of naming Access Tokens", async () => {
-    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} />);
+    render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={unconfigured} labels={labels("Dismiss")} />);
     const link = await screen.findByRole("link", { name: "Set up email" });
     expect(link).toHaveAttribute("href", "/admin/email?tab=provider");
     expect(screen.getByRole("alert")).not.toHaveTextContent("Access Tokens");
@@ -85,14 +86,14 @@ describe("MailStatusBanner", () => {
 
   it("renders nothing when mail is ready", async () => {
     const fetchStatus = vi.fn(async () => ({ mailDeliveryAvailable: true, state: "ready" as const }));
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
+    const { container } = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing when the status read fails", async () => {
     const fetchStatus = vi.fn(async () => { throw new Error("403"); });
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
+    const { container } = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
@@ -100,7 +101,7 @@ describe("MailStatusBanner", () => {
   it("ignores a status that arrives after unmount", async () => {
     let resolve: (value: { mailDeliveryAvailable: boolean; state: "unconfigured" }) => void = () => {};
     const fetchStatus = vi.fn(() => new Promise<{ mailDeliveryAvailable: boolean; state: "unconfigured" }>((done) => { resolve = done; }));
-    const { unmount } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
+    const { unmount } = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     unmount();
     resolve({ mailDeliveryAvailable: false, state: "unconfigured" });
     await Promise.resolve();
@@ -109,7 +110,7 @@ describe("MailStatusBanner", () => {
 
   it("× hides the banner and remembers it in the injected storage", async () => {
     const storage = memoryStorage();
-    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Descartar")} storage={storage} />);
+    render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={unconfigured} labels={labels("Descartar")} storage={storage} />);
     fireEvent.click(await screen.findByRole("button", { name: "Descartar" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(storage.data[MAIL_BANNER_DISMISSED_KEY]).toBe("1");
@@ -118,24 +119,24 @@ describe("MailStatusBanner", () => {
   it("stays hidden on the next mount once dismissed", async () => {
     const fetchStatus = vi.fn(unconfigured);
     const storage = memoryStorage({ [MAIL_BANNER_DISMISSED_KEY]: "1" });
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} storage={storage} />);
+    const { container } = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} storage={storage} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
   it("still hides for the session when storage throws", async () => {
-    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} storage={throwingStorage} />);
+    render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={unconfigured} labels={labels("Dismiss")} storage={throwingStorage} />);
     fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("defaults to the browser's localStorage", async () => {
-    const first = render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} />);
+    const first = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={unconfigured} labels={labels("Dismiss")} />);
     fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
     expect(localStorage.getItem(MAIL_BANNER_DISMISSED_KEY)).toBe("1");
     first.unmount();
     const fetchStatus = vi.fn(unconfigured);
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
+    const { container } = render(<MailStatusBanner useMailStatusBannerHook={useMailStatusBanner} fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });

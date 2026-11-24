@@ -283,7 +283,7 @@ test("SPEC-050 REQ-13: createLiveSiteDisplayName re-reads config.json on every c
     assert.equal(liveName.read(), "Site A");
 
     // Temp file + rename: how the desktop rename (`apps/desktop/src/site-config.ts`) and
-    // `atomic-write.ts` both write it.
+    // `@jini-ai/platform/fs` atomic JSON writes both write it.
     fs.writeFileSync(`${configPath}.tmp`, JSON.stringify({ name: "Renamed Atomically", domain: null, port: null }));
     fs.renameSync(`${configPath}.tmp`, configPath);
     assert.equal(liveName.read(), "Renamed Atomically");

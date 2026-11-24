@@ -55,9 +55,7 @@ export function SiteStartPanel({
       {starting && <Spinner />}
       <h2 className="empty__title">{project.displayName}</h2>
       <p className="empty__body">
-        {starting
-          ? 'Starting the server. This can take up to a minute.'
-          : (body ?? sitePortPresentation(project).statusDescription)}
+        {panelBodyText({ starting, body, project })}
       </p>
       {/* A blocked project is waiting on database-provider support Tovu does not have, so the
           only honest affordance is none — starting it would fail every time. Every project this
@@ -94,6 +92,12 @@ function useWakeOnOpen({ status, wakeOnOpen, handleStart }: {
     wakeAttempted.current = true;
     void handleStart();
   }, [status, wakeOnOpen, handleStart]);
+}
+
+/** The panel's sentence: the boot notice while starting, otherwise the caller's `body` or the registry status text. */
+function panelBodyText({ starting, body, project }: { starting: boolean; body: string | undefined; project: SiteRecord }): string {
+  if (starting) return 'Starting the server. This can take up to a minute.';
+  return body ?? sitePortPresentation(project).statusDescription;
 }
 
 /** The Start button's words: progress while booting, otherwise the verb that fits the state. */

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { SecretsVaultService, createVaultMetaParsers, type VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
+import { createVaultMetaParsers, type VaultArchiveEntry, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VaultError,
   type VaultMeta,

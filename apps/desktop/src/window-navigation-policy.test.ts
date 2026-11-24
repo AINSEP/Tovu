@@ -250,7 +250,8 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
       );
     },
   };
-  installGuestWindowOpenPolicy({ contents,
+  installGuestWindowOpenPolicy({
+    contents,
     isSupervisedGuestUrl: () => false,
     openExternal: () => {
       throw new Error("boom");
@@ -297,7 +298,7 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
 // `isShellPageUrl` itself is covered above; this pins only that the entry feeds it the live inputs.
 test("main.ts registers the speech channels with the shell-page sender check", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\) \}\)/);
+  assert.match(source, /registerNativeSpeechIpc\(\{ ipcMain, isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\), host: SPEECH_HOST \}\)/);
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
     shellPage,

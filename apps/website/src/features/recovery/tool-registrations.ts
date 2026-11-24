@@ -27,24 +27,22 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
-import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
-import type {
-  MigrationRunsRepoPort,
-  SiteStatusPort,
-} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
 // sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
 // depends on Database, never the reverse" direction, not a new cross-domain edge.
 import type { LedgerAppendPort } from "../database/gated-hooks.js";
 import { listRestorePoints, type RestorePointListPort } from "@jini-ai/db/tools";
-import { recoveryAgentToolCatalog } from "./agent-tools.js";
+import { createRecoveryAgentToolCatalog } from "@jini-ai/db/recovery/agent-tools";
 import {
   resolveDeepLinkContext,
   type DatabaseContextEnvelope,
@@ -59,6 +57,12 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const BACKUP_READ_PERMISSION = "backup.read" as const;
 const RESTORE_POINT_ENTITY = "restore-point" as const;
 
+/** Host binding (K3): the catalog's guidance names this host's own backup tools, its `.tovu.zip`
+ * export screen and its restore-point read tools, which the engine catalog cannot know. */
+export const recoveryAgentToolCatalog = createRecoveryAgentToolCatalog({
+  backupWorkflowGuidance: "For private full-site repository backups, call source_control_get_capabilities to discover installed hosts (including disabled ones), then site_backup_plan → site_backup_push. Portable .tovu.zip exports are available under Admin → Sites → Export.",
+  restorePointIdSource: "content_read.backup_restore_point or content_read.database_restore_point",
+}, { resolveDeepLinkCitation: "INV-04" });
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: recoveryAgentToolCatalog });
 
@@ -428,7 +432,7 @@ export function buildRecoveryRegistrations(
     [RESTORE_TOOL_ID]: createRecoveryRestoreHandler(routeDeps, surfaces, { restoreHooks, planRestoreWithDisclosure }),
   };
 
-  return buildDomainRegistrations({ metadata: toolMetadata, domain: "recovery", catalogModule: "features/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "recovery", catalogModule: "@jini-ai/db/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });
 }
 
 /**

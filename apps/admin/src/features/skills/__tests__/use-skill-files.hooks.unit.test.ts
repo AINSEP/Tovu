@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useSkillFiles } from "../use-skill-files.hooks";
 import type { SkillFiles } from "../api";
-import { t as translateSkills } from "../skills-i18n";
+import { t as translateSkills } from "@jini-ai/admin/screens/skills/skills-i18n";
 
 const listing: SkillFiles = {
   toolId: "skill_example", truncated: false,

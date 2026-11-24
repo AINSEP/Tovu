@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";
+import { registerResolvePhase, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { type RouteResolveContext } from '@jini-ai/cms/routing';
 
 /**
@@ -40,7 +40,7 @@ test("loading composition/app.ts registers nothing: a live Redirects registratio
       };
     },
   };
-  registerRedirectsPhaseHandlers({ resolver: realResolver as never });
+  registerRedirectsPhaseHandlers({ resolver: realResolver as never, registerResolvePhase });
 
   const expected = { kind: "redirect", location: "/real-target", statusCode: 301 };
   assert.deepEqual(await runPreContentPhase({ path: "/old", ctx: CTX }), expected);

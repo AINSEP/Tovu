@@ -5,11 +5,12 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 
-import type { MailerPort } from "../../../platform/mail/index.js";
-import type { MailProviderConfiguration } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, MailProviderConfiguration } from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
-import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "../feedback-setup.js";
-import { MAIL_PERMISSION_IDS } from "../permissions.js";
+import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
+import { listCustomCredentials } from "../../custom-credentials/index.js";
+import { mailWebhookSecretLabels } from "../../mail/index.js";
+import { MAIL_PERMISSION_IDS } from "@jini-ai/user-management/mail/status/permissions";
 import {
   listMailSuppressions, MailActivityForbiddenError, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
   type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry,
@@ -126,40 +127,11 @@ function feedbackDeps(overrides: Partial<MailFeedbackSetupDeps> = {}): MailFeedb
     ] as never },
     originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "site.test", port: 443, basePath: "/blog" }) as never },
     mailSuppressionAdmin: memoryRepo([]),
+    listCustomCredentials,
+    mailWebhookSecretLabels,
     ...overrides,
   };
 }
-
-test("feedback setup per active provider: receiving, no events yet on the previous slot, unsupported", async () => {
-  const report = await readMailFeedbackSetup(feedbackDeps());
-  assert.equal(report.available, true);
-  assert.deepEqual(report.providers.map((p) => [p.providerId, p.state, p.webhookUrl]), [
-    ["hosted", "receiving", "https://site.test/blog/hooks/mail/hosted"],
-    ["relay", "no_events_yet", "https://site.test/blog/hooks/mail/relay"],
-    ["smtp", "unsupported", null],
-  ]);
-  assert.deepEqual(report.providers[0]!.signingSecret, {
-    current: { label: "Tovu Mail — Hosted Webhook Secret", configured: true, updatedAt: AT(10) },
-    previous: { label: "Tovu Mail — Hosted Webhook Secret (previous)", configured: false, updatedAt: null },
-  });
-  assert.deepEqual(report.providers[0]!.lastVerifiedEvent, { kind: "delivered", receivedAt: AT(50) });
-  assert.deepEqual([report.providers[2]!.signingSecret, report.providers[2]!.lastVerifiedEvent, report.providers[2]!.webhookPath], [null, null, "/hooks/mail/smtp"]);
-});
-
-test("feedback setup: missing secrets, unverified origin, non-default ports, and absent seams", async () => {
-  const bare = await readMailFeedbackSetup(feedbackDeps({ customCredentialSetRepo: undefined, mailSuppressionAdmin: undefined, originRegistry: undefined }));
-  assert.deepEqual(bare.providers.map((p) => [p.state, p.webhookUrl, p.lastVerifiedEvent]), [["secret_missing", null, null], ["secret_missing", null, null], ["unsupported", null, null]]);
-  const unverified = await readMailFeedbackSetup(feedbackDeps({ originRegistry: { canonicalOrigin: async () => { throw new Error("unverified"); } } }));
-  assert.equal(unverified.providers[0]!.webhookUrl, null);
-  const port = await readMailFeedbackSetup(feedbackDeps({ originRegistry: { canonicalOrigin: async () => ({ scheme: "http", host: "localhost", port: 4000 }) as never } }));
-  assert.equal(port.providers[0]!.webhookUrl, "http://localhost:4000/hooks/mail/hosted");
-  for (const origin of [{ scheme: "http", host: "a.test", port: 80 }, { scheme: "https", host: "a.test" }]) {
-    const plain = await readMailFeedbackSetup(feedbackDeps({ originRegistry: { canonicalOrigin: async () => origin as never } }));
-    assert.match(plain.providers[0]!.webhookUrl!, /^https?:\/\/a\.test\/hooks\/mail\/hosted$/);
-  }
-  assert.deepEqual(await readMailFeedbackSetup(feedbackDeps({ mailProviderControl: undefined })), { available: false, providers: [] });
-  assert.deepEqual(await readMailFeedbackSetup(feedbackDeps({ mailProviderControl: {} })), { available: false, providers: [] });
-});
 
 // ---- tools ----------------------------------------------------------------------------------
 
@@ -226,14 +198,6 @@ test("a delegated administrator holding the action grant cannot plan or execute 
   await assert.rejects(planMailSuppressionRemoval({ deps: d, principalId: "delegated", input }), /Only the site owner/);
   await assert.rejects(runMailSuppressionRemoval({ deps: d, principalId: "delegated", plan }), /Only the site owner/);
   assert.ok(await d.mailSuppressionAdmin!.find({ workspaceId: "ws", address: input.address, scope: "all" }));
-});
-
-test("feedback dependency failures propagate without a partial healthy report", async () => {
-  for (const overrides of [
-    { mailProviderControl: { describe: async () => { throw new Error("describe offline"); } } },
-    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("credentials offline"); } } },
-    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("inbox offline"); } } },
-  ]) await assert.rejects(readMailFeedbackSetup(feedbackDeps(overrides)), /offline/);
 });
 
 test("feedback tools retain failure semantics for provider, credential and inbox reads", async () => {

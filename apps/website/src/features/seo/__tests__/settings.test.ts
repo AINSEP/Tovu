@@ -1,11 +1,11 @@
-import { createSeoFeaturedImagePort } from "../index.js";
+import { createSeoFeaturedImagePort, seoSettingsHostBindings } from "../index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, ForbiddenError } from "../../settings/index.js";
-import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "../settings.js";
+import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "@jini-ai/cms/seo/site/settings";
 import { SeoSettingsValidationError } from "@jini-ai/cms/seo";
 
 /**
@@ -28,6 +28,7 @@ const alwaysDeny = async () => ({ allowed: false, reason: "no_grant" });
 
 function makeDeps(authorize = alwaysAllow) {
   return {
+    ...seoSettingsHostBindings,
     settingsRepo: new InMemorySettingsRepo(),
     clock,
     ids,
@@ -45,7 +46,7 @@ async function seeded(authorize = alwaysAllow) {
 
 test("getSeoSettings: resolves schema defaults with zero writes (behavior.spec.md §3)", async () => {
   const deps = await seeded();
-  const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const settings = await getSeoSettings(deps, { workspaceId: WORKSPACE });
 
   assert.equal(settings.titleTemplate, "%s");
   assert.deepEqual(settings.defaultRobots, { noindex: false, nofollow: false });
@@ -66,7 +67,7 @@ test("setSeoSettings: PUT valid settings, GET round-trips them (AC-24)", async (
   assert.equal(result.titleTemplate, "%s — My Site");
   assert.equal(result.sitemapEnabled, false);
 
-  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const reread = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(reread.titleTemplate, "%s — My Site");
   assert.equal(reread.sitemapEnabled, false);
 });
@@ -84,7 +85,7 @@ test("setSeoSettings: titleTemplate without %s is rejected, zero settings change
     SeoSettingsValidationError
   );
 
-  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const after = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(after.titleTemplate, "%s");
   assert.equal(after.sitemapEnabled, true, "sitemapEnabled must be untouched — all-or-nothing (INV-06)");
 });
@@ -130,7 +131,7 @@ test("setSeoSettings: robotsRules with exactly 50 entries is accepted", async ()
   const result = await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { robotsRules } });
   assert.equal(result.robotsRules.length, 50);
   assert.deepEqual(result.robotsRules, robotsRules);
-  assert.deepEqual((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).robotsRules, robotsRules);
+  assert.deepEqual((await getSeoSettings(deps, { workspaceId: WORKSPACE })).robotsRules, robotsRules);
 });
 
 test("setSeoSettings: robotsRules with 51 entries is rejected, zero settings changed", async () => {
@@ -147,7 +148,7 @@ test("setSeoSettings: robotsRules with 51 entries is rejected, zero settings cha
     SeoSettingsValidationError
   );
 
-  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const after = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(after.robotsRules, []);
   assert.equal(after.sitemapEnabled, true);
 });
@@ -162,7 +163,7 @@ test("setSeoSettings: defaultRobots decomposes into 2 booleans and recomposes on
 
   assert.deepEqual(result.defaultRobots, { noindex: true, nofollow: true });
 
-  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const reread = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(reread.defaultRobots, { noindex: true, nofollow: true });
 });
 
@@ -189,7 +190,7 @@ test("setSeoSettings: unauthorized write is rejected FORBIDDEN with zero writes"
     ForbiddenError
   );
 
-  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const after = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(after.sitemapEnabled, true);
 });
 
@@ -203,7 +204,7 @@ test("setSeoSettings: the caller needs only admin.seo.manage in the target works
   }) as typeof deps.authorize;
   await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { sitemapEnabled: false } });
   assert.equal(requests.length, 1);
-  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).sitemapEnabled, false);
+  assert.equal((await getSeoSettings(deps, { workspaceId: WORKSPACE })).sitemapEnabled, false);
 });
 
 // --- Characterization tests below pin pre-refactor behavior of
@@ -231,7 +232,7 @@ test("setSeoSettings: defaultDescription is validated, written, and round-trips"
   });
   assert.equal(result.defaultDescription, "A site about testing.");
 
-  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const reread = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(reread.defaultDescription, "A site about testing.");
 });
 
@@ -268,7 +269,7 @@ test("setSeoSettings: a null defaultDescription bypasses validation and reads ba
     patch: { defaultDescription: null },
   });
   assert.equal(result.defaultDescription, undefined);
-  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).defaultDescription, undefined);
+  assert.equal((await getSeoSettings(deps, { workspaceId: WORKSPACE })).defaultDescription, undefined);
 });
 
 test("setSeoSettings: defaultOgImage is validated, written, and round-trips", async () => {
@@ -280,7 +281,7 @@ test("setSeoSettings: defaultOgImage is validated, written, and round-trips", as
   });
   assert.equal(result.defaultOgImage, "https://example.com/og.png");
 
-  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const reread = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(reread.defaultOgImage, "https://example.com/og.png");
 });
 
@@ -317,7 +318,7 @@ test("setSeoSettings: a null defaultOgImage bypasses validation and reads back a
     patch: { defaultOgImage: null },
   });
   assert.equal(result.defaultOgImage, undefined);
-  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).defaultOgImage, undefined);
+  assert.equal((await getSeoSettings(deps, { workspaceId: WORKSPACE })).defaultOgImage, undefined);
 });
 
 test("setSeoSettings: twitterSite is validated as a bounded string, written, and round-trips", async () => {
@@ -329,7 +330,7 @@ test("setSeoSettings: twitterSite is validated as a bounded string, written, and
   });
   assert.equal(result.twitterSite, "@example");
 
-  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const reread = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(reread.twitterSite, "@example");
 });
 
@@ -344,7 +345,7 @@ test("setSeoSettings: a non-string twitterSite is rejected, titleTemplate is lef
     "twitterSite must be a string"
   );
 
-  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const after = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(after.titleTemplate, "%s", "title_template must be unchanged — all-or-nothing (INV-06)");
 });
 
@@ -379,7 +380,7 @@ test("setSeoSettings: an unknown patch key is rejected, zero settings changed", 
     "'bogusField' is not a registered SEO setting field"
   );
 
-  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  const after = await getSeoSettings(deps, { workspaceId: WORKSPACE });
   assert.equal(after.titleTemplate, "%s");
 });
 
@@ -392,7 +393,7 @@ test("setSeoSettings: a null twitterSite is written as the '' sentinel and reads
     patch: { twitterSite: null },
   });
   assert.equal(result.twitterSite, undefined);
-  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).twitterSite, undefined);
+  assert.equal((await getSeoSettings(deps, { workspaceId: WORKSPACE })).twitterSite, undefined);
 });
 
 test("setSeoSettings: a defaultRobots patch missing the 'nofollow' boolean is rejected", async () => {
@@ -508,11 +509,11 @@ test("setSeoSettings: a robots rule 'allow' with exactly 100 entries is accepted
   assert.equal(result.robotsRules[0]?.allow?.length, 100);
   const expected = [{ userAgent: "agent-1", allow }];
   assert.deepEqual(result.robotsRules, expected);
-  assert.deepEqual((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).robotsRules, expected);
+  assert.deepEqual((await getSeoSettings(deps, { workspaceId: WORKSPACE })).robotsRules, expected);
 });
 
 test("getSeoSettings: with no registered definitions every key falls back to its safe default", async () => {
-  const settings = await getSeoSettings({ settingsRepo: new InMemorySettingsRepo() }, { workspaceId: WORKSPACE });
+  const settings = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo: new InMemorySettingsRepo() }, { workspaceId: WORKSPACE });
   assert.equal(settings.titleTemplate, "%s");
   assert.deepEqual(settings.robotsRules, []);
   assert.deepEqual(settings.defaultRobots, { noindex: false, nofollow: false });

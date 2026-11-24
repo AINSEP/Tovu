@@ -20,6 +20,11 @@ import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "../..");
 
+/** Translator factories whose `commonDictionary` option is the sanctioned COMMON_I18N binding: the shared
+ *  one, and Jini feature translators that layer a host dictionary over the package's and take the host's
+ *  common dictionary through the same option (`@jini-ai/admin/source-control/source-control-i18n`). */
+const TRANSLATOR_FACTORIES = new Set(["createDictionaryTranslator", "createSourceControlTranslator"]);
+
 /** Indexed lookups that are allowed, each with its reason. Keep this list short. */
 const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
@@ -81,6 +86,9 @@ function isImportedAssembly({ node, source, target }: { node: ts.Identifier; sou
  * Every consumer reference to a declared dictionary constant, including namespace/alias access,
  * minus {@link ALLOWED}. Pure over its input so the detector itself is testable on a fixture.
  */
+/** Host translator factories that receive `COMMON_I18N` as `commonDictionary` in their first argument. */
+const COMMON_DICTIONARY_FACTORIES: ReadonlySet<string> = new Set(["createMembersTranslator", "createPageEditorTranslator"]);
+
 function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source: string }>): string[] {
   const parsed = files.map((f) => ({ ...f, ast: ts.createSourceFile(f.path, f.source, ts.ScriptTarget.Latest, true, f.path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS) }));
   const names = new Set<string>();
@@ -163,12 +171,18 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
         const call = ts.isPropertyAssignment(parent) && ts.isObjectLiteralExpression(parent.parent)
           ? parent.parent.parent : parent;
         const translator = ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
-          call.expression.text === "createDictionaryTranslator" &&
+          TRANSLATOR_FACTORIES.has(call.expression.text) &&
           (call.arguments[0] === node || (ts.isPropertyAssignment(parent) &&
             parent.initializer === node &&
             ((parent.name.getText(f.ast) === "featureDictionary" && call.arguments[0] === parent.parent) ||
              (node.text === "COMMON_I18N" && parent.name.getText(f.ast) === "commonDictionary" && call.arguments[1] === parent.parent))));
-        if (!declaration && !syntaxName && !translator && !isConstruction(node)) {
+        // The Members and Page-editor translator factories take the shared dictionary as `commonDictionary`
+        // in their first (options) argument; any other position or name stays rejected.
+        const commonFactory = ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+          COMMON_DICTIONARY_FACTORIES.has(call.expression.text) && ts.isPropertyAssignment(parent) &&
+          node.text === "COMMON_I18N" && parent.initializer === node &&
+          parent.name.getText(f.ast) === "commonDictionary" && call.arguments[0] === parent.parent;
+        if (!declaration && !syntaxName && !translator && !commonFactory && !isConstruction(node)) {
           report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
         }
       }

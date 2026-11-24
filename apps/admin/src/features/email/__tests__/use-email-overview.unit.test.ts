@@ -1,9 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import type { MailTestSendResult } from "../email-api";
-import { useEmailOverview } from "../hooks/use-email-overview.hooks";
+import type { MailTestSendResult } from "@jini-ai/admin/screens/email/email-api.types";
+import { useEmailOverview } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
 import { createEmailFake, AT } from "./email.test-helpers";
+import { newRequestId } from "../email-hooks-host";
 
 /** @file Every send outcome, including the structured 429 result, survives the API boundary. */
 const base = { to: "ada@example.com", from: "hello@example.com", driver: "hosted", at: AT };
@@ -18,7 +19,7 @@ describe("useEmailOverview", () => {
   it.each(outcomes)("shows $outcome without claiming delivery", async (answer) => {
     const api = createEmailFake();
     api.sendTest.mockResolvedValue({ sent: answer.outcome === "accepted", result: answer });
-    const { result } = renderHook(() => useEmailOverview({ api }, { requestId: () => "click-id-1" }));
+    const { result } = renderHook(() => useEmailOverview({ api, ApiError, requestId: () => "click-id-1" }));
     await waitFor(() => expect(result.current.uses.kind).toBe("loaded"));
     act(() => result.current.setTo(" ada@example.com "));
     await act(() => result.current.sendTest());
@@ -30,7 +31,7 @@ describe("useEmailOverview", () => {
   it("omits a blank recipient so the server uses the account address; each click has a new id", async () => {
     const api = createEmailFake();
     let click = 0;
-    const { result } = renderHook(() => useEmailOverview({ api }, { requestId: () => `click-id-${++click}` }));
+    const { result } = renderHook(() => useEmailOverview({ api, ApiError, requestId: () => `click-id-${++click}` }));
     await act(() => result.current.sendTest());
     await act(() => result.current.sendTest());
     expect(api.sendTest.mock.calls).toEqual([[{ to: undefined, requestId: "click-id-1" }], [{ to: undefined, requestId: "click-id-2" }]]);
@@ -40,7 +41,7 @@ describe("useEmailOverview", () => {
     const api = createEmailFake();
     const answer: MailTestSendResult = { ...base, outcome: "failed", errorCode: "RATE_LIMITED", message: "Wait before sending again.", retryable: true };
     api.sendTest.mockRejectedValue(new ApiError({ message: "Too many requests", status: 429 }, { code: "RATE_LIMITED", body: { result: answer } }));
-    const { result } = renderHook(() => useEmailOverview({ api }));
+    const { result } = renderHook(() => useEmailOverview({ api, ApiError, requestId: newRequestId }));
     await act(() => result.current.sendTest());
     expect(result.current.test).toEqual({ kind: "done", result: answer });
   });
@@ -48,7 +49,7 @@ describe("useEmailOverview", () => {
   it("reports an error without a result, then permits retry", async () => {
     const api = createEmailFake();
     api.sendTest.mockRejectedValueOnce(new ApiError({ message: "Unavailable", status: 503 }));
-    const { result } = renderHook(() => useEmailOverview({ api }));
+    const { result } = renderHook(() => useEmailOverview({ api, ApiError, requestId: newRequestId }));
     await act(() => result.current.sendTest());
     expect(result.current.test).toEqual({ kind: "error", message: "Unavailable" });
     await act(() => result.current.sendTest());

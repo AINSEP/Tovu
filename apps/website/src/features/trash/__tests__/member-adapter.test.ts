@@ -1,21 +1,24 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import express from "express";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
+import { registerAdminMemberDeleteRoute } from "#src/server/runtime/composition/modules/members";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { buildMembersRegistrations } from "#src/features/members/tool-registrations";
-import { trashMember } from "#src/features/members/trash-member";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
 /** @file gapb: member Trash uses the existing registry/table adapter and Jini Trash service.
  * Tests fail without the member entry, credential wrapper, live-read filters and stale-write fence.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
-import { InMemoryMemberRepo } from "#src/features/members/repo.memory";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
+import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { MembersWriteServiceDeps } from "#src/features/members/ports";
-import { membersWriteService } from "#src/features/members/write-service";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { membersWriteService } from "@jini-ai/user-management/members/write-service";
 import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
@@ -52,8 +55,8 @@ function harness() {
   }, { retentionDays: TRASH_RETENTION_DAYS });
   const granted = new Set(["member.manage", "content.read"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
-  const members = new SqlMemberRepo(kernel);
-  const sessions = new SqlMemberSessionRepo(kernel);
+  const members = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
   function seed(id = "member-1", status = "active", fields = "{}") {
     client.prepare(`INSERT INTO members (id, workspace_id, email, status, fields_json, created_at, updated_at, version)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`).run(id, WS, `${id}@example.test`, status, fields, AT, AT);
@@ -184,6 +187,7 @@ test("gapb member: sign-in request for a trashed email returns an unstored handl
     // The sender and site origin are resolved before the member lookup, for every address alike.
     senderIdentity: { resolve: async ({ fallback }: { fallback: unknown }) => fallback },
     origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000 }) },
+    mailTransport: membersMailTransport,
   } as unknown as MembersWriteServiceDeps;
   // Public HTTP returns the same accepted response and handle shape for every address.
   assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }),

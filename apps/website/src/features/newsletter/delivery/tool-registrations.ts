@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../../contracts/core/tool-metadata/newsletter.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/newsletter';
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
@@ -7,7 +7,7 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
 import { ToolInputError, type ToolHandler } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
@@ -15,12 +15,12 @@ import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { AgentToolDefinition } from "@jini-ai/core";
-import { isValidScheduleTimestamp, scheduleCampaign } from "../campaign-write-service.js";
+import { isValidScheduleTimestamp, scheduleCampaign } from "@jini-ai/user-management/newsletter/campaign-write-service";
 import { approvalToolHandler } from "../../../contracts/core/human-confirm.js";
-import type { CampaignRecord } from "../types.js";
-import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterLaunchGateBlockedError, NewsletterValidationError } from "../errors.js";
-import { evaluateLaunchGate } from "../launch-gate.js";
-import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCampaign, sendTestCampaign } from "../send-pipeline.js";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
+import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterLaunchGateBlockedError, NewsletterValidationError } from "@jini-ai/user-management/newsletter/errors";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
+import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCampaign, sendTestCampaign } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { toNewsletterSendPipelineDeps, type NewsletterToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

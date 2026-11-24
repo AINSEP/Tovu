@@ -4,7 +4,7 @@ import type { AdminDeploymentOverview } from '@/features/deployment/api/deployme
 import { deploymentApi } from '@/features/deployment/api/deployment-api';
 import { effectiveExecutionConfig, localCliAllowed, preserveSavedExecutionMode, DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
 import { isDesktopAdmin } from '@/features/settings/ai-agent-presentation';
-import { t } from '@/features/settings/settings-execution-i18n';
+import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 import '@/styles/local-cli-policy.css';
 
 type RuntimeSnapshot = Pick<AdminDeploymentOverview, 'mode'>;

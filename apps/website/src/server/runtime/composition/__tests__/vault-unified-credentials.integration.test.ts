@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { SecretsVaultService, buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { vaultFixture, vaultStep, stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { unifyVaultCredentials } from "#src/platform/db/migrations/0013_unify_vault_credentials";

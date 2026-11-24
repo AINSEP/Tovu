@@ -7,7 +7,7 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
-import type { ExternalMcpOAuthService } from "#src/features/external-mcp/contracts";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
 /** Real server store, registration builder, executor and federation; only the remote session is fake. */
 export function serverFederationFixture({ connect, oauthFor }: {

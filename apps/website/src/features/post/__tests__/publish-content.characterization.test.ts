@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import type { PackedEntity, PublishContentHandler } from "#src/features/publish-content/type-registry";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import type { PostRecord } from "../post.js";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";

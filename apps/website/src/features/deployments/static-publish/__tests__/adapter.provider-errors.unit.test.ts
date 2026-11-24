@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { DeployError } from "@jini-ai/devops/deploy";
-import type { LoadedDeployTarget } from "../../deploy-targets/types.js";
+import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { publishStaticSite } from "../adapter.js";
 
 for (const errorKind of ["Error", "DeployError"] as const) {

@@ -1,5 +1,7 @@
-import type { DeliveryEnvelopeStore, HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/index";
-import { processDueDeliveries } from "#src/features/webhooks/delivery";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
+import type { HttpClientPort } from "#src/platform/http/ports";
+import { processDueDeliveries } from "@jini-ai/integrations/webhooks/site/delivery";
+import { TOVU_WEBHOOK_HEADERS } from "#src/features/webhooks/wire-headers";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
@@ -71,6 +73,7 @@ export function startServingWebhookDeliveryWorker(
     envelopeStore,
     httpClient,
     signer: deps.webhookSigner,
+    headers: TOVU_WEBHOOK_HEADERS,
     clock: deps.clock,
   } }, { signal });
   return startWebhookDeliveryWorker({ processDue }, workerOptional);

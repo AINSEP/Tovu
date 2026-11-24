@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 import {
   InMemoryPublishContentPeerRepo,

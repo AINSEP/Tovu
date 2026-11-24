@@ -1,6 +1,6 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
-import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, VIEWPORT_NAMES, WEB_SCREENSHOT_TOOL_ID } from "./web-screenshot.js";
+import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, VIEWPORT_NAMES, WEB_SCREENSHOT_TOOL_ID } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file The `web-screenshot` domain's agent-tool catalog: SEEING a page, generic by category. A

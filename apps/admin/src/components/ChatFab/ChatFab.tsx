@@ -1,8 +1,14 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { useFabPosition } from "./ChatFab.hooks";
+import { useFabPosition } from "@jini-ai/admin/shell/components/ChatFab/ChatFab.hooks";
 import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
 
 import { interpolate, localeEntry } from '@jini-ai/core/text';
+/**
+ * Where every operator's dragged FAB position already lives in `localStorage`. Host-owned (Jini's
+ * hook takes it as a required option); changing it would silently reset every saved position.
+ */
+export const FAB_POSITION_STORAGE_KEY = "tovu-admin-fab-position";
+
 interface ChatFabProps {
   open: boolean;
   onToggle: () => void;
@@ -104,7 +110,7 @@ export function ChatFab({
   locale = DEFAULT_LOCALE,
   agentHandle: handle,
 }: ChatFabProps) {
-  const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
+  const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx, storageKey: FAB_POSITION_STORAGE_KEY });
   const actionLabel = fabActionLabel({ locale, action: open ? "close" : "open", label });
 
   return (

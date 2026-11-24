@@ -45,8 +45,8 @@ import { namePasteHandler } from '../contracts/site-name.js';
  */
 import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, cardOpenProps, closeMenuThen, duplicateDisplayNames, type SiteListController } from '@jini-ai/ui/site-card';
 import { useDeleteConfirmation } from './App.hooks.js';
-import { useDismissibleDropdown } from './use-dropdown-menu.hooks.js';
-import { useSiteListPrefs } from './use-site-list-prefs.hooks.js';
+import { useDismissibleDropdown } from '@jini-ai/ui/browser';
+import { useWiredSiteListPrefs } from './use-site-list-prefs.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
@@ -90,7 +90,7 @@ export function SiteGrid({
   usePower = useSitePower,
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
-  useListPrefs = useSiteListPrefs, useSiteListViewHook = useSiteListView,
+  useListPrefs = useWiredSiteListPrefs, useSiteListViewHook = useSiteListView,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -116,7 +116,7 @@ export function SiteGrid({
    *  the same reason as the others, so a test can render a card with a capture. */
   usePreview?: typeof useSitePreview;
   /** This window's sort, pins and hidden sites. Injectable for the same reason as the others. */
-  useListPrefs?: typeof useSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
+  useListPrefs?: typeof useWiredSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState({ onDelete });
@@ -137,7 +137,7 @@ export function SiteGrid({
   return (
     <>
       <SiteListToolbar list={list} copy={siteListCopy(list)} />
-      {list.visible.length === 0 && <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p>}
+      <AllHiddenNotice visibleCount={list.visible.length} />
       <div className="grid">
       {list.visible.map(({ project }) => (
         <SiteCard
@@ -145,7 +145,7 @@ export function SiteGrid({
           project={project}
           list={list}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={cardOverlay({ id: project.id, pendingDeleteId: pendingId, renamingId: rename.renamingId }, { confirmingStopId: power.confirmingStopId ?? null })}
+          overlay={overlayForCard({ id: project.id, pendingId, renamingId: rename.renamingId, confirmingStopId: power.confirmingStopId })}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -162,6 +162,17 @@ export function SiteGrid({
       </div>
     </>
   );
+}
+
+/** Which overlay a card shows; an absent stop-confirmation id reads as "none confirming". @complexity O(1). */
+function overlayForCard({ id, pendingId, renamingId, confirmingStopId }: { id: string; pendingId: string | null; renamingId: string | null; confirmingStopId: string | null | undefined }): CardOverlayMode {
+  return cardOverlay({ id, pendingDeleteId: pendingId, renamingId }, { confirmingStopId: confirmingStopId ?? null });
+}
+
+/** The empty-list hint, shown only when every website is hidden. @complexity O(1). */
+function AllHiddenNotice({ visibleCount }: { visibleCount: number }) {
+  if (visibleCount !== 0) return null;
+  return <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p>;
 }
 
 /** Every word on the list's toolbar. @complexity O(1). */

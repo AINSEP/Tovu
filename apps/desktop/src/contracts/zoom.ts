@@ -11,7 +11,7 @@
  * all. {@link ZOOM_COMMAND_CHANNEL} is the one channel this feature needs — the menu accelerator
  * pushing a direction to whichever renderer has focus.
  *
- * A menu accelerator, not a `keydown` listener, for the same reason `find-menu.ts` is one: it is the
+ * A menu accelerator, not a `keydown` listener, for the same reason the Find menu (`main/boot/boot-sequence.ts`) is one: it is the
  * one key binding that still fires while focus is inside a project tab's `<webview>` guest.
  */
 

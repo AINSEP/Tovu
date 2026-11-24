@@ -30,7 +30,7 @@ import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import type { RetireTarget } from "#src/features/publish-content/type-registry";
+import type { RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";

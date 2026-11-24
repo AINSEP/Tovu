@@ -22,10 +22,10 @@ import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gat
 import { domainPublishTool } from '../domain-publish-tool.js';
 import { InMemoryPublishHistoryStore } from '../publish-history.js';
 import { getPublishJobSnapshot, getPublishRunSnapshot, startPublishRun } from '../publish-run.js';
-import type { PublishCredentialSource } from '../types.js';
+import type { PublishCredentialSource } from '@jini-ai/devops/deploy/site/static-publish/types';
 import type { StaticPublishInput } from '../adapter.js';
 import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
-import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '../../deploy-targets/types.js';
+import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */

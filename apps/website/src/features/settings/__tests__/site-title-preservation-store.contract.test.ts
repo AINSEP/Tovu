@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlSiteTitlePreservationStore } from "../site-title-preservation.js";
-import { InMemorySiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "../site-title.js";
+import { InMemorySiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 
 /**
  * @file SPEC-050 (NC-3 = A): both `SiteTitlePreservationStorePort` adapters honour one contract, the

@@ -7,13 +7,13 @@ import {
   isBackstopEntityType,
   isPublishTrustRoute,
   type PublishingCapability,
-} from "#src/features/publish-trust/grant";
-import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
-import { admitPublish, type RevocationRead } from "#src/features/publish-trust/revocations";
-import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
+} from "@jini-ai/cms/publish/trust/grant";
+import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
+import { admitPublish, type RevocationRead } from "@jini-ai/cms/publish/trust/revocations";
+import { publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
-import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**
@@ -383,7 +383,13 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
  * @complexity O(1) — one object spread.
  */
 export function withPublishTrustAuthorize({ res, deps }: { res: Response; deps: GatewayDeps }, _optional: Record<string, never> = {}): GatewayDeps {
-  const context = getPublishTrustContext(res);
+  return withGrantAuthorize({ grant: getPublishTrustContext(res), deps });
+}
+
+/** {@link withPublishTrustAuthorize} for a caller that already holds the request's grant (a Jini
+ *  route spec's host binding reads it through `adminPublishTrustFor`, never `res`).
+ *  @complexity O(1) — one object spread. */
+export function withGrantAuthorize({ grant: context, deps }: { grant: PublishTrustContext | null; deps: GatewayDeps }, _optional: Record<string, never> = {}): GatewayDeps {
   if (!context) return deps;
   return { ...deps, authorize: publishTrustAuthorizeFor(context) };
 }
@@ -430,7 +436,15 @@ export function withPublishTrustContentAuthorize<
   TAuthorize extends (params: never) => Promise<{ allowed: boolean; reason: string }>,
   T extends { authorize?: TAuthorize },
 >({ res, deps, typePermissions }: { res: Response; deps: T; typePermissions: ReadonlyMap<string, readonly string[]> }, _optional = {}): T {
-  const context = getPublishTrustContext(res);
+  return withGrantContentAuthorize<TAuthorize, T>({ grant: getPublishTrustContext(res), deps, typePermissions });
+}
+
+/** {@link withPublishTrustContentAuthorize} for a caller that already holds the request's grant.
+ *  @complexity O(1) to build; each answer O(granted types). */
+export function withGrantContentAuthorize<
+  TAuthorize extends (params: never) => Promise<{ allowed: boolean; reason: string }>,
+  T extends { authorize?: TAuthorize },
+>({ grant: context, deps, typePermissions }: { grant: PublishTrustContext | null; deps: T; typePermissions: ReadonlyMap<string, readonly string[]> }, _optional = {}): T {
   if (!context) return deps;
 
   const granted = publishTrustAuthorizeFor(context);

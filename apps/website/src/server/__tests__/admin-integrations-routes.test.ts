@@ -5,16 +5,17 @@ import test from "node:test";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import express from "express";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/index.js";
-import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminIntegrationsCreateRoute } from "../inbound/admin-http/routes/integrations/create.js";
-import { registerAdminIntegrationsDeleteRoute } from "../inbound/admin-http/routes/integrations/delete.js";
-import { registerAdminIntegrationsDeliveriesRoute } from "../inbound/admin-http/routes/integrations/deliveries.js";
-import type { IntegrationsRouteDeps } from "../inbound/admin-http/routes/integrations/deps.js";
-import { registerAdminIntegrationsListRoute } from "../inbound/admin-http/routes/integrations/list.js";
-import { registerAdminIntegrationsPauseRoute } from "../inbound/admin-http/routes/integrations/pause.js";
+import { registerAdminIntegrationsCreateRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsDeleteRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsDeliveriesRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import type { IntegrationsRouteDeps } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsListRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsPauseRoute } from "#src/server/runtime/composition/modules/integrations-admin";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
@@ -97,7 +98,7 @@ type IntegrationsTestDeps = ReturnType<typeof createRouteDeps> & IntegrationsRou
 function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
   const deps: IntegrationsTestDeps = {
     ...createRouteDeps(),
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
   };
 
@@ -420,7 +421,7 @@ test("integrations routes: delete's `req.params.workspaceId ?? \"\"` fallback --
 test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback -- forced via a direct handler call with subscriptionId omitted -- falls through to deleteSubscription with id:\"\", which 404s with the not-found message for an empty id", async () => {
   const deps: IntegrationsRouteDeps = {
     ...createRouteDeps(),
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };

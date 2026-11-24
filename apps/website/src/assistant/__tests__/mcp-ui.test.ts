@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createUIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import { createUIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 import { buildUIToolResult } from "../mcp-ui.js";
 

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { UiKitProvider } from "@jini-ai/ui/react-kit";
 import { uiKit } from "@/integrations/jini-kits";
@@ -11,6 +11,8 @@ import { DEFAULT_PROVIDER_PRESETS, mediaProviderCatalogPolicy } from "@jini-ai/i
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
+import { render as renderWithFetchQuery } from "@/__tests__/fetch-query-render";
+import { Login } from "@/features/auth";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
@@ -283,9 +285,15 @@ describe("admin credential inputs", () => {
   });
 
   it("the login form keeps username + current-password", () => {
-    const login = findCredentialInputs("features/auth/Login.tsx", readFileSync(path.join(SRC, "features/auth/Login.tsx"), "utf8"));
-    expect(login.filter((f) => f.passwordType).map((f) => f.autoComplete)).toEqual(["current-password"]);
-    expect(readFileSync(path.join(SRC, "features/auth/Login.tsx"), "utf8")).toMatch(/autoComplete="username"/);
+    // The Login markup moved to `@jini-ai/admin/screens/auth/Login` (w3-users-sec), so it is no longer
+    // in this source scan: render the host-bound screen and read the attributes it actually emits.
+    const useLoginHook = () => ({ username: "", setUsername: vi.fn(), password: "", setPassword: vi.fn(), error: null, busy: false, submit: vi.fn() });
+    const { container } = renderWithFetchQuery(createElement(Login, { onLogin: vi.fn(), useAdminLocaleHook: () => "en", useLoginHook }));
+    // Only the sign-in form itself (the owner-recovery form beside it chooses a NEW password).
+    const form = container.querySelector('input[autocomplete="username"]')?.closest("form");
+    expect(form).toBeTruthy();
+    const passwords = [...form!.querySelectorAll<HTMLInputElement>('input[type="password"]')];
+    expect(passwords.map((input) => input.getAttribute("autocomplete"))).toEqual(["current-password"]);
   });
 
   it("the installed Jini reset-password fields use new-password, hidden and revealed", async () => {

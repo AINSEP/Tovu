@@ -5,7 +5,7 @@ import {
   type PublishTrustRevocationPort,
   type RevocationRead,
   type RevocationWrite,
-} from "#src/features/publish-trust/revocations";
+} from "@jini-ai/cms/publish/trust/revocations";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 
 /**

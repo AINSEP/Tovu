@@ -1,8 +1,17 @@
-import { render, screen, within } from '@testing-library/react';
+import { render as renderPlain, screen, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { AdminKitProvider } from '@jini-ai/admin/react/kit';
+import { adminKit } from '@/integrations/jini-kits';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
 import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
 import { t } from '../plugins-i18n';
+
+/** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
+ *  mounts once at its root; each render here mounts the app's own kit the same way. */
+function render(ui: ReactElement) {
+  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}>{children}</AdminKitProvider> });
+}
 
 it.each([
   ['connected', 'Signed in'], ['disconnected', 'Not signed in'], ['pending', 'Waiting for sign-in'], ['needs_reauth', 'Sign in again'],

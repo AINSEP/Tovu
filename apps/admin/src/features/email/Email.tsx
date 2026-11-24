@@ -1,4 +1,4 @@
-import { createEmailTabLabel } from "./Email.hooks";
+import { createEmailTabLabel } from "@jini-ai/admin/screens/email/Email.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -8,19 +8,20 @@ import type { ReactNode } from "react";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { t } from "./email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { EmailActivityTab } from "./EmailActivityTab";
 import { EmailOverviewTab } from "./EmailOverviewTab";
 import { Chip, Section, Segments, type Tone } from "./EmailParts";
 import { EmailProviderTab } from "./EmailProviderTab";
 import { EmailSenderTab, SenderDomain } from "./EmailSenderTab";
 import { EmailTemplatesTab } from "./EmailTemplatesTab";
-import { emailSummary, useWiredEmail, type EmailController, type EmailStatusView, type EmailSummary } from "./hooks/use-email.hooks";
-import { useWiredEmailActivity, type EmailActivityController } from "./hooks/use-email-activity.hooks";
-import { useWiredEmailOverview, type EmailOverviewController } from "./hooks/use-email-overview.hooks";
+import { emailSummary, type EmailController, type EmailStatusView, type EmailSummary } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
+import { useWiredEmail, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailSender, useWiredEmailTemplates } from "./email-hooks-host";
+import type { EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
+import type { EmailOverviewController } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
 import { useWiredEmailProvider, type EmailProviderController } from "./hooks/use-email-provider.hooks";
-import { useWiredEmailSender, type EmailSenderController } from "./hooks/use-email-sender.hooks";
-import { useWiredEmailTemplates, type EmailTemplatesController } from "./hooks/use-email-templates.hooks";
+import type { EmailSenderController } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
+import type { EmailTemplatesController } from "@jini-ai/admin/screens/email/hooks/use-email-templates.hooks";
 import { resolveActiveTabId } from '@jini-ai/core/text';
 // The segmented pill's look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
 import "../../styles/assistant.css";

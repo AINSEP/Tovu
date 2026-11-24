@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserUpdateRoute } from "../update.js";
+import { registerAdminUserUpdateRoute } from "#src/server/runtime/composition/modules/users";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createPolicy, createRole, createUser, login, validateSession } from "@jini-ai/user-management/server";
 

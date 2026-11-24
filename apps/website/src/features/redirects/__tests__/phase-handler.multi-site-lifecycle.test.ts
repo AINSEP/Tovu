@@ -9,7 +9,7 @@ import test, { type TestContext } from "node:test";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { registerResolvePhase, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -230,9 +230,10 @@ test("the disposer registerRedirectsPhaseHandlers returns revokes the live regis
   // Re-registering the same feature returns a disposer for the slot it now owns. A host that tears
   // a site down WITHOUT immediately composing the next one needs this: supersede-on-registration
   // alone would leave the last site's handler live until something else booted.
-  const { registerRedirectsPhaseHandlers } = await import("../phase-handler.js");
+  const { registerRedirectsPhaseHandlers } = await import("@jini-ai/cms/redirects/site/phase-handler");
   const { RedirectPhaseHandlerResolver } = await import("@jini-ai/cms/redirects");
   const dispose = registerRedirectsPhaseHandlers({
+    registerResolvePhase,
     resolver: new RedirectPhaseHandlerResolver({ reservedSegments: RESERVED_SEGMENTS,
       repo: site.deps.redirectRepo,
       matcher: site.deps.redirectsWriteDeps.matcher,

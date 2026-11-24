@@ -7,7 +7,7 @@ import { resolveSiteStorage } from '#src/platform/site-dir/site-storage';
 import { resolveWorkspace } from '#src/platform/site-dir/resolve-workspace';
 import { resolveInstallDirTarget } from '#src/platform/site-dir/resolve-install-dir-target';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
-import { applyOwnerPasswordReset } from '#src/features/identity/owner-reset-env';
+import { applyOwnerPasswordReset } from "@jini-ai/user-management/identity/owner-reset-env";
 import { identityServiceDepsFrom } from '#src/server/inbound/admin-http/routes/users/deps';
 import { createAppPermissionGrants } from './app-permission-grants.js';
 import { resolvePostgresConnectionString } from './storage-secret.js';

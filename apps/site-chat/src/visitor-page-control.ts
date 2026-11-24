@@ -2,7 +2,8 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ChatMessage } from '@jini-ai/chat/core';
 /** Thin Tovu host over Jini's shared frontend bridge and DOM driver. Both widgets use this. */
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
-import { createDomPageDriver, createDriverPagePort, type DomPageDriverPage } from '@jini-ai/agentic/dom';
+import { createDomPageDriver, createDriverPagePort } from '@jini-ai/agentic/dom';
+import type { DomPageDriverPage } from "@jini-ai/core/contracts/site/agentic-dom";
 import type { PagePublication } from '@jini-ai/agentic';
 import { createFrontendSessionBridge, openFetchFrontendStream, type FrontendSessionBridgeOptions } from '@jini-ai/chat/browser/frontend-session-bridge';
 import { allowsVisitorPath } from './visitor-site-path';

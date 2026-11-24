@@ -1,4 +1,5 @@
-import type { HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
+import type { HttpClientPort } from "../../platform/http/ports.js";
+import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
 
 /**
  * @file A recording, scriptable `HttpClientPort` test double for the delivery worker.

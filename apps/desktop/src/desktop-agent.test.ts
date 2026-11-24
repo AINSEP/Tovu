@@ -4,7 +4,8 @@
  * no CLI is spawned. The executor fake is handed exactly what Jini's executor would be, so the
  * per-run credential, the prompt augmenter and the failure path are exercised as production wires them.
  */
-import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -27,6 +28,9 @@ import {
   turnPrompt,
   type DesktopAgentRuntimeOptions,
 } from "./desktop-agent.ts";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 type ExecutorOptions = NonNullable<Parameters<typeof createAgentExecutor>[1]>;
 type RunRequired = { runId: string; agentId: string; prompt: string; cwd: string };

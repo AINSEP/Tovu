@@ -5,8 +5,9 @@ import test from "node:test";
 import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { MailerPort } from "#src/platform/mail/index";
-import type { MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
 
 /**
@@ -45,6 +46,7 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
     mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
     mailSenderIdentity: { resolve: async () => ({ email: "sender@example.com" }) }, mailPurposeGate: async () => true,
     formDefinitionRepo: { list: async () => [] },
+    listCustomCredentials, mailWebhookSecretLabels,
     mailActivity: {
       list: async () => [ROW],
       get: async ({ idempotencyKey }) => (idempotencyKey === ROW.idempotencyKey ? { record: ROW, feedback: [] } : null),

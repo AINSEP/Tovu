@@ -1,4 +1,4 @@
-import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 
 /**
  * @file SPEC-047 REQ-9 — the `pages.edit_html` permission, and the grant that makes it real.

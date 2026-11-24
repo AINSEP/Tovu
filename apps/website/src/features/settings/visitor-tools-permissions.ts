@@ -1,5 +1,5 @@
 import { registerPermission } from "@jini-ai/user-management";
-import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { VISITOR_TOOLS_PERMISSION } from "../../contracts/site-assistant/visitor-tools.js";
 
 /** Reconcile fresh and existing owner/admin policies through the existing additive boot owner.

@@ -5,7 +5,7 @@ import {
   getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit,
   type MailActivityDeps, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
 } from "@jini-ai/platform/mail";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "../permissions.js";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 
 /**
  * @file Security acceptance for the email activity read path, written against the code where it

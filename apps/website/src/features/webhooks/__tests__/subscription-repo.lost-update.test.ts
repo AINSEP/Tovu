@@ -4,7 +4,8 @@ import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { SqlWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/sql";
 import { webhookSubscriptionsOn } from "#src/platform/db/__tests__/webhook-adapters";
-import { InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 const record = { id: "sub", workspaceId: "ws", ownerPrincipalId: "owner", label: "Original",
   targetUrl: "https://example.com/hook", topics: ["post.created"], secretVersion: 1,
@@ -31,4 +32,4 @@ function cases(make: () => SqlWebhookSubscriptionRepo | InMemoryWebhookSubscript
 }
 
 describeEachDialect("webhook subscription lost update", { tables: ["webhook_subscriptions"], make: (kernel) => webhookSubscriptionsOn({ kernel }) }, (make) => cases(make));
-describe("webhook subscription lost update — memory", () => cases(() => new InMemoryWebhookSubscriptionRepo()));
+describe("webhook subscription lost update — memory", () => cases(() => new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite })));

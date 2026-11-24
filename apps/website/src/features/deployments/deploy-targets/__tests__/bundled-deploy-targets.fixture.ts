@@ -1,7 +1,7 @@
 import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 
 import { loadBundledDeployTargetRegistry } from "../registry.js";
-import type { DeployTargetRegistry } from "../types.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 
 /**
  * @file Test fixture: the deploy registry read straight from every bundled plugin's source

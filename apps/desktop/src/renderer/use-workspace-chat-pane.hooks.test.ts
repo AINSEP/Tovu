@@ -167,6 +167,8 @@ test('WorkspaceChatPane uses no raw React primitives: all of its state comes fro
   const rest = app.slice(start + 1);
   const end = rest.indexOf('\nfunction ');
   const body = end === -1 ? rest : rest.slice(0, end);
-  assert.match(body, /\} = useWorkspaceChatPane\(\{\}, ports\);/);
+  // The hook is an injectable prop now (hook-injection rule) whose default is the real hook.
+  assert.match(body, /useWorkspaceChatPaneHook = useWorkspaceChatPane\b/);
+  assert.match(body, /\} = useWorkspaceChatPaneHook\(\{\}, ports\);/);
   assert.doesNotMatch(body, /\buse(State|Ref|Callback|Effect|Memo)\b/, 'raw React primitives are back in the component');
 });

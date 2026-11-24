@@ -7,13 +7,8 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import {
-  t as defaultT,
-  publishLoadErrorMessage,
-  publishPollErrorMessage,
-  publishPreviewErrorMessage,
-  publishTriggerErrorMessage,
-} from "../deployment-i18n";
+import { t as defaultT } from "../deployment-host-i18n";
+import { publishLoadErrorMessage, publishPollErrorMessage, publishPreviewErrorMessage, publishTriggerErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 
 import {
   buildStaticPublishConfig,

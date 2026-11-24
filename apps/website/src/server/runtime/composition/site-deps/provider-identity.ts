@@ -1,5 +1,6 @@
 import { localOwnerStoreEnabled, openProjectStore, type ProjectStore, type ProjectVaultScope } from "../project-store.js";
-import { withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
+import { withAttachedProject, withUnavailableProject } from "../provider-config-source.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { bootProviderPlugins, type SiteIdentity } from "../provider-plugins.js";
 import type { SiteKeyReferences } from "#src/features/project-keys/site-references";

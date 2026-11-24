@@ -1,10 +1,7 @@
 import type { ComposerDiscoveryOutcome, ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
-import {
-  resolveTovuComposerDiscoveryRoute,
-  type ComposerCapabilityProjection,
-  type ComposerHostBinding,
-} from "@/features/plugins/composer-capabilities";
+import { resolveTovuComposerDiscoveryRoute } from "@/features/plugins/composer-capabilities";
+import type { ComposerCapabilityProjection, ComposerHostBinding } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
 import { loadSkillDraft } from "@/features/skills/api";
 

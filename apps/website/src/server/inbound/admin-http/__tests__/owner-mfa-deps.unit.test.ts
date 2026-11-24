@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ownerMfaDepsFrom } from '../owner-mfa-deps.js';
+import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 
 const scope = { workspaceId: 'site', principalId: 'owner' };
 const envelope = { keyId: 'fixture-key', alg: 'aes-256-gcm', nonce: 'fixture-nonce', ciphertext: 'fixture-ciphertext' };

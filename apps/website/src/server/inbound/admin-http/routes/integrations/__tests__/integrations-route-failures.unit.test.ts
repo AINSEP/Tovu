@@ -2,11 +2,11 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { registerAdminIntegrationsDeliveriesRoute } from '../deliveries.js';
-import { registerAdminIntegrationsListRoute } from '../list.js';
+import { registerAdminIntegrationsDeliveriesRoute } from '#src/server/runtime/composition/modules/integrations-admin';
+import { registerAdminIntegrationsListRoute } from '#src/server/runtime/composition/modules/integrations-admin';
 import { WS, BASE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminIntegrationsDeleteRoute } from '../delete.js';
-import { registerAdminIntegrationsPauseRoute } from '../pause.js';
+import { registerAdminIntegrationsDeleteRoute } from '#src/server/runtime/composition/modules/integrations-admin';
+import { registerAdminIntegrationsPauseRoute } from '#src/server/runtime/composition/modules/integrations-admin';
 
 const routes: RouteFailureCase[] = [
   { name: 'integrations deliveries', register: registerAdminIntegrationsDeliveriesRoute, method: 'GET', path: `${BASE}/integrations/subscriptions/sub/deliveries` , failure: {"message":"The integrations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load integrations"} },

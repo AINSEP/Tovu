@@ -4,7 +4,9 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { addressHeldByOther, addressHeldInTrash, changedSincePlan, notWired, trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, PublishContentReference, MediaSourceReplacement } from "./type-registry.js";
+import type { PublishContentContributor, PublishContentDeps } from "./type-registry.js";
+import type { PublishContentHandler, PublishContentReference, MediaSourceReplacement } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Slice F1 of `ADS-memory/.local-artifacts/plan-publish-all-types-2026-09-25.md` (§2): the

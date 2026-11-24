@@ -1,14 +1,19 @@
 /** @file Composition-only bindings for site consent administration and public delivery. */
 import path from 'node:path';
 import { getEffective, set } from '@jini-ai/core/settings';
-import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-defaults';
-import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
-import { resolveSiteTitle } from '#src/features/settings/site-title';
+import { ensureSitePrivacyDefaults } from '@jini-ai/cookie-consent/site/ensure-privacy-defaults';
+import { createPost } from '#src/features/post/index';
+import { consentServiceHostPorts } from '#src/features/consent/host-bindings';
+import { SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
+import { resolveSiteTitle } from '@jini-ai/cms/settings/site/site-title';
+import { siteTitleHostBindings } from '#src/features/settings/site-title-legacy';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
-import { createSiteConsentService } from '#src/features/consent/service';
-import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
-import { fetchPublishedPage } from '#src/features/site-inspection/published-page';
-import { resolveSitePath } from '#src/features/site-inspection/site-path-policy';
+import { fetchPublishedPage } from '@jini-ai/diagnostics/web-evidence/published-page';
+import { trackFetch } from '@jini-ai/diagnostics/observability';
+import { resolveSitePath } from '@jini-ai/diagnostics/web-evidence/site-path-policy';
+import { RESERVED_SEGMENTS } from '#src/platform/routing/index';
+import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '@jini-ai/cookie-consent/site/settings';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
@@ -31,7 +36,7 @@ export function bindSiteConsentService({ deps }: { deps: RouteDeps }, _options =
  * @complexity O(1) setup. */
 export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): Parameters<typeof createSiteConsentService>[0]["ports"] {
   return {
-    workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
+    ...consentServiceHostPorts, workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
     published: async () => { await deps.cookieConsent?.refresh?.(); },
@@ -54,8 +59,8 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       catch (error) { console.error('[consent] receipt storage check failed'); throw error; }
     },
     renderPage: async ({ path }) => {
-      const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1' });
-      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
+      const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
+      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability, reservedSegments: RESERVED_SEGMENTS, trackFetch }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };
@@ -66,7 +71,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
 async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string }): Promise<{ slot: boolean | null; problems: ConsentProblem[] }> {
   const unavailable = () => ({ slot: false, problems: [{ code: 'PUBLISHED_ENTRY_UNAVAILABLE', message: 'The published entry for this page could not be verified. Runtime loading eligibility is unavailable.' }] });
   if (!deps.postRepo) return unavailable();
-  const local = resolveSitePath({ raw: path, base: 'http://127.0.0.1' });
+  const local = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
   const pathname = new URL(local, 'http://127.0.0.1').pathname;
   const slug = pathname === '/' ? '/' : decodeURIComponent(pathname.slice(1).replace(/\/$/, ''));
   let post;
@@ -88,7 +93,8 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
   const deps = await pendingDeps;
   return ensureSitePrivacyDefaults({
     workspaceId: deps.workspaceId, ids: deps.idGen,
-    post: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo },
+    post: { repo: deps.postRepo },
+    createPost: ({ input }) => createPost({ deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo }, input }),
     pagesHtmlStore: deps.pagesHtmlStore,
     readUrl: async () => {
       const value = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: SITE_CONSENT_NAMESPACE,
@@ -107,7 +113,7 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
       const principalId = await deps.ownerPrincipalId;
       const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
       const siteTitle = await resolveSiteTitle({ settingsRepo: deps.settingsRepo, preservationStore: deps.siteTitlePreservationStore,
-        workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName }, { workspaceId: deps.workspaceId });
+        workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName, ...siteTitleHostBindings }, { workspaceId: deps.workspaceId });
       return { principalId, siteTitle, email: owner?.email };
     },
   });

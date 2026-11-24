@@ -1,6 +1,7 @@
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import type { UIResource } from '@jini-ai/protocol/mcp-ui';
-import { requireHumanConfirm, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
+import { requireHumanConfirm } from '../../contracts/core/human-confirm.js';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 /** Render through the actual host transport, with deterministic IDs/time and a cancelling human.
  * Tests assert emitted markup/actions; no production resource builder is copied into fixtures. */

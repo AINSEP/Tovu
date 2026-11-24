@@ -11,11 +11,11 @@ import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
-import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { buildCredentialSaveRegistrations, type CredentialSaveAdapters } from "#src/features/custom-credentials/credential-save-tool";
+import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
+import { parsePluginCredentialCards, type CredentialSaveAdapters } from "@jini-ai/agent-plugins/connect";
+import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
 import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
 import { buildProviderStatusRegistrations } from "#src/features/plugin-runtime/provider-status-tool";
 

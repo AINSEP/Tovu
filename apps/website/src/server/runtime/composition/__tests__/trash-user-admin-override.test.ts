@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { assignRole, createUser, NodeSessionTokens, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { assignRole, createUser, NodeSessionTokens } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { POST_ENTITY_TYPE, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";

@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { buildZipFixture } from "../../../agent-plugins/__tests__/fixtures/build-zip.js";
-import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "../../install-service.js";
-import { loadInstalledSkillToolSources } from "../../tool-registrations.js";
+import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "@jini-ai/agentic/skills/site/install-service";
+import { loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 
 const MD = "---\nname: incident-response\ndescription: Respond to outages.\n---\nAlways check ownership.\n";
 const file = (name: string, content: string) => ({ path: name, contentBase64: Buffer.from(content).toString("base64") });

@@ -1,7 +1,7 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "#src/features/seo/index";
+import { createSeoDeps, seoSettingsHostBindings } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,7 +12,7 @@ import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import type { MediaRecord } from "#src/features/media/index";
 import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
-import { setSeoSettings } from "#src/features/seo/settings";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -106,7 +106,7 @@ test("get-entry: valid entry returns effective SEO meta (200)", async (t) => {
     kind: "post", status: "published", bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null,
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
   }] });
-  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+  await setSeoSettings({ ...seoSettingsHostBindings, settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "Canary description" } });
   const originRegistry = { isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry), isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry), canonicalOrigin: async () => ({ scheme: "https", host: "seo.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };

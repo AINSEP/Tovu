@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createDomainBindingStore, type DomainBinding } from "../binding.repo.js";
+import { createDomainBindingStore, type DomainBinding } from "@jini-ai/devops/dns/site/binding.repo";
 import { mailRequirement, siteRequirement } from "./dns-fakes.js";
 
 /**
@@ -23,8 +23,8 @@ for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], ma
     const kernel = adapter.make();
     try {
       await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('w', 'W', 'w', ${AT}), ('w2', 'W2', 'w2', ${AT})`);
-      const store = createDomainBindingStore({ kernel, workspaceId: "w" });
-      const other = createDomainBindingStore({ kernel, workspaceId: "w2" });
+      const store = createDomainBindingStore({ kernel, sql, workspaceId: "w" });
+      const other = createDomainBindingStore({ kernel, sql, workspaceId: "w2" });
       assert.equal(await store.get({ hostname: "www.example.com" }), null);
 
       assert.equal(await store.put({ binding: binding(), now: AT, expectedVersion: null }), true);

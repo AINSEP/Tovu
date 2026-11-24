@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import type { MailerFeedbackEvent, OutboundEmail } from "@jini-ai/platform/mail";
+import type { MailerFeedbackEvent, OutboundEmail } from "@jini-ai/core/contracts/mail";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {
   createMailCaptureRepo, createMailFeedbackInboxRepo, createMailSendLedgerRepo, createMailSuppressionRepo, MAX_CAPTURE_LIST,
-} from "../index.js";
+} from "@jini-ai/platform/mail/sql";
 
 /**
  * @file The four mail repos (migration 0023) on SQLite and PGlite through one body: the ledger's

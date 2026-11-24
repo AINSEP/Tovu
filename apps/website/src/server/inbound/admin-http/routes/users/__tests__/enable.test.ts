@@ -11,12 +11,12 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserEnableRoute } from "../enable.js";
+import { registerAdminUserEnableRoute } from "#src/server/runtime/composition/modules/users";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createPolicy, createRole, createUser } from "@jini-ai/user-management/server";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { UserInTrashError } from "#src/features/identity/delete-user-service";
+import { UserInTrashError } from "@jini-ai/user-management/identity/delete-user-service";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId/enable`;

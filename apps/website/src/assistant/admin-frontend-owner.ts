@@ -1,5 +1,5 @@
 import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
-import type { FrontendHookInput } from '@jini-ai/daemon/http';
+import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 import { readRequestFacts } from '@jini-ai/core/contracts/site/request-facts';
 import { RUN_PRINCIPAL_HEADER } from './daemon-access.js';
 

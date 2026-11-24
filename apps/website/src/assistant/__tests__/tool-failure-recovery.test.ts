@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { Principal, RunRef, SurfaceEmitter, ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { issueCredentialSetup, issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";

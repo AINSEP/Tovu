@@ -8,7 +8,7 @@ import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/fe
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest } from "#src/platform/http/index";
-import type { MailerSendOptions } from "#src/platform/mail/index";
+import type { MailerSendOptions } from "@jini-ai/platform/mail";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
 import { readMailDomain, isDomainReadPermissionRefused, credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
 import { createTtlCache, MAIL_STATUS_TTL_MS } from "@jini-ai/platform/mail";

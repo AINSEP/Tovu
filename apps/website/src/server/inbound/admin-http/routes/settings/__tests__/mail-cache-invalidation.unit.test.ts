@@ -5,7 +5,7 @@ import express from "express";
 import { ensureSettingDefinitions, InMemorySettingsRepo, SCOPE_BIT } from "@jini-ai/core/settings";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createTtlCache } from "@jini-ai/platform/mail";
-import { readMailProviderSetting, ensureMailProviderSettings } from "#src/features/settings/mail-provider";
+import { readMailProviderSetting, ensureMailProviderSettings } from "@jini-ai/cms/settings/site/mail-provider";
 import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";

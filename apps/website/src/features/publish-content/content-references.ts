@@ -2,7 +2,7 @@ import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/marker
 import { extractEntryRefs } from "@jini-ai/cms/widgets";
 
 import { collectMediaConfigKeys, collectReferencedMediaKeys } from "@jini-ai/cms/publish/content/media-references";
-import type { PublishContentReference } from "./type-registry.js";
+import type { PublishContentReference } from "@jini-ai/cms/publish/content/type-registry";
 
 /**
  * @file What a packed body-bearing state (post, page, collection entry) uses, for plan G3's scoped

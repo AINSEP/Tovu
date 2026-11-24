@@ -14,17 +14,18 @@ import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../configuration/seed
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { SITE_BACKUP_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
-import { createMailCaptureRepo } from "#src/features/mail/index";
-import { createMailSendLedgerRepo } from "#src/features/mail/index";
-import { createMailSuppressionRepo } from "#src/features/mail/index";
+import { createMailAttemptObserver } from "@jini-ai/platform/mail/sql";
+import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSendLedgerRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSuppressionRepo } from "@jini-ai/platform/mail/sql";
 import { createPluginAccountTokenResolver } from "../../boot/mail-plugin-account-token.js";
 import { createSiteMailer } from "../site-mailer.js";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import { formsMailOutboxReady } from "@jini-ai/cms/forms/site/mail-outbox-readiness";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
-import { readMailSenderSetting } from "#src/features/settings/index";
+import { readMailSenderSetting } from "@jini-ai/cms/settings/site/mail-sender";
+import { getEffective } from "@jini-ai/core/settings";
 import { resolvePublishContentPeerHttpClient } from "../publish-content-http.js";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 
@@ -73,8 +74,8 @@ export function composeMailHttp(required: ComposeMailHttpRequired, _optional = {
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
     delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
-    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
-    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
+    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId, getEffective })).email,
+    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId, getEffective }),
   }, { durableOutboxReady: required => mailDurableOutboxReady(required),
     setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle, notifyRosterChanged: notifyExternalMcpRosterChanged }) });
   // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.

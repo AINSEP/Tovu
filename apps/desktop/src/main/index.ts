@@ -105,7 +105,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  */
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, type MenuItemConstructorOptions, type WebContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import electronUpdater from "electron-updater";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
@@ -114,7 +114,7 @@ import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
 import { initializeStartupSecrets } from '../../../website/src/platform/secrets/startup-secrets.ts';
 import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
-import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
+import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain-host.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
@@ -122,11 +122,9 @@ import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
 import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
-import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow } from "../site-child-registry.ts";
+import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow, agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
-import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
-import { createChildEntries } from "@jini-ai/sidecar/supervisor";
-import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
+import { createKeyedSerializer, createChildEntries, createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
@@ -134,7 +132,8 @@ import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWi
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "@jini-ai/desktop-host/electron/navigation-policy";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
-import { registerSpeechIpc } from "../speech/speech-ipc.ts";
+import { registerNativeSpeechIpc } from "@jini-ai/desktop-host/shell/speech/speech-ipc";
+import { SPEECH_HOST } from "../speech/speech-host-config.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
 import { registerHandoffForwarding } from "@jini-ai/desktop-host/electron/handoff";
 import { IMPORT_HANDOFF_CHANNELS, IMPORT_HANDOFF_SENDER_REFUSED, importHandoffRequest } from "../contracts/import-handoff.ts";
@@ -147,7 +146,8 @@ import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
+import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
+import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
 import { writeSiteName } from "../site-config.ts";
@@ -174,7 +174,6 @@ import { createLivePreviewGuests, isLivePreviewGuestAllowed } from "./boot/site-
 import { presenceDirPath } from "@jini-ai/desktop-host/shell/instance-presence";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
-import type { MenuItemConstructorOptions, WebContents } from "electron";
 import type { SelftestTracker } from "@jini-ai/desktop-host/electron/selftest";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
@@ -187,16 +186,16 @@ import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-nav
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
-import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice, type DesktopNotice } from "./updates/native-notices.ts";
+import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
-import { agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
-import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { createSiteDiscoveryLanes } from "@jini-ai/desktop-host/node-toolchain";
 import { appWideMenuTemplate, openSingleWindow, runDesktopBoot, runSitesHomeBoot, type SingleWindowPorts } from "./boot/boot-sequence.ts";
 
 /** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
@@ -239,7 +238,7 @@ interface SiteOpenOptions {
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cts`'s and
- *  `speech-ipc.ts`'s own headers for the wiring gap this closes (both were built and tested with
+ *  `@jini-ai/desktop-host/shell/speech/speech-ipc`'s own headers for the wiring gap this closes (both were built and tested with
  *  neither this path nor {@link registerSpeechIpc} ever called from here).
  *
  *  The COMPILED file, not `src/speech/preload-speech.cts` itself: Electron's sandboxed preload loader
@@ -773,7 +772,7 @@ function currentUpdaterSkipReason(): string | null {
 
 /**
  * Settings › Check for updates…, from any open copy: the check runs in this process, through the
- * native updater the controller listens to — see `update-check-now.ts`.
+ * native updater the controller listens to — Jini's `createUpdateCheckNow`, with copy from `update-check-now.ts`.
  */
 const updateCheck = createUpdateCheckNow({
   isPackaged: app.isPackaged,
@@ -785,6 +784,7 @@ const updateCheck = createUpdateCheckNow({
   showReadyPrompt: desktopUpdater.showReadyPrompt,
   notify: showDesktopNotice,
   log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
+  copy: updateCheckCopy, describeErrorForLog: describeUpdateErrorForLog, describeErrorMessage: updateErrorMessage,
 });
 
 /** One native message box: the update check's notices and the legacy shared-key import notice. */
@@ -836,7 +836,7 @@ function registerAppWideIpc(): void {
   // call (fired from the preload the instant the page mounts) never races an unregistered
   // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
   // needed for `window.tovuVoice` to exist at all.
-  registerSpeechIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }) });
+  registerNativeSpeechIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), host: SPEECH_HOST });
   // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
   // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
   // harmless to register even for a boot mode whose window never calls it (no preload exposes
@@ -1038,7 +1038,7 @@ function bootSitesHomeMode(): void {
       controller: ownerStore,
     }),
     settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
-    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
+    registerUpdateCheckIpc: () => registerHostUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
     registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
     registerGuestNavigationPolicy,
     installMenu: installAppWideMenu,

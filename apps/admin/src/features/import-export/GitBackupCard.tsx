@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import type { GitBackupController } from "./hooks/use-git-backup.hooks";
+import type { GitBackupController } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
 /**

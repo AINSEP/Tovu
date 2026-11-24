@@ -2,9 +2,9 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { Observability } from "../Observability";
-import type { ObservabilityStatusController } from "../hooks/use-observability-status.hooks";
-import type { AdminObservabilityStatus } from "@/features/observability/api/observability-api.types";
+import { Observability } from "..";
+import type { ObservabilityStatusController } from "@jini-ai/admin/screens/observability/hooks/use-observability-status.hooks";
+import type { AdminObservabilityStatus } from "@jini-ai/admin/screens/observability/api/observability-api.types";
 
 /**
  * @file `Observability` driven entirely through the `useObservabilityStatusHook` DI seam — no
@@ -119,16 +119,16 @@ describe("Observability — Overview tab", () => {
 
   it("marks the status card with an --on modifier when enabled and --off when disabled", () => {
     const { container, unmount } = renderObservability({ status: { enabled: true, serviceName: "tovu" } });
-    expect(container.querySelector(".observability-status-card--on")).not.toBeNull();
-    expect(container.querySelector(".observability-status-card--off")).toBeNull();
-    expect(screen.getByRole("status")).toHaveClass("observability-status-card--on");
+    expect(container.querySelector(".jini-observability-status-card--on")).not.toBeNull();
+    expect(container.querySelector(".jini-observability-status-card--off")).toBeNull();
+    expect(screen.getByRole("status")).toHaveClass("jini-observability-status-card--on");
     expect(screen.getByRole("status")).toHaveTextContent("OpenTelemetry is ON — traces are being recorded.");
     unmount();
 
     const off = renderObservability({ status: { enabled: false, serviceName: null } });
-    expect(off.container.querySelector(".observability-status-card--off")).not.toBeNull();
-    expect(off.container.querySelector(".observability-status-card--on")).toBeNull();
-    expect(screen.getByRole("status")).toHaveClass("observability-status-card--off");
+    expect(off.container.querySelector(".jini-observability-status-card--off")).not.toBeNull();
+    expect(off.container.querySelector(".jini-observability-status-card--on")).toBeNull();
+    expect(screen.getByRole("status")).toHaveClass("jini-observability-status-card--off");
     expect(screen.getByRole("status")).toHaveTextContent("OpenTelemetry is OFF (the default) — nothing is being recorded.");
   });
 
@@ -142,14 +142,14 @@ describe("Observability — Overview tab", () => {
 
   it("renders no status card and no loading copy while only an error is present", () => {
     const { container } = renderObservability({ status: null, error: "boom" });
-    expect(container.querySelector(".observability-status-card")).toBeNull();
+    expect(container.querySelector(".jini-observability-status-card")).toBeNull();
     expect(screen.queryByText("Checking current status…")).not.toBeInTheDocument();
   });
 
   it("shows both the alert and the status card, and no loading copy, when an error and a status coexist", () => {
     const { container } = renderObservability({ status: { enabled: false, serviceName: null }, error: "stale" });
     expect(screen.getByRole("alert")).toHaveTextContent("stale");
-    expect(container.querySelector(".observability-status-card--off")).not.toBeNull();
+    expect(container.querySelector(".jini-observability-status-card--off")).not.toBeNull();
     expect(screen.queryByText("Checking current status…")).not.toBeInTheDocument();
   });
 });

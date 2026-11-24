@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { VaultContext, VaultMeta, VaultRecord } from "@jini-ai/core/contracts/vault";
-import type { SealedSecret } from "../features/webhooks/index.js";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { assistantVaultId, type AssistantVaultRepo } from "./assistant-vault.js";
 
 /** The feature-owned columns a compatibility row write supplies; everything else comes from the stored singleton. */

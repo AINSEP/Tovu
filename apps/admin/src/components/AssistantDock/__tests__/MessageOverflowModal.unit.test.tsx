@@ -3,7 +3,10 @@ import { render } from "@/__tests__/chat-surfaces-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { MessageOverflowModal } from "../MessageOverflowModal";
+import { MessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal";
+import { useMessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
+import { useT } from "@jini-ai/chat/react";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { MessageOverflowModalController } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 
 /**
@@ -20,32 +23,32 @@ import type { MessageOverflowModalController } from "@jini-ai/admin/shell/compon
 
 describe("open/closed state", () => {
   it("has no open attribute when open is false", () => {
-    render(<MessageOverflowModal open={false} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={false} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     expect(dialog.hasAttribute("open")).toBe(false);
   });
 
   it("has the open attribute when open is true", () => {
-    render(<MessageOverflowModal open={true} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
   });
 
   it("uses the given title as the dialog's accessible name", () => {
-    render(<MessageOverflowModal open={true} title="Query result" onClose={vi.fn()}>content</MessageOverflowModal>);
-    expect(document.querySelector("dialog.message-overflow-modal")).toHaveAttribute("aria-label", "Query result");
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Query result" onClose={vi.fn()}>content</MessageOverflowModal>);
+    expect(document.querySelector("dialog.jini-message-overflow-modal")).toHaveAttribute("aria-label", "Query result");
   });
 });
 
 describe("agentHandle", () => {
   it("omits data-agent-element on the close button when agentHandle is not passed", () => {
-    render(<MessageOverflowModal open={true} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
     expect(screen.getByRole("button", { name: "Close" })).not.toHaveAttribute("data-agent-element");
   });
 
   it("publishes the close button as agent-addressable when agentHandle is passed", () => {
     render(
-      <MessageOverflowModal open={true} title="Full view" onClose={vi.fn()} agentHandle="overflow-modal-close">
+      <MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()} agentHandle={{ handle: "overflow-modal-close", agentHandle }}>
         content
       </MessageOverflowModal>,
     );
@@ -56,7 +59,7 @@ describe("agentHandle", () => {
 describe("content", () => {
   it("renders the given children", () => {
     render(
-      <MessageOverflowModal open={true} title="Full view" onClose={vi.fn()}>
+      <MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()}>
         <p>the whole table</p>
       </MessageOverflowModal>,
     );
@@ -68,15 +71,15 @@ describe("closing", () => {
   it("calls onClose when the close button is clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<MessageOverflowModal open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("calls onClose when the backdrop (the dialog element itself, not a child) is clicked", () => {
     const onClose = vi.fn();
-    render(<MessageOverflowModal open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -84,7 +87,7 @@ describe("closing", () => {
   it("does not call onClose when a click lands on a child (the content), not the dialog's own backdrop area", () => {
     const onClose = vi.fn();
     render(
-      <MessageOverflowModal open={true} title="Full view" onClose={onClose}>
+      <MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={onClose}>
         <p>the whole table</p>
       </MessageOverflowModal>,
     );
@@ -94,8 +97,8 @@ describe("closing", () => {
 
   it("calls onClose on the dialog's native cancel event (Escape) and prevents the browser's own close", () => {
     const onClose = vi.fn();
-    render(<MessageOverflowModal open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
-    const dialog = document.querySelector("dialog.message-overflow-modal")!;
+    render(<MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={onClose}>content</MessageOverflowModal>);
+    const dialog = document.querySelector("dialog.jini-message-overflow-modal")!;
     const cancelEvent = new Event("cancel", { cancelable: true });
     fireEvent(dialog, cancelEvent);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -117,7 +120,7 @@ describe("MessageOverflowModal modal-hook injection", () => {
     }
 
     render(
-      <MessageOverflowModal open={true} title="Full view" onClose={vi.fn()} useModal={useFakeMessageOverflowModal}>
+      <MessageOverflowModal useTHook={useT} open={true} title="Full view" onClose={vi.fn()} useModal={useFakeMessageOverflowModal}>
         <p>the whole table</p>
       </MessageOverflowModal>,
     );

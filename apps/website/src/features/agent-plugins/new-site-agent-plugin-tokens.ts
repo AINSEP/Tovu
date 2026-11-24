@@ -2,16 +2,16 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { parsePluginTokenMap, type TokenMapLimits } from "@jini-ai/agent-plugins/connect";
+import { parsePluginTokenMap, type TokenCheckOutcome, type TokenMapLimits, type TokenSignInPlugin, type ResolvedAgentPluginForConnect } from "@jini-ai/agent-plugins/connect";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginPathsPort } from "./service-ports.js";
 
 import { readInstalledMcpServers } from "./capability-projection.js";
-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import type { InstalledAgentPluginServers } from "./import-access-token.js";
+import { titleCaseFromPluginId } from "./connect-tool.js";
+import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./lifecycle.js";
-import { listTokenSignInPlugins, type TokenCheckOutcome, type TokenSignInPlugin } from "./token-sign-in.js";
+import { listTokenSignInPlugins } from "./token-sign-in.js";
 
 /**
  * @file The rules for access tokens given while CREATING a site, shared by every create path: the

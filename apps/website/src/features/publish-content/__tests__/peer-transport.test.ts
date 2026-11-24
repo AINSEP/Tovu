@@ -16,7 +16,7 @@ import {
   type PublishHistoryRecorder,
 } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
-import type { PackedEntity } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

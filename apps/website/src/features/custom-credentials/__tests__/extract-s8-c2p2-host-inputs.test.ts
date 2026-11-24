@@ -14,7 +14,8 @@ import { askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } fro
 import { buildFormSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
-import { catalog as tovuCopyCatalog, createCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID } from '../credential-copy-tool.js';
+import { catalog as tovuCopyCatalog, CREDENTIAL_COPY_TOOL_ID } from '../credential-copy-tool.js';
+import { createCredentialCopyRegistrations } from '@jini-ai/integrations/credentialed-http/tools';
 import type { CredentialCardIdentity, CredentialCopyToolHost, CustomCredentialToolHost } from '@jini-ai/integrations/credentialed-http/tools';
 import { createApiCredentialSaveHandlers, createCustomCredentialsRegistrations } from '../tool-registrations.js';
 import { tovuCredentialCardIdentity } from '../tovu-credential-card-identity.js';

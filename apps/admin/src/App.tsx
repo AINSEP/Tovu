@@ -1,13 +1,15 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
-import { SitesSidebarNav } from "./components/SitesSidebarNav";
+import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
+import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
+import { defaultSitesPort, useHostSitesSnapshot } from "./features/sites/hooks/sites-dependencies.hooks";
 import { useAdminDocumentLocale } from "@jini-ai/admin/shell/hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
 import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import type { AdminUser } from "./features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { useMemo, type ReactNode } from "react";
 import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } from "./App.chrome";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -672,7 +674,9 @@ function AdminSidebar(props: {
           so two calls produce exactly the DOM one call would, with the toggle spliced between.
           Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
           so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
-      <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel} />
+      <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel}
+        port={defaultSitesPort} useSitesSnapshot={useHostSitesSnapshot} translateNavLabel={translateAdminNavLabel} useSitesSidebarNavHook={useSitesSidebarNav}
+        SidebarNav={Sidebar.Nav} useSidebar={useSidebar} />
       <Sidebar.RailToggle />
       {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
           all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
@@ -766,7 +770,7 @@ function AdminShell({
 }
 
 function AdminShellProviders({ permissions, principalId, locale, useAdminLocaleHook, children }: { permissions: readonly string[] | undefined; principalId: string; locale: string; useAdminLocaleHook: UseAdminLocaleHook; children: ReactNode }) {
-  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS} useAdminLocaleHook={useAdminLocaleHook}>
+  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS} grantsReady={permissions !== undefined} useAdminLocaleHook={useAdminLocaleHook}>
     <ChartRegistryProvider key={principalId} principalId={principalId}>
       <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale, key: "Cancel" })}>{children}</ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>

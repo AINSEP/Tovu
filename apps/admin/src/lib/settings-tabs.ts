@@ -38,7 +38,7 @@ export const PRIVACY_NAMESPACE = "core.privacy";
 export const APPEARANCE_NAMESPACE = "core.appearance";
 export const LANGUAGE_NAMESPACE = "core.language";
 /** Per-operator admin chrome preferences — registered by the website's
- *  `features/settings/admin-interface.ts`, mirrored (not re-derived) here. */
+ *  `@jini-ai/cms/settings/site/admin-interface`, mirrored (not re-derived) here. */
 export const INTERFACE_NAMESPACE = "core.interface";
 
 /** Workspace-scoped: custom instructions and telemetry consent are properties

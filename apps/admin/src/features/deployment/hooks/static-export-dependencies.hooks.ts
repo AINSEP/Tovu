@@ -1,4 +1,4 @@
-import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 import { importExportApi } from "@/features/import-export/api/import-export-api";
 import type { StaticExportPort } from "./static-export-port.hooks";
 

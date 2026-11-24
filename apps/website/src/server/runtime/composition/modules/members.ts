@@ -1,32 +1,145 @@
 import { createReadyLoginProviderList } from "#src/features/member-login/index";
-import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
-import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
-import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
-import { registerAdminMemberDisableRoute } from "#src/server/inbound/admin-http/routes/members/disable";
-import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/admin-http/routes/members/request-magic-link";
-import type { MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
+import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";
+import { memberDisableRoute } from "@jini-ai/cms/admin-http/routes/members/disable";
+import { memberGetRoute } from "@jini-ai/cms/admin-http/routes/members/get-by-id";
+import { memberListRoute } from "@jini-ai/cms/admin-http/routes/members/list";
+import type { MemberErrorClassifier } from "@jini-ai/cms/admin-http/routes/members/shared";
+import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/members/request-magic-link";
+import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
+import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import type { RouteRegistrar } from "#src/server/routes/types";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
-import { registerPublicMemberForgotPasswordRoute } from "#src/server/inbound/public-http/routes/members/forgot-password";
-import { registerPublicMemberResetPasswordRoute } from "#src/server/inbound/public-http/routes/members/reset-password";
-import { registerPublicMemberSetPasswordRoute } from "#src/server/inbound/public-http/routes/members/set-password";
-import { registerPublicMemberMeRoute } from "#src/server/inbound/public-http/routes/members/me";
-import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-http/routes/members/sign-out";
+import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
+/**
+ * @file Public surface (barrel) for the `members` Tier-2 core library (ADR-030).
+ *
+ * ADR-009 §1: a module's public contract is its `index.ts`; boundary lint
+ * forbids deep imports. This now ships the real in-memory repo adapters, the
+ * console mail adapter, the `MemberAccessResolver` implementation, and the
+ * `MembersWriteService` implementation (the ADR-030 follow-up build) in
+ * addition to the original interfaces/types.
+ *
+ * Placement note: this staging location is `src/members/` per the design brief;
+ * the module's production home is `src/features/membership/` (matching the admin
+ * sitemap's `features/membership`), and in the target monorepo layout a Tier-2
+ * lib at `packages/core/src/lib/members/` (tovu-v2-design §3.5). See ADR-030.
+ */
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
+// built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
+// composition root until now (`apps/website/src/server/runtime/composition/deps.ts`).
+// `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
+// Now: the `members` barrel is gone; each Members module is a leaf subpath of `@jini-ai/user-management/members/*`,
+// and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
-import { SqlMemberExternalIdentityRepo } from "#src/features/members/index";
+import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { MemberConflictError, MemberNotFoundError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
+import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";
-import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from "#src/server/inbound/public-http/routes/members/oidc-start";
+import { registerMemberOidcStartRoute } from "#src/server/inbound/public-http/routes/members/oidc-start";
 import { registerMemberOidcCallbackRoute } from "#src/server/inbound/public-http/routes/members/oidc-callback";
 import { registerMemberOidcVerifyEmailRoute } from "#src/server/inbound/public-http/routes/members/oidc-verify-email";
 import { registerMemberUnlinkIdentityRoute } from "#src/server/inbound/public-http/routes/members/unlink-identity";
-import { MEMBER_OIDC_PATH, memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 import type { Express } from "express";
+
+/** The two port fields every admin members mount passes. `authorize` is read per request, as the
+ *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
+function memberPortDeps({ deps }: { deps: MembersRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
+  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+}
+
+/** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
+ *  had: list/get never consulted the publishing-credential override (`"direct"`); disable and delete
+ *  did (`"guarded"`). Switching either is an authorization change, not a move. */
+function mountOptions({ operation, authorization }: { operation: string; authorization: AdminRouteAuthorization }, _optional: Record<string, never> = {}) {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
+}
+
+/** The members library's error classes live in `features/members` (a Jini spec cannot import them), so the
+ *  host names each class for the specs, which own the status each route answers it with. The classes are
+ *  plain siblings: the order here is not significant. @complexity O(1). */
+export const classifyMemberError: MemberErrorClassifier = ({ err }, _optional = {}) => {
+  if (err instanceof MemberNotFoundError) return "not-found";
+  if (err instanceof MemberConflictError) return "conflict";
+  if (err instanceof MemberValidationError) return "validation";
+  if (err instanceof MemberSignInUnavailableError) return "sign-in-unavailable";
+  if (err instanceof SenderIdentityNotConfiguredError) return "sender-not-configured";
+  return undefined;
+};
+
+export const registerAdminMemberListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions({ operation: "routes/members/list", authorization: "direct" }));
+};
+
+export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions({ operation: "routes/members/get-by-id", authorization: "direct" }));
+};
+
+/**
+ * C058: the reload copy for a disable that lost the member compare-and-set. It is the admin's shared
+ * `VERSION_CONFLICT_MESSAGE` text: the members screen shows the server `error` as-is, and the
+ * `VERSION_CONFLICT` code lets any caller classify it like the other editors' stale saves.
+ */
+export const MEMBER_VERSION_CONFLICT_MESSAGE =
+  "Someone else changed this while you were editing. Your changes were not saved. Copy anything you want to keep, then reload to see their version.";
+
+/** The write service takes the member bundle built from this request's deps, so it is bound lazily here. The
+ *  classifier's `conflict` kind (`MemberConflictError`) is what the spec answers with the reload copy above. */
+export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  const disable = {
+    disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }),
+    classifyMemberError, versionConflictMessage: MEMBER_VERSION_CONFLICT_MESSAGE,
+  };
+  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions({ operation: "routes/members/disable", authorization: "guarded" }));
+};
+
+/** The trash move is the members library's, bound here to this request's repo, remover and clock. The
+ *  shared adapter revokes sessions and links in the same transaction. */
+export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  const remove = {
+    trashMember: (input: Parameters<typeof trashMember>[0]) => trashMember(input, { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }),
+    classifyMemberError,
+  };
+  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions({ operation: "routes/members/delete", authorization: "guarded" }));
+};
+
+/** The 503 copy for a site whose mailer has no sender identity: the mailer's own message names internal setup. */
+export const MEMBER_SENDER_NOT_CONFIGURED_MESSAGE = "Member sign-in is unavailable: email is not set up for this site.";
+
+/**
+ * POST request-magic-link: an operator-triggered resend of a member's sign-in link. The challenge service
+ * takes the member bundle built from this request's deps, so it is bound lazily here; `requestSignInLink` is
+ * read from the members library at call time. The limiter is the app's shared `MAGIC_LINK_PER_EMAIL`
+ * instance (C-015), consulted by the spec only after `authorize()` (INV-NEW-03). Direct RBAC, as before.
+ */
+export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  const magicLink = {
+    magicLinkPerEmailLimiter: deps.magicLinkPerEmailLimiter,
+    requestSignInLink: (input: { workspaceId: string; email: string; redirectPath: string | undefined }) => requestSignInLink({ deps: toMembersWriteServiceDeps(deps), input }),
+    classifyMemberError, senderNotConfiguredMessage: MEMBER_SENDER_NOT_CONFIGURED_MESSAGE,
+  };
+  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions({ operation: "routes/members/request-magic-link", authorization: "direct" }));
+};
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot
  * has no transactional member store: keep OIDC unavailable rather than mix durable identities
@@ -45,9 +158,13 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
       httpPorts: createTovuOAuthHttpPorts({ http: admin.mediaGenerationHttpClient }),
       sealer: admin.siteAssistantSecretSealer, keyring: admin.siteAssistantSecretKeyring, origin: members.origin,
       resolveProvider: async ({ workspaceId, providerId }) => (await listProviders({ workspaceId })).find(provider => provider.id === providerId) ?? null,
-      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }) },
-    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo({ kernel }),
-      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key) } };
+      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }),
+      appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+      beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
+    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })),
+      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key),
+      // The visitor gets only the fixed LOGIN_UNAVAILABLE code; the redacted cause goes to the server log.
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } } };
 }
 
 /** Register the public-only dependency bundle. No admin capability reaches an OIDC handler.
@@ -78,6 +195,13 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
 /**
  * @file ADR-046 Phase 3 (SPEC-038) — the `members` server module (ADR-030 Members admin CRUD +
  * ADR-PIPE-013 public sign-in).
+ *
+ * K1 (RT-K1-adm-members): list, get-by-id, disable and delete are Jini route specs
+ * (`@jini-ai/cms/admin-http/routes/members/*`) mounted behind the admin ports; `RouteDeps` is read only
+ * here, at registration, so each spec sees its own small deps. The members library is not in Jini yet,
+ * so the specs take its collaborators as injected deps: the disable write service, the trash move and
+ * `classifyMemberError` (the library's error classes). `request-magic-link` (w3 C2d) is a spec too: its 429
+ * carries `Retry-After` through `routeReply`, and the limiter and sender-not-configured copy are injected.
  *
  * Owns 18 registrations: 5 admin routes (list/get/disable/delete/request-magic-link), 8
  * public member auth routes and 5 member OIDC routes. The original registrations moved here

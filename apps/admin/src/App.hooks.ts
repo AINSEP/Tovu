@@ -8,8 +8,9 @@ import { createFrontendSessionBridge, createFrontendRequestCaller, createFronten
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
 import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
-import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
+import { registerAdminPageWebMcpTools } from "@jini-ai/agentic/dom/admin-page-tools";
+import { directPageAction } from "@tovu/headless";
+import { browserAgentSettingsPort, useAdminBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
@@ -23,16 +24,16 @@ import {
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
-import type { AdminUser } from "./features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
-import { takeBootToken } from "./lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/local-owner-signin";
+import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
+import { readInitialAdminSession } from "./lib/owner-clients";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
+import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
-  readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import {
@@ -40,7 +41,7 @@ import {
   PUBLISH_CONTENT_CAPABILITY,
   type PublishCriteria,
   type PublishRequestResult,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
@@ -214,7 +215,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
  * "asked before signed in" race to guard against here.
  *
  * The `useRef` guard is what makes this fire at most once per mount, mirroring `takeBootToken`'s own
- * "read and strip once" contract in `lib/boot-token-fragment.ts`: `takePublishCriteriaFromQuery`
+ * "read and strip once" contract in `@jini-ai/admin/shell/lib/boot-token-fragment`: `takePublishCriteriaFromQuery`
  * already strips the param on its own first call (valid or not), so a second run would just read an
  * empty query string. The ref exists anyway because Effects in Strict Mode run twice in development,
  * and a second `requestPublish` call would supersede the first's promise for no reason (see
@@ -847,11 +848,11 @@ export function registerAdminWebMcpTool(
   },
   { modelContext = resolveWebMcpModelContext() }: { modelContext?: AdminWebMcpModelContext | undefined } = {},
 ): void {
-  if (!modelContext || signal.aborted || !getBrowserAgentEnabled({})) return;
+  if (!modelContext || signal.aborted || !browserAgentSettingsPort.getEnabled({})) return;
   const registration = toWebMcpTool({
     capability: PUBLISH_CONTENT_CAPABILITY,
     execute: ({ id, args }) => {
-      if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
+      if (signal.aborted || !browserAgentSettingsPort.getEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
       const execute = executors["admin."];
       if (!execute) throw new Error("WebMCP admin executor is missing");
       return execute.call(executors, id, args);
@@ -874,7 +875,7 @@ export function useAgentPageBridge(
 ): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
-  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
+  const { enabled: webMcpEnabled } = useAdminBrowserAgentSettings({});
   const routeLocation = useRouteLocation();
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
@@ -928,7 +929,11 @@ export function useAgentPageBridge(
       path: "/api/frontend-sessions/request", fetch,
       bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
-    registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
+    registerAdminPageWebMcpTools({
+      driver: pageDriver, signal: webMcpController.signal, directPageAction,
+      isEnabled: () => browserAgentSettingsPort.getEnabled({}),
+      onError: ({ name, error }) => console.warn(`[admin] WebMCP registration failed: ${name}`, error),
+    }, {
       requestPageAction: async (request, _options = {}) => {
         if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
         else await agentBridge.rebind({ signal: request.signal }, {});

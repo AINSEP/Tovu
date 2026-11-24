@@ -6,9 +6,9 @@ export function AdminModulesProvider(
     useAdminModulesHook = useAdminModules,
     useModuleProviderContentHook = useModuleProviderContent,
     ...props
-  }: { permissions: readonly string[]; useAdminLocaleHook: UseAdminLocaleHook; children: ReactNode; useAdminModulesHook?: typeof useAdminModules; useModuleProviderContentHook?: typeof useModuleProviderContent }
+  }: { permissions: readonly string[]; grantsReady?: boolean; useAdminLocaleHook: UseAdminLocaleHook; children: ReactNode; useAdminModulesHook?: typeof useAdminModules; useModuleProviderContentHook?: typeof useModuleProviderContent }
 ) {
-  const runtime = useAdminModulesHook({ permissions: props.permissions, useAdminLocaleHook: props.useAdminLocaleHook });
+  const runtime = useAdminModulesHook({ permissions: props.permissions, useAdminLocaleHook: props.useAdminLocaleHook, ...(props.grantsReady === undefined ? {} : { grantsReady: props.grantsReady }) });
   const content = useModuleProviderContentHook({ runtime, children: props.children });
   return <>{content}</>;
 }

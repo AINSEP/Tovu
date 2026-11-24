@@ -1,11 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import {
-  readDockerfileSource,
-  writeDockerfileSourceWithIfMatch,
-  type DockerfileSourceSnapshot,
-} from "#src/features/deployments/index";
+import { readDockerfileSource, writeDockerfileSourceWithIfMatch, type DockerfileSourceSnapshot } from "@jini-ai/devops/deploy/site/dockerfile";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

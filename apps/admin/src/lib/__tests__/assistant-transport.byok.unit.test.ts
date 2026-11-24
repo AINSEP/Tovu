@@ -4,7 +4,8 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { createTovuAssistantTransport, parseFrame } from "../assistant-transport";
+import { createTovuAssistantTransport } from "../assistant-transport";
+import { parseFrame } from "@tovu/assistant-run-events";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 

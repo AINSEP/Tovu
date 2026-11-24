@@ -6,8 +6,8 @@ import type { MfaFactor, MfaPending, MfaStore } from '@jini-ai/user-management/s
 import { createRouteDeps } from '../../../runtime/composition/app.js';
 import { createCapturingResponse, extractRouteHandler } from '../../../__tests__/helpers/http-test-server.js';
 import { registerAuthRoutes } from '../dev-auth.js';
-import { registerAdminUserResetPasswordRoute } from '../routes/users/reset-password.js';
-import { ownerMfaDepsFrom } from '../owner-mfa-deps.js';
+import { registerAdminUserResetPasswordRoute } from '#src/server/runtime/composition/modules/users';
+import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 
 /** The real HTTP handlers + Jini verifier, with only persistence held in a deterministic fixture. */
 test('password login waits for a valid TOTP and consumes the pending proof before issuing a cookie', async t => {
@@ -35,7 +35,8 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
     const cookies: string[] = [];
     res.setHeader = () => res;
     res.cookie = (_name, value) => { cookies.push(value); return res; };
-    res.req = { headers: {}, socket: { localPort: 4317 } } as Request;
+    // K1 routes read request facts through `res.req` (the http-kit authenticate port), so it is the full fake request.
+    res.req = { headers: {}, socket: { localPort: 4317 }, ip: '127.0.0.1', get: () => undefined } as unknown as Request;
     return { res, capture, cookies };
   }
   const request = (body: object) => ({ body, ip: '127.0.0.1', headers: {}, socket: { localPort: 4317 }, get: () => undefined });

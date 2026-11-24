@@ -1,10 +1,11 @@
-import { normalizeCredentialToken, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+import { normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { InMemoryKeyring } from "../webhooks/index.js";
-import { AesGcmSecretSealer } from "../webhooks/index.js";
+import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
 import type { TargetDescription } from "@jini-ai/db/transfer";
 
 /**

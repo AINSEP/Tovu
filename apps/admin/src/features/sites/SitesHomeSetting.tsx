@@ -2,10 +2,10 @@ import { useId, type ReactNode } from "react";
 
 import { SettingsDialogShell } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { useSitesConfig } from "./hooks/use-sites-config.hooks";
+import { useHostSitesConfig } from "./hooks/sites-dependencies.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
-type SitesSettings = ReturnType<typeof useSitesConfig>;
+type SitesSettings = ReturnType<typeof useHostSitesConfig>;
 
 /** Jini supplies settings dialog chrome; the hook owns loading, drafts, saving and remedies.
  *
@@ -13,7 +13,7 @@ type SitesSettings = ReturnType<typeof useSitesConfig>;
  *  end of the Sites tab row (`tabs` is that row's `TabBar`), not a full-width primary bar. The dialog
  *  is a stacked form — label above, capped control, one hint line or an ⓘ — with the config path as
  *  a muted footer beside Save. Every control and sentence the flat version had is still here. */
-export function SitesHomeSetting({ home: _home, tabs, useSettings = useSitesConfig, t = (key) => key }: { home: string; tabs?: ReactNode; useSettings?: typeof useSitesConfig; t?: Translate }) {
+export function SitesHomeSetting({ home: _home, tabs, useSettings = useHostSitesConfig, t = (key) => key }: { home: string; tabs?: ReactNode; useSettings?: typeof useHostSitesConfig; t?: Translate }) {
   const settings = useSettings({});
   return <>
     <div className="sites-tabs-row">

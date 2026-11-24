@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
+import { publishScopeDescriptionKey as ruleDescriptionKey, publishScopeTitleKey as ruleTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
+import type { PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import { publishSectionForEntityTypes as sectionForEntityTypes } from "@tovu/publish-content-ui";
+
+/** The rules (`@jini-ai/admin`) bound to this admin's section table, exactly as the dialog binds them. */
+const publishScopeTitleKey = ({ scope }: { scope: PublishScope | undefined }) => ruleTitleKey({ scope, sectionForEntityTypes });
+const publishScopeDescriptionKey = ({ scope }: { scope: PublishScope | undefined }) => ruleDescriptionKey({ scope, sectionForEntityTypes });
 
 /**
  * @file `plan-publish-sections-2026-09-25.md` §2 S2 — the pure label rules the dialog title, the

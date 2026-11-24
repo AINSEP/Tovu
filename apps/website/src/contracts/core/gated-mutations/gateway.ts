@@ -105,7 +105,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { adaptTokenStore, type ConfirmationTokenRecord, type TokenStorePort } from "./token.js";
 
 export { ForbiddenError, PlanStaleError, UnauthenticatedError } from "@jini-ai/core/gated-mutations";
-export type { GatedMutationHooks, GatewayPlan } from "@jini-ai/core/gated-mutations";
+export type { GatewayPlan } from "@jini-ai/core/gated-mutations";
 
 export interface GatewayDeps {
   clock: ClockPort;

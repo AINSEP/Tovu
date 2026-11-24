@@ -14,7 +14,7 @@ import { THEME_WRITE_PERMISSION } from "../theme/asset-operations.js";
 import { resolveThemeFilePath, writeThemeBinaryFile } from "../theme/asset-operations.js";
 import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, type ThemeToolDeps } from "../theme/asset-operations.js";
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../fs-files/custom-root-permission.js";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "../fs-files/write-files.js";
 import { preparePickedFolderBatch, type FsFilesToolDeps, type PreparedWriteBatch } from "../fs-files/tool-registrations.js";
 
