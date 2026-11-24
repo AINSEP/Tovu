@@ -189,7 +189,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   TrashItemToolDeps &
   import("@jini-ai/user-management/identity/delete-user-service").TrashUserToolDeps &
   import("./admin-screen-link-tool.js").AdminScreenLinkToolDeps &
-  import("../features/observability/tool-registrations.js").ObservabilityToolDeps;
+  import("@jini-ai/diagnostics/observability/tool-registrations").ObservabilityToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.

@@ -3,7 +3,7 @@ import * as agentic from "@jini-ai/agentic/core";
 import { FIELD_TYPES } from "@jini-ai/cms/forms";
 import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
-import { ToolInputError } from "@jini-ai/core";
+import { resolveHostReadRefs, ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
@@ -15,12 +15,17 @@ import { capabilityCard as content } from "#src/features/post/capability-card";
 import { capabilityCard as forms } from "#src/features/forms/capability-card";
 import { capabilityCard as widgets } from "#src/features/widgets/capability-card";
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
+import { capabilityCard as membersCard } from "@jini-ai/user-management/members/capability-card";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { capabilityCard as seo } from "#src/features/seo/capability-card";
 import { capabilityCard as members } from "#src/features/members/capability-card";
-import { capabilityCard as seo } from "@jini-ai/cms/seo/site/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
 import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";
 import { capabilityCard as jini } from "#src/features/site-guide/index";
+
+// The engine card names its read pointer `{{read:member}}`; Tovu reads members through `content_read.member`.
+const members = resolveHostReadRefs({ value: membersCard }, { hostReads: contentReadVocabulary });
 
 export const TOVU_CAPABILITY_CARDS: readonly CapabilityCard[] = [content, forms, widgets, themes, members, seo, deploy, backup, plugins, jini];
 export interface TovuSiteGuideDeps extends SiteProfileSourceDeps {

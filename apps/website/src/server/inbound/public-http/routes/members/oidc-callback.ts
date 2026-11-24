@@ -4,12 +4,12 @@ import type { Express, Request, Response } from "express";
 import {
   completeOidcLogin,
   memberLoginCallbackUrl,
-  requestLoginEmailProof,
-  resolveFederatedIdentity,
   sealLoginEmailContinuation,
   type CompletedOidcLogin,
   type LoginContext,
-} from "#src/features/member-login/index";
+} from "@jini-ai/user-management/member-login/oidc-login";
+import { requestLoginEmailProof, resolveFederatedIdentity } from "@jini-ai/user-management/member-login/link-service";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberRequestLimits, checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "./deps.js";

@@ -12,7 +12,7 @@ Binding inputs: `google-login-design.md` amended by `OPUS-REVIEW.md`, plus the o
 
 `beginOidcLogin({deps,input:{workspaceId,providerId,connectMemberId?}})` returns `{authorizationUrl,expiresAt,browserBinding,returnPath:'/account'}`. Set the 43-character binding in an HttpOnly Secure SameSite=Lax callback-path cookie, max-age 600. Callback clears it even on failure. Reject duplicate cookies. Never accept binding from query/state.
 
-`OidcLoginDeps` supplies clock, randomBytesFn, guarded httpPorts, site sealer/keyring, origin registry, and fresh resolveProvider/resolveClient functions. Provider lookup reloads admission via `loadLoginProviders`; credential lookup calls `resolveLoginCredentials`. `hasLoginCredentials` permits provider-list filtering without opening secrets.
+`OidcLoginDeps` (now `@jini-ai/user-management/member-login/oidc-login`) supplies clock, randomBytesFn, guarded httpPorts, site sealer/keyring, origin registry, fresh resolveProvider/resolveClient functions, and the injected OAuth operations, `formatAad` and `appIdentity` (see Wiring). Provider lookup reloads admission via `loadLoginProviders`; credential lookup calls `resolveLoginCredentials`. `hasLoginCredentials` permits provider-list filtering without opening secrets.
 
 `completeOidcLogin({deps,input:{workspaceId,providerId,browserBinding,params:{state,code?,error?},connectMemberId?}})` returns `{identity,startedAt,authenticatedAt,connectMemberId?,returnPath:'/account'}`. Start and callback pass a connectMemberId ONLY from a currently validated member session; missing/different member on callback fails the state binding. For sign-in both omit it. `startedAt` comes from validated sealed state. Errors expose only `MemberLoginError.code`.
 
@@ -47,3 +47,21 @@ The member suite command includes existing password/code/reset/set-password regr
   `@jini-ai/core/contracts/headless/member-login`; route adapters, composition and the plugin exports runtime
   import it from there. The former `public-path.ts` forwarder is deleted; this feature keeps the login
   services, provider readiness and credentials (host).
+The OIDC protocol facade (`beginOidcLogin`, `completeOidcLogin`, `memberLoginCallbackUrl`, `sealLoginEmailContinuation`, `openLoginEmailContinuation`) lives in Jini at `@jini-ai/user-management/member-login/oidc-login`; its folder README has the package-side Wiring. The link service (`resolveFederatedIdentity`, `requestLoginEmailProof`, `MemberLoginLinkDeps`) lives at `@jini-ai/user-management/member-login/link-service`; routes import it directly. This folder keeps the host halves: plugin-pinned providers, credential lookup and readiness.
+
+- **Host injects into `OidcLoginDeps`:** `beginAuthorizationCode`, `completeAuthorizationCode`, `createSealedAuthorizationState`, `createSealerStateCodec`, `validateOidcIdToken` (from `@jini-ai/oauth`), `formatAad` (from `@jini-ai/platform/secrets`) and `appIdentity` (the product's OAuth client display name and software id), beside the existing ports.
+- **Composition:** `server/runtime/composition/modules/members.ts` `createMemberOidcRouteDeps`; tests reuse `__tests__/fixtures.ts` `oidcOperationsFixture`.
+- **Link deps mail transport:** `requestLoginEmailProof` calls Jini's `@jini-ai/user-management/members/member-challenge-request`, so `MemberLoginLinkDeps` must carry `mailTransport` (`features/members/mail-transport.ts` `membersMailTransport`); the composition gets it through `toPublicMembersWriteServiceDeps`.
+- **Link deps failure reporter:** `MemberLoginLinkDeps.reportFailure` is bound in `createMemberOidcRouteDeps` to `reportServerFailure` (`server/inbound/shared/admin-failure.ts`, operation `public:member-login:request-email-proof`), so a failed inbox-proof request keeps its redacted cause in the server log while the visitor still gets only `LOGIN_UNAVAILABLE`.
+- **Never:** the Jini facade imports no host code and no `@jini-ai/oauth`/`platform`; this folder must not re-export it (routes import the Jini subpath directly). `MEMBER_OIDC_PATH` comes from `contracts/headless`.
+
+```ts
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
+import type { OidcLoginDeps } from "@jini-ai/user-management/member-login/oidc-login";
+const protocol: OidcLoginDeps = { clock, randomBytesFn, httpPorts, sealer, keyring, origin, resolveProvider, resolveClient,
+  appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+  beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad };
+```
+
+Why the split: Jini `docs/decisions/DR-005-portable-package-boundaries.md`.

@@ -13,11 +13,7 @@ import { App } from "./App";
 import { useAdminSession } from "./App.hooks";
 import { CommentQueueScopeProvider } from "@jini-ai/admin/comments/react";
 import { createCommentsQueueScope } from "./integrations/jini-admin/comments-ports";
-import { AdminFailureNotice } from "@jini-ai/admin/shell/components/AdminFailureNotice/AdminFailureNotice";
-import { adminFailureChannel } from "./lib/admin-failure-channel";
-// The Jini notice renders `jini-admin-failure-notice*` classes; this host stylesheet styles them.
-import "./components/AdminFailureNotice/admin-failure-notice.css";
-import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
+import { TovuAdminFailureNotice, TovuServerRestartingBanner } from "./lib/shell-notices-wiring";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "@jini-ai/admin/shell/lib/router";
 import { bindShellFailureLogger } from "@jini-ai/admin/shell/lib/shell-failure-log";
@@ -98,8 +94,8 @@ ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemet
       <AdminKitProvider kit={adminKit}>
       <UserManagementKitProvider kit={userManagementKit}>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
-      <ServerRestartingBanner />
-      <AdminFailureNotice channel={adminFailureChannel} />
+      <TovuServerRestartingBanner />
+      <TovuAdminFailureNotice />
       <SessionApp />
       </UserManagementKitProvider>
       </AdminKitProvider>

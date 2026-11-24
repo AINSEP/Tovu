@@ -7,7 +7,8 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import type { OutboundEmail, MemberRecord } from "#src/features/members/index";
+import type { OutboundEmail } from "#src/platform/mail/index";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";

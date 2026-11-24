@@ -5,11 +5,13 @@ import { test } from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { setMemberPassword } from "#src/features/members/password-auth";
-import type { MembersWriteServiceDeps } from "#src/features/members/ports";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
-import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
-import { issueMemberSession } from "#src/features/members/member-credentials";
+import { setMemberPassword } from "@jini-ai/user-management/members/password-auth";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
+import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -32,12 +34,12 @@ function harness() {
   const { kernel, keys } = recordingKernel();
   const clock = createFakeClock({ startIso: NOW });
   let sequence = 0;
-  const members = new SqlMemberRepo(kernel);
-  const sessions = new SqlMemberSessionRepo(kernel);
+  const members = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
   const digest = (value: string) => `test:${createHash("sha256").update(value).digest("hex")}`;
   const deps: MembersWriteServiceDeps = {
     credentialLifecycle: kernel, clock, ids: { newId: () => `id-${++sequence}` }, members, sessions,
-    magicLinks: new SqlMagicLinkTokenRepo(kernel), tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
+    magicLinks: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })), tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}),
     passwordHasher: { hash: async ({ password }) => digest(password), verify: async (input) => input.hash === digest(input.password) },
     mailer: {

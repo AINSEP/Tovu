@@ -1,6 +1,6 @@
 /**
  * @file Boot-time `declareDataModule()` invocation for Comments' 2-table manifest (ADR-023 §2,
- * SPEC-032/SPEC-033). Mirrors `newsletter/data-module-manifest.ts#installNewsletterDataModule`
+ * SPEC-032/SPEC-033). Mirrors `@jini-ai/user-management/newsletter/data-module-manifest#installNewsletterDataModule`
  * exactly — idempotent (skip-if-existing-tables), throws on failure so the caller (composition
  * root, via the ADR-046 Phase 2 boot lifecycle) surfaces it as a startup failure rather than
  * silently continuing with missing tables.

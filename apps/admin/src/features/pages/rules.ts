@@ -2,17 +2,15 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
-import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminPost } from "../posts/api/posts-api.types";
+import { THEME_DEFAULT_SENTINEL, type PageEditorView } from "@jini-ai/admin/pages/page-editor-rules";
 
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
-export type PageEditorView = "preview" | "html" | "interactive";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -23,10 +21,69 @@ import { type Translate } from '@jini-ai/core/text';
  * Mirrors `features/posts/rules.ts` exactly, since `Pages.tsx` is `Posts.tsx`'s twin (same
  * `RowMenu`-building logic, same Publish/Unpublish status-flip rule) backed by the pages-filtered
  * endpoints.
+ * The list screen's own row-menu builders (`pageRowMenuItems`, `buildPageRowMenuHandleMap`) moved
+ * with the list to `@jini-ai/admin/pages/pages-list-rules`; everything here is also read by the page
+ * editor or the Theme Pages tab.
+ * The editor-only rules (save plan, autosave draft, picker sentinel, save/conflict messages, preview
+ * sandbox, dirty-guard baseline) moved to `@jini-ai/admin/pages/page-editor-rules`; what stays here is
+ * the link rules, the theme-backed rules and the version-conflict aliases over `lib/version-conflict`.
+ * The moved rules name the host's files neutrally there; in this app those are: an empty
+ * `DEFAULT_BODY_JSON` row is born in `createPost` (`apps/website/src/features/post/post.ts`), and
+ * `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`) — the same route that
+ * reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
+ * which is why `buildPageSavePlan`'s version guard rides on `updatePost`.
  * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
  * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
  * popover, which is how its `page.status` conditional ended up permanently untested.
  */
+
+// Pre-move rationale of the editor rules now in `@jini-ai/admin/pages/page-editor-rules`, kept verbatim
+// with this app's paths: `hasAuthoredDocument`, `pageAcceptsHtmlBody`, and `buildPageSavePlan`'s version guard.
+
+/** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
+ *  `DEFAULT_BODY_JSON` (`{ type: "doc", content: [] }`) every `createPost` row is born with
+ *  (`apps/website/src/features/post/post.ts`). Deliberately conservative: ANY non-empty `content`
+ *  array counts as real content, including a single empty paragraph, because the only thing this
+ *  answer gates is whether we are willing to DESTROY that document — and the cost of being wrong in
+ *  the cautious direction is a refusal the operator is told about, while the cost of being wrong in
+ *  the other direction is silent data loss. An absent/non-array `content` is treated as empty: it is
+ *  not a document this editor could lose anything from. */
+
+/**
+ * Whether this editor's HTML working copy is a body it may actually write — the single predicate
+ * behind `save`'s `updatePageHtml` call, `contentDirty`'s body comparison, and the standing-draft
+ * autosave's format, so those three cannot disagree about what the operator is editing.
+ *
+ * **An already-`html` Page: always.** That is the original, unchanged rule.
+ *
+ * **A `doc`-format Page: only when the operator authored non-empty HTML into a Page that has no
+ * Tiptap document to lose.** This is the 2026-09-06 fix for "the Pages editor cannot write HTML into
+ * a newly created page": `New Page` (`use-pages.hooks.ts`'s `createPage`) goes through `createPost`,
+ * which forces `bodyFormat: "doc"` by construction (ADR-056 CIC-3 — `CreatePostInput` has no
+ * `bodyFormat` field at all), while `PageEditor.tsx` offers that page an HTML textarea and a GrapesJS
+ * canvas regardless of format. A flat `bodyFormat === "html"` test therefore made every keystroke of
+ * hand-authored markup unsavable through the product, which is why operators had to bypass the
+ * editor and `PUT /pages/:id/html` by hand.
+ *
+ * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
+ * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
+ * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
+ * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
+ * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
+ * converted at all, even if markup IS typed over it; that operator gets
+ * {@link pageSaveSuccessMessage}'s "can't be edited here yet" refusal instead of a blanked page.
+ *
+ * @complexity Time O(1), space O(1) — one property read and one length check.
+ */
+
+// The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
+// routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
+// reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
+// so the version it conditions on is one it captured microseconds earlier and can never be
+// the version THIS editor loaded. That is why `save` now writes metadata first and only
+// reaches the body once this guard has passed — see `save`'s own doc.
 
 /**
  * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
@@ -93,71 +150,8 @@ export function pageAdminPath(page: PageAdminHandle, _optional: Record<string, n
   return `/pages/${page.slug === HOME_PAGE_HANDLE ? page.id : page.slug}`;
 }
 
-/** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
- *  state and navigation, and so a test can assert exactly which one a given row wires up — same
- *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
-export interface PageRowMenuHandlers {
-  onEdit: (required: { page: AdminPost }) => void;
-  onTogglePublish: (page: AdminPost) => void;
-  onDelete: (page: AdminPost) => void;
-}
-
-/**
- * The row-action menu for one page.
- *
- * The branch is the reason this is exported: **the middle item's label and key flip with the row's
- * own status** — "Unpublish" for a published page, "Publish" for a draft — same deliberate rename
- * `posts/rules.ts`'s `postRowMenuItems` got (owner request, 2026-09-22), replacing the old rule
- * that omitted the item entirely for a draft rather than rendering it disabled. See that function's
- * own doc for the full "why" — a status-only payload sent by the old "Disable" item, always
- * missing `title`/`slug`, was rejected by `PUT /posts/:id` with "title is required" (owner
- * screenshot) before the row's status could ever change, and a draft page had no way to publish
- * from this list at all.
- *
- * Both branches call the SAME handler — `onTogglePublish` reads `page.status` itself to decide
- * which way to flip, so this menu builder does not need two callbacks for what is one reversible
- * toggle.
- *
- * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
- * `usePages().removePage`, gated on `ConfirmDialog`.
- *
- * @complexity Time/space: O(1) — exactly three entries, no iteration.
- * @overallScore 100
- */
-export function pageRowMenuItems({ page, handlers, locale }: { page: AdminPost; handlers: PageRowMenuHandlers; locale: string }, _options = {}): RowMenuItem[] {
-  const t = ({ key }: { key: string }, _options = {}): string => translate({ locale: locale, key: key });
-  const items: RowMenuItem[] = [{ key: "edit", label: t({ key: "Edit" }), onSelect: () => handlers.onEdit({ page }) }];
-  items.push(
-    page.status === "published"
-      ? { key: "unpublish", label: t({ key: "Unpublish" }), onSelect: () => handlers.onTogglePublish(page) }
-      : { key: "publish", label: t({ key: "Publish" }), onSelect: () => handlers.onTogglePublish(page) }
-  );
-  items.push({ key: "delete", label: t({ key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(page) });
-  return items;
-}
-
-/**
- * Row-menu agent handle for every page, keyed by page id. `Pages.tsx` looks a row's handle up BY
- * ID rather than by render position — mirrors `posts/rules.ts`'s `buildPostRowMenuHandleMap`
- * verbatim, for the reason that function's own doc gives and that this screen learned the hard way
- * (2026-09-07 audit claim #2): `DataTable` sorts `rows` internally and passes each `cell` callback
- * the index into that SORTED order, while the handle array is built from the unsorted `pages` prop,
- * so any row whose sort position differed from its array position published another page's handle.
- *
- * `null` (list not loaded yet) returns an empty map rather than throwing, so the caller can memoize
- * this unconditionally above its own loading-state early return.
- *
- * @complexity Time/space: O(n) in page count.
- */
-export function buildPageRowMenuHandleMap({ pages }: { pages: AdminPost[] | null }, _options = {}): Map<string, string> {
-  if (!pages) return new Map();
-  const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) => page.id) }
-  );
-  return new Map(pages.map((page, index) => [page.id, handles[index]]));
-}
-
 /** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as
- *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a `pageId` rather than
+ *  `PageRowMenuHandlers` (`@jini-ai/admin/pages/pages-list-rules`) — in particular, `onEdit` takes a `pageId` rather than
  *  building the Theme Studio href itself, so this module stays free of navigation: the caller
  *  (`ThemePagesTab.tsx`) already holds the narrowed, non-null `themeId` `themeStudioHref` needs, and
  *  is the one place that calls it. */
@@ -168,7 +162,7 @@ export interface ThemePageRowMenuHandlers {
 
 /**
  * The row-action menu for one Theme Page row — pulled out of `ThemePagesTab.tsx`'s `DataTable`
- * cell for the same reason {@link pageRowMenuItems} was: a claim worth a test, which it cannot have
+ * cell for the same reason `pageRowMenuItems` (`@jini-ai/admin/pages/pages-list-rules`) was: a claim worth a test, which it cannot have
  * while it is a closure inside a table cell reachable only by rendering and opening a popover.
  *
  * A theme page has no `PostRecord` behind it (see `Pages.tsx`'s own header on this tab's history),
@@ -179,7 +173,7 @@ export interface ThemePageRowMenuHandlers {
  * for that history). Kept as its own function (rather than a bare inline array at the call site) so
  * a future third action lands here, not as a second ad hoc array shape.
  *
- * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike {@link pageRowMenuItems}
+ * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike `pageRowMenuItems`
  * — `ThemePagesTab.tsx`'s own helpers (`themePagePublishState`, `lockedPublishReason`, …) all take
  * `t: Translate` already, and this row menu is built inside that same component, so matching ITS
  * established convention avoids threading a second, redundant `locale` value through the same tree.
@@ -193,62 +187,6 @@ export function themePageRowMenuItems({ row, handlers, t }: { row: ThemePageRow;
   ];
 }
 
-/** What `usePageEditor`'s `save` sends to the two write routes, and whether the HTML route applies
- *  at all — see `use-page-editor.hooks.ts`'s own `save` for the full "why two routes" reasoning, and
- *  {@link pageAcceptsHtmlBody} for exactly when `updatePageHtml` is allowed to fire (`updatePost`
- *  needs a round-tripped `bodyJson` for every Page still in doc format when metadata is written,
- *  including a new Page about to be converted by the subsequent HTML write). */
-export interface PageSavePlan {
-  canSaveHtml: boolean;
-  statusToWrite: "draft" | "published";
-  updatePostPayload: {
-    title: string;
-    slug: string;
-    status: "draft" | "published";
-    templateChoice: string | null;
-    bodyJson?: Record<string, unknown>;
-    /** The optimistic-concurrency basis — the `version` this editor loaded, NOT a writable field.
-     *  The server compares it and answers `409 VERSION_CONFLICT` when a newer save has superseded
-     *  it. See {@link buildPageSavePlan} for why this write, not the HTML one, carries it. */
-    expectedVersion: number;
-  };
-}
-
-/** The subset of a loaded `AdminPost` {@link pageAcceptsHtmlBody} actually reads — kept narrow
- *  rather than importing the full `AdminPost` type, so a test can pass a bare literal. Field types
- *  mirror `AdminPost`'s own exactly (`bodyFormat` optional, `bodyJson` a plain record) so a real
- *  `AdminPost` is always assignable here without a cast. */
-export interface SavablePage {
-  bodyFormat?: "doc" | "html";
-  bodyJson: Record<string, unknown>;
-}
-
-/** {@link SavablePage} plus the row's `version` — the optimistic-concurrency basis both
- *  {@link buildPageSavePlan} and {@link buildPageAutosaveDraft} capture. Separate from
- *  {@link SavablePage} because {@link pageAcceptsHtmlBody} genuinely does not need it and should
- *  not force a caller to supply one. */
-export interface VersionedSavablePage extends SavablePage {
-  version: number;
-}
-
-/** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
- *  `DEFAULT_BODY_JSON` (`{ type: "doc", content: [] }`) every `createPost` row is born with
- *  (`apps/website/src/features/post/post.ts`). Deliberately conservative: ANY non-empty `content`
- *  array counts as real content, including a single empty paragraph, because the only thing this
- *  answer gates is whether we are willing to DESTROY that document — and the cost of being wrong in
- *  the cautious direction is a refusal the operator is told about, while the cost of being wrong in
- *  the other direction is silent data loss. An absent/non-array `content` is treated as empty: it is
- *  not a document this editor could lose anything from. */
-function hasAuthoredDocument(bodyJson: Record<string, unknown>): boolean {
-  const content = bodyJson.content;
-  return Array.isArray(content) && content.length > 0;
-}
-
-/** Sentinel written into the template `<select>`'s `value` when `templateChoice` is `null` and the
- *  active theme ships neither canonical page-shell filename — see {@link pagePickerValue}'s own doc.
- *  Never a real theme filename (those are always `*.html`), so it can never collide with an
- *  operator's own pick. */
-export const THEME_DEFAULT_SENTINEL = "__theme-default__";
 
 /**
  * What the Pages template `<select>` should show for a Page's `templateChoice` (bare-page ruling
@@ -280,137 +218,6 @@ export function pagePickerValue({ templateChoice, availableTemplates }: { templa
 }
 
 /**
- * The inverse of {@link pagePickerValue} — what to write as `templateChoice` when the operator picks
- * `value` in the `<select>`. Only {@link THEME_DEFAULT_SENTINEL} needs translating back to `null`;
- * every other value (a real filename, or `""`) is already the exact `templateChoice` to store.
- * Picking the shell filename directly (rather than the sentinel) stores that real filename, which
- * renders identically to `null` — a deliberate, disclosed no-op, not a bug.
- *
- * @complexity O(1).
- */
-export function pickerValueToChoice({ value }: { value: string }, _options = {}): string | null {
-  return value === THEME_DEFAULT_SENTINEL ? null : value;
-}
-
-/**
- * Whether this editor's HTML working copy is a body it may actually write — the single predicate
- * behind `save`'s `updatePageHtml` call, `contentDirty`'s body comparison, and the standing-draft
- * autosave's format, so those three cannot disagree about what the operator is editing.
- *
- * **An already-`html` Page: always.** That is the original, unchanged rule.
- *
- * **A `doc`-format Page: only when the operator authored non-empty HTML into a Page that has no
- * Tiptap document to lose.** This is the 2026-09-06 fix for "the Pages editor cannot write HTML into
- * a newly created page": `New Page` (`use-pages.hooks.ts`'s `createPage`) goes through `createPost`,
- * which forces `bodyFormat: "doc"` by construction (ADR-056 CIC-3 — `CreatePostInput` has no
- * `bodyFormat` field at all), while `PageEditor.tsx` offers that page an HTML textarea and a GrapesJS
- * canvas regardless of format. A flat `bodyFormat === "html"` test therefore made every keystroke of
- * hand-authored markup unsavable through the product, which is why operators had to bypass the
- * editor and `PUT /pages/:id/html` by hand.
- *
- * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
- * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
- * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
- * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
- * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
- * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
- * converted at all, even if markup IS typed over it; that operator gets
- * {@link pageSaveSuccessMessage}'s "can't be edited here yet" refusal instead of a blanked page.
- *
- * @complexity Time O(1), space O(1) — one property read and one length check.
- */
-export function pageAcceptsHtmlBody({ page, html }: { page: SavablePage; html: string }, _options = {}): boolean {
-  if (page.bodyFormat === "html") return true;
-  return html !== "" && !hasAuthoredDocument(page.bodyJson);
-}
-
-/**
- * `save`'s own decision, pulled out to a top-level pure function per the 2026-08-12
- * complexity-ceiling pass: what to send `updatePost`, and whether `updatePageHtml` fires at all.
- * `save` itself keeps only the two `await`s, the `setState` calls, and the try/catch/finally — the
- * genuinely effectful part that has to stay.
- *
- * `form.html` is the working copy, not the saved body: {@link pageAcceptsHtmlBody} needs it to tell
- * "the operator authored markup into a brand-new page" apart from "an ordinary metadata save on a
- * page whose body this editor cannot render" — see that function's own doc.
- *
- * @complexity Time/space: O(1).
- */
-export function buildPageSavePlan(
-  { page, form }: {
-    page: VersionedSavablePage;
-    form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string };
-  },
-  { nextStatus }: { nextStatus?: "draft" | "published" } = {},
-): PageSavePlan {
-  const canSaveHtml = pageAcceptsHtmlBody({ page, html: form.html });
-  const statusToWrite = nextStatus ?? form.status;
-  return {
-    canSaveHtml,
-    statusToWrite,
-    updatePostPayload: {
-      title: form.title,
-      slug: form.slug,
-      status: statusToWrite,
-      templateChoice: form.templateChoice,
-      // The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
-      // routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
-      // reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
-      // so the version it conditions on is one it captured microseconds earlier and can never be
-      // the version THIS editor loaded. That is why `save` now writes metadata first and only
-      // reaches the body once this guard has passed — see `save`'s own doc.
-      expectedVersion: page.version,
-      // Metadata is written BEFORE conversion. The server still validates bodyJson
-      // against the loaded doc format even when the following HTML write will replace it.
-      ...(page.bodyFormat === "html" ? {} : { bodyJson: page.bodyJson }),
-    },
-  };
-}
-
-/**
- * What to send `putAutosave` for the CURRENT working copy — same {@link pageAcceptsHtmlBody} split
- * a real Save makes, so a parked draft can never be a format the Save that follows it would refuse.
- * A Page whose body this editor cannot write round-trips `bodyJson` unchanged instead — the same
- * inert-but-required placeholder that Save already sends for that case.
- *
- * @complexity Time/space: O(1).
- */
-export function buildPageAutosaveDraft(
-  { page, form }: { page: VersionedSavablePage; form: { title: string; slug: string; html: string } }, _optional: Record<string, never> = {},
-): StandingDraftAutosaveInput {
-  if (pageAcceptsHtmlBody({ page, html: form.html })) {
-    return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
-  }
-  return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
-}
-
-/**
- * The stale-basis notice's own message — the BACKGROUND-autosave counterpart of the recovery
- * banner's shared `standingDraftRecoveryMessage`, and the reason `staleBasis` exists on
- * the shared autosave hook at all. Kept feature-local and character-identical to
- * `features/posts/rules.ts`'s `postAutosaveStaleBasisMessage`, respecting the no-cross-feature-import
- * boundary (`lib/` hosts the shared pieces).
- *
- * Says the four things an operator cannot infer from a screen that otherwise looks completely
- * normal: that someone else saved, that autosaving has consequently STOPPED (a running editor that
- * silently persists nothing is the entire defect), that their work is unsaved but still in front of
- * them, and what actually resumes autosaving.
- *
- * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
- * refused draft into browser storage (`lib/shell-collaborators.ts`'s `standingDraftLocalBackup`), but that mirror is
- * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
- * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
- * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.
- *
- * @complexity Time/space: O(1).
- */
-export function pageAutosaveStaleBasisMessage({ t, ...staleBasis }: { t: Translate } & StandingDraftStaleBasis, _optional: Record<string, never> = {}): string {
-  return t(
-    "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first."
-  ).replace("{baseVersion}", String(staleBasis.baseVersion));
-}
-
-/**
  * The server's machine-readable `code` for "the version you were editing has been superseded"
  * (`server/inbound/admin-http/routes/posts/update.ts`'s `sendPostUpdateError`). Named here rather
  * than string-matched at the call site because that route returns TWO different 409s from the same
@@ -429,66 +236,6 @@ export const PAGE_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
 /** A rejected save whose basis version had already been superseded — {@link readVersionConflict}'s
  *  output, and the editor's own conflict state. Mirrors `posts/rules.ts`'s `PostSaveConflict`. */
 export type PageSaveConflict = SaveConflict;
-
-/**
- * The conflict banner's own message. NOT run through `t()`, for the same reason
- * {@link pageAutosaveStaleBasisMessage} just above is not — it interpolates two runtime values.
- *
- * States the two things an operator has to know and cannot infer: that their work was NOT saved but
- * is still in front of them, and that saving again overwrites the other person rather than merging.
- * Deliberately does not promise a merge, a diff, or a way to see what changed — none of those exist
- * here, and the recovery this screen genuinely offers is "your text is still in the editor".
- *
- * @complexity Time/space: O(1).
- */
-export function pageVersionConflictMessage({ t, ...conflict }: { t: Translate } & PageSaveConflict, _optional: Record<string, never> = {}): string {
-  const basis =
-    conflict.expectedVersion === null ? t("the version you loaded") : t("version {version}").replace("{version}", String(conflict.expectedVersion));
-  const current =
-    conflict.currentVersion === null ? t("a newer version") : t("version {version}").replace("{version}", String(conflict.currentVersion));
-  return t(
-    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor."
-  )
-    .replace("{basis}", () => basis)
-    .replace("{current}", () => current);
-}
-
-/** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
- *  out alongside {@link buildPageSavePlan} for the same reason. `t`/`locale` are threaded through
- *  rather than imported, matching every other pure function in this module. */
-export function pageSaveSuccessMessage({ t, locale, canSaveHtml }: { t: (required: { locale: string; key: string }) => string; locale: string; canSaveHtml: boolean }, _options = {}): string {
-  return canSaveHtml
-    ? t({ locale, key: "Saved" })
-    : t({ locale, key: "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet." });
-}
-
-/** The message when a Save came back with the version it was based on — the server found nothing
- *  different and wrote nothing (no-op save guard, 2026-10-10). Same copy as the Posts editor's. */
-export function pageUnchangedSaveMessage({ t, locale, version }: { t: (required: { locale: string; key: string }) => string; locale: string; version: number }, _options = {}): string {
-  return t({ locale, key: "No changes found · nothing new saved (version {version})" }).replace("{version}", String(version));
-}
-
-/** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
- *  added to `page-editor-i18n.ts`'s `PAGE_EDITOR_DICT` for every locale, matching this app's "the key
- *  IS the source string" convention. Kept as a separate constant (rather than inlined in the template
- *  literal below) so the two stay textually identical by construction. */
-const PAGE_PARTIAL_SAVE_COPY =
-  "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.";
-
-/**
- * The banner `usePageEditor` shows when a Page's metadata write landed but its body write then
- * failed (H1, 2026-09-20) — see `use-page-editor.hooks.ts`'s `PageBodyWriteError` and `writePage` for
- * why the two writes can now part ways instead of one opaque failure. Appends the underlying reason
- * in parentheses, the same "state what happened, then why" shape {@link pageVersionConflictMessage}
- * already uses, falling back to the generic "failed to save page" copy for a non-`Error` rejection —
- * the same fallback `applySaveFailure`'s own generic branch already uses for that case.
- *
- * @complexity Time/space: O(1).
- */
-export function pagePartialSaveMessage({ t, locale, reason }: { t: (required: { locale: string; key: string }) => string; locale: string; reason: unknown }, _options = {}): string {
-  const why = reason instanceof Error && reason.message ? reason.message : t({ locale, key: "failed to save page" });
-  return `${t({ locale, key: PAGE_PARTIAL_SAVE_COPY })} (${why})`;
-}
 
 /**
  * Which surface the editor's main pane shows, as a discriminated value rather than a chain of
@@ -521,94 +268,4 @@ export function pageEditorSurface({ view, canvasStyling }: { view: PageEditorVie
   if (view === "html") return { kind: "html" };
   if (canvasStyling.status === "pending") return { kind: "interactive-pending" };
   return { kind: "interactive", styling: canvasStyling.styling };
-}
-
-/** The pending-html preview form's `target` — see `PageEditorController.previewFormRef`. `""` before
- *  `page` loads, since `PagePreview` never renders that early. Split out of `usePageEditor` under the
- *  complexity ceiling. */
-export function pagePreviewFormTarget({ page }: { page: AdminPost | null }, _options = {}): string {
-  return page ? `page-preview-pending-${page.id}` : "";
-}
-
-/**
- * The `sandbox` flags on BOTH `PagePreviewFrame` iframes (live site and template preview), 2026-10-04.
- * Before this the preview iframes had no `sandbox` at all, while `update-html.ts`'s header claimed the
- * authoring preview was sandboxed. The post editor's three `PostPreviewFrame` iframes
- * (`features/posts/PostEditor.tsx`) import this same constant (owner, 2026-10-04) so the two editors'
- * flags cannot drift.
- *
- * Each flag is there because the preview needs it to render and behave as it does unsandboxed:
- * - `allow-scripts`: theme JS (menus, carousels, Liquid-rendered widgets) must run in the preview.
- * - `allow-forms`: shipped themes have real forms (sign-in/sign-up pages, newsletter footers).
- * - `allow-popups`: authored HTML uses `target="_blank"` links; a popup inherits this sandbox (no
- *   `allow-popups-to-escape-sandbox`).
- *
- * Deliberately absent: `allow-top-navigation` (and its user-activation variant), so the preview can
- * never navigate the admin tab itself by `target="_top"` links or `top.location`, and `allow-modals`.
- * Link clicks inside the frame still navigate the frame, which needs no flag.
- *
- * Deliberately absent since 2026-10-05: `allow-same-origin`. Both branches load the template-preview
- * route from the admin's own origin (the saved-content branch too since 2026-10-31: an opaque origin
- * cannot store a cookie-consent choice, and that route renders without the consent gate), and a same-origin document holding `allow-scripts allow-same-origin`
- * can reach `parent.document`, call `/api/admin/*` with the owner's session, and strip its own sandbox.
- * Without it the preview runs in an opaque origin, the same isolation Theme Studio's preview already
- * uses. What that costs, accepted on purpose:
- * - per-tab scroll memory (`onPreviewFrameLoad` can no longer read or set `contentWindow.scrollY`; its
- *   `try` swallows the `SecurityError`, so the preview opens at the top),
- * - Escape inside an expanded post preview (`usePostPreviewIframeEscape` gets a null
- *   `contentDocument`; the visible exit control still collapses it),
- * - theme scripts that touch `localStorage`/cookies, or call the site's own APIs, inside the preview.
- * Theme fonts still load: `/theme-assets` answers font requests with `Access-Control-Allow-Origin: *`
- * for exactly this opaque-origin case (`theme-content-security-headers.ts`).
- */
-export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-forms allow-popups";
-
-/**
- * The working copy's editable HTML for a loaded row — exactly the mount effect's own
- * `post.bodyFormat === "html" ? (post.bodyHtml ?? "") : ""` rule, lifted out so
- * `applyExternalPage` (an assistant write landing while the editor is open) can seed the SAME
- * initial value the mount effect does, rather than duplicating the ternary at a second call site.
- * A doc-format row has no editable HTML here — see `pageAcceptsHtmlBody`'s own doc for why this
- * editor cannot render that body at all.
- *
- * @complexity O(1).
- */
-export function pageEditableHtml(post: AdminPost, _optional: Record<string, never> = {}): string {
-  return post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
-}
-
-/**
- * Whether a background refresh must treat the working copy as possibly holding unsaved edits — the
- * `isDirty` `usePageEditor` hands `useExternalEntryRefresh`, deliberately wider than the Save
- * button's own `dirty`.
- *
- * The Interactive tab is always "maybe": GrapesJS keeps typed text in its canvas and writes it to
- * `html` only when the operator leaves that text element (its `update` event is deferred too), so
- * `dirty` can read false while unsaved typing is on screen. A silent apply there remounts the canvas
- * and destroys that text — reproduced in a real browser 2026-09-16. On that tab the refresh shows the
- * Load latest / Keep my edits notice instead. The Preview and HTML tabs write every keystroke
- * straight to `html`, so `dirty` is exact there.
- *
- * @complexity O(1).
- */
-export function pageRefreshMayHaveUnsavedEdits(input: { dirty: boolean; view: PageEditorView }): boolean {
-  return input.dirty || input.view === "interactive";
-}
-
-/** The external-change notice's own message — plain English, not run through `t()`, matching
- *  {@link pageVersionConflictMessage} and {@link pageAutosaveStaleBasisMessage} just above:
- *  `PageEditor.tsx`'s markup is outside the pages dictionary's declared scope (`pages-i18n.ts`'s own
- *  header). Shown when a newer version lands while the editor has unsaved edits — see
- *  `use-external-entry-refresh.hooks.ts` for the clean/dirty decision this banner is the dirty half
- *  of. */
-export const PAGE_EXTERNAL_CHANGE_MESSAGE =
-  "Changed outside the editor, probably by the assistant. Loading the latest version discards your unsaved edits.";
-
-/** The Page editor's `useDirtyGuard` baseline: the loaded row's title/slug/status plus the saved html
- *  and template choice. `null` before `page` loads, which the guard reads as "nothing is dirty yet".
- *  Split out of `usePageEditor` under the complexity ceiling. */
-export function pageDirtyGuardBaseline({ page, savedHtml, savedTemplateChoice }: { page: AdminPost | null; savedHtml: string; savedTemplateChoice: string | null }, _options = {}
-): { title: string; slug: string; status: AdminPost["status"]; html: string; templateChoice: string | null } | null {
-  if (!page) return null;
-  return { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice };
 }

@@ -16,15 +16,8 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  * Composition-boundary glue only — no business logic. Mirrors
  * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
  */
-import type {
-  MagicLinkTokenRepoPort,
-  MailerPort,
-  MemberRepoPort,
-  MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
-  MembersWriteServiceDeps,
-} from "#src/features/members/index";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import type { MailerPort } from "#src/platform/mail/index";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -61,6 +54,8 @@ export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
   origin?: OriginRegistryPort;
   /** The site's system-email From resolver — see `MembersWriteServiceDeps.senderIdentity`. */
   mailSenderIdentity?: MailSenderIdentityPort;
+  /** The host mail transport, bound by the composition root — see `MembersDeps.membersMailTransport`. */
+  membersMailTransport: MembersWriteServiceDeps["mailTransport"];
   /** The very same Argon2 adapter used by staff; never construct a route-local hasher. */
   passwordHasher: PasswordHasherPort;
   passwordSignInPerEmailLimiter: RateLimiter;
@@ -94,6 +89,7 @@ export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, opt
     principals: deps.principalRepo,
     origin: deps.origin,
     senderIdentity: deps.mailSenderIdentity,
+    mailTransport: deps.membersMailTransport,
   };
 }
 

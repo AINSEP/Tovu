@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -6,8 +7,8 @@ import test from "node:test";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
-import { requestSignInLink } from "#src/features/members/member-challenge-request";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
 import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/core/contracts/mail";
@@ -29,7 +30,8 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  */
 
 const MEMBERS_WRITE_SERVICE = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "members", "member-challenge-request.ts"),
+  // The challenge request moved into the package; inspect the implementation its subpath loads.
+  fileURLToPath(import.meta.resolve("@jini-ai/user-management/members/member-challenge-request")),
   "utf8"
 );
 const FORMS_NOTIFY_SUBSCRIBER = fs.readFileSync(
@@ -99,6 +101,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
     magicLinks: new InMemoryMagicLinkTokenRepo(), mailer, principals: new InMemoryPrincipalRepo({}),
     // A delivering ("recording") driver needs the site's configured sender.
     senderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example" }) },
+    mailTransport: membersMailTransport,
     // Sign-in links are absolute, so the site origin must be known before any send.
     origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: now, source: "dev-capability" }), isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false },
   }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });

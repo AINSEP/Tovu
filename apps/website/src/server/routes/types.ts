@@ -49,13 +49,7 @@ import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
-import type {
-  MagicLinkTokenRepoPort,
-  MemberRepoPort,
-  MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
-} from "../../features/members/index.js";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
@@ -431,6 +425,9 @@ export interface MembersDeps {
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
    *  Absent in roots without a resolved mailer: that include then refuses. */
   mailDomainRequirements?: (required: { workspaceId: string }) => Promise<import("@jini-ai/core/provider-registry").DomainRequirement | null>;
+  /** The host mail transport the Jini member challenge flow runs on (`features/members/mail-transport.ts`),
+   *  bound by the composition root; the route deps builders pass it as `MembersWriteServiceDeps.mailTransport`. */
+  membersMailTransport: import("@jini-ai/user-management/members/ports").MembersMailTransport;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;

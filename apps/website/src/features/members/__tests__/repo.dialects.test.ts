@@ -3,8 +3,10 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMagicLinkTokenRepo, SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "../repo.js";
-import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
+import { SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
+import { memberSqlDeps } from "../repo.sqlite.js";
+import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -153,12 +155,12 @@ function revision(
 function repos(kernel: ContentKernel) {
   return {
     kernel,
-    members: new SqlMemberRepo(kernel),
-    tiers: new SqlMemberTierRepo(kernel),
-    subs: new SqlMemberSubscriptionRepo(kernel),
-    sessions: new SqlMemberSessionRepo(kernel),
-    tokens: new SqlMagicLinkTokenRepo(kernel),
-    consents: new SqlMemberConsentRepo(kernel),
+    members: new SqlMemberRepo(memberSqlDeps({ store: kernel })),
+    tiers: new SqlMemberTierRepo(memberSqlDeps({ store: kernel })),
+    subs: new SqlMemberSubscriptionRepo(memberSqlDeps({ store: kernel })),
+    sessions: new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })),
+    tokens: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })),
+    consents: new SqlMemberConsentRepo(memberSqlDeps({ store: kernel })),
   };
 }
 

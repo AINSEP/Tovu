@@ -21,7 +21,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 
 import { CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
-import { InMemoryMemberSessionRepo, type MemberSessionRecord } from "#src/features/members/index";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
+import { type MemberSessionRecord } from "@jini-ai/user-management/members/types";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { ROOT_SLUG } from "#src/features/post/post";
 import type { DiscoveredTheme } from "#src/features/theme/index";
@@ -357,7 +358,7 @@ test("static-tier finisher: partials, embeds, menus, previews, collections, rend
   ].join(""));
 
   const out = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: undefined } }, {});
-  const access = await import("#src/features/members/access-resolver");
+  const access = await import("@jini-ai/user-management/members/access-resolver");
   const resolver = access.createMemberAccessResolver({ deps });
   log.length = 0;
   const gated = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: { resolver, context: { kind: "anonymous" } as never } } }, {});

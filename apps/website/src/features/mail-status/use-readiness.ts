@@ -22,7 +22,8 @@ import type { MailSenderIdentityPort, MailActivityOutcome, MailActivityRepo, Mai
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
 import type { MailPurposeGateProbe } from "../../platform/mail/index.js";
-import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/index.js";
+import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "@jini-ai/user-management/newsletter/launch-gate";
+import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "@jini-ai/platform/mail";
 
 export type MailUseState = "ready" | "blocked" | "disabled" | "not_configured" | "unknown";
 export type MailUseId = "sign_in" | "newsletter_confirmation" | "form_notifications" | "newsletter";

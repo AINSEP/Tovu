@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";

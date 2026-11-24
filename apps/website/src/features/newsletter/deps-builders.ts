@@ -1,8 +1,11 @@
 import type { ConfirmationDeps } from "./confirmation.js";
-import type { SendPipelineDeps } from "./send-pipeline.js";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { isMailRateLimited } from "@jini-ai/platform/mail";
+import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
+import { processOutbox } from "../../contracts/core/events/index.js";
 import type { SubscriptionsDeps } from "./subscriptions.js";
 import type { NewsletterToolDeps } from "./tool-registrations.js";
-import type { UnsubscribeDeps } from "./unsubscribe.js";
+import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 export type ConfirmationSourceDeps = Pick<NewsletterToolDeps, "newsletterConfirmationTokenRepo" | "newsletterSubscriptionRepo" | "mailer" | "membersConsentCapability" | "originRegistry" | "clock" | "idGen" | "mailSenderIdentity">;
 export type SubscriptionsSourceDeps = ConfirmationSourceDeps & Pick<NewsletterToolDeps, "newsletterListRepo" | "newsletterSubscriberDirectory">;
@@ -40,6 +43,14 @@ export function buildSubscriptionsDeps(
   };
 }
 
+/** Host collaborators the engine send pipeline receives: this host's outbox claim loop (with its retry policies),
+ *  the shared mail rate-limit code, and the redacting error log. */
+export const newsletterSendHostBindings: Pick<SendPipelineDeps, "processOutbox" | "isMailRateLimited" | "reportError"> = {
+  processOutbox: (required, optional) => processOutbox(required, optional),
+  isMailRateLimited: ({ result }) => isMailRateLimited({ result }),
+  reportError: ({ message, error }) => { console.error(message, describeErrorForLog({ err: error })); },
+};
+
 /** Assemble send ports with the caller's launch gate and optional delivery controls. @complexity O(1). */
 export function buildSendPipelineDeps(
   { deps, isSendingEnabled }: { deps: SendPipelineSourceDeps; isSendingEnabled: (workspaceId: string) => Promise<boolean> },
@@ -67,5 +78,6 @@ export function buildSendPipelineDeps(
     ids: deps.idGen,
     // Short provider quota hints are waited out inside the batch (send-pipeline.ts, quota waits).
     ...(sleep === undefined ? {} : { sleep }),
+    ...newsletterSendHostBindings,
   };
 }

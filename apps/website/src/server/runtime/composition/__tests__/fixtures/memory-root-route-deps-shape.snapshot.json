@@ -119,6 +119,7 @@
   "memberSubscriptionRepo:InMemoryMemberSubscriptionRepo",
   "memberSessionRepo:InMemoryMemberSessionRepo",
   "magicLinkRepo:InMemoryMagicLinkTokenRepo",
+  "membersMailTransport:Object",
   "mailer:Object",
   "menuRepo:TrashAwareInMemoryMenuRepo",
   "navLocationBindingRepo:InMemoryNavLocationBindingRepo",

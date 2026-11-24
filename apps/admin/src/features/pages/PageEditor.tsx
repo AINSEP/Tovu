@@ -12,9 +12,9 @@ import {
   type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
-import { pagePreviewYoutubeIds } from "./lib/page-preview-youtube";
+import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-youtube";
 
-import { isProtectedEmbedElement } from "./lib/embed-placeholder";
+import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
@@ -26,27 +26,27 @@ import type {
   StandingDraftAutosaveSnapshot,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import {
-  useWiredPageEditor,
-  type PageEditorView,
-} from "./hooks/use-page-editor.hooks";
+import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
 import {
-  PAGE_EXTERNAL_CHANGE_MESSAGE,
-  pageAutosaveStaleBasisMessage,
   pageEditorSurface,
   pagePickerValue,
   pagePublicPath,
+  type PageSaveConflict,
+} from "./rules";
+import {
+  PAGE_EXTERNAL_CHANGE_MESSAGE,
+  pageAutosaveStaleBasisMessage,
   PAGE_PREVIEW_IFRAME_SANDBOX,
   pageVersionConflictMessage,
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
-  type PageSaveConflict,
-} from "./rules";
+  type PageEditorView,
+} from "@jini-ai/admin/pages/page-editor-rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

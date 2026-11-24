@@ -9,8 +9,8 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { MemberSessionRecord } from "#src/features/members/index";
-import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { loadTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";

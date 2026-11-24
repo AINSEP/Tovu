@@ -1,4 +1,4 @@
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../../pages/rules";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import { useThemePreviewFrame } from "../../../themes/hooks/use-theme-preview-refresh.hooks";
 import { usePostPreviewIframeEscape } from "../../hooks/use-post-editor-ui.hooks";
 import { type Translate } from "@jini-ai/core/text";
