@@ -17,6 +17,11 @@ test("third-party hosts: only other-origin authored scripts count", () => {
   assert.deepEqual(findThirdPartyScriptHosts({ html: "<p>no scripts</p>", ownHosts: own }), []);
 });
 
+test("third-party hosts: mixed-case <ScRiPt> markup still reaches the parser", () => {
+  const own = new Set(["site.test"]);
+  assert.deepEqual(findThirdPartyScriptHosts({ html: '<p>x</p><ScRiPt src="https://cdn.mixed.test/a.js"></ScRiPt><SCRIPT SRC="https://cdn.upper.test/b.js"></SCRIPT>', ownHosts: own }), ["cdn.mixed.test", "cdn.upper.test"]);
+});
+
 test("collector: placeholder always warns; third-party scripts warn only with consent configured; existing warning is kept", () => {
   const html = '<mark>ADD YOUR CONTACT EMAIL</mark><script src="https://t.test/p.js"></script>';
   const off = createExportPreflight({ ownOrigins: ["https://example.com/base", undefined] });

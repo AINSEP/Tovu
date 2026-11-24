@@ -43,7 +43,7 @@ function authoredScriptHost({ node, ownHosts }: { node: DefaultTreeAdapterMap["e
  * @complexity O(sample bytes), at most 1 MB per page.
  */
 export function findThirdPartyScriptHosts({ html, ownHosts }: { html: string; ownHosts: ReadonlySet<string> }, _optional = {}): string[] {
-  if (!html.includes("<script")) return [];
+  if (!html.toLowerCase().includes("<script")) return [];  // HTML tag names are case-insensitive; the parser sorts the rest.
   const hosts = new Set<string>();
   const nodes: Node[] = [...parse(html.slice(0, MAX_SAMPLE_BYTES)).childNodes];
   while (nodes.length) {
