@@ -1,6 +1,6 @@
 import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { widgetsApi } from "../../features/widgets/widgets-host-ports";
-import type { WidgetPickerPort } from "./widget-picker-port.hooks";
+import type { WidgetPickerPort } from "@jini-ai/admin/shell/components/WidgetPickerDialog/widget-picker-port.hooks";
 
 /**
  * @file The only place under `components/WidgetPickerDialog` that reaches `lib/api` — see

@@ -95,7 +95,7 @@ describe("AgentPlugins — Add a plugin", () => {
   it("accepts one dropped .zip and refuses a drop of several files", async () => {
     renderAddTab();
     await openAddTab();
-    const zone = screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")!;
+    const zone = screen.getByText("Drop a .zip here").closest(".jini-install-tab-dropzone")!;
 
     fireEvent.drop(zone, { dataTransfer: { files: [zip("a.zip"), zip("b.zip")] } });
     expect(screen.getByRole("alert")).toHaveTextContent("Choose one .zip file.");
@@ -237,7 +237,7 @@ describe("Agent Plugin replacement transport", () => {
 it("tags every Agent Plugins add-tab control, including the disabled URL option", async () => {
   renderAddTab();
   await openAddTab();
-  expect(screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")).toHaveAttribute("data-agent-element", "agent-plugin-add-dropzone");
+  expect(screen.getByText("Drop a .zip here").closest(".jini-install-tab-dropzone")).toHaveAttribute("data-agent-element", "agent-plugin-add-dropzone");
   for (const [name, handle] of [["Choose a file", "agent-plugin-add-choose"], ["Choose a folder", "agent-plugin-add-choose-folder"], ["Install (stays off)", "agent-plugin-add-install"], ["Add from URL", "agent-plugin-add-from-url"]]) {
     expect(screen.getByRole("button", { name })).toHaveAttribute("data-agent-element", handle);
   }

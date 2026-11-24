@@ -1,6 +1,6 @@
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "../../features/media/api/media-api";
-import type { MediaPickerPort } from "./media-picker-port.hooks";
+import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 
 /**
  * @file The only place under `components/MediaPickerDialog` that reaches `lib/api` — see

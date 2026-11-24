@@ -150,7 +150,7 @@ it("publishes stable handles for the drop zone, Advanced, Replace and Cancel", a
   expect(advanced.parentElement).not.toHaveAttribute("open");
   await user.click(advanced);
   expect(advanced.parentElement).toHaveAttribute("open");
-  expect(screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")).toHaveAttribute("data-agent-element", "plugins-install-dropzone");
+  expect(screen.getByText("Drop a .zip here").closest(".jini-install-tab-dropzone")).toHaveAttribute("data-agent-element", "plugins-install-dropzone");
   expect(screen.getByLabelText("Upload .zip (max 32 MiB)")).toHaveAttribute("data-agent-element", "plugins-install-zip-input");
   expect(screen.getByLabelText("Choose a plugin folder")).toHaveAttribute("data-agent-element", "plugins-install-folder-input");
   const replace = screen.getByRole("checkbox", { name: "Replace existing version" });
