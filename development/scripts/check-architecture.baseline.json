@@ -275,7 +275,7 @@
     "apps/website/src/features/vendor-credentials/vault-adapter.ts -> apps/website/src/features/source-control/types.ts",
     "apps/website/src/features/vendor-credentials/vault-adapter.ts -> apps/website/src/features/webhooks/index.ts",
     "apps/website/src/features/web/tool-registrations.ts -> apps/website/src/features/site-inspection/page-body.ts",
-    "apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/index.ts",
+    "apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/write-service.ts",
     "apps/website/src/features/widgets/publish-content.ts -> apps/website/src/features/entries/index.ts",
     "apps/website/src/features/widgets/publish-content.ts -> apps/website/src/features/publish-content/content-references.ts",
     "apps/website/src/features/widgets/publish-content.ts -> apps/website/src/features/publish-content/media-references.ts",

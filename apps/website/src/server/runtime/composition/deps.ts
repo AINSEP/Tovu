@@ -28,7 +28,9 @@ import { createTelemetryConsent } from "./telemetry-consent.js";
 import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import { contentKernel } from "#src/platform/db/content-kernel";
 
-import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
+import { loadMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";
+import { contributeProviders, defineProviderContribution, type ProviderContributionDescriptor } from "@jini-ai/agent-plugins/lifecycle";
+import { createMediaProviderRegistry, MEDIA_PROVIDER_CONTRACT, mediaProviderRegistryId, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
 
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
@@ -121,10 +123,13 @@ async function composeSiteRouteDeps(
   await warnCompositionChatOrphans({ dbPath, store, kernel, chatDbPath });
 
   // Media-generation vendors (built-in + Agent Plugin contributed), built ONCE here — see
-  // `features/media-generation/media-provider-registry.ts`. A refused plugin vendor is logged, never fatal.
+  // `@jini-ai/cms/media/site-generation/media-provider-registry`. A refused plugin vendor is logged, never fatal.
   // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
   // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
-  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions,
+    filename: "tovu-media-providers.json", contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createMediaProviderRegistry,
+    registryId: mediaProviderRegistryId, contributeProviders,
+    defineProviderContribution: defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution> });
   const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo, pluginRuntime, identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady, outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo, trashRegistry, sqliteTrashDb, trashRepo, formDeliveryRepo, trashAdapters, trashTransaction, trash, removePlugin, removeUser, isInTrash, redirectsWriteDeps, databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection, entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo, formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability, runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer } = composeSiteServicesPhase({ dbPath, overrides, onStoreClose, lifecycleTracker: () => lifecycleTracker, routeDepsBuiltForPluginHost: () => routeDepsBuiltForPluginHost, formCollectionProviders: () => formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo: () => assetBlobRepo, mediaRepo: () => mediaRepo, postRepo: () => postRepo, mediaContentTypeStore: () => mediaContentTypeStore, routeDeps: () => routeDeps, consoleLogger });
   // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
   // Safe alongside the settings-ledger chain: SqlSettingsRepo.transaction delegates to this SAME

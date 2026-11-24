@@ -9,7 +9,7 @@ import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
-import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
+import { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credentials/credential-recovery";
 import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
@@ -46,8 +46,9 @@ import { bindCredentialedRequestPort } from "./credential-ports.js";
 import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
-import { buildCreateForm, buildCreateOutcome } from "./custom-credential-create-ui.js";
-import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
+import { buildCreateForm, buildCreateOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-create-ui";
+import { setTokenForm, setTokenOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel, updateCustomCredential } from "./store.js";
@@ -461,7 +462,10 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     },
     credentialCardForms: {
       buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
-      create: buildCreateForm, createOutcome: buildCreateOutcome, rotate: setTokenForm, rotateOutcome: setTokenOutcome,
+      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES }),
+      createOutcome: required => buildCreateOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.createOutcome }),
+      rotate: required => setTokenForm({ ...required, app: tovuCredentialCardIdentity.appNames.setToken, secretField: SECRET_FORM_CARD_DEFINITIONS.credential_save?.secretField }),
+      rotateOutcome: required => setTokenOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.setTokenOutcome }),
     },
     recovery: { withSetup: (required, optional) => withCustomCredentialSetup({ ...required, issueCredentialSetup }, optional) },
     publish: {

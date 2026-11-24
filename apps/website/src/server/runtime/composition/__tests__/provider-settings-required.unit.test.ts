@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
-import { buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
+import { buildProviderSettingsForm } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
+import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
 import { providerInputOf } from "../provider-plugins.js";
 import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
@@ -92,12 +93,12 @@ test("boot and provider_status agree for absent auth, explicit local auth, and d
 });
 
 test("chat declares a default Token choice and conditional blank handling without exposing saved secrets", () => {
-  const form = buildProviderSettingsForm({ prep: { pluginId, fields, saved: null } });
+  const form = buildProviderSettingsForm({ prep: { pluginId, fields, saved: null }, app: tovuProviderSettingsCardIdentity.formApp });
   const auth = form.fields.find((field) => field.name === "auth");
   const token = form.fields.find((field) => field.name === "token");
   assert.equal(auth?.value, "token");
   assert.deepEqual(token, { kind: "string", name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none" }, allowBlank: true, hint });
-  const kept = buildProviderSettingsForm({ prep: { pluginId, fields, saved: { settings: { endpoint }, secretNames: ["token"] } } }).fields.find((field) => field.name === "token");
+  const kept = buildProviderSettingsForm({ prep: { pluginId, fields, saved: { settings: { endpoint }, secretNames: ["token"] } }, app: tovuProviderSettingsCardIdentity.formApp }).fields.find((field) => field.name === "token");
   assert.equal(kept?.required, true);
   assert.equal(kept?.kind === "string" && kept.hasSavedValue, true);
   assert.equal(kept?.value, undefined);

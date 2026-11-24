@@ -10,8 +10,8 @@ import {
   removeUnreadableOwnerEntries,
   UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON,
   UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID,
-  type OwnerEntryRemoval,
 } from "../../unreadable-owner-entries-repair.js";
+import type { OwnerEntryRemoval } from "@jini-ai/cms/entries/site/unreadable-owner-entries-repair";
 
 /**
  * @file The boot data repair that removes `entries` rows whose envelope namespace does not match

@@ -21,7 +21,10 @@ import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
-import { buildProviderSettingsCredentialHandler } from "#src/features/custom-credentials/provider-settings-card";
+import { buildProviderSettingsCredentialHandler } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
+import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { bindProviderSettingsCardPorts, listProviderStatuses } from "./provider-settings-save.js";
 import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#src/features/plugin-runtime/provider-status-tool";
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
@@ -640,7 +643,7 @@ function installCredentialSaveTools(contributions: AssistantToolContributions) {
           agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: tokenDeps, surfaces }, optional),
           pluginProvider: api.pluginProvider,
           // A provider plugin's settings, saved through the admin Settings card's rule and store.
-          ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
+          ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, cards: { defineSecretCardTool, askThenReport }, identity: tovuProviderSettingsCardIdentity, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
             ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider, tracker: originalDeps.tracker, userId: `site:${originalDeps.workspaceId}` }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),
