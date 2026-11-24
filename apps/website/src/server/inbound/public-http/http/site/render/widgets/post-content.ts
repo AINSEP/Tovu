@@ -1,8 +1,8 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
-import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
+import type { WidgetDocRendering } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { isObject, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "../doc/doc-nodes.js";
-import type { MediaAssetRenderMeta } from "../../render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "@jini-ai/core/text";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";

@@ -8,7 +8,7 @@ import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-pat
 import { renderVideoTag, renderImageTag } from "@jini-ai/cms/widgets/media-tags";
 import { MEDIA_PLAYBACK_COPY } from "@jini-ai/cms/public-http/http/site/render/media-playback-copy";
 import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/html/gallery-render";
-import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
+import type { WidgetDocRendering } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderMediaRawHtml } from "@jini-ai/cms/widgets/html/media-html";
 import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";

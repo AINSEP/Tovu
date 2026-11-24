@@ -1,7 +1,7 @@
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import type { MediaAssetRenderMeta } from "../../render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
-import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler, DocRenderOptions } from "./doc-render-contract.js";
+import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler, DocRenderOptions } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { dedupeHeadingIds, alignStyleAttr, headingAnchorId, tableSpanAttrs, tableCellAlignAttr } from "@jini-ai/cms/html/text-layout";
 import { isObject, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";

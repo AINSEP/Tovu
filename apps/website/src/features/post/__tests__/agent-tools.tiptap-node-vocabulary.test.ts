@@ -3,7 +3,7 @@ import test from "node:test";
 import Ajv from "ajv";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render/doc/doc-nodes";
 import { MARK_RENDERERS } from "@jini-ai/cms/html/document-marks";

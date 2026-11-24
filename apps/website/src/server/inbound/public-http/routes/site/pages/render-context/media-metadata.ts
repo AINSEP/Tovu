@@ -3,7 +3,7 @@ import { collectCoverMediaRefs } from "@jini-ai/cms/media/cover-image";
 import type { StaticFeaturedImage } from "#src/features/theme/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
-import type { MediaAssetRenderMeta } from "../../../../http/site/render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { featuredImageView } from "../../../../http/site/render/template-render-data.js";
 import type { RenderContextResolutionDeps } from "./deps.js";
 

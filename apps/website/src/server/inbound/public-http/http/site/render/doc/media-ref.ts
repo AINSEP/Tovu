@@ -1,7 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { MediaAssetRenderMeta } from "../../render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderImageTag } from "@jini-ai/cms/widgets/media-tags";
-import type { DocNodeRenderDeps } from "./doc-render-contract.js";
+import type { DocNodeRenderDeps } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { isPlausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 

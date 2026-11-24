@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
-import type { DocRenderOptions, WidgetDocRendering } from "./doc/doc-render-contract.js";
+import type { DocRenderOptions, WidgetDocRendering } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "./doc/doc-nodes.js";
 import { randomUUID } from "node:crypto";
 import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-markers";

@@ -1,4 +1,4 @@
-import type { DocNodeHandlerRequired } from "./doc-render-contract.js";
+import type { DocNodeHandlerRequired } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { isObject } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { tryRenderRefImage, mediaNodeStyleOverride } from "./media-ref.js";
 import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
@@ -7,7 +7,7 @@ import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url
 import { escapeHtml } from "@jini-ai/core/text";
 import { formatHtmlAttributes } from "@jini-ai/cms/widgets/media-attributes";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { MediaAssetRenderMeta } from "../../render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { renderVideoTag } from "@jini-ai/cms/widgets/media-tags";
 import { MEDIA_PLAYBACK_COPY } from "@jini-ai/cms/public-http/http/site/render/media-playback-copy";
