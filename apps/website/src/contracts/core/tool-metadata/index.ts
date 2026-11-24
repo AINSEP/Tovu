@@ -49,6 +49,7 @@ import { toolMetadata as visitor_tools } from './visitor-tools.js';
 import { createSiteBackupToolMetadata } from '@jini-ai/core/tool-metadata/site-backup';
 import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
+import { toolMetadata as agent_pause } from './agent-pause.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
 import { toolMetadata as site_update } from './site-update.js';
 import { toolMetadata as sites } from './sites.js';
@@ -136,6 +137,7 @@ export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ 
   { domain: 'site-backup', tools: site_backup },
   { domain: 'site-evidence', tools: site_evidence },
   { domain: 'site-guide', tools: site_guide },
+  { domain: 'agent-pause', tools: agent_pause },
   { domain: 'site-inspection', tools: site_inspection },
   { domain: 'site-update', tools: site_update },
   { domain: 'sites', tools: sites },

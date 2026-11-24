@@ -30,6 +30,16 @@ import { postSearchFor, type PostSearchProjection } from "@jini-ai/cms/posts/sql
  */
 
 
+/**
+ * H4 (owner decision 11-23): the agent-pause hold keeps an AGENT-created post that is scheduled for a
+ * moment after the pause began from going live, until the owner approves the resume card (which
+ * deletes the `agent_pause_holds` row — `agent-pause-gate.ts`). Read from the hold row itself so
+ * every public read sees the same truth without each caller awaiting the gate. Posts that were
+ * live before the pause and unscheduled agent posts are untouched: the switch pauses future
+ * publishes, it does not unpublish. `EXISTS` is never NULL, so a NULL `publish_at` cannot drop a row.
+ */
+const notHeldAgentSchedule = sql<boolean>`NOT (posts.created_by_kind = 'agent' AND EXISTS (SELECT 1 FROM agent_pause_holds h WHERE h.workspace_id = posts.workspace_id AND posts.publish_at > h.held_since))`;
+
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   protected readonly kernel: ContentKernel;
   private readonly search: PostSearchProjection;
@@ -113,6 +123,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("deleted_at", "is", null)
         // Scheduled publishing: same rule as `isLiveAt` — ISO UTC strings compare in time order.
         .where((eb) => eb.or([eb("publish_at", "is", null), eb("publish_at", "<=", nowIso)]))
+        .where(notHeldAgentSchedule)
         // Display-date order (`postDisplayDateIso`): go-live time when set, else `updated_at`; `id`
         // breaks ties so OFFSET batches never repeat or skip a row.
         .orderBy(sql`coalesce(publish_at, updated_at)`, "desc")
@@ -138,6 +149,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("deleted_at", "is", null)
         .where("publish_at", "<=", nowIso)
         .where((eb) => eb("publish_at", ">", eb.ref("updated_at")))
+        .where(notHeldAgentSchedule)
         .$if(afterIso !== undefined, (qb) => qb.where("publish_at", ">", afterIso as string))
         .orderBy("publish_at", "asc")
         .orderBy("id", "asc")
