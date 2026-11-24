@@ -1,6 +1,7 @@
 import { listPublishedPosts } from "#src/features/post/post-read";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
@@ -50,7 +51,7 @@ export const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _optio
 
       const memberAccessResolver = createMemberAccessResolver({ deps });
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
-        resolveRenderThemeId({ response: res, deps }),
+        resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveMemberContextForRequest({ req, deps, resolver: memberAccessResolver }),

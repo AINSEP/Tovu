@@ -1,6 +1,7 @@
 import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from "#src/platform/media-access-evidence";
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "@jini-ai/cms/publish/content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
@@ -646,7 +647,7 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ 
 
       // Reuse ingest sanitization for legacy blobs before applying byte ranges.
       const bytes = await sanitizeOriginalBytes({ sniffed, sourceBytes });
-      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ bytes, rangeHeader: req.get("range"), type: inlineOriginalType({ sniffed }) }) });
+      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ deps: { parseRangeHeader }, bytes, rangeHeader: req.get("range"), type: inlineOriginalType({ sniffed }) }) });
     } catch {
       res.status(500).json({ error: "internal error" });
     }

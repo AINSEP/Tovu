@@ -1,5 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { decideMediaOriginalForAsset, lookupMediaOriginalBlob } from "@jini-ai/cms/media";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
@@ -58,7 +59,7 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = ({ app, deps
         sendMediaOriginalTrashed({ res });
         return;
       }
-      const reply = await decideMediaOriginalForAsset({ deps, media: lookup.media, blob: lookup.blob, rangeHeader: req.get("range") });
+      const reply = await decideMediaOriginalForAsset({ deps: { blobStore: deps.blobStore, parseRangeHeader }, media: lookup.media, blob: lookup.blob, rangeHeader: req.get("range") });
       writeMediaOriginalReply({ res, reply });
     } catch (error) {
       // No typed domain error is thrown on this route's own read path — `media`/`assetBlobRepo`

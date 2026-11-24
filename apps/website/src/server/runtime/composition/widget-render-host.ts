@@ -15,7 +15,7 @@ import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSch
 import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
-import { FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, FORM_PRESENTATION_NAMES } from "../../form-wire-policy.js";
+import { FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, FORM_PRESENTATION_NAMES } from "#src/server/inbound/public-http/http/site/form-wire-policy";
 
 /** The widget renderers' host collaborators, bound once: Tovu's media tag/URL policy, its Raw HTML
  *  log sink, its entry-list marker attribute, its date policy, and the legacy form class and

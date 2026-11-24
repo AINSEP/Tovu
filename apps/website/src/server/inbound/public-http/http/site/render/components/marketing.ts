@@ -4,7 +4,7 @@ import { escapeHtml } from "@jini-ai/core/text";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import type { SiteRenderContext } from "../../render-context.js";
 import { mediaPlaceholder } from "@jini-ai/cms/public-http/http/site/render/media-placeholder";
-import { TOVU_DOC_RENDER_CLASSES } from "../doc/doc-host.js";
+import { TOVU_DOC_RENDER_CLASSES } from "#src/server/runtime/composition/doc-render-host";
 
 function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): string {
   const links = actions

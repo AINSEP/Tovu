@@ -23,7 +23,7 @@ import { resolveSiteTitleForRender, htmlEmbedHostDeps } from "./render-context/s
 import { resolveStaticMenusForRender, type StaticMenuMap } from "./render-context/static-menus.js";
 import { resolvePostPreviewsForRender } from "./render-context/post-previews.js";
 import { resolveCollectionListsForRender, type CollectionListsCollaborators } from "@jini-ai/cms/public-http/routes/site/pages/render-context/collection-lists";
-import { warnCollectionLists } from "./render-context/collection-warning.js";
+import { warnCollectionLists } from "#src/server/runtime/composition/collection-list-warnings";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { resolvePerVisitorResponse, sendPublicPage } from "./response.js";
 

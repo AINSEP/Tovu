@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { decideMediaOriginalReply, inlineOriginalType } from "@jini-ai/cms/media";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import { writeMediaOriginalReply } from "#src/server/inbound/shared/media-original-writer";
 
 /**
@@ -89,7 +90,7 @@ export function registerAdminChatAttachmentReadRoute(
       }
 
       const type = inlineOriginalType({ sniffed: sniffContentType({ bytes: result.bytes }) });
-      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ bytes: result.bytes, rangeHeader: req.get("range"), type }) });
+      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ deps: { parseRangeHeader }, bytes: result.bytes, rangeHeader: req.get("range"), type }) });
     } catch (error) {
       // `readChatAttachmentForOwner` classifies every expected failure as a refusal rather than
       // throwing, so anything reaching here is genuinely unexpected (a filesystem fault between the

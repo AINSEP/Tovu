@@ -6,6 +6,7 @@ import { PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
@@ -68,7 +69,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   const memberAccessResolver = createMemberAccessResolver({ deps });
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
     listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-    resolveRenderThemeId({ response: res, deps }),
+    resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
     // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
     // route that calls `renderSite` resolves this the same way, through the shared
     // `resolveSiteAssistantWidgetForRequest` (see `pages.ts`'s other handler and

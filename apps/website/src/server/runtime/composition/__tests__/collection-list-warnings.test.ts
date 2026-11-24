@@ -6,7 +6,7 @@ import { markersOfType, COLLECTION_MARKER_TYPE } from "@jini-ai/cms/widgets/mark
 import { collectionMarkerKey, splitCollectionMarkerInner, renderEntryList, listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "@jini-ai/cms/entries/site/public-list";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
-import { warnCollectionLists } from "../collection-warning.js";
+import { warnCollectionLists } from "../collection-list-warnings.js";
 
 /**
  * @file Pins the `[collection]` console lines the public site writes when a collection marker falls back

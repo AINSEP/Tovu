@@ -3,6 +3,7 @@ import { resolveProtocol } from "../../../../../platform/express/public-origin.j
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite } from "../../http/site/render-site.js";
@@ -70,7 +71,7 @@ async function findStorefrontProduct({ deps, id, readiness }: { deps: CommerceSi
 async function resolveStorefrontPage(required: { req: Request; res: Response; deps: CommerceSiteAdapterDeps }, _optional = {}) {
   const { req, res, deps } = required;
   const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-    resolveRenderThemeId({ response: res, deps }),
+    resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),
     resolveSiteTitleForRender(deps),
   ]);

@@ -1,7 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { DocRenderOptions, WidgetDocRendering } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
 import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
-import { TOVU_DOC_NODE_HOST } from "./doc/doc-host.js";
+import { TOVU_DOC_NODE_HOST } from "#src/server/runtime/composition/doc-render-host";
 import { randomUUID } from "node:crypto";
 import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-markers";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
@@ -13,7 +13,7 @@ import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy/render-entry";
 import { renderWidgetContactForm } from "@jini-ai/cms/public-http/http/site/render/contact-form-widget";
 import { renderWidgetMediaImage, renderMediaWidget } from "@jini-ai/cms/public-http/http/site/render/widgets/media";
 import { renderWidgetPostContent } from "@jini-ai/cms/public-http/http/site/render/widgets/post-content";
-import { TOVU_WIDGET_RENDER_HOST } from "./widgets/widget-host.js";
+import { TOVU_WIDGET_RENDER_HOST } from "#src/server/runtime/composition/widget-render-host";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import type { SiteRenderContext } from "../render-context.js";
 
