@@ -161,7 +161,7 @@ export function buildMediaRegistrationsForTovu(
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });
 
-  return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration) => {
+  return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration): ToolRegistration => {
     if (registration.descriptor.id === "media_upload_asset") {
       return { ...registration, handler: async (ctx, optional = {}) => {
         const result = await registration.handler(ctx, optional) as { media: { title: string; publicUrl: string | null } };
