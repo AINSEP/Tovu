@@ -8,7 +8,7 @@ import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { fsFilesApi } from "../../features/fs-files/api/fs-files-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { mailStatusApi } from "../../features/email/api/mail-status-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { membersApi } from "../../features/members/api/members-api";

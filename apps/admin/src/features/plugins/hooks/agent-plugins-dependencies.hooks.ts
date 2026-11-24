@@ -1,6 +1,6 @@
 import type { AgentPluginListRow, AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
-import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import type { AgentPluginsPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 /**
  * @file The only place under `features/plugins`'s Agent Plugins screen hook that reaches

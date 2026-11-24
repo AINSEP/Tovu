@@ -9,7 +9,7 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
-import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
+import type { AgentPluginsPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 import { AGENT_PLUGINS_RESOURCE } from "../rules";
 
 import { type Translate } from '@jini-ai/core/text';

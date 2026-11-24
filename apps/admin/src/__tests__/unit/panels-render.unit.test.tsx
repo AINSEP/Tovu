@@ -1,6 +1,7 @@
 import { Suspense, type ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
+import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
 
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { ADMIN_PANELS, type PanelRenderContext as PanelRouteContext } from "../../panels";
@@ -22,7 +23,6 @@ import {
   Menus,
   MenuEditor,
   IntegrationDeliveries,
-  IntegrationsRedirect,
   Providers,
   Users,
   Authentication,

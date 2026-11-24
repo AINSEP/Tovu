@@ -2,7 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AdminExternalMcpAdmissionsSnapshot } from "@jini-ai/core/contracts/site/cms-external-mcp";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { ApiError, API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";

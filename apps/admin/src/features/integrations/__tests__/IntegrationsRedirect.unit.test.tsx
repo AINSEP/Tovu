@@ -1,7 +1,7 @@
 import { render, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { IntegrationsRedirect } from "../IntegrationsRedirect";
+import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
 import { useIntegrationsRedirect } from "../hooks/use-integrations-redirect.hooks";
 import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 
@@ -14,7 +14,7 @@ it("mounting the retired screen replaces its URL with the Webhooks tab and notif
   const historyLength = window.history.length;
   const subscriber = renderHook(() => useRouteLocation());
   expect(subscriber.result.current).toBe("/integrations");
-  const { container, rerender } = render(<IntegrationsRedirect />);
+  const { container, rerender } = render(<IntegrationsRedirect useIntegrationsRedirectHook={useIntegrationsRedirect} />);
   expect(window.location.pathname).toBe("/admin/addons/integrations");
   expect(window.location.search).toBe("?tab=webhooks");
   expect(window.history.length).toBe(historyLength);
@@ -22,7 +22,7 @@ it("mounting the retired screen replaces its URL with the Webhooks tab and notif
   expect(container).toBeEmptyDOMElement();
 
   window.history.replaceState(null, "", "/admin/media");
-  rerender(<IntegrationsRedirect />);
+  rerender(<IntegrationsRedirect useIntegrationsRedirectHook={useIntegrationsRedirect} />);
   expect(window.location.pathname).toBe("/admin/media");
   expect(window.history.length).toBe(historyLength);
 });
@@ -39,9 +39,9 @@ it("the redirect hook replaces history when mounted independently", () => {
 it("uses the resolved destination and updates it when the same redirect component receives a new route", () => {
   window.history.replaceState(null, "", "/admin/plugins?tab=add");
   const historyLength = window.history.length;
-  const { rerender } = render(<IntegrationsRedirect routePath="/addons/plugins?tab=add" />);
+  const { rerender } = render(<IntegrationsRedirect routePath="/addons/plugins?tab=add" useIntegrationsRedirectHook={useIntegrationsRedirect} />);
   expect(window.location.pathname + window.location.search).toBe("/admin/addons/plugins?tab=add");
-  rerender(<IntegrationsRedirect routePath="/addons/integrations/sub%2F1?cursor=a%2Bb" />);
+  rerender(<IntegrationsRedirect routePath="/addons/integrations/sub%2F1?cursor=a%2Bb" useIntegrationsRedirectHook={useIntegrationsRedirect} />);
   expect(window.location.pathname + window.location.search).toBe("/admin/addons/integrations/sub%2F1?cursor=a%2Bb");
   expect(window.history.length).toBe(historyLength);
 });

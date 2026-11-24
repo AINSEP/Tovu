@@ -23,7 +23,8 @@ import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
 import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
 import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
 import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "./lib/shell-collaborators";
-import { IntegrationsRedirect } from "./features/integrations";
+import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
+import { useIntegrationsRedirect } from "./features/integrations/hooks/use-integrations-redirect.hooks";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
@@ -225,7 +226,7 @@ function gatedRouteElement({ route, siteSection, access }: { route: Route; siteS
  */
 function renderRoute({ route, siteSection, access, useAdminLocaleHook }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess; useAdminLocaleHook: UseAdminLocaleHook }, _options: Record<string, never> = {}): ReactNode {
   // Replace the old URL before mounting its screen; the canonical route retains the same gate.
-  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
+  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} useIntegrationsRedirectHook={useIntegrationsRedirect} />;
   if (route.unknownSectionId !== undefined) {
     return <Placeholder sectionId={route.unknownSectionId} useAdminLocaleHook={useAdminLocaleHook} />;
   }

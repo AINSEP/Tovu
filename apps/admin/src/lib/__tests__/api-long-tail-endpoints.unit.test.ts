@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { themesApi } from "../../features/themes/api/themes-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";

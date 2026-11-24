@@ -23,7 +23,7 @@ type SourceUpdateInput = Parameters<
 >[1];
 
 import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@jini-ai/core/contracts/site/cms-external-mcp";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { describeApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE, isVersionConflict } from "@/lib/version-conflict";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";

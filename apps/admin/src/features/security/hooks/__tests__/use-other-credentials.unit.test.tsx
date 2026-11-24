@@ -62,8 +62,8 @@ const {
   listExternalMcpServers: vi.fn(),
 }));
 
-vi.mock("../../../integrations/api/integrations-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../integrations/api/integrations-api")>();
+vi.mock("@/features/integrations/integrations-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/integrations/integrations-host-ports")>();
   return { ...actual, integrationsApi: { ...actual.integrationsApi, listExternalMcpServers } };
 });
 vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {

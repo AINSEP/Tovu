@@ -8,7 +8,7 @@ import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/
 import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
-import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 import { type Translate } from '@jini-ai/core/text';
 /** The server's own cap (`install.ts`'s `maxArchiveBytes`), checked here first so an oversized file

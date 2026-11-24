@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";

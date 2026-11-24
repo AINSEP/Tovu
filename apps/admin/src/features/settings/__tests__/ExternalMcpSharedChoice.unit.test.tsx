@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { integrationsApi } from '@/features/integrations/api/integrations-api';
+import { integrationsApi } from '@/features/integrations/integrations-host-ports';
 import { ExternalMcpSharedChoice } from '../ExternalMcpSharedChoice';
 import { t as translate } from '../external-mcp-i18n';
 

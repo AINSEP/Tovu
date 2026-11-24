@@ -1,4 +1,4 @@
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";

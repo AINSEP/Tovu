@@ -1,5 +1,5 @@
 import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/agentic";
-import { integrationsApi } from "../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { postsApi } from "../features/posts/api/posts-api";
 import { pagesApi } from "../features/pages/api/pages-api";
 import { menusApi } from "../features/menus/api/menus-api";

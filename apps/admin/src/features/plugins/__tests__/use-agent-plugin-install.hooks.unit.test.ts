@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
-import type { AgentPluginInstallPort } from "../hooks/agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 /**
  * @file `useAgentPluginInstall` beyond the replace and size suites: every refusal's operator copy,

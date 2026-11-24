@@ -11,7 +11,7 @@ import { act } from "@testing-library/react";
 import { executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
 import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { buildAdminAgentPages } from "@/lib/agent-pages";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
 import { AgentPlugins } from "../AgentPlugins";
 import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";

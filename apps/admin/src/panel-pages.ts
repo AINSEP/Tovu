@@ -29,7 +29,7 @@ export const Analytics = lazy(() => import("./features/analytics").then(module =
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
 export const MenuEditor = lazy(() => import("./features/menus").then(module => ({ default: module.MenuEditor })));
-export { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
+export { IntegrationDeliveries } from "./features/integrations";
 export const Providers = lazy(() => import("./features/providers").then(module => ({ default: module.Providers })));
 export const Users = lazy(() => import("./features/users").then(module => ({ default: module.Users })));
 export const Authentication = lazy(() => import("./features/authentication").then(module => ({ default: module.Authentication })));

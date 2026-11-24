@@ -22,7 +22,7 @@ import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
-import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
 

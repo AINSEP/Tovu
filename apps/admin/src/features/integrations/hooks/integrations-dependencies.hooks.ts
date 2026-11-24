@@ -1,6 +1,6 @@
 import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
-import type { IntegrationsPort } from "./integrations-port.hooks";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import type { IntegrationsPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file The only place under `features/integrations/hooks` that reaches `lib/api` for

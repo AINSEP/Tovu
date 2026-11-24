@@ -20,4 +20,3 @@ import { lazy } from "react";
 // App needs the redirect on every route. Keep its sibling detail screen out of that eager path.
 export const IntegrationDeliveries = lazy(() => import("./IntegrationDeliveries")
   .then(module => ({ default: module.IntegrationDeliveries })));
-export { IntegrationsRedirect } from "./IntegrationsRedirect";

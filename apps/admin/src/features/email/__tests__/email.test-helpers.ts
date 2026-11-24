@@ -1,5 +1,5 @@
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
-import type { integrationsApi } from "@/features/integrations/api/integrations-api";
+import type { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { vi } from "vitest";
 
 import type { EmailApi, EmailTemplateDetail, EmailTemplatePreview, MailActivityItem, MailDnsStatus, MailProviderConfiguration, MailSuppressionEntry, MailSuppressionRemovalPlan } from "../email-api";

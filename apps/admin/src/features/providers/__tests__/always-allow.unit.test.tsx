@@ -7,9 +7,9 @@ import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
-import { formatGrantedAt, groupAlwaysAllow } from "../always-allow-rules";
+import { formatGrantedAt, groupAlwaysAllow } from "@jini-ai/admin/screens/providers/always-allow-rules";
 import { createFakeAlwaysAllowPort, defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
-import type { AlwaysAllowPort } from "../hooks/always-allow-port.hooks";
+import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
 import { useAlwaysAllow } from "../hooks/use-always-allow.hooks";
 
 /**

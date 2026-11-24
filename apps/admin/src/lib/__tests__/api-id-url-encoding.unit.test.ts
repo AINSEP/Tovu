@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { securityApi } from "@/features/security/security-host-ports";
 import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";

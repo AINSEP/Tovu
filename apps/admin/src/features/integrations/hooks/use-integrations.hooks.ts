@@ -8,7 +8,7 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { KEYS, WEBHOOKS_RESOURCE, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";
-import type { IntegrationsPort } from "./integrations-port.hooks";
+import type { IntegrationsPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file Everything the Integrations LIST screen does, so `Integrations.tsx` is only markup.

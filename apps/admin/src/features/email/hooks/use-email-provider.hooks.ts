@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
-import { integrationsApi } from "../../integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";

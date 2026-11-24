@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sitesApi } from "../../features/sites/api/sites-api";
 import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import { observabilityApi } from "../../features/observability/api/observability-api";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { postsApi } from "../../features/posts/api/posts-api";

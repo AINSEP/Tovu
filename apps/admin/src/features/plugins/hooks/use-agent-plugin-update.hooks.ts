@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 
 import { agentPluginDisplayName } from "../rules";
-import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 import { useAgentPluginInstall } from "./use-agent-plugin-install.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

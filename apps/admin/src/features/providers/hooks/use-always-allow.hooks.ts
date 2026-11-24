@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { ALWAYS_ALLOW_KEYS, formatGrantedAt, groupAlwaysAllow, type AlwaysAllowGroup } from "../always-allow-rules";
+import { ALWAYS_ALLOW_KEYS, formatGrantedAt, groupAlwaysAllow, type AlwaysAllowGroup } from "@jini-ai/admin/screens/providers/always-allow-rules";
 import { tProviders as defaultT } from "../../../lib/i18n-common";
 import { defaultAlwaysAllowPort } from "./always-allow-dependencies.hooks";
-import type { AlwaysAllowPort } from "./always-allow-port.hooks";
+import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
 
 /**
  * @file Everything the Integrations "Always allow" tab does, so `AlwaysAllowPanel.tsx` is only

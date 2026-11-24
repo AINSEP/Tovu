@@ -1,7 +1,7 @@
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import type { AgentPluginInstallPort, AgentPluginInstallResult } from "./agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort, AgentPluginInstallResult } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 /** The live upload, through the shared authenticated request seam (session expiry, API prefix). */
 export const defaultAgentPluginInstallPort: AgentPluginInstallPort = {

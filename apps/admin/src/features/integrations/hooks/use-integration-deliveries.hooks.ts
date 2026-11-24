@@ -5,7 +5,7 @@ import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
-import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
+import type { IntegrationDeliveriesPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file Everything the delivery-log screen does, so `IntegrationDeliveries.tsx` is only markup.
