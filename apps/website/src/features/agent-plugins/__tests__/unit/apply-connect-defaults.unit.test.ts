@@ -15,7 +15,6 @@ import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.
 import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { applyExternalMcpAccess, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";

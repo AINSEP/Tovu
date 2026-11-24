@@ -13,7 +13,6 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@j
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { composeFormDelivery } from "../form-delivery.js";
 import { createIntegrationsModule } from "../modules/integrations.js";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";

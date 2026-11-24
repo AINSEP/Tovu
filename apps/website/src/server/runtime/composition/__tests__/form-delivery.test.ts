@@ -6,7 +6,9 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDelive
 import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { composeFormDelivery, type FormDeliveryCompositionDeps } from "../form-delivery.js";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 

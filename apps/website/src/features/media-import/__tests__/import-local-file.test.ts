@@ -18,7 +18,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
-import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
+import { FS_FOLDER_READ_RECOVERY } from "@tovu/contracts/fs-folder-recovery";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { applyBatchInputs } from "../../../assistant/batch-tool-inputs.js";

@@ -15,7 +15,7 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
-import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import { createRedirect, tombstoneRedirect, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
