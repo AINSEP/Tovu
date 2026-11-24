@@ -19,7 +19,7 @@ import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-st
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminObservabilityStatusRoute } from "../../../inbound/admin-http/routes/system/observability-status.js";
-import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
+import { registerAdminBrowserTelemetryRoute } from "../modules/system-telemetry.js";
 import { registerAdminServerLogsRoute } from "../../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute, registerAdminMailProviderRoutes, registerAdminMailDnsRoutes, registerAdminMailTestSendRoute, registerAdminMailActivityRoutes } from "../modules/system-mail.js";
 import { createDnsChangeDepsFactory } from "../dns-change-deps.js";

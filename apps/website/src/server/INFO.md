@@ -120,6 +120,10 @@ Consent (`runtime/composition/modules/consent.ts`) exports `registerAdminConsent
 `@jini-ai/cms/admin-http/routes/consent/routes` specs in the hand-written order (`"guarded"`, failure `consent-admin`
 503 `CONSENT_UNAVAILABLE` with the enforcement copy). It binds the consent service, `readConsentRequest`/`consentRevisionToken`
 from `features/consent/request` and `isConsentConflict` (`SiteConsentConflict`); `Cache-Control: no-store` comes from the spec.
+Widget preview (`modules/widgets.ts` `registerAdminWidgetPreviewRoute`) mounts `widgetPreviewRoute` (`"direct"`,
+`deferMissingPrincipal`, operation `http/widgets`, `failureCopy: "operation"`), binding the host theme/document adapter
+`renderWidgetPreview` (`routes/widgets/preview-render.ts`, injectable as `render` for tests) and
+`knownWidgetErrorToResponse` (`http/widgets.ts`).
 Presentation PATCH (`modules/presentation.ts` `registerAdminPresentationPatchRoute`) mounts `presentationPatchRoute`
 (`"direct"`, operation `routes/presentation/patch-active-theme`, `failureCopy: "operation"`), binding `setActiveTheme`
 (repo, tracker, clock, `writableThemeIds`), `ThemeStylingRequiredError`, theme discovery, the preview refresh and the DTO.
@@ -141,8 +145,11 @@ System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/
 swaps them in after mount. Mail providers mount list, credential plan and activate from Jini in the original
 order around the credential PUT, which stays hand-written in `routes/system/mail-providers.ts` (it reads
 `res.locals.authCredentialKind`, which the admin ports do not carry) and shares Jini's `mailProviderRefusal` table.
-`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) and
-`browser-telemetry.ts` (204 beacon, `Retry-After`, content-length) stay hand-written.
+`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) stays
+hand-written. Browser telemetry (`POST /api/admin/v1/telemetry`) is the Jini spec
+`@jini-ai/cms/admin-http/routes/system/browser-telemetry`, mounted by `runtime/composition/modules/system-telemetry.ts`
+with `readHeaders: ["content-length"]`, the host's `ADMIN_BROWSER_TELEMETRY_PER_PRINCIPAL` limiter, `deps.tracker` and
+`adminRequestFactsFor`'s credential kind (the 204 is the spec's `successStatus` with no value).
 Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
 `registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
 `createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still

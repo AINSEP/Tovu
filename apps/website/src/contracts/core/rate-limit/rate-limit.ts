@@ -150,7 +150,7 @@ export const ADMIN_SURFACE_FILES_PER_IP: RateLimitProfile = {
   burst: 60,
 };
 
-/** Admin browser errors + page views (`routes/system/browser-telemetry.ts`), keyed by principal id:
+/** Admin browser errors + page views (`@jini-ai/cms/admin-http/routes/system/browser-telemetry`), keyed by principal id:
  * each tab already caps itself well below this, so it only stops a stuck loop or several open tabs
  * from flooding the configured vendor. */
 export const ADMIN_BROWSER_TELEMETRY_PER_PRINCIPAL: RateLimitProfile = {
