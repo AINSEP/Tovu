@@ -4,6 +4,8 @@ import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 import type { SitesListingScope } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
 import type { LocalSitesDeps } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 import type { SiteConfirmPresentation } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
+import { useSitesConfig, type SitesConfigController } from "@jini-ai/admin/screens/sites/use-sites-config.hooks";
+import { useAsyncAction } from "@jini-ai/ui/panel-kit";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { describeApiError } from "@/lib/admin-http/request";
 import { KEYS, SERVING_CHAT_WARNING_KEY, SITES_RESOURCE, siteWriteErrorKey } from "../rules";
@@ -38,6 +40,12 @@ export const localSitesDeps: LocalSitesDeps = {
   describeApiError,
   startVisibleInterval,
 };
+
+/** This admin's sites settings controller (`useSitesConfig` in `@jini-ai/admin`): the live API
+ *  client, the site-list key it invalidates after a write, and the shared `useAsyncAction`. */
+export function useHostSitesConfig(_required = {}, _optional = {}): SitesConfigController {
+  return useSitesConfig({ port: sitesApi, listKey: KEYS.list, useAsyncActionHook: useAsyncAction });
+}
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */

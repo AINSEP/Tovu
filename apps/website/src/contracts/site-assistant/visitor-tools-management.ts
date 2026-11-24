@@ -1,5 +1,6 @@
 /** Admin-only visitor catalog/read model. Source owners supply eligibility; policy cannot invent it. */
-import type { VisitorToolChoice, VisitorToolLimits, VisitorToolMode, VisitorToolPolicy } from "./visitor-tools.js";
+import type { VisitorToolsView } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
+import type { VisitorToolChoice, VisitorToolPolicy } from "./visitor-tools.js";
 
 /** Human-facing English dictionary keys, independent of model-facing descriptions. */
 export interface VisitorToolPresentation {
@@ -19,20 +20,6 @@ export interface VisitorToolDescriptor extends Partial<VisitorToolPresentation> 
   readonly availability: { readonly available: boolean; readonly reason?: string };
   /** T4/later source owners supply non-secret disclosure, never tokens or headers. */
   readonly publication?: { readonly endpoint: string; readonly credentialId: string; readonly returnedFields: readonly string[] };
-}
-export interface VisitorToolsView {
-  readonly revisionSeq: number;
-  /** Unreadable stored policy: every catalog tool is Off; only a site-wide Off reset is accepted. */
-  readonly policyState?: "invalid";
-  readonly defaults: VisitorToolLimits;
-  readonly callsPerTurn: number;
-  readonly tools: readonly (VisitorToolDescriptor & VisitorToolChoice)[];
-}
-export interface VisitorToolsConfigureInput {
-  readonly toolId: string;
-  readonly expectedRevisionSeq: number;
-  readonly mode?: VisitorToolMode;
-  readonly limits?: Partial<VisitorToolLimits>;
 }
 export interface PreparedVisitorToolsChange {
   readonly revisionSeq: number;
