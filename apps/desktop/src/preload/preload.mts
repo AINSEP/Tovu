@@ -26,6 +26,7 @@
 import { createSiteThemePreviewBridge } from '../contracts/site-theme-preview-bridge.js';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
+import { createPreloadSubscriber } from '@jini-ai/desktop-host/electron/preload';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
 import { RUNNER_RESOURCES_GET_CHANNEL, type ResourcesRequest } from '../contracts/resources.js';
@@ -66,19 +67,15 @@ import { IMPORT_HANDOFF_CHANNELS, type ImportHandoffRequest } from '../contracts
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from '../contracts/product-telemetry.js';
 
 /**
- * Subscribes to one main→renderer push channel and hands back the matching teardown.
- *
- * The raw `IpcRendererEvent` is dropped rather than forwarded: it carries `sender`, which is a live
- * handle into IPC that the page has no business holding, and returning the unsubscribe function is
- * what lets the renderer detach a pane without leaking a listener per remount.
+ * Jini's subscriber drops the raw IPC event and returns a cleanup that removes exactly this
+ * listener; the allowlist stays here — only the fixed contract channels below are ever subscribed.
  */
-function subscribe<Payload>({ channel, listener }: { channel: string; listener: (payload: Payload) => void }, _options = {}): () => void {
-  const handler = (_event: unknown, payload: Payload): void => listener(payload);
-  ipcRenderer.on(channel, handler);
-  return () => {
-    ipcRenderer.removeListener(channel, handler);
-  };
-}
+const subscribe = createPreloadSubscriber({
+  ipcRenderer: {
+    on: ({ channel, handler }) => ipcRenderer.on(channel, handler),
+    removeListener: ({ channel, handler }) => ipcRenderer.removeListener(channel, handler),
+  },
+});
 
 // Separate from the inventory bridge so S4 can adopt the typed API without changing site tools.
 const ownerStoreBridge: OwnerStoreBridge = {

@@ -6,7 +6,8 @@ import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash"
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
-import type { PackedEntity, PublishContentHandler } from "./type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 8 of the publish-content (Publish Content) feature —

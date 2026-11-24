@@ -15,7 +15,7 @@ import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settin
 import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
 import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
 import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
-import { getExportRunSnapshot } from '../../../features/deployments/index.js';
+import { getExportRunSnapshot } from '../../../features/deployments/export-run-binding.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { composeAgentPluginMcp } from "./agent-plugin-service-ports.js";

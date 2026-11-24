@@ -2,7 +2,8 @@
  * @file Wiring guard for the "Move to Applications" prompt in the Electron entry (`src/main/index.ts`,
  * formerly `main.ts`). Source text, because the entry requires `"electron"` at module scope and
  * cannot load under node --test.
- * The rules are covered behaviourally in `move-to-applications.test.ts`; this file catches only that
+ * The rules are covered behaviourally in Jini `packages/devops/src/packaging/electron/__tests__/move-to-applications.test.ts`
+ * and the host binding in `move-to-applications.test.ts`; this file catches only that
  * `main.ts` actually runs the prompt, early enough, with Electron's real move and a conflict handler.
  * Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
  * Restore: bring back the imports, helper and call in `src/main/index.ts` from git history, then

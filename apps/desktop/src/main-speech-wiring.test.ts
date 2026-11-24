@@ -9,7 +9,7 @@
  * shell-page sender check. That the preload reaches the
  * window's `webPreferences` is tested through the real module in `src/main/windows/app-window.test.ts`.
  *
- * Both `speech-ipc.ts` and `preload-speech.cts` document this exact gap in their own file headers
+ * Both `@jini-ai/desktop-host/shell/speech/speech-ipc` and `preload-speech.cts` document this exact gap in their own file headers
  * ("Not wired into main.ts yet") — this is the mic's actual failure mode inside the desktop shell:
  * every primitive (preload bridge, IPC handlers, on-device transcriber) is built and independently
  * tested, but nothing in `main.ts` ever connects them, so `window.tovuVoice` never exists even
@@ -32,7 +32,8 @@ const source = fs.readFileSync(MAIN_PATH, "utf8");
 test("main.ts calls registerSpeechIpc with the real ipcMain and the shell-page sender check", () => {
   // The real ipcMain, the shell-page sender check, and no injected `port` — a port here would
   // replace the real recognizer. `window-navigation-policy.test.ts` pins what `isShellPage` checks.
-  assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\)\s*\}\s*\)/);
+  assert.match(source, /registerNativeSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\),\s*host: SPEECH_HOST\s*\}\s*\)/);
+  assert.match(source, /import \{ SPEECH_HOST \} from "\.\.\/speech\/speech-host-config\.ts";/);
 });
 
 // `createWindow` hands `SPEECH_PRELOAD_PATH` to `src/main/windows/app-window.ts`, whose test pins that

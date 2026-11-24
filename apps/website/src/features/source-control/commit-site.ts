@@ -7,10 +7,10 @@ import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token"
 
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { ExportReport } from "#src/contracts/core/export-report";
-import { validateCommitTarget } from "./commit-target.js";
-import type { RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
+import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
+import type { RepositoryTargetValidator, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import { resolveDefaultForSourceControl } from "./store.js";
-import type { StaticSitePackagerPort } from "./static-site-packager-port.js";
+import type { StaticSitePackagerPort } from "@jini-ai/devops/source-control/site/static-site-packager-port";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
@@ -54,7 +54,7 @@ export interface StaticSiteHostPorts {
   /** Existing site/theme resolvers, bound for portable static packaging. */
   readonly staticSiteContext: StaticSiteContextFn;
   /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
-  readonly staticSitePackager: StaticSitePackagerPort;
+  readonly staticSitePackager: StaticSitePackagerPort<ExportReport>;
 }
 
 export interface CommitSiteInput {
@@ -66,7 +66,7 @@ export interface CommitSiteInput {
   readonly idGen: { newId(): string };
   readonly exportSiteBound: ExportSiteBoundFn;
   /** Packages the finished export into commit files; preview and commit share this one instance. */
-  readonly packager: StaticSitePackagerPort;
+  readonly packager: StaticSitePackagerPort<ExportReport>;
   readonly owner: string;
   readonly repo: string;
   readonly branch?: string;

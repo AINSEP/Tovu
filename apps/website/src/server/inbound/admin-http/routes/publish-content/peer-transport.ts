@@ -2,7 +2,7 @@ import type { PeerCallDeps } from "#src/features/publish-content/peer-transport"
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Request, Response } from "express";
 
-import type { PublishScope } from "#src/features/publish-content/ui/contract";
+import type { PublishScope } from "@jini-ai/cms/publish/content/dialog/contract";
 import {
   confirmPeerImport,
   executePeerImport,

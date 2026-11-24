@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
-import type { LoadedDeployTarget } from '../../deploy-targets/types.js';
+import type { LoadedDeployTarget } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { publicPageSecurityHeaders } from '../../../theme/public-page-security-headers.js';
 import { publishStaticSite } from '../adapter.js';
 

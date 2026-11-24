@@ -1,12 +1,16 @@
 /**
- * @file Direct tests for `speech-ipc.ts`. No real Electron `ipcMain` — a tiny fake that records
+ * @file Direct tests for `@jini-ai/desktop-host/shell/speech/speech-ipc`. No real Electron `ipcMain` — a tiny fake that records
  * `handle(channel, fn)` registrations and lets the test invoke them directly, plus an injected
  * fake port so no real recognizer or filesystem is touched.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { registerSpeechIpc, IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE, MAX_TRANSCRIBE_SAMPLES } from "./speech-ipc.ts";
+import { registerNativeSpeechIpc, MAX_TRANSCRIBE_SAMPLES } from "@jini-ai/desktop-host/shell/speech/speech-ipc";
+import { SPEECH_HOST, IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-host-config.ts";
+// Bound with Tovu's product values exactly as `main/index.ts` binds them.
+type RegisterArgs = Omit<Parameters<typeof registerNativeSpeechIpc>[0], "host">;
+const registerSpeechIpc = (args: RegisterArgs, options: Parameters<typeof registerNativeSpeechIpc>[1] = {}) => registerNativeSpeechIpc({ ...args, host: SPEECH_HOST }, options);
 
 /** A handler as the fake records it, called with whatever the renderer would send. */
 type RecordedHandler = (...args: any[]) => Promise<unknown>; // any: Electron's own IpcMain listener signature; IPC hands a handler its arguments untyped

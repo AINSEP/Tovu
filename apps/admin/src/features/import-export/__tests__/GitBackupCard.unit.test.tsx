@@ -3,9 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
-import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "../git-backup-rules";
-import { createFakeGitBackupPort, defaultGitBackupPort, type GitBackupPlan, type GitBackupPort } from "../hooks/git-backup-port.hooks";
-import { useGitBackup, useWiredGitBackup } from "../hooks/use-git-backup.hooks";
+import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "@jini-ai/admin/screens/import-export/git-backup-rules";
+import { createFakeGitBackupPort, type GitBackupPlan, type GitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
+import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
+import { GIT_BACKUP_HOST, defaultGitBackupPort, useWiredGitBackup } from "../hooks/git-backup-dependencies.hooks";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 /**
@@ -23,7 +24,7 @@ function connection(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 const PLAN: GitBackupPlan = { planned: true, planId: "plan-1", repository: "me/site-backups", branch: "main", folder: "mysite", folderExists: true, fileCount: 12, totalSize: "3.4 MB", skipped: [{ path: "big.mov" }] };
 
 function Harness({ port, maxPushPolls }: { port: GitBackupPort; maxPushPolls?: number }) {
-  return <GitBackupCard controller={useGitBackup({ port, t }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} />;
+  return <GitBackupCard controller={useGitBackup({ port, t, host: GIT_BACKUP_HOST }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} />;
 }
 
 function fillForm(owner = "me", repo = "site-backups") {
@@ -36,9 +37,9 @@ afterEach(() => vi.unstubAllGlobals());
 describe("GitBackupCard", () => {
   it("drives each backup field directly and cancels the resulting plan", async () => {
     const plan = vi.fn(async () => PLAN);
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection(), connection({ id: "c2", label: "Other" })], plan,
-    });
+    } });
     const { container } = render(<Harness port={port} />);
     await screen.findByLabelText("Connection");
     const driver = createDomPageDriver({ root: container, pages: {} });
@@ -55,7 +56,7 @@ describe("GitBackupCard", () => {
   });
 
   it("links to Source Control when no default connection exists", async () => {
-    render(<Harness port={createFakeGitBackupPort({ listConnections: async () => [connection({ isDefault: false })] })} />);
+    render(<Harness port={createFakeGitBackupPort({ overrides: { listConnections: async () => [connection({ isDefault: false })] } })} />);
     expect(screen.getByText("Loading connections…")).toBeTruthy();
     const link = await screen.findByRole("link", { name: "Open Source Control" });
     expect(link.getAttribute("href")).toBe(SOURCE_CONTROL_HREF);
@@ -63,7 +64,7 @@ describe("GitBackupCard", () => {
   });
 
   it("shows a connections load failure", async () => {
-    render(<Harness port={createFakeGitBackupPort({ listConnections: () => Promise.reject(new ApiError({ message: "Boom", status: 500 })) })} />);
+    render(<Harness port={createFakeGitBackupPort({ overrides: { listConnections: () => Promise.reject(new ApiError({ message: "Boom", status: 500 })) } })} />);
     expect((await screen.findByRole("alert")).textContent).toBe("Boom");
   });
 
@@ -74,11 +75,11 @@ describe("GitBackupCard", () => {
       { pushed: true as const, commitUrl: "https://github.com/me/site-backups/commit/abc", repository: "me/site-backups" },
     ];
     let releasePlan!: () => void;
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection()],
       plan: (input) => { plans.push(input); return new Promise((resolve) => { releasePlan = () => resolve(PLAN); }); },
       push: async () => pushes.shift()!,
-    });
+    } });
     render(<Harness port={port} />);
     expect(await screen.findByText("Uses GitHub.")).toBeTruthy();
     expect(screen.queryByLabelText("Connection")).toBeNull();
@@ -106,7 +107,7 @@ describe("GitBackupCard", () => {
   it("shows upload progress while the push is still running", async () => {
     let finish!: () => void;
     let calls = 0;
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection()],
       plan: async () => ({ ...PLAN, folderExists: false, skipped: [] }),
       push: () => {
@@ -114,7 +115,7 @@ describe("GitBackupCard", () => {
         if (calls === 1) return Promise.resolve({ pushed: false as const, inProgress: true as const, planId: "plan-1", progress: { filesDone: 4, filesTotal: 12 } });
         return new Promise((resolve) => { finish = () => resolve({ pushed: false, code: "DIVERGED_BRANCH", message: "server words" }); });
       },
-    });
+    } });
     render(<Harness port={port} />);
     await screen.findByLabelText("Owner");
     fillForm();
@@ -136,10 +137,10 @@ describe("GitBackupCard", () => {
       async () => ({ planned: false, code: "REPOSITORY_NOT_PRIVATE", message: "me/site-backups is public." }),
       () => Promise.reject(new ApiError({ message: "You do not have permission to back up this site.", status: 403 })),
     ];
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection(), connection({ id: "c2", providerId: "gitlab" as AdminSourceControlCredentialSummary["providerId"], label: "GitLab" })],
       plan: (input) => { plans.push(input); return results.shift()!(); },
-    });
+    } });
     render(<Harness port={port} />);
     const select = (await screen.findByLabelText("Connection")) as HTMLSelectElement;
     expect(select.value).toBe("GitHub");
@@ -157,11 +158,11 @@ describe("GitBackupCard", () => {
   });
 
   it("reports a push that throws", async () => {
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection()],
       plan: async () => PLAN,
       push: () => Promise.reject(new Error("socket closed")),
-    });
+    } });
     render(<Harness port={port} />);
     await screen.findByLabelText("Owner");
     fillForm();
@@ -171,11 +172,11 @@ describe("GitBackupCard", () => {
   });
 
   it("gives up after the poll cap with a plain line", async () => {
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection()],
       plan: async () => PLAN,
       push: async () => ({ pushed: false as const, inProgress: true as const, planId: "plan-1", progress: { filesDone: 1, filesTotal: 12 } }),
-    });
+    } });
     render(<Harness port={port} maxPushPolls={2} />);
     await screen.findByLabelText("Owner");
     fillForm();
@@ -191,7 +192,7 @@ describe("useGitBackup guards", () => {
     const plan = vi.fn(() => new Promise<GitBackupPlan>((resolve) => { release = () => resolve(PLAN); }));
     const push = vi.fn();
     let controller!: ReturnType<typeof useGitBackup>;
-    function Probe() { controller = useGitBackup({ port: createFakeGitBackupPort({ listConnections: async () => [connection()], plan, push }), t }); return null; }
+    function Probe() { controller = useGitBackup({ port: createFakeGitBackupPort({ overrides: { listConnections: async () => [connection()], plan, push } }), t, host: GIT_BACKUP_HOST }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     await act(async () => { await controller.pushBackup(); });
@@ -214,12 +215,12 @@ describe("useGitBackup guards", () => {
     let controller!: ReturnType<typeof useGitBackup>;
     let pushes = 0;
     let unmount!: () => void;
-    const port = createFakeGitBackupPort({
+    const port = createFakeGitBackupPort({ overrides: {
       listConnections: async () => [connection()],
       plan: async () => PLAN,
       push: async () => { pushes += 1; if (pushes === 2) unmount(); return { pushed: false as const, inProgress: true as const, planId: "plan-1", progress: { filesDone: 1, filesTotal: 2 } }; },
-    });
-    function Probe() { controller = useGitBackup({ port, t }); return null; }
+    } });
+    function Probe() { controller = useGitBackup({ port, t, host: GIT_BACKUP_HOST }); return null; }
     unmount = render(<Probe />).unmount;
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
@@ -231,8 +232,8 @@ describe("useGitBackup guards", () => {
   it("the plan result arriving after unmount and a failed plan after unmount change nothing", async () => {
     let controller!: ReturnType<typeof useGitBackup>;
     let reject!: (error: Error) => void;
-    const port = createFakeGitBackupPort({ listConnections: async () => [connection()], plan: () => new Promise((_resolve, rejectPlan) => { reject = rejectPlan; }) });
-    function Probe() { controller = useGitBackup({ port, t }); return null; }
+    const port = createFakeGitBackupPort({ overrides: { listConnections: async () => [connection()], plan: () => new Promise((_resolve, rejectPlan) => { reject = rejectPlan; }) } });
+    function Probe() { controller = useGitBackup({ port, t, host: GIT_BACKUP_HOST }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });

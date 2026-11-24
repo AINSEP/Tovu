@@ -1,3 +1,4 @@
+import { publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
@@ -11,7 +12,6 @@ import {
   countSelectedPublishing,
   planOnScreen,
   reportOnScreen,
-  publishEntityTypePluralLabel,
   publishOrderComparator,
   rowPublishesWithSelection,
   selectableRowKeys,
@@ -31,7 +31,7 @@ import {
   type PublishReportSummary,
   type PublishRequestResult,
   type PublishScope,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 
 /**
  * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
@@ -55,7 +55,7 @@ import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { buildCriteriaPublishResult } from "./criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
-import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -267,7 +267,7 @@ function primaryLabelFor(
   if (phase.kind === "done") return t("Published");
   // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
   // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
-  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope }));
+  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope, sectionForEntityTypes: publishSectionForEntityTypes }));
   return plannedPrimaryLabel({ selectedPublishing, onlyLiveGaps, t });
 }
 
@@ -344,7 +344,7 @@ function completionMessagesFor(
 /** Count actual row outcomes, retaining the count-only reply from older peers.
  * @complexity O(n) actual report rows; no I/O. */
 function completionOutcomeMessage({ result, t }: { result: PublishContentExecuteResult; t: Translate }, _options = {}): string {
-  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows(result.report) }) : null;
+  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows({ report: result.report, entityTypeLabel: publishEntityTypeLabel }) }) : null;
   const changeCount = actual?.publishing ?? result.changeSetIds.length;
   const published = publishedCountMessage({ count: changeCount, t });
   const skipped = actual?.skipped ?? 0;
@@ -830,7 +830,7 @@ export function usePublishContentConfirm(props: {
     // The plan on screen is not yet the one the operator's latest tick describes.
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
-    const planRows = toPublishReportRows(plan.details);
+    const planRows = toPublishReportRows({ report: plan.details, entityTypeLabel: publishEntityTypeLabel });
     const selectable = selectableRowKeys({ rows: planRows });
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
     if (keep.length === 0) return;
@@ -844,7 +844,7 @@ export function usePublishContentConfirm(props: {
       // drop an "Overwrite on live" tick. A ticked row the operator ALSO unchecked is not in
       // `keep`, so its key is dropped here: an overwrite of something not being published
       // would only ask live to force a row the bundle doesn't carry.
-      const confirmed = await preparePublishConfirmation({
+      const confirmed = await preparePublishConfirmation({ entityTypeLabel: publishEntityTypeLabel,
         plan,
         deselectedKeys,
         planPublish: (input, _options = {}) => planInScope({ peerId, ...input }),
@@ -949,7 +949,7 @@ export function usePublishContentConfirm(props: {
     const { criteria, applyOverwriteKeys } = criteriaInputs.current;
     if (criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
     criteriaAppliedRef.current = true;
-    const sel = applyPublishCriteria({ rows: toPublishReportRows(phase.plan.details), criteria });
+    const sel = applyPublishCriteria({ rows: toPublishReportRows({ report: phase.plan.details, entityTypeLabel: publishEntityTypeLabel }), criteria });
     criteriaSelectionRef.current = sel;
     setDeselectedKeys(sel.deselectedKeys);
     if (sel.overwriteKeys.size > 0) {
@@ -1099,8 +1099,8 @@ export function usePublishContentConfirm(props: {
     overwriteWarning,
     overwriteMismatch,
     overwriteUnavailable,
-    title: publishScopeTitleKey({ scope: props.scope }),
-    description: publishScopeDescriptionKey({ scope: props.scope }),
+    title: publishScopeTitleKey({ scope: props.scope, sectionForEntityTypes: publishSectionForEntityTypes }),
+    description: publishScopeDescriptionKey({ scope: props.scope, sectionForEntityTypes: publishSectionForEntityTypes }),
     primaryLabel: primaryLabelFor(
       { phase: phase,
       selectedPublishing: selectedPublishing,
@@ -1137,7 +1137,7 @@ function publishReportSelection(
   // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
-    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows(report, { completed: phase.kind === "done" }), locale });
+    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows({ report: report, entityTypeLabel: publishEntityTypeLabel }, { completed: phase.kind === "done" }), locale });
   const summary = report === null || phase.kind === "done" ? null : summarizePublishReport({ rows });
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.

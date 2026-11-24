@@ -17,7 +17,7 @@ it('keeps the non-static tier explanation beside the template query enablement',
 });
 it.each([
   'features/dashboard/hooks/use-dashboard.hooks.ts', 'features/posts/hooks/use-posts.hooks.ts',
-  'features/pages/hooks/use-pages.hooks.ts', 'features/recovery/hooks/use-recovery.hooks.ts',
+  'features/pages/hooks/use-pages.hooks.ts', '../node_modules/@jini-ai/admin/src/recovery/hooks/use-recovery.hooks.ts',
   'hooks/use-admin-locale.hooks.ts', 'hooks/admin-locale-dependencies.hooks.ts',
   'components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx', 'components/TemplateSource/use-template-source.hooks.ts',
 ])('removes detached descriptions of replaced read lifecycles in %s', file => {

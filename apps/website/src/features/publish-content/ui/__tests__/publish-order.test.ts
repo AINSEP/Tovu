@@ -3,12 +3,13 @@
  * to-publish first, then can't-publish-yet, then up to date — A–Z within each, case-insensitive,
  * locale-aware, numeric.
  */
+import { publishEntityTypeLabel } from "../sections.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
-import { publishOrderComparator, sortPublishReportRows } from "../publish-order.js";
-import { toPublishReportRows } from "../report-rows.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+import { publishOrderComparator, sortPublishReportRows } from "@jini-ai/cms/publish/content/dialog/publish-order";
+import { toPublishReportRows } from "@jini-ai/cms/publish/content/dialog/report-rows";
 
 function outcomeRow(
   entityId: string,
@@ -27,7 +28,7 @@ function outcomeRow(
 }
 
 function rowsOf(...rows: PublishContentOutcomeRow[]) {
-  return toPublishReportRows({ refused: false, rows } as unknown as PublishContentReport);
+  return toPublishReportRows({ report: { refused: false, rows } as unknown as PublishContentReport, entityTypeLabel: publishEntityTypeLabel });
 }
 
 test("to-publish rows come first, then skipped, then up to date — A–Z inside each", () => {

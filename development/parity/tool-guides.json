@@ -1978,7 +1978,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/domain-dns/mail-dns-tools.ts",
+        "path": "packages/devops/src/dns/site/mail-dns-tools.ts",
         "ids": [
           "mail_dns_verify"
         ]
@@ -2288,19 +2288,6 @@
         ]
       },
       {
-        "path": "apps/website/src/features/permanent-delete/agent-tools.ts",
-        "ids": [
-          "trash_list_items",
-          "trash_item",
-          "media_trash_asset",
-          "comments_trash_comment",
-          "identity_user_disable",
-          "content_read.custom_credential",
-          "deployment_get_static_publish_capabilities",
-          "source_control_get_capabilities"
-        ]
-      },
-      {
         "path": "apps/website/src/features/plugin-runtime/agent-tools.ts",
         "ids": [
           "search_agent_plugin_local",
@@ -2421,17 +2408,6 @@
           "publish_content_plan_pull",
           "publish_content_connect",
           "publish_content_execute_pull"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/recovery/agent-tools.ts",
-        "ids": [
-          "content_read.backup_restore_point",
-          "content_read.database_restore_point",
-          "source_control_get_capabilities",
-          "site_backup_plan",
-          "site_backup_push",
-          "backup_plan_restore"
         ]
       },
       {

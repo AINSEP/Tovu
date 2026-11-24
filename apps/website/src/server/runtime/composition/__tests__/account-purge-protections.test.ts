@@ -2,7 +2,7 @@ import { outboxEventValues } from "@jini-ai/db/events";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-tools";
+import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/tool-registrations";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";

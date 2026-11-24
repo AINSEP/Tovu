@@ -5,24 +5,13 @@ import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/in
 import type { Express, Request, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
-import {
-  inspectStaticPublish,
-  composePublishCredentialSource,
-  getPublishRunSnapshot,
-  listPublishDestinations,
-  missingRequiredFieldMessage,
-  planStaticPublish,
-  readStaticPublishConfig,
-  startPublishRun,
-  unknownTargetMessage,
-  type StaticPublishConfig,
-  type PublishCredentialSource,
-} from "#src/features/deployments/static-publish/index";
+import { inspectStaticPublish, composePublishCredentialSource, getPublishRunSnapshot, listPublishDestinations, missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, startPublishRun, unknownTargetMessage } from "#src/features/deployments/static-publish/index";
+import { type StaticPublishConfig, type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import type {
   DeployTargetCredentialSpec,
   DeployTargetRegistry,
   LoadedDeployTarget,
-} from "#src/features/deployments/contracts";
+} from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";

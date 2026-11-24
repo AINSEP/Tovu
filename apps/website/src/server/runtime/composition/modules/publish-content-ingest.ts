@@ -3,7 +3,7 @@ import { capabilitiesRoute, type CapabilitiesRouteDeps } from "@jini-ai/cms/admi
 import { PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentCatalog, type PackedEntity } from "#src/features/publish-content/type-registry";
-import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
+import { backstopGrantAllows, isBackstopEntityType } from "@jini-ai/cms/publish/trust/grant";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor, adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";

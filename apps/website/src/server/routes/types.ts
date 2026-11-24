@@ -59,11 +59,11 @@ import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navi
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
-import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
+import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
 import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
-import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
@@ -133,8 +133,8 @@ import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-
 import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
-import type { ExportEngine } from "../../features/deployments/index.js";
-import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
+import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
+import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
@@ -1423,7 +1423,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
-  loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
+  loadInstalledDeployTargets?: import("@jini-ai/devops/deploy/site/deploy-targets/types").LoadInstalledDeployTargets;
   /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/index").DeployOpsRegistry>;
   /**

@@ -1,4 +1,4 @@
-import type { SourceControlProviderOperations } from '../../provider-module.js';
+import type { SourceControlProviderOperations } from '@jini-ai/devops/source-control/site/provider-module';
 import type { LoadSourceControlProviders, LoadedSourceControlProvider, SourceControlProviderRegistry } from '../../provider-registry.js';
 
 /** Neutral provider data and fake identity port. No plugin code, disk or network dependencies. */

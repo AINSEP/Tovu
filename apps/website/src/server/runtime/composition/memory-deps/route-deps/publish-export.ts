@@ -1,6 +1,6 @@
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
-import type { ExportEngine } from "#src/features/deployments/export-run";
+import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
 import type { RouteDeps } from "../../../../routes/types.js";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
@@ -16,7 +16,7 @@ import { resolveStorefrontProducts } from "../../../../inbound/public-http/route
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { listPublishedPosts } from "#src/features/post/index";
 import { InMemoryPublishHistoryStore, InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { executionModeFromEnv } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
@@ -160,7 +160,7 @@ export function memoryDeployRegistryDeps(_required: MemoryRootContext, _optional
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     // `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so a test can still exercise
     // `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
-    publishExecutionMode: executionModeFromEnv(),
+    publishExecutionMode: executionModeFromEnv({ env: process.env, envVarName: "TOVU_EXECUTION_MODE" }),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `apps/website/src/server/runtime/composition/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: describeSiteBinding().dir }),

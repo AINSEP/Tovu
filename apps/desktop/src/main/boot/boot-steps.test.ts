@@ -1,14 +1,15 @@
 /**
  * @file Behaviour of `main.ts`'s launch steps (`boot-steps.ts`): the `userData` profile choice, the
- * bundled toolchain's best-effort write, boot-mode choice, dev-fallback row upkeep, the two discovery
- * cancellation lanes and the legacy owner-store start check. Replaces the source-text checks in
+ * bundled toolchain's warning copy, boot-mode choice, dev-fallback row upkeep and the legacy owner-store
+ * start check (the toolchain mechanics and the two discovery cancellation lanes are tested in Jini's
+ * `desktop-host/node-toolchain`). Replaces the source-text checks in
  * `main-user-data-wiring.test.ts`, `main-owner-store-wiring.test.ts` and `main-node-toolchain-wiring.test.ts`
  * that covered these statements.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  applyUserDataDir, chooseBootMode, createSiteDiscoveryLanes, LEGACY_OWNER_STORE_FILES, prepareNodeToolchainEnv,
+  applyUserDataDir, chooseBootMode, LEGACY_OWNER_STORE_FILES, prepareNodeToolchainEnv,
   settleDevFallbackRows, settleLegacyOwnerStoreOnStart,
 } from "./boot-steps.ts";
 
@@ -113,43 +114,6 @@ test("dev-fallback rows: a packaged app (no dev fallback) touches nothing", () =
   const never = () => assert.fail("no dev-fallback call without a dev fallback");
   assert.equal(settleDevFallbackRows({ projectsPath: "/p", devFallbackDir: null, classifySiteDir: never,
     migrateLegacyDismissals: never, seedDevFallbackSite: never, retireDevFallbackSite: never }), false);
-});
-
-function lanes() {
-  const signals: { scanRoots: string[] | undefined; signal: AbortSignal }[] = [];
-  const l = createSiteDiscoveryLanes({ discover: async (input) => { signals.push(input); return signals.length; } });
-  return { l, signals };
-}
-
-test("a new rescan aborts the previous rescan but not a running picker validation", async () => {
-  const { l, signals } = lanes();
-  assert.equal(await l.discoverSites({}), 1);
-  await l.discoverSites({ scanRoots: ["/picked"] });
-  await l.discoverSites({});
-  const [rescan1, validation, rescan2] = signals;
-  assert.equal(rescan1!.scanRoots, undefined);
-  assert.deepEqual(validation!.scanRoots, ["/picked"]);
-  assert.equal(rescan1!.signal.aborted, true);
-  assert.equal(validation!.signal.aborted, false);
-  assert.equal(rescan2!.signal.aborted, false);
-});
-
-test("a new picker validation aborts the previous validation but not a running rescan", async () => {
-  const { l, signals } = lanes();
-  await l.discoverSites({});
-  await l.discoverSites({ scanRoots: ["/a"] });
-  await l.discoverSites({ scanRoots: ["/b"] });
-  assert.deepEqual(signals.map((s) => s.signal.aborted), [false, true, false]);
-});
-
-test("before-quit aborts the live scan of both lanes; with none started it is a no-op", async () => {
-  const empty = lanes();
-  assert.doesNotThrow(() => empty.l.abortAll());
-  const { l, signals } = lanes();
-  await l.discoverSites({});
-  await l.discoverSites({ scanRoots: ["/a"] });
-  l.abortAll();
-  assert.deepEqual(signals.map((s) => s.signal.aborted), [true, true]);
 });
 
 function ownerStore() {

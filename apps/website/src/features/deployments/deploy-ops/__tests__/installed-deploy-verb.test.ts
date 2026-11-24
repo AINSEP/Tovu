@@ -57,8 +57,9 @@ for (const deployEnabled of [false, true]) {
         const sourceControl = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
         assert.equal(sourceControl.get({ providerId: "github" })?.pluginId, githubEnabled ? "github" : undefined);
         if (githubEnabled) {
-          const { createSourceControlProviderKit } = await import("../../../source-control/provider-kit.js");
-          const provider = sourceControl.get({ providerId: "github" })!.module.create({ kit: createSourceControlProviderKit({ httpClient: { send: async () => { throw new Error("unexpected HTTP call"); } } }) });
+          const { createSourceControlProviderKit } = await import("@jini-ai/devops/source-control/site/provider-kit");
+          const { sourceControlKitHost } = await import("../../../source-control/provider-kit-host.js");
+          const provider = sourceControl.get({ providerId: "github" })!.module.create({ kit: createSourceControlProviderKit({ host: sourceControlKitHost() }, { httpClient: { send: async () => { throw new Error("unexpected HTTP call"); } } }) });
           assert.equal(typeof provider.commitFiles, "function");
           assert.equal(typeof provider.commitBackupTree, "function");
         }

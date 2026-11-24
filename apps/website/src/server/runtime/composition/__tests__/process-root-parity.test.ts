@@ -17,10 +17,7 @@ import {
   listDuplicateResourceHandlers,
   resetDuplicateResourceHandlersForTests,
 } from "#src/assistant/duplicate-resource-registry";
-import {
-  listPublishContentContributors,
-  resetPublishContentContributorsForTests,
-} from "#src/features/publish-content/type-registry";
+import { listPublishContentContributors, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 
 
 import { createRouteDeps } from "../app.js";

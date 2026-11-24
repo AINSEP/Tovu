@@ -24,7 +24,7 @@ import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { SiteShareRefusal } from "../share-policy.js";
 import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
 import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
-import type { SourceControlProviderOperations } from "../../source-control/provider-module.js";
+import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
 import { createSourceControlCredential } from "../../source-control/store.js";

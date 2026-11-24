@@ -16,8 +16,9 @@ import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
   PUBLISH_TRUST_CONFIG_PATH,
-} from "#src/features/publish-trust/provisioning";
-import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "#src/features/publish-trust/provisioning.node-io";
+} from "@jini-ai/cms/publish/trust/provisioning";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import type { ServerModuleHandle } from "./types.js";
 

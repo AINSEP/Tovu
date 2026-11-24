@@ -5,8 +5,8 @@ import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
 import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "./import-export-links";
 import { resolveImportExportTabId, resolveImportExportTabs, type ImportExportTabId } from "./import-export-tabs";
-import { useImportExportTranslate, useSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/use-import-export.hooks";
-import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
+import { useWiredImportExportTranslate, useWiredSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/import-export-dependencies.hooks";
+import { useWiredGitBackup } from "./hooks/git-backup-dependencies.hooks";
 import { GitBackupCard } from "./GitBackupCard";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -67,10 +67,10 @@ function OtherTab({ t, useGitBackup = useWiredGitBackup }: { t: Translate; useGi
 
 /** The Export and Import tabs, each with the translator it was written against. Hooks run here, not
  *  in `ImportExport`, so the Other tab never reads the sites list. */
-function TransferTab({ tab, useTransferTranslate = useSiteTransferTranslate, useSitesAvailable = useSitesSectionAvailable }: {
+function TransferTab({ tab, useTransferTranslate = useSiteTransferTranslate, useSitesAvailable = useWiredSitesSectionAvailable }: {
   tab: "export" | "import";
   useTransferTranslate?: typeof useSiteTransferTranslate;
-  useSitesAvailable?: typeof useSitesSectionAvailable;
+  useSitesAvailable?: typeof useWiredSitesSectionAvailable;
 }) {
   const t = useTransferTranslate();
   const sitesAvailable = useSitesAvailable();
@@ -89,10 +89,10 @@ function goToImportExportTab(id: string) {
 }
 
 export function ImportExport({
-  useTranslate = useImportExportTranslate,
+  useTranslate = useWiredImportExportTranslate,
   useGitBackup = useWiredGitBackup,
   useTransferTranslate = useSiteTransferTranslate,
-  useSitesAvailable = useSitesSectionAvailable,
+  useSitesAvailable = useWiredSitesSectionAvailable,
   tabId,
 }: ImportExportProps = {}) {
   const t = useTranslate();

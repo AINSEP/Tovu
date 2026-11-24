@@ -5,7 +5,7 @@ import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-
 import { registerReadyzRoute, type NoDepsRouteRegistrar } from "#src/server/inbound/public-http/routes/ops/health";
 import { registerPublishTrustHandshakeRoutes } from "./publish-trust.js";
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
-import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
 import { createPublishTrustRevocationReader } from "../publish-trust-revocations.js";
 import type { RouteDeps } from "#src/server/routes/types";

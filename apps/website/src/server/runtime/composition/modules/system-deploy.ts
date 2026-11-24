@@ -11,7 +11,7 @@ import { publishPreviewRoute } from "@jini-ai/cms/admin-http/routes/system/publi
 import { publishStatusRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/status";
 import { publishTargetsRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/targets";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
+import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/export-run-binding";
 import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/index";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { inspectSiteKeyMaterial, siteKeySources, type SiteKeyStatus } from "#src/features/webhooks/index";
