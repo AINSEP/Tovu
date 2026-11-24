@@ -22,7 +22,8 @@ import {
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal, LocalSiteError, type LocalSiteSupervisorPort,
   trashSite, restoreSite, permanentlyDeleteTrashedSite, siteTrashName,
 } from "#src/platform/site-dir/index";
-import { devRestartPortFromEnv, type DevRestartPort } from "#src/platform/dev-supervisor/index";
+import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/index";
+import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
