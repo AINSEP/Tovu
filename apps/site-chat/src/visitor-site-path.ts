@@ -13,11 +13,20 @@ const BACKSLASH_OR_WHITESPACE = /[\\\u0000- ]/;
  * segment rule. Core decodes once; the repeated decode here is the visitor-specific strictness.
  */
 export function allowsVisitorPath({ path }: { path: string }, _options = {}): boolean {
-  if (!path.startsWith('/') || path.startsWith('//') || QUERY_OR_FRAGMENT.test(path) || BACKSLASH_OR_WHITESPACE.test(path)) return false;
+  if (!passesRawGrammar({ path })) return false;
   const decoded = decodeRepeatedly({ path });
-  if (decoded === null || decoded.startsWith('//') || decoded.includes('%')) return false;
-  if (QUERY_OR_FRAGMENT.test(decoded) || BACKSLASH_OR_WHITESPACE.test(decoded)) return false;
+  // A `%` surviving the decode loop means encoding nested deeper than its five-pass limit.
+  if (decoded === null || decoded.includes('%') || !passesRawGrammar({ path: decoded })) return false;
   return [path, decoded].every(raw => checkSiteRelativeTarget({ raw, reservedSegments: VISITOR_RESERVED_SEGMENTS }, {}).kind === 'ok');
+}
+
+/**
+ * Site-relative, not protocol-relative, and free of query/fragment, backslash or whitespace. Applied
+ * to the raw path and to its decoded form; the decoded form always keeps the raw leading `/` (a literal
+ * `/` never decodes), so the shared `startsWith('/')` test adds nothing there.
+ */
+function passesRawGrammar({ path }: { path: string }, _options = {}): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !QUERY_OR_FRAGMENT.test(path) && !BACKSLASH_OR_WHITESPACE.test(path);
 }
 
 function decodeRepeatedly({ path }: { path: string }, _options = {}): string | null {
