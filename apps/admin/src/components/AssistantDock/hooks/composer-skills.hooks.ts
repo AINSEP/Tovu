@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import type { ChatPaneComposerHandle, ComposerDiscoveryGroup } from "@jini-ai/chat/react";
-import { rankComposerDiscoveryGroups } from "@/features/plugins/composer-capabilities";
+import { rankComposerDiscoveryGroups } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
 
 /** Uses the existing plugin tray and the same sticky-until-removed context behavior. */

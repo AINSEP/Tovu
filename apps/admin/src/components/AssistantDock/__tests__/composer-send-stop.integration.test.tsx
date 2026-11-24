@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers } from "@jini-ai/chat/core";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
-import { emptyComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
+import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
 
 // Exercise the actual dock wrapper, Jini composer and cancellation lifecycle. Only IO is fake.

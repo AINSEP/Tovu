@@ -67,3 +67,9 @@ Tests were written but not executed in the dispatched worker; validation belongs
   `Plugins.tsx` and `AgentPlugins.tsx`; the glyphs and padlock tip read the kit mounted in `main.tsx`
   (`integrations/jini-kits.ts`), so tests rendering them wrap in `AdminKitProvider`.
 - `styles.css` styles the moved chevron by `.jini-agent-plugin-chevron-glyph`.
+- `composer-capabilities.ts` keeps only the host half: the bundled catalog
+  (`createBundledComposerCapabilitySource`) and `resolveTovuComposerDiscoveryRoute`. The contract,
+  projection and ranking are owned by `@jini-ai/admin/screens/plugins/composer-capabilities`
+  (Tovu files alias `ComposerCapability` as `TovuComposerCapability` at the import);
+  `AssistantDock/hooks/composer-discovery.hooks.ts` passes the bundled and installed-skills sources
+  into `projectComposerCapabilities({ sources })`.

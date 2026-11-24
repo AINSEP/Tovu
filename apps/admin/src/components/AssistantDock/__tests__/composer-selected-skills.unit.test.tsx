@@ -4,7 +4,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, expect, it, vi } from "vitest";
 import { Composer, useComposer, ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
-import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
+import { projectComposerCapabilities } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { useComposerDiscoverySelect } from "../hooks/composer-discovery.hooks";
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
 import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";

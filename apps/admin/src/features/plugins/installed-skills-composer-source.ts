@@ -1,7 +1,7 @@
 import { ApiError, authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
 
-import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
+import type { ComposerCapabilitySource, ComposerCapability as TovuComposerCapability } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
 import { isAbortError } from '@jini-ai/core/text';
 /** Installed standalone skills use a conditional snapshot scoped to this source's lifetime.
