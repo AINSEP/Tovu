@@ -11,6 +11,7 @@ import type { NextFunction, Request, Response } from "express";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
 import { registerAdminHeldBackThemeRoutes, type HeldBackRouteDeps } from "../held-back.js";
 
 /**
@@ -62,6 +63,7 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     themes,
     themesDir: site.themesDir,
     siteBinding: { dir: site.siteDir },
+    explainThemeTree,
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: { nowMs: () => Date.parse("2026-11-24T00:00:00Z"), nowIso: () => "2026-11-24T00:00:00.000Z" }, idGen: { newId: () => `plan-${++serial}` }, authorize: authorizeStub }) },
     presentationRepo: {
       findByWorkspaceId: async () => ({ workspaceId: WORKSPACE_ID, activeThemeId: presentation.activeThemeId, updatedAt: "" }),

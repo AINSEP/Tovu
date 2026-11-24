@@ -1,5 +1,5 @@
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { NavItemNode, NavMenuDoc } from "./index.js";
+import type { NavItemNode, NavMenuDoc } from "@jini-ai/cms/navigation";
 import { postPublicPath } from "#src/platform/routing/index";
 
 const REPAIR_SETTING_ID = "tovu.internal.boot_repair.footer_page_links";

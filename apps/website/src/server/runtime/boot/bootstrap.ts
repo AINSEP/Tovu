@@ -2,14 +2,16 @@ import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
-import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins, type BundledIdUpgradeOutcome } from "../../../features/agent-plugins/lifecycle.js";
+import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import type { BundledIdUpgradeOutcome } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
 import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import { grantDeclaredToolsAtBoot } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";
+import { bindProviderFacePorts, syncProviderFaces } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { providerFaceLifecycle } from "#src/features/agent-plugins/provider-plugin-link";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/site-paths.js";
@@ -44,7 +46,7 @@ const bootLog = { info: (message: string) => consoleLogger.info({ message }), wa
 async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     await syncProviderFaces({
-      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
+      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, ...providerFaceLifecycle }),
       providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     });
   } catch (error) {

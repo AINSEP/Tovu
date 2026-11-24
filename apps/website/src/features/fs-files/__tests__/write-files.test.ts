@@ -11,7 +11,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { FS_WRITE_FILES_TOOL_ID, getFsFilesAgentToolCatalog } from "../agent-tools.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { buildFsFilesRegistrations, fsFilesDerivedRisk } from "../tool-registrations.js";
-import { FS_WRITE_LIMITS, FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles } from "../write-files.js";
+import { FS_WRITE_LIMITS, FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
+import { resolveFsFilePath } from "../fs-files.js";
 
 /**
  * @file `fs_write_files` (owner 2026-10-27): the ONE way an agent writes into the picked folder —
@@ -39,7 +40,7 @@ function folderFixture(t: TestContext) {
 test("refuses traversal, absolute, drive, backslash, NUL and empty paths before touching disk", (t) => {
   const { folder } = folderFixture(t);
   for (const bad of ["../escape.txt", "a/../../escape.txt", "/etc/passwd", "C:evil.txt", "a\\b.txt", "a\0b", "", "a//b.txt", "./a.txt"]) {
-    assert.throws(() => prepareFileWrites({ folder, files: [utf8(bad, "x")] }), FsWriteInputError, JSON.stringify(bad));
+    assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [utf8(bad, "x")] }), FsWriteInputError, JSON.stringify(bad));
   }
   assert.deepEqual(fs.readdirSync(folder), []);
 });
@@ -52,7 +53,7 @@ test("refuses denied names and symlink components or targets, even ones pointing
   fs.symlinkSync(path.join(folder, "real", "target.txt"), path.join(folder, "linked-file.txt"));
   fs.symlinkSync(base, path.join(folder, "escape"));
   for (const bad of [".env", "secrets/token.txt", "keys/server.pem", "linked-dir/new.txt", "linked-file.txt", "escape/site/x.txt", "real"]) {
-    assert.throws(() => prepareFileWrites({ folder, files: [utf8(bad, "x")] }), FsWriteInputError, bad);
+    assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [utf8(bad, "x")] }), FsWriteInputError, bad);
   }
   assert.equal(fs.readFileSync(path.join(folder, "real", "target.txt"), "utf8"), "keep");
 });
@@ -60,19 +61,19 @@ test("refuses denied names and symlink components or targets, even ones pointing
 test("caps: file count, per-file bytes, batch total, duplicates and bad encodings are refused", (t) => {
   const { folder } = folderFixture(t);
   const many = Array.from({ length: FS_WRITE_LIMITS.maxFiles + 1 }, (_, i) => utf8(`f${i}.txt`, "x"));
-  assert.throws(() => prepareFileWrites({ folder, files: many }), /1 to 50/);
-  assert.doesNotThrow(() => prepareFileWrites({ folder, files: many.slice(1) }));
-  assert.throws(() => prepareFileWrites({ folder, files: [] }), /1 to 50/);
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: many }), /1 to 50/);
+  assert.doesNotThrow(() => prepareFileWrites({ folder, resolveFsFilePath, files: many.slice(1) }));
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [] }), /1 to 50/);
   const big = "x".repeat(FS_WRITE_LIMITS.maxFileBytes + 1);
-  assert.throws(() => prepareFileWrites({ folder, files: [utf8("big.txt", big)] }), /2 MiB/);
-  assert.doesNotThrow(() => prepareFileWrites({ folder, files: [utf8("edge.txt", big.slice(1))] }));
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [utf8("big.txt", big)] }), /2 MiB/);
+  assert.doesNotThrow(() => prepareFileWrites({ folder, resolveFsFilePath, files: [utf8("edge.txt", big.slice(1))] }));
   const full = "x".repeat(FS_WRITE_LIMITS.maxFileBytes);
   const sixFull = Array.from({ length: 6 }, (_, i) => utf8(`p${i}.bin`, full));
-  assert.throws(() => prepareFileWrites({ folder, files: sixFull }), /10 MiB/);
-  assert.doesNotThrow(() => prepareFileWrites({ folder, files: sixFull.slice(1) }));
-  assert.throws(() => prepareFileWrites({ folder, files: [utf8("a.txt", "1"), utf8("A.TXT", "2")] }), /more than once/);
-  assert.throws(() => prepareFileWrites({ folder, files: [{ path: "a.bin", content: "!!!", encoding: "base64" }] }), /base64/);
-  assert.throws(() => prepareFileWrites({ folder, files: [{ path: "a.bin", content: "x", encoding: "latin1" }] }), /encoding/);
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: sixFull }), /10 MiB/);
+  assert.doesNotThrow(() => prepareFileWrites({ folder, resolveFsFilePath, files: sixFull.slice(1) }));
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [utf8("a.txt", "1"), utf8("A.TXT", "2")] }), /more than once/);
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [{ path: "a.bin", content: "!!!", encoding: "base64" }] }), /base64/);
+  assert.throws(() => prepareFileWrites({ folder, resolveFsFilePath, files: [{ path: "a.bin", content: "x", encoding: "latin1" }] }), /encoding/);
   assert.deepEqual(fs.readdirSync(folder), []);
 });
 
@@ -80,9 +81,9 @@ test("prepare reports new vs overwrite and size; write creates parents and lands
   const { folder } = folderFixture(t);
   fs.writeFileSync(path.join(folder, "index.html"), "old");
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]);
-  const writes = prepareFileWrites({ folder, files: [utf8("index.html", "new"), { path: "img/logo.png", content: png.toString("base64"), encoding: "base64" }] });
+  const writes = prepareFileWrites({ folder, resolveFsFilePath, files: [utf8("index.html", "new"), { path: "img/logo.png", content: png.toString("base64"), encoding: "base64" }] });
   assert.deepEqual(writes.map((w) => [w.path, w.overwrite, w.bytes.length]), [["index.html", true, 3], ["img/logo.png", false, 6]]);
-  assert.deepEqual(writePreparedFiles({ folder, writes }), { written: ["index.html", "img/logo.png"], notWritten: [] });
+  assert.deepEqual(writePreparedFiles({ folder, writes, resolveFsFilePath }), { written: ["index.html", "img/logo.png"], notWritten: [] });
   assert.equal(fs.readFileSync(path.join(folder, "index.html"), "utf8"), "new");
   assert.deepEqual(fs.readFileSync(path.join(folder, "img", "logo.png")), png);
   assert.deepEqual(fs.readdirSync(folder).filter((name) => name.endsWith(".tmp")), []);
@@ -90,9 +91,9 @@ test("prepare reports new vs overwrite and size; write creates parents and lands
 
 test("a mid-batch failure stops, reports written vs not written, and leaves no temp file", (t) => {
   const { folder } = folderFixture(t);
-  const writes = prepareFileWrites({ folder, files: [utf8("a.txt", "A"), utf8("b.txt", "B"), utf8("c.txt", "C")] });
+  const writes = prepareFileWrites({ folder, resolveFsFilePath, files: [utf8("a.txt", "A"), utf8("b.txt", "B"), utf8("c.txt", "C")] });
   fs.mkdirSync(path.join(folder, "b.txt"));
-  const outcome = writePreparedFiles({ folder, writes });
+  const outcome = writePreparedFiles({ folder, writes, resolveFsFilePath });
   assert.deepEqual(outcome.written, ["a.txt"]);
   assert.equal(outcome.failed?.path, "b.txt");
   assert.deepEqual(outcome.notWritten, ["c.txt"]);

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { getPublishContentRunStatus, InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "../run-repo.js";
+import { getPublishContentRunStatus, InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
 
 /**
  * @file Closes the mutation-sweep gap on `run-repo.ts:123`'s

@@ -1,5 +1,5 @@
 import type { ExportReport } from "#src/contracts/core/export-report";
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { claimArchivePaths } from "./share-zip.js";
 import { prepareStaticReport } from "./static-copy.js";
 import { LANDING_FILE } from "./static-download-landing.js";

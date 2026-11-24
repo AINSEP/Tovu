@@ -20,7 +20,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
  * `@jini-ai/agent-plugins/site-import` and is read here from that selected package.
  *
  * 1. **Host acceptance** — both manifests parse under this host's validators, and `mcp.json`
- *    declares ZERO servers (`capability-projection.ts` marks every plugin-declared MCP server
+ *    declares ZERO servers (`@jini-ai/agent-plugins/lifecycle` marks every plugin-declared MCP server
  *    unavailable, so one here would be decoration that looks like a capability).
  *
  * 2. **On by default** (owner decision 2026-10-08) — seeded enabled on a fresh site, switched on

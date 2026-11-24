@@ -149,7 +149,7 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
 }
 
 /**
- * The assistant key card's host ports (`features/custom-credentials/provider-settings-card.ts`), bound
+ * The assistant key card's host ports (`@jini-ai/integrations/custom-credentials/provider-settings-card`), bound
  * to this module's rule and the same `ProviderConfigSource` the admin route uses.
  * @complexity O(p + f) per call: one discovery read plus one config read/write.
  */

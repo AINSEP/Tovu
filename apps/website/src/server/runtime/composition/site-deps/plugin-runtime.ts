@@ -9,7 +9,7 @@ import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { pluginsInstallDir } from "../site-paths.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import { type CreateSiteRouteDepsOverrides, type resolveSiteBindingOverride, pluginFailureThresholdOverride } from "./overrides.js";
-import type { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import type { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import type { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 

@@ -18,7 +18,7 @@ import { buildFormsToolRegistrations, duplicateFormDefinition, formsDerivedRisk,
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/forms";
-import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
+import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
 import type { FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";

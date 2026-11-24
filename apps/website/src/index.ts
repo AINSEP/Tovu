@@ -22,7 +22,7 @@ import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js"
 import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readiness.js";
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
-import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "./features/plugin-runtime/sdk-resolver.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from './server/runtime/composition/build-release.js';

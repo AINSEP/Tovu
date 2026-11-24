@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
 import { MAX_DUPLICATE_THEME_BYTES } from "./duplicate-theme.js";
 import { MAX_WALK_DEPTH } from "./theme-files.js";
 import { MAX_LISTED_FILES } from "./theme-file-listing.js";
@@ -19,6 +18,9 @@ import { forgetHeldBackChoice, heldBackRoot, isAbsent, heldBackThemeName, HeldBa
 
 /** Where import may hold a theme back (`import-restore-placement.ts`'s THEME_FILE tiers). */
 const TIER_PATHS = ["static", "declarative", "__original-themes__/static", "__original-themes__/declarative"] as const;
+
+/** Lists why a held-back theme tree fails import's placement safety checks (empty when it passes); the host binds site-backup's `explainThemeTree`. */
+export type ExplainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => string[];
 
 export interface HeldBackTheme { id: string; name: string; tier: "static" | "declarative"; original: boolean; files: number; bytes: number }
 export interface HeldBackCheck { themeId: string; passes: boolean; problems: string[]; digest: string | null; nameTaken: boolean }
@@ -156,18 +158,18 @@ function listedTheme(required: { siteDir: string; themesDir: string; id: string 
 
 /**
  * Re-run import's checks on one held-back theme: no links, within the caps, import's manifest and
- * file checks ({@link explainThemeTree}), then the theme must load `valid`. Read-only.
+ * file checks (the injected `explainThemeTree`), then the theme must load `valid`. Read-only.
  * @throws {HeldBackThemeError} `INVALID_ID` or `HELD_BACK_NOT_FOUND`.
  * @complexity O(total bytes) for the digest, bounded by the walk caps.
  */
-export function checkHeldBackTheme(required: { siteDir: string; themesDir: string; themeId: string }): HeldBackCheck {
+export function checkHeldBackTheme(required: { siteDir: string; themesDir: string; themeId: string; explainThemeTree: ExplainThemeTree }): HeldBackCheck {
   const located = locateHeldBack(required);
   const tree = walkHeldBackTree({ dir: located.dir });
   const problems = treeProblems({ tree });
   // Read file contents only once the tree is known to hold no links and to fit the caps.
   if (!problems.length) {
     const files = tree.files.map(file => "themes/" + located.id + "/" + file.relativePath);
-    problems.push(...explainThemeTree({ root: heldBackRoot(required), id: located.id, files }));
+    problems.push(...required.explainThemeTree({ root: heldBackRoot(required), id: located.id, files }));
   }
   if (!problems.length) {
     const theme = loadTheme({ themeDir: located.dir, id: located.name, source: "site" });
@@ -201,7 +203,7 @@ function treeProblems(required: { tree: HeldBackTree }): string[] {
  *   `CHECK_FAILED`, `CHANGED_SINCE_CHECK`, `NAME_TAKEN`; anything else is unexpected.
  * @complexity O(total bytes) for the re-check, plus one rescan of `themesDir`.
  */
-export function restoreHeldBackTheme(required: { siteDir: string; themesDir: string; themes: DiscoveredTheme[]; themeId: string; approvedDigest: string }): RestoredHeldBackTheme {
+export function restoreHeldBackTheme(required: { siteDir: string; themesDir: string; themes: DiscoveredTheme[]; themeId: string; approvedDigest: string; explainThemeTree: ExplainThemeTree }): RestoredHeldBackTheme {
   const located = locateHeldBack(required);
   if (!required.approvedDigest) throw new HeldBackThemeError({ code: "APPROVAL_REQUIRED", message: "Approve this theme before it is restored." });
   const check = checkHeldBackTheme(required);

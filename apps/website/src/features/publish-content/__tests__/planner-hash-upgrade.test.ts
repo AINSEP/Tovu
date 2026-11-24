@@ -65,7 +65,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
   const { createPublishContentApplyPort } = await import("../apply-port.js");
   const { InMemoryPublishContentBaselineRepo } = await import("@jini-ai/cms/publish/content/baseline-repo");
   const { InMemoryPublishContentBundleRepo, stageBundle } = await import("@jini-ai/cms/publish/transfer");
-  const { InMemoryPublishContentRunRepo } = await import("../run-repo.js");
+  const { InMemoryPublishContentRunRepo } = await import("@jini-ai/cms/publish/content/run-repo");
   resetPublishContentContributorsForTests();
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const bundleRepo = new InMemoryPublishContentBundleRepo();

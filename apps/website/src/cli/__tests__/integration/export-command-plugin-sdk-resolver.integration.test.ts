@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 /**
  * @file CIC U-002 (ESCALATE_SECURITY): `registerPluginSdkResolver()` must be registered
  * synchronously, before any code path can reach `loadPlugin()`'s dynamic `import()`
- * (`server/runtime/boot/plugin-sdk-resolver.ts`'s own header;
+ * (`features/plugin-runtime/sdk-resolver.ts`'s own header;
  * `ADS-memory/reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002-B1/ORD1).
  * `cli/commands/export.ts` (`tovu export`) builds the same `createSiteRouteDeps()` composition
  * root as `cli/commands/serve.ts` — always wiring a real plugin `installDir` — and its own
@@ -45,7 +45,7 @@ const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const EXPORT_COMMAND_MODULE = path.resolve(import.meta.dirname, "../../commands/export.ts");
 const PLUGIN_SDK_RESOLVER_MODULE = path.resolve(
   import.meta.dirname,
-  "../../../server/runtime/boot/plugin-sdk-resolver.ts"
+  "../../../features/plugin-runtime/sdk-resolver.ts"
 );
 
 const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-export-sdk-resolver-worker-coverage-"));
@@ -91,7 +91,8 @@ function buildProbeScript(dir: string, outDir: string, resultPath: string, plugi
     "  throw new Error('boot boundary observed');",
     "} } });",
     `const { runExportCommand } = await import(${JSON.stringify(EXPORT_COMMAND_MODULE)});`,
-    `const { registerPluginSdkResolver, PluginSdkResolverAlreadyRegisteredError } = await import(${JSON.stringify(PLUGIN_SDK_RESOLVER_MODULE)});`,
+    `const { registerPluginSdkResolver } = await import(${JSON.stringify(PLUGIN_SDK_RESOLVER_MODULE)});`,
+    `const { PluginSdkResolverAlreadyRegisteredError } = await import(${JSON.stringify(import.meta.resolve("@jini-ai/plugins/runtime/sdk-resolver"))});`,
     "try {",
     `  await runExportCommand({ dir: ${JSON.stringify(dir)}, out: ${JSON.stringify(outDir)} });`,
     "} catch {",

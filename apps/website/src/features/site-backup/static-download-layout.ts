@@ -3,7 +3,8 @@ import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@ji
 import { downloadDocumentBase } from "@jini-ai/devops/backup/site/static-download-html";
 import { downloadHtmlSourceEdits } from "./download-html-source-edits.js";
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
-import { allocateStaticExportThemes, type StaticExportTheme } from "./static-export-selection.js";
+import type { StaticExportTheme } from "@jini-ai/devops/backup/site/static-export-selection";
+import { allocateStaticExportThemes } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";
 import { readmeText, type StaticSiteMetadata } from "./static-copy.js";
 import { LANDING_FILE, landingPages, staticLandingPage, type LandingTheme } from "./static-download-landing.js";

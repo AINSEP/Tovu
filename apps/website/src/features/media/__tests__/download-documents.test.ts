@@ -4,10 +4,14 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { validateDocumentIngress } from '@jini-ai/cms/media';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
-import { createDocumentArchiveReader } from '../document-archive.js';
+import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
+import * as yauzl from 'yauzl';
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { downloadDocuments } from './download-documents.fixture.js';
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
-const archiveReader = createDocumentArchiveReader({});
+const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
 test('download-only: all seven formats accept valid bytes and reject wrong/renamed bytes', async () => {
   const documents = await downloadDocuments({});
   const oversized = Buffer.alloc(50 * 1024 * 1024 + 1);

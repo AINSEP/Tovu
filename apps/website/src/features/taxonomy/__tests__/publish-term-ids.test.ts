@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { prepareTermSync, readTermIds, withTermIds } from "../publish-term-ids.js";
+import { prepareTermSync, readTermIds, withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 import type Database from "better-sqlite3";
 
 function fixture(t: import("node:test").TestContext) {

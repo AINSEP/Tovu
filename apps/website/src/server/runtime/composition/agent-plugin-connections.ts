@@ -1,5 +1,5 @@
 import { createSharedOAuthOwnerStorage } from "#src/features/api-connections/shared-owner";
-import type { SharedApiConnectionDeps } from "#src/features/api-connections/shared-api";
+import type { SharedApiConnectionDeps } from "@jini-ai/integrations/api-connections/shared-api";
 import type { ProjectStore, ProjectVaultScope } from "./project-store.js";
 import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
@@ -22,9 +22,9 @@ import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/a
 import { resolveApiConnectionRuntime } from '../../../contracts/core/runtime-mode.js';
 export { resolveApiConnectionRuntime };
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
+import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/host-bindings";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "@jini-ai/agent-plugins/connect/executable";
-import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "#src/features/agent-plugins/admin-surfaces/handlers";
+import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "@jini-ai/agent-plugins/site/admin-surfaces/handlers";
 import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
@@ -52,7 +52,7 @@ import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-p
  * The budget behind the `limiter` capability a plugin calls itself: per plugin key, one shared
  * window per site, sized to the largest per-instance budget a bundled provider needs (~240/min).
  * Budgets a plugin DECLARES on a connection (`budgets` in `jini-connections.json`) are enforced by
- * the host on every token read instead (`features/api-connections/budgets.ts`), whatever the plugin
+ * the host on every token read instead (`@jini-ai/integrations/api-connections` budgets, bound in `features/api-connections/host-bindings.ts`), whatever the plugin
  * calls here.
  */
 export const AGENT_PLUGIN_OUTBOUND_BUDGET: RateLimitProfile = { windowSeconds: 60, max: 240, burst: 40 };
@@ -198,7 +198,8 @@ export function composeAgentPluginConnections(
       forms: delivery.forms, authorize: delivery.settings.authorize,
     }),
   } : {});
-  const adminSurfaceHost = createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities, issuedTokens, hostKind: runtime }, { signIns });
+  const adminSurfaceHost = createAgentPluginAdminSurfaceHandlers({ workspaceId, filename: ADMIN_SURFACES_FILENAME, loadContributions, capabilities, issuedTokens, hostKind: runtime,
+    log: (line) => console.warn(`[admin-surfaces] ${line}`) }, { signIns });
   const surfaceDefinition = defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME });
   return {
     apiConnections: { host },

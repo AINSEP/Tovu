@@ -14,7 +14,7 @@ import {
   OriginNotVerifiedError,
   type OriginRegistryPort,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-tools.js";
+import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 // Browser/privacy rationale: Jini/packages/diagnostics/src/web-evidence/browser-port.ts; serialized DOM rationale: page-structure-script.ts beside it.
 import { collectPageEvidence } from "./collect-page-evidence.js";
@@ -221,7 +221,7 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps, 
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "site-evidence",
-    catalogModule: "features/site-evidence/agent-tools.ts",
+    catalogModule: "@jini-ai/diagnostics/web-evidence/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: siteEvidenceDerivedRisk,

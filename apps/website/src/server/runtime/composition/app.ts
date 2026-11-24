@@ -24,11 +24,11 @@ import { createPluginExportSource } from "#src/features/agent-plugins/exports/so
 import { bindSiteConsentService } from './site-consent.js';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc, createNavMenuReadModel } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
-import { NO_PUBLISH_CONTENT_SEED_HASH } from "#src/features/publish-content/seed-hash";
+import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
 import { randomUUID } from "node:crypto";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -81,14 +81,14 @@ import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-in
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
-import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { bindProviderFacePorts, followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { providerFaceLifecycle, warnProviderFace } from "#src/features/agent-plugins/provider-plugin-link";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
 import { getEffective } from "@jini-ai/core/settings";
 import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
@@ -220,8 +220,8 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
   // Same one-switch rule as the SQLite composition (deps.ts): a provider plugin's linked agent plugin
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
-  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id,
-    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root }) });
+  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id, reportFollowFailure: warnProviderFace,
+    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root, ...providerFaceLifecycle }) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => references.routeDeps().pluginHost,
     workspaceId: seededWorkspace.id,

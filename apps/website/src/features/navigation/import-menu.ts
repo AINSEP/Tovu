@@ -2,13 +2,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
-import {
-  MenuConflictError,
-  MenuNotFoundError,
-  validateAndCloneTree,
-  type NavMenuEntry,
-} from "./index.js";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import type { NavMenuEntry, MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import { MenuConflictError, MenuNotFoundError, validateAndCloneTree } from "@jini-ai/cms/navigation/node";
 
 /**
  * @file S3 of `ADS-memory/.local-artifacts/publish-types-plan-2026-09-24.md` — the host-local

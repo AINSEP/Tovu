@@ -45,7 +45,7 @@ export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDep
   readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   /** Host ports for executable Agent Plugin tools; omitted, that family is not registered. */
-  readonly agentPluginTools?: import("../features/agent-plugins/executable-tools/register.js").AgentPluginExecutableToolHost;
+  readonly agentPluginTools?: import("../features/agent-plugins/executable-tools/host-bindings.js").AgentPluginExecutableToolHost;
   /** The process's confirmation transport, for plugin tools that ask before acting. */
   readonly surfaces?: AssistantSurfaceDeps;
 }

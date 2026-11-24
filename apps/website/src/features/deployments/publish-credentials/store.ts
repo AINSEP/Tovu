@@ -11,7 +11,7 @@ import { matchingCredentialProviderIds, selectCredentialForProvider, normalizeCr
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
-import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 
@@ -118,7 +118,7 @@ export interface PublishCredentialReadDeps {
 
 /** The store a listed row came from: rows carry their own store's workspace id. */
 function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): ScopedCredentialDeps<D> {
-  const scopes = credentialScopes(deps, input.workspaceId);
+  const scopes = credentialScopes({ deps, workspaceId: input.workspaceId });
   const scope = scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0];
   if (scope === undefined) throw new Error("Publish credential has no storage scope");
   return scope;
@@ -126,7 +126,7 @@ function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { works
 
 /** The vendor row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
 async function locateById<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; id: string }): Promise<{ scoped: ScopedCredentialDeps<D>; existing: VendorCredentialSetRecord } | null> {
-  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId: input.workspaceId })) {
     const existing = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
     if (existing) return { scoped, existing };
   }
@@ -143,7 +143,7 @@ const labelKey = (row: VaultSummary): string => row.meta.credentialType === "cus
 async function inventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
   const rows: VaultSummary[] = [];
   const claimed = new Set<string>();
-  for (const scoped of credentialScopes(deps, workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId })) {
     const own = await storeInventory({ deps: scoped.deps, workspaceId: scoped.workspaceId });
     rows.push(...own.filter(row => !claimed.has(labelKey(row))));
     for (const row of own) claimed.add(labelKey(row));
@@ -437,7 +437,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   const { providerId, ...fields } = validated.connection;
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
-  const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
+  const target = credentialCreateTarget({ deps, input, invalid: message => new PublishCredentialValidationError(message) });
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
   const summary = await saveConnection({ target, providerId, input: {
     ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,

@@ -697,7 +697,7 @@ const PUBLIC_ENTRIES = {
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
     "token-aliases", "entry-list-markup", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
-    "preview-policy", "theme-roster-ports",
+    "preview-policy", "theme-roster-ports", "held-back-themes", "held-back-gated-hooks", "held-back-choice",
     "theme-page-eligibility", "visitor-publication",
     "static-render-content", "static-render-menus", "static-render-previews",
     "static-template-choice", "static-template-resolution",

@@ -10,7 +10,9 @@ import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-rem
 import { fingerprintSiteKeyHex } from "../../../webhooks/keyring.env.js";
 import { SITE_KEY_MANAGE_PERMISSION } from "@jini-ai/user-management/identity/site-key-permission";
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
-import { runListSecrets, runSetSecret, runUnsetSecret, secretFingerprint, type SecretConfirmRequest } from "../secrets.js";
+import { runListSecrets, runSetSecret, runUnsetSecret } from "../secrets.js";
+import { secretFingerprint } from "../run-ops.js";
+import type { SecretConfirmRequest } from "@jini-ai/devops/deploy";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { fixture, execution } from "./example-ops-fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

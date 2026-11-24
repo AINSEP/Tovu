@@ -6,8 +6,8 @@ import { createHash, createHmac } from "node:crypto";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createPublishCredential, PublishCredentialSecretStoreUnconfiguredError, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
-import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
+import { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,
   InMemoryPublishCredentialVerificationCache,

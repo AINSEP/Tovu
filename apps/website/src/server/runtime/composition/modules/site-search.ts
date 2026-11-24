@@ -8,6 +8,7 @@ import {
 } from "@jini-ai/search";
 import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
+import { createSqlSearchIndexStore, type SearchIndexTables } from "@jini-ai/search/site/index-state-store";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
@@ -17,10 +18,9 @@ import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
-import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 
 /**
@@ -403,6 +403,14 @@ export interface SiteSearchBindings {
   isPluginActive(required: { readonly pluginId: string }): Promise<boolean>;
 }
 
+/** The tables migrations 0027_search_index and 0028_search_index_retired create on the content database. */
+const SEARCH_INDEX_TABLES: SearchIndexTables = {
+  state: "search_index_state",
+  watermarks: "search_index_watermarks",
+  targets: "search_index_targets",
+  retired: "search_index_retired",
+};
+
 /**
  * Bind the site's content database, settings, vault, member sessions and plugin loader to the
  * runtime's ports.
@@ -417,7 +425,7 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
     sources: createCmsSearchDocumentSources({ kernel, now, ...CMS_SEARCH_RULES }),
-    ...createSqlSearchIndexStore({ kernel, now }),
+    ...createSqlSearchIndexStore({ kernel: schemaErasedKernel({ store: kernel }), now, tables: SEARCH_INDEX_TABLES }),
     access: createCmsSearchAccessPort({ kernel, now, ...CMS_SEARCH_RULES }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {

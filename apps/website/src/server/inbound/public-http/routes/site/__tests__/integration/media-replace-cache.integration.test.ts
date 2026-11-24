@@ -7,7 +7,7 @@ import { replaceMediaFile } from "@jini-ai/cms/media";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { uploadMedia, registerTransform } from "#src/features/media/index";
-import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 

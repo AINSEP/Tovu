@@ -8,5 +8,3 @@ export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./t
 
 export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";
 export { credentialVault, credentialScope, credentialHint } from "./vault-adapter.js";
-export { credentialCreateTarget, credentialScopes } from "./project-scope.js";
-export type { CredentialScope, ScopedCredentialDeps } from "./project-scope.js";

@@ -87,9 +87,9 @@ export interface CredentialsDeps {
    * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
   externalMcpAdmissions?: import("@jini-ai/mcp/external/operations-tools").ExternalMcpOperations["admissions"];
   bundledSourceRoot: string;
-  mcp: import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpPort & import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpContext;
-  preferences: import("../../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
-  providerFaces: import("../../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
+  mcp: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpPort & import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpContext;
+  preferences: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginPreferencesPort;
+  providerFaces: import("@jini-ai/plugins/runtime/service-ports").PluginProviderFacesPort;
   notifyRosterChanged: import("@jini-ai/core/tool-access-change").NotifyToolAccessChanged;
   /** Runtime-owned connections declared by the desktop host, independent of labels. */
   builtInExternalMcpServerIds?: readonly string[];
@@ -176,7 +176,7 @@ export interface CredentialsDeps {
   /**
    * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
    * "Add custom provider" form (`apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts`). Real
-   * `SqliteCustomCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryCustomCredentialSetRepo` in
+   * `SqlCustomCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryCustomCredentialSetRepo` in
    * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `sourceControlCredentialSetRepo` already

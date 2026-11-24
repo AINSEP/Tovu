@@ -6,9 +6,8 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, startT
 
 import express from "express";
 
-import { menuVersionConflictError } from "@jini-ai/cms/navigation";
-import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
-import type { MenuRepoPort } from "@jini-ai/cms/navigation";
+import { menuVersionConflictError, InMemoryNavLocationBindingRepo, type MenuRepoPort } from "@jini-ai/cms/navigation";
+import { ALLOWED_HREF_SHAPES_DESCRIPTION } from "@jini-ai/cms/navigation/node";
 import type { MenuRouteDeps } from "../runtime/composition/modules/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";

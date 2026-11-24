@@ -1,7 +1,7 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
-import type { AgentPluginOAuthPort } from "../../service-ports.js";
+import type { AgentPluginOAuthPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test, { after } from "node:test";

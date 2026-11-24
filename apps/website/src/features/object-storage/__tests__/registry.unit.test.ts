@@ -7,9 +7,12 @@ import test, { type TestContext } from "node:test";
 import { OBJECT_STORE_CONTRACT } from "@jini-ai/core/object-store";
 
 import { composedBundledSourceRoot } from "../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
-import type { LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
-import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_FILENAME, type TovuObjectStoreProvider } from "../registry.js";
+import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
+import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
+import { contributeProviders, defineProviderContribution } from "@jini-ai/agent-plugins/lifecycle";
+import { parseObjectStoresFile, type ObjectStoreDescriptor } from "@jini-ai/platform/object-store";
+import { loadBundledObjectStoreRegistry as loadBundledRegistry, loadObjectStoreRegistry as loadSiteRegistry, OBJECT_STORES_FILENAME } from "@jini-ai/platform/object-store/site/registry";
+import type { TovuObjectStoreProvider } from "../media-store.js";
 
 /**
  * @file Tovu's object-store provider registry: the `jini-object-stores.json` manifest parser, the
@@ -19,6 +22,11 @@ import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_
  * deliberately broken plugins.
  */
 
+
+// Tovu's binding of the Jini loaders, as `site-deps/media-storage.ts` composes it.
+const contributionPorts = { defineProviderContribution: defineProviderContribution<ObjectStoreDescriptor, TovuObjectStoreProvider>, contributeProviders: contributeProviders<TovuObjectStoreProvider> };
+const loadObjectStoreRegistry = (required: { workspaceId: string; uploadsDir: string; loadContributions: LoadPluginContributions }) => loadSiteRegistry({ ...required, ...contributionPorts });
+const loadBundledObjectStoreRegistry = (required: { uploadsDir: string; sourceRoot: string }) => loadBundledRegistry({ ...required, ...contributionPorts, bundledContributionSources, loadPluginContributionsFromSource });
 
 const manifest = (value: unknown) => parseObjectStoresFile({ raw: JSON.stringify(value) });
 

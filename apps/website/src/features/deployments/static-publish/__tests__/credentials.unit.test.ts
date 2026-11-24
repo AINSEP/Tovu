@@ -6,7 +6,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";

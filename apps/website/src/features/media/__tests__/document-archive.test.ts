@@ -4,7 +4,11 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
 import { MediaValidationError, validateDocumentIngress, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';
-import { createDocumentArchiveReader } from '../document-archive.js';
+import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
+import * as yauzl from 'yauzl';
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 function archive(files: Record<string, string>) {
   return buildZipFixture(Object.entries(files).map(([path, content]) => ({ path, content })));
@@ -15,7 +19,7 @@ const members = {
   'word/document.xml': '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>',
 };
 test('Library DOCX: real package accepted; ordinary ZIP and macro package refused', async () => {
-  const archiveReader = createDocumentArchiveReader({});
+  const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
   assert.equal((await validateDocumentIngress({ filename: 'valid.docx', bytes: await archive(members) }, { archiveReader })).contentType,
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   await assert.rejects(validateDocumentIngress({ filename: 'fake.docx', bytes: await archive({ 'hello.txt': 'plain ZIP' }) }, { archiveReader }));
@@ -23,7 +27,7 @@ test('Library DOCX: real package accepted; ordinary ZIP and macro package refuse
 });
 
 test('Library DOCX: wrong roots/namespaces and nested marker decoys are refused', async () => {
-  const archiveReader = createDocumentArchiveReader({});
+  const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
   for (const [member, root, child] of [
     ['[Content_Types].xml', 'Types', 'Override'], ['_rels/.rels', 'Relationships', 'Relationship'],
   ] as const) {
@@ -40,7 +44,7 @@ test('Library DOCX: wrong roots/namespaces and nested marker decoys are refused'
 });
 
 test('Library DOCX F2.6: real yauzl rejects encrypted, symlink, oversized and understated-size ZIPs', async () => {
-  const archiveReader = createDocumentArchiveReader({});
+  const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
   const valid = await archive(members);
   // yazl emits an uncommented EOCD. Patch real ZIP header fields; no scripted entry reader.
   const central = valid.readUInt32LE(valid.length - 22 + 16);

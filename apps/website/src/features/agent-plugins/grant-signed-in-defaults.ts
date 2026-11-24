@@ -13,7 +13,7 @@ import { resolveAgentPluginMcpServers } from './federate-mcp.js';
 import { listInstalledAgentPluginServers } from './import-access-token.js';
 import { withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
-import type { AgentPluginMcpContext, AgentPluginMcpPort } from './service-ports.js';
+import type { AgentPluginMcpContext, AgentPluginMcpPort } from '@jini-ai/agent-plugins/site/service-ports';
 
 export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {
   readonly workspaceId: string;

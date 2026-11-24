@@ -2,17 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { buildLibrarySaveAttachmentTool } from '../library-save-attachment.js';
-import { createDocumentArchiveReader } from '../document-archive.js';
+import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
+import * as yauzl from 'yauzl';
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { libraryContext, libraryFixture } from './library.fixture.js';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
 import { filesCopyAgentToolCatalog } from '../../asset-transfer/copy-tool.js';
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 /** Generated documents must never consult attachments, even before the attachment store is ready. */
 function harness() {
   const fixture = libraryFixture();
   const unexpected = () => { throw new Error('generated text must not access attachments'); };
   const tool = buildLibrarySaveAttachmentTool({ deps: fixture.deps, getStore: unexpected,
-    getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader({}) });
+    getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
   return { ...fixture, save: (input: Record<string, unknown>) => tool.handler(libraryContext(input)), tool };
 }
 

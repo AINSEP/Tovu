@@ -6,7 +6,7 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "../index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

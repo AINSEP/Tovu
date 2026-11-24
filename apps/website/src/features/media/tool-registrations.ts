@@ -12,83 +12,13 @@ import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type Media
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
-import { getLatestTransformDefinition, sniffContentType } from "./index.js";
+import { sniffContentType } from "./index.js";
+import { resolveMediaPublicUrls } from "./public-urls.js";
 import { assertAllowedSniffedContentType } from "@jini-ai/cms/media/site/upload-content-type";
-import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import type { MediaPublicUrlDeps, RemoveMediaFn } from "./contracts.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
-
-/** Cosmetic only (ADR-027 §4 — never participates in the rendition lookup itself) — duplicated from
- *  `Jini/packages/cms/src/seo/media.ts`'s identical local copy rather than shared, per this codebase's own
- *  "duplicate the tiny thing, don't reach across files for it" convention (see e.g.
- *  `custom-credentials/agent-tools.ts`'s header for the same reasoning applied elsewhere). */
-const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png", webp: "webp", gif: "gif" };
-
-/**
- * One asset's resolved URL — the per-asset decision {@link resolveMediaPublicUrls} extracts so its
- * own batch loop is pure assembly. `null` covers "no registered 'public' core transform yet" (boot
- * has not run `ensureCoreMediaTransform`, or this is a test double with no transform registered).
- */
-function resolveOneAssetPublicUrl(
-  { asset, contentTypes, latest }: { asset: MediaRecord; contentTypes: ReadonlyMap<string, string>; latest: Awaited<ReturnType<typeof getLatestTransformDefinition>> },
-  _optional: Record<string, never> = {}
-): string | null {
-  const key = mediaUrlKey(asset);
-  const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "original", contentType } });
-  if (!latest) return null;
-  const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext } });
-}
-
-/**
- * Batch-resolves each of `assets`' `/m/...` public URL — the real implementation behind
- * `MediaToolDeps.resolvePublicUrls` for this host. See this file's header for the full contract
- * (images vs. original-byte video/audio, the no-backfill disclosed scope adjustment, why this lives
- * here and not in a route module).
- *
- * @returns a map from `MediaRecord.id` to its resolved URL, or `null` for a trashed asset, an asset
- * with no registered "public" core transform yet (boot has not run `ensureCoreMediaTransform`), or
- * any other unresolvable case — never a link a visitor would 404 on by construction, mirroring
- * `features/post/tool-registrations.ts`'s own `resolvePublicUrl` contract.
- * @complexity O(1) queries regardless of `assets.length`: one batched content-type lookup, one latest-
- * transform-version lookup (workspace-wide, not per-asset).
- */
-export async function resolveMediaPublicUrls(
-  { deps, assets }: { deps: MediaPublicUrlDeps & { workspaceId: string }; assets: readonly MediaRecord[] },
-  _optional: Record<string, never> = {},
-): Promise<Map<string, string | null>> {
-  const result = new Map<string, string | null>();
-  if (!deps.mediaContentTypeStore) {
-    for (const asset of assets) result.set(asset.id, null);
-    return result;
-  }
-
-  const active: MediaRecord[] = [];
-  for (const asset of assets) {
-    if (asset.kind === "document" || asset.status === "trashed") result.set(asset.id, null);
-    else active.push(asset);
-  }
-  if (active.length === 0) return result;
-
-  const sha256s = [...new Set(active.map((asset) => asset.source.sha256))];
-  const contentTypes = await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s });
-
-  // Original-byte players do not depend on image-transform registration. Keep images unresolved
-  // when the host omits that port, while still resolving sniffed audio/video through their owner.
-  const latest = deps.transformDefinitionRepo ? await getLatestTransformDefinition({
-    deps: { transformRepo: deps.transformDefinitionRepo },
-    input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
-  }) : null;
-
-  for (const asset of active) {
-    result.set(asset.id, resolveOneAssetPublicUrl({ asset, contentTypes, latest }));
-  }
-  return result;
-}
 
 /**
  * `media_upload_asset`'s real `recordUploadContentType` implementation for this host — sniffs the

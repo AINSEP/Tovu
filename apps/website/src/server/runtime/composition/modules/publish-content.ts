@@ -1,4 +1,4 @@
-import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
+import { deployConfigGenerators } from "#src/features/deployments/index";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import path from "node:path";
 
@@ -61,7 +61,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
     codec: COMMITTED_JSON_CODEC,
     path: path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH),
   });
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledAgentPluginsDir() });
+  const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundledAgentPluginsDir() });
   const findCandidate = () =>
     findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(repoRoot, relative) }, { candidatePaths });
 

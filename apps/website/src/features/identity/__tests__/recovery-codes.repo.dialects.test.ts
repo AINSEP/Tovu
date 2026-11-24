@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { sql } from 'kysely';
 import { eachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
 import { createIdentityTransactions } from '../repo.js';
-import { createRecoveryCodeStore } from '../recovery-codes.repo.js';
+import { createRecoveryCodeStore } from '../repo.sqlite.js';
 
 for (const adapter of eachDialect({ tables: ['owner_recovery_codes'], make: kernel => kernel })) {
   test(`[${adapter.name}] recovery hashes persist with owner/workspace scope and roll back with identity writes`, async t => {

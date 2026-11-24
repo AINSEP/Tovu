@@ -10,10 +10,10 @@ import { installCommentsDataModule } from "#src/features/comments/data-module-in
 import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { FIRST_PARTY_PUBLISHER } from "../data-modules.js";
-import { rebuildNavLocationBindings } from "#src/features/navigation/index";
+import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveSiteBindingOverride } from "./overrides.js";
-import type { createMediaBlobStore } from "#src/features/object-storage/index";
+import type { createMediaBlobStore } from "#src/features/object-storage/media-store";
 import type { createConsoleLogger } from "@jini-ai/core/primitives";
 
 interface StartBootDataRequired {

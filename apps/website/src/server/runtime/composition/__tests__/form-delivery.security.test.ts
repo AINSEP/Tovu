@@ -9,7 +9,8 @@ import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import { createFormDestinationDeliverer } from "#src/features/form-destinations/index";
+import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
+import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
@@ -98,7 +99,7 @@ async function deliverOnce(kernel: ContentKernel, workspaceId: string) {
       { bindingId: "b-returns", adapterId: "returns", connectionRef: "conn-1" },
       { bindingId: "b-revoked", adapterId: "revoked", connectionRef: "conn-revoked" },
     ]),
-    deliver: createFormDestinationDeliverer({ loadRegistry: async () => registry, connections, kit }),
+    deliver: createFormDestinationDeliverer({ resolveRequestTarget, loadRegistry: async () => registry, connections, kit }),
   });
   await delivery.start();
   const received: DomainEvent = { id: `${workspaceId}-received`, name: "form.submission.received", workspaceId, occurredAt: T0, aggregateId: "sub-1",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
+import type { ContentTypeFieldDef, ContentTypeRecord } from "@jini-ai/cms/content-types";
 
 import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/entries/site/system-content-types";
 import { entryPublicHref, humanizeFieldName, isCollectionListLayout, parseCollectionListConfig } from "@jini-ai/cms/entries/site/public-list";

@@ -17,7 +17,8 @@ import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../configuration/seed.js";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
-import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
+import { SqlSiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title-preservation";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -89,7 +90,7 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
-  const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
+  const siteTitlePreservationStore = new SqlSiteTitlePreservationStore({ kernel: schemaErasedKernel({ store: kernel }), tables: { preexistingWorkspaces: "site_title_preexisting_workspaces" } });
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions };
   const { siteSettingsReady, siteTitleReady } = startPersistentSiteSettings({ analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore });
@@ -99,7 +100,7 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
 function startPersistentSiteSettings(required: {
   analyticsSettingsReady: Promise<void>;
   siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; ensureSettingDefinitions: typeof ensureSettingDefinitions; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
-  siteTitlePreservationStore: SqliteSiteTitlePreservationStore;
+  siteTitlePreservationStore: SqlSiteTitlePreservationStore;
 }, _options = {}) {
   const { analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore } = required;
   const siteSettingsReady = analyticsSettingsReady

@@ -1,7 +1,8 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
 
 export interface SiteShareRecord {
   readonly shareId: string;
@@ -17,7 +18,7 @@ export interface SiteShareRecord {
   readonly hasEncryptedKeys?: boolean;
   readonly sealedPassword?: import("@jini-ai/platform/secrets").SealedSecret;
   readonly notices?: readonly string[];
-  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  readonly credentialWarnings?: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   readonly needsAcknowledgement?: boolean;
   readonly notes?: readonly string[];
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };

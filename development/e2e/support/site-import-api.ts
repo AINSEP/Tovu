@@ -8,7 +8,7 @@ import { agentDaemonWanted } from "../../../apps/website/src/server/runtime/boot
 import { runBootLifecycle } from "../../../apps/website/src/server/runtime/lifecycle/boot-lifecycle.js";
 import { setReadinessSnapshot } from "../../../apps/website/src/server/runtime/lifecycle/readiness-state.js";
 import { ensureAgentDaemonPortResolved } from "../../../apps/website/src/server/runtime/lifecycle/agent-daemon-port.js";
-import { registerPluginSdkResolver } from "../../../apps/website/src/server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../../apps/website/src/features/plugin-runtime/sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../../apps/website/src/assistant/index.js";
 import { startAssistantDaemon } from "../../../apps/website/src/server/inbound/assistant/index.js";
 

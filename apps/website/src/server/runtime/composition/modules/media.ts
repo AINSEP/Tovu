@@ -25,7 +25,12 @@ import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-htt
 import { mediaUploadRoute, type MediaUploadInput } from "@jini-ai/cms/admin-http/routes/media/upload";
 import { readDocumentText, replaceMediaFile, type MediaKind } from "@jini-ai/cms/media";
 import { captureMediaUploaded } from "#src/features/media/index";
-import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 import { toStoredMediaResponse } from "#src/server/inbound/admin-http/routes/media/stored-media-response";
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
@@ -253,7 +258,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }
     storeUpload: (input: MediaUploadInput) => uploadMedia({
       deps: {
         clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
-        renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader({}),
+        renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
       },
       input: { workspaceId: deps.workspaceId, ...input },
     }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),

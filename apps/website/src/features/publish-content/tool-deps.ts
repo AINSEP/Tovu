@@ -3,14 +3,14 @@ import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { BuildPublishContentImportHooksInput } from "./gated-hooks.js";
-import type { PublishContentRunRepoPort } from "./run-repo.js";
+import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPullDeps } from "./pull.js";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
 import type { PublishContentPeerRepoPort } from "./peers.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
+import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
 

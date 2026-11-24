@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { readInstalledSkillMarkdown } from "../../capability-projection.js";
+import { readInstalledSkillMarkdown } from "../../lifecycle.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";

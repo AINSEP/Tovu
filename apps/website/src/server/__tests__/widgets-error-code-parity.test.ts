@@ -6,7 +6,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";

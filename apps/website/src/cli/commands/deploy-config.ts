@@ -7,10 +7,9 @@ import {
   buildDeploymentDescriptor,
   createDeployConfigKit,
   HOST_DEPLOY_ENV,
-  loadBundledDeployConfigGenerators,
-  readBundledDeployConfigTargetIds,
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
+  deployConfigGenerators,
 } from "../../features/deployments/index.js";
 import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
 import { bundledAgentPluginsDir, resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
@@ -80,7 +79,7 @@ function writeStderr({ message }: { message: string }, _optional = {}): void {
  */
 export function deployConfigTargetOptionHelp({ env = process.env }: Pick<DeployConfigCommandPorts, "env"> = {}): string {
   return orFallbackSync({
-    work: () => formatTargetOptionHelp({ ids: readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }) }),
+    work: () => formatTargetOptionHelp({ ids: deployConfigGenerators.readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }) }),
     fallback: undefined, step: 'Read deployment target help',
   }) ?? formatTargetOptionHelp({ ids: [] });
 }
@@ -95,7 +94,7 @@ export function formatTargetOptionHelp({ ids }: { ids: readonly string[] }, _opt
 /** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
  *  @complexity O(g) generators, one import each. */
 async function loadGenerators({ env, stderr }: { env: NodeJS.ProcessEnv; stderr: (required: { message: string }, optional?: Record<string, never>) => void }, _options = {}): Promise<DeployConfigGeneratorRegistry> {
-  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot(env) });
+  const registry = await deployConfigGenerators.loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot(env) });
   for (const refusal of registry.refusals) stderr({ message: `tovu deploy config: ${refusal}\n` });
   return registry;
 }

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { authorize } from "@jini-ai/user-management/server";
 import { createPermissionMigrationRegistry, migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
-import { NAVIGATION_PERMISSIONS } from "#src/features/navigation/index";
+import { NAVIGATION_PERMISSIONS } from "@jini-ai/cms/navigation";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo } from "@jini-ai/user-management/server";
 
 /**

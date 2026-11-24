@@ -9,8 +9,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
-import type { NavMenuEntry } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**

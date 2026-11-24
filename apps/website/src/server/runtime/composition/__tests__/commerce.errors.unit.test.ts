@@ -7,8 +7,8 @@ const failure = () => Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETS
 let activeFailure = false; let probeFailure = false; let configFailure = false; let ledgerFailure = false; let storageExists = false;
 const database = await import('@jini-ai/db/kernel');
 mock.module('@jini-ai/db/kernel', { namedExports: { ...database, tableExists: async () => { if (probeFailure) throw failure(); return storageExists; } } });
-const activation = await import('#src/features/agent-plugins/activation-effects');
-mock.module('#src/features/agent-plugins/activation-effects', { namedExports: { ...activation, createAgentPluginEnabledReader: () => async () => { if (activeFailure) throw failure(); return false; } } });
+const activation = await import('@jini-ai/agent-plugins/site/activation-effects');
+mock.module('@jini-ai/agent-plugins/site/activation-effects', { namedExports: { ...activation, createAgentPluginEnabledReader: () => async () => { if (activeFailure) throw failure(); return false; } } });
 const repo = await import('@jini-ai/commerce/repo');
 mock.module('@jini-ai/commerce/repo', { namedExports: { ...repo, commerceStorefrontFor: () => ({
   listProducts: async () => { throw failure(); }, findProduct: async () => { throw failure(); },

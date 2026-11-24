@@ -14,7 +14,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { createSiteShare } from "#src/features/site-backup/share-service";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 test("share routes validate sources and authorize before effects, preserve downloads, and sanitize every backend failure", async t => {
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-route-gaps-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

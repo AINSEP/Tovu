@@ -45,7 +45,7 @@ import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read
 import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
-import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
+import type { ContentTypesToolDeps } from "@jini-ai/cms/content-types";
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
 import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-registrations.js";
@@ -76,7 +76,7 @@ import { warmSiteServerForAgent } from "../platform/dev-host/warm-site-agent.js"
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
-import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
+import type { ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import type { WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";

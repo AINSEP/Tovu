@@ -14,7 +14,7 @@ import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall } from '@jini-ai/agent-plugins/site/uninstall-tool';
 import { agentPluginUninstallHost, type AgentPluginUninstallHostDeps } from './agent-plugin-uninstall-host.js';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, tovuInstalledMcpReads } from '#src/features/agent-plugins/federate-mcp';
-import { classifyAgentPluginMcpServerTrust } from '#src/features/agent-plugins/capability-projection';
+import { mcpServerTrustClassifier } from '#src/features/agent-plugins/lifecycle';
 import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-access';
 import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
@@ -35,7 +35,7 @@ export interface TovuPluginHostDeps extends AgentPluginUninstallHostDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
   readonly clock: Clock;
-  readonly mcp: import("#src/features/agent-plugins/service-ports").AgentPluginMcpPort & import("#src/features/agent-plugins/service-ports").AgentPluginMcpContext;
+  readonly mcp: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpPort & import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpContext;
   readonly listInstalledAgentPlugins?: typeof listInstalledPlugins;
   readonly setAgentPluginEnabled?: typeof setAgentPluginEnabled;
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;
@@ -109,7 +109,7 @@ export function createTovuPluginHost(
     // without projections gets Tovu's canonical pair here, never inside the portable bodies.
     mcp: withAgentPluginMcpPorts(deps.mcp), mcpPorts: agentPluginMcpPortsOf(deps.mcp),
     grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
-    installedMcp: tovuInstalledMcpReads, classifyTrust: classifyAgentPluginMcpServerTrust, declinedAccessActor: CONNECT_DECLINED_ACTOR,
+    installedMcp: tovuInstalledMcpReads, classifyTrust: mcpServerTrustClassifier, declinedAccessActor: CONNECT_DECLINED_ACTOR,
     warn, messages: tovuPluginHostMessages,
   } }, {
     ...(optional.resolveMcpServers ? { resolveMcpServers: optional.resolveMcpServers } : {}),

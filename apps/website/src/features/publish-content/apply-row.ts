@@ -1,13 +1,13 @@
 import { nowIso as clockNowIso, type Clock as ClockPort } from "@jini-ai/core/primitives";
 
+import { applyRetiringRow as applyRetiringRowSequence } from "@jini-ai/cms/publish/content/apply-retire";
 import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-failure.js";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
-import type { PublishContentSeedHashFn } from "./seed-hash.js";
-import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
-import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
+import { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
+import { PublishContentHandler, PackedEntity } from "./type-registry.js";
 
 /**
  * @file Task 8 of the publish-content (Publish Content) feature —
@@ -200,4 +200,30 @@ export async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOu
     }
   }
   return { row, changeSetId: null, retiredChangeSetId: null };
+}
+
+type RetiringRow = PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> };
+
+export type RetiringRowStep = ApplyRowStep & { readonly row: RetiringRow };
+
+/** Host binding of the retire/create/rollback sequence owned by `@jini-ai/cms`: the downgrade
+ *  wording, baseline refresh and item idempotency key stay here. */
+export function applyRetiringRow({ step }: { step: RetiringRowStep }, _optional = {}): Promise<ApplyRowResult> {
+  return applyRetiringRowSequence<RetiringRow, PackedEntity, PublishContentHandler, ApplyRowContext, ApplyRowResult>({
+    step,
+    collaborators: {
+      downgradedRow,
+      downgradeOrRethrow,
+      itemIdempotencyKey: ({ ctx, entity }) => publishContentItemIdempotencyKey({
+        workspaceId: ctx.workspaceId,
+        sourcePrincipalId: ctx.sourcePrincipalId,
+        entity,
+      }),
+      refreshBaseline,
+      appliedResult: ({ row, changeSetId, retiredChangeSetId }) => ({ row, changeSetId, retiredChangeSetId }),
+      rollbackFailureMessage: ({ row, createCause, undoCause }) =>
+        `${row.entityType} '${row.entityId}' was not created (${createCause}), and putting the retired ` +
+        `${row.retires.entityType} '${row.retires.entityId}' back failed too (${undoCause}) — restore it from Trash`,
+    },
+  });
 }

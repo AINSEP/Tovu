@@ -3,7 +3,7 @@ import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/entries/site/system-content-t
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
+import type { ContentTypeFieldDef, ContentTypeRecord } from "@jini-ai/cms/content-types";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "@jini-ai/cms/entries/site/public-list";

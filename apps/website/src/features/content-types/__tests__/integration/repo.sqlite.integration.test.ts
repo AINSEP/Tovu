@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteContentTypeRepo } from "../../repo.sqlite.js";
-import { deprecateContentType, registerContentType, updateContentTypeFields } from "../../index.js";
+import { deprecateContentType, updateContentTypeFields } from "@jini-ai/cms/content-types";
+import { registerContentType } from "../../write-service.js";
 
 /**
  * @file Real SQLite persistence for `features/content-types` (this dispatch, closing the gap

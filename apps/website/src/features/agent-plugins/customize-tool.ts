@@ -1,9 +1,7 @@
-/** Chat customization reuses Jini's package fork and the admin upload preview/install owner. */
-import { requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type ToolExecutionContext } from '@jini-ai/core';
-import { FolderZipError } from '@jini-ai/agent-plugins/folder-zip';
-import { zipCustomizedAgentPluginFolder } from '@jini-ai/agent-plugins/folder-zip/node';
-import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, maxAgentPluginInstallArchiveBytes } from './lifecycle.js';
-import type { AgentPluginsInstallToolDeps } from './install-tool.js';
+/** Chat customization reuses Jini's package fork and the admin upload preview/install owner.
+ * The fork itself (`prepareCustomizedAgentPluginArchive`) lives in `@jini-ai/agent-plugins/site/customize-tool`;
+ * this host file keeps only the model-facing tool definition, whose copy names product plugins and tools. */
+import type { AgentToolDefinition } from '@jini-ai/core';
 
 export const CUSTOMIZE_AGENT_PLUGIN_TOOL = 'agent_plugins_customize';
 export const customizeAgentPluginCatalog: AgentToolDefinition = {
@@ -20,27 +18,3 @@ export const customizeAgentPluginCatalog: AgentToolDefinition = {
     oldString: { type: 'string', minLength: 1 }, newString: { type: 'string' },
   } },
 };
-
-/**
- * Prepare a fork after the install tool's authorization; publication stays with that tool's owner.
- * @param required Host deps and the actual assistant tool context.
- * @returns ZIP bytes for the existing install flow. Never writes an installed package.
- * @throws {ToolInputError} Unknown/ambiguous source or invalid edit.
- * @complexity O(p + e log e + b) for p installed packages, e files and bounded bytes b; no network.
- */
-export async function prepareCustomizedAgentPluginArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _options = {}): Promise<Uint8Array> {
-  const input = requireInputRecord({ input: ctx.input });
-  const pluginId = requireString({ input, key: 'pluginId' });
-  const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins({ workspaceRoot }), await readBundledAgentPluginDigests({ workspaceRoot }));
-  const sources = installed.filter(plugin => plugin.pluginId === pluginId);
-  const source = sources[0];
-  if (sources.length !== 1 || source === undefined) throw new ToolInputError({ message: `Source '${pluginId}' must identify exactly one installed Agent Plugin.` });
-  try {
-    return await zipCustomizedAgentPluginFolder({ path: source.packageRoot, maxBytes: maxAgentPluginInstallArchiveBytes(), name: requireString({ input, key: 'newId' }), identityNamespace: 'jini',
-      edit: { path: requireString({ input, key: 'path' }), oldString: requireString({ input, key: 'oldString' }), newString: requireString({ input, key: 'newString' }, { allowEmpty: true }) } });
-  } catch (error) {
-    if (error instanceof FolderZipError) throw new ToolInputError({ message: error.message });
-    throw error;
-  }
-}

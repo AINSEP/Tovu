@@ -7,7 +7,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
-import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";

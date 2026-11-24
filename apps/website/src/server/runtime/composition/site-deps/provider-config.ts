@@ -2,7 +2,7 @@ import type { composeProviderConfig } from "./provider-identity.js";
 import type { composeSitePluginRuntime } from "./plugin-runtime.js";
 import type { SiteStore } from "../open-site-store.js";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { SqliteCustomCredentialSetRepo } from "#src/features/custom-credentials/custom-credential-repo.sqlite";
+import { SqlCustomCredentialSetRepo } from "#src/features/custom-credentials/custom-credential-repo";
 import { withProviderSettingsMigrations } from "../provider-config-source.js";
 import { credentialProject } from "./provider-identity.js";
 
@@ -34,7 +34,7 @@ export function composeProviderConfigSource(required: ComposeProviderConfigSourc
  * @complexity O(1) adapter construction; no repository reads. */
 function compositionCustomCredentials({ projectVault, kernel, projectStore }: Pick<ComposeProviderConfigSourceRequired, "projectVault" | "kernel" | "projectStore">, _optional = {}) {
   const customProject = credentialProject({ projectVault, repo: vault => new CustomCredentialVaultRepo({ vault }) });
-  return new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
+  return new SqlCustomCredentialSetRepo(kernel, customProject.project && projectStore
     ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
     : customProject);
 }

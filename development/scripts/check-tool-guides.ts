@@ -21,7 +21,9 @@
  * Named tools and unknown calls never fail it.
  *
  * Usage: env -u TOVU_ADMIN_PASSWORD TOVU_DB=memory node --import tsx development/scripts/check-tool-guides.ts [--strict] [--json]
- * Jini is read from `../Jini` (a sibling checkout), or from $JINI_DIR.
+ * Jini is read from `../Jini` (a sibling checkout), or from $JINI_DIR. A source ref written
+ * `@jini-ai/<pkg>/<path under src>` is read from the linked `node_modules/@jini-ai/<pkg>` package's `src/`
+ * (or `$JINI_PACKAGES_DIR/<pkg>/src` when unlinked), so a ref to a package never depends on a sibling path.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
@@ -32,6 +34,7 @@ import { buildEvalToolRegistry } from "../evals/tool-search-eval-registry.js";
 import {
   guideModuleTexts, literalTexts, localToolTexts, registryTexts, schemaPropertyNames, type DescriptorText,
 } from "./lib/tool-guide-collect.js";
+import { jiniSourcePath } from "./lib/jini-source-root.js";
 import { scanToolGuides, type GuideSource, type Mention, type ToolGuideNames } from "./lib/tool-guide-scan.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -44,13 +47,16 @@ const args = new Set(process.argv.slice(2));
 const PINNED_LIMITS = { limitTools: 64, limitBytes: 262144 } as const;
 const LOCAL_TOOLS_DIR = "packages/mcp/src/server/tools";
 const RUN_TOOL_HOST = "packages/mcp/src/server/run-tool-host.ts";
-const CANDIDATE_ROOTS = ["apps/website/src", "apps/admin/src", "content/agent-plugins", "../Jini/packages/core/src", "../Jini/packages/daemon/src", "../Jini/packages/mcp/src"] as const;
+const CANDIDATE_ROOTS = ["apps/website/src", "apps/admin/src", "content/agent-plugins", "../Jini/packages/core/src", "../Jini/packages/daemon/src", "../Jini/packages/mcp/src", "@jini-ai/cms", "@jini-ai/integrations"] as const;
 
 interface SourceEntry { readonly path: string; readonly kind: "guide" | "not-guide"; readonly reason: string }
 interface SourcesFile { readonly _about?: string; readonly sources: readonly SourceEntry[] }
 
-/** A repo-relative path, or `../Jini/...` for a sibling checkout, as an absolute path. */
-const absoluteOf = (relative: string): string => (relative.startsWith("../Jini/") ? path.join(jiniRoot, relative.slice("../Jini/".length)) : path.join(repoRoot, relative));
+/** A repo-relative path, `../Jini/...` for a sibling checkout, or `@jini-ai/<pkg>/...` for a linked package, as an absolute path (a missing package's sources resolve to a path that does not exist). */
+const absoluteOf = (relative: string): string => {
+  if (relative.startsWith("@jini-ai/")) return jiniSourcePath({ ref: relative, repoRoot, env: process.env }) ?? path.join(repoRoot, "node_modules", ".jini-source-missing", relative);
+  return relative.startsWith("../Jini/") ? path.join(jiniRoot, relative.slice("../Jini/".length)) : path.join(repoRoot, relative);
+};
 
 function readSources(): SourcesFile {
   return existsSync(sourcesFile) ? (JSON.parse(readFileSync(sourcesFile, "utf8")) as SourcesFile) : { sources: [] };

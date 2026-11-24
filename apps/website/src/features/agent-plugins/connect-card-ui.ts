@@ -3,15 +3,11 @@
  * original signatures and bind Tovu's UI builders, card identity and wording (bytes unchanged). */
 import type { SurfaceCardOutcome as SurfaceOutcomeSpec, SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { PluginCredentialsPort } from "./service-ports.js";
+import type { PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { agentPluginCardHost } from "./card-host-bindings.js";
 import {
   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts,
   type AgentPluginConnectCardSpec, type AgentPluginAccessTokenFormMessages,
-} from "@jini-ai/agent-plugins/connect";
-export {
-  buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
-  type AgentPluginConnectCardSpec, type AgentPluginCardIdentity, type AgentPluginCredentialCardForms, type AgentPluginAccessTokenFormMessages,
 } from "@jini-ai/agent-plugins/connect";
 
 /** Tovu's token-form wording (bytes unchanged from the pre-seam body). */

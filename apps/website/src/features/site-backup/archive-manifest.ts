@@ -1,4 +1,5 @@
-import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "./share-policy.js";
+import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE } from "./share-policy.js";
 import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";

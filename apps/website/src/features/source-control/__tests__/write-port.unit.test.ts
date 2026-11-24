@@ -15,7 +15,7 @@ import { bindSourceControlWritePort } from "../write-port.js";
 
 /**
  * @file EXTRACT-S8 C2 part 1: the core `CredentialedRequestPort` and `SourceControlWritePort` as
- * Tovu binds them (`credential-ports.ts`). Real bindings over the real request adapter, store,
+ * Tovu binds them (`@jini-ai/integrations/custom-credentials/credential-ports`). Real bindings over the real request adapter, store,
  * sealer and provider registry builder; only the network and the provider's git-host calls are fakes.
  */
 

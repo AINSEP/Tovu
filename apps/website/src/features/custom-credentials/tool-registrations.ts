@@ -5,11 +5,12 @@ import { createCredentialSaveHandlers, createCredentialToolRegistrations } from 
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
-import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import { normalizeCredentialWorksFor, suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
-import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { withCustomCredentialSetup } from "./credential-recovery.js";
+import { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
+import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credentials/credential-recovery";
+import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
@@ -26,27 +27,32 @@ import {
 import { type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
-// Types only: the egress refusal is recognised through the request port's `classifyError`
-// (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
-import type { HttpClientPort } from "../../platform/http/index.js";
+// The egress refusal is recognised through the request port's `classifyError`; the host's
+// `EgressRefusedError` class is injected into `bindCredentialedRequestPort` below.
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
-  CredentialedRequestValidationError,
+  makeCredentialedRequest,
+  probeCredentialConnection,
+  resolveRequestTarget,
+  verifyCustomCredential,
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeps,
 } from "./credentialed-request.js";
+import { CredentialedRequestValidationError } from "@jini-ai/integrations/credentialed-http";
 
-import { bindCredentialedRequestPort } from "./credential-ports.js";
-import { cleanCardToken } from "./card-token.js";
+import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
+import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "./plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { buildCreateForm, buildCreateOutcome } from "./custom-credential-create-ui.js";
-import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
+import { buildCreateForm, buildCreateOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-create-ui";
+import { setTokenForm, setTokenOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel, updateCustomCredential } from "./store.js";
@@ -110,6 +116,9 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
    *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
+
+/** Tovu's existing request adapter (`credentialed-request.ts`), which the request port forwards to. */
+const TOVU_CREDENTIALED_REQUEST_OPERATIONS = { makeCredentialedRequest, resolveRequestTarget, verifyCustomCredential, probeCredentialConnection };
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: customCredentialsAgentToolCatalog });
 
@@ -315,7 +324,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  *   `host.cardIdentity` names every card URI and app. The outcome replaces the same URI after the save.
  */
 export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
-  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }) }, cards: { defineSecretCardTool, askThenReport } });
+  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS, EgressRefusedError }) }, cards: { defineSecretCardTool, askThenReport } });
 }
 
 /**
@@ -360,10 +369,10 @@ function credentialedRequestDeps(routeDeps: CustomCredentialsToolDeps): Credenti
 }
 
 /** Tovu's credential ports, bound over the same functions and dependencies the handlers used before
- *  the ports existed (see `credential-ports.ts`). */
+ *  the ports existed (see `@jini-ai/integrations/custom-credentials/credential-ports`). */
 function tovuCredentialToolPorts(routeDeps: CustomCredentialsToolDeps): CustomCredentialToolPorts {
   return {
-    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }),
+    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS, EgressRefusedError }),
     sourceControlWrite: routeDeps.sourceControlWrite,
   };
 }
@@ -460,9 +469,12 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     },
     credentialCardForms: {
       buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
-      create: buildCreateForm, createOutcome: buildCreateOutcome, rotate: setTokenForm, rotateOutcome: setTokenOutcome,
+      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES, suggestWorksFor: suggestCredentialWorksFor, baseUrlHint: "The provider's API base URL, e.g. 'https://api.example.test'." }),
+      createOutcome: required => buildCreateOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.createOutcome }),
+      rotate: required => setTokenForm({ ...required, app: tovuCredentialCardIdentity.appNames.setToken, secretField: SECRET_FORM_CARD_DEFINITIONS.credential_save?.secretField }),
+      rotateOutcome: required => setTokenOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.setTokenOutcome }),
     },
-    recovery: { withSetup: withCustomCredentialSetup },
+    recovery: { withSetup: (required, optional) => withCustomCredentialSetup({ ...required, issueCredentialSetup }, optional) },
     publish: {
       loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
       prepareInvalidation: () => routeDeps.publishCompatibility.prepareInvalidation({ workspaceId: routeDeps.workspaceId }),

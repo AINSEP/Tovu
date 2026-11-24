@@ -33,21 +33,22 @@ export { type CredentialCopyToolDeps } from "./credential-copy-tool.js";
 
 export {
   ConsoleCredentialedRequestAuditLog,
-  CredentialedRequestTransportError,
-  CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
   resolveRequestTarget,
   verifyCustomCredential,
-  type CredentialedRequestAuditEntry,
   type CredentialedRequestAuditPort,
-  type CredentialedRequestDeclinedResult,
   type CredentialedRequestDeps,
+  type MakeCredentialedRequestInput,
+} from "./credentialed-request.js";
+export {
+  CredentialedRequestTransportError,
+  CredentialedRequestValidationError,
+  type CredentialedRequestAuditEntry,
+  type CredentialedRequestDeclinedResult,
   type CredentialedRequestExecutedResult,
   type CredentialedRequestOutcome,
   type CustomCredentialCheckStatus,
   type CustomCredentialVerificationResult,
-  type MakeCredentialedRequestInput,
-} from "./credentialed-request.js";
+} from "@jini-ai/integrations/credentialed-http";
 
-export { classifyCredentialedRequestError } from "./credential-ports.js";

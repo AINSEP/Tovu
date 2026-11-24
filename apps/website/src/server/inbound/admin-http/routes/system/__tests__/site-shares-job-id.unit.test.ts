@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { readShareInput } from "../site-shares.js";
 
 /**

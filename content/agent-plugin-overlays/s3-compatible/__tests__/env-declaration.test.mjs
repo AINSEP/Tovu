@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { readBundledObjectStoreEnvDeclarations } from "../../../../apps/website/src/features/object-storage/registry.ts";
+import { readBundledObjectStoreEnvDeclarations } from "@jini-ai/platform/object-store/site/registry";
+import { bundledContributionSources } from "../../../../apps/website/src/features/agent-plugins/bundled-contribution-sources.ts";
 import { readMediaStoreEnv, createMediaBlobStore } from "../../../../apps/website/src/features/object-storage/media-store.ts";
 import path from 'node:path';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
@@ -13,7 +14,7 @@ const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 's3-compatible' });
 const { id, env: declaration } = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "jini-object-stores.json"), "utf8")).providers[0];
 const names = ["JINI_S3_BUCKET", "JINI_S3_REGION", "JINI_S3_ACCESS_KEY_ID", "JINI_S3_SECRET_ACCESS_KEY"];
 const complete = { TOVU_MEDIA_BLOB_STORE: "s3", JINI_S3_BUCKET: "bucket", JINI_S3_REGION: "region", JINI_S3_ACCESS_KEY_ID: "id", JINI_S3_SECRET_ACCESS_KEY: "secret", JINI_S3_KEY_PREFIX: "prefix/", JINI_S3_ENDPOINT: "https://objects.example.test" };
-const envDeclarations = readBundledObjectStoreEnvDeclarations({ sourceRoot: await processComposedBundledSourceRoot() });
+const envDeclarations = readBundledObjectStoreEnvDeclarations({ sourceRoot: await processComposedBundledSourceRoot(), bundledContributionSources });
 
 test("the bundled mapping is available without provider activation and preserves optional fields", () => {
   assert.deepEqual(envDeclarations.find(entry => entry.providerId === id), { providerId: id, ...declaration });

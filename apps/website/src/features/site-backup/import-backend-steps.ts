@@ -6,7 +6,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
-import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
 
 /**
  * @file The import backend's individual steps: input parsing, the private staging budget, the
@@ -19,7 +20,7 @@ export interface SiteImportView {
   importId: string; source: SiteImportSource; newSiteId: string | null; newSiteName: string | null;
   state: SiteImportRecord["status"]; status: SiteImportRecord["status"]; createdAt: string;
   warnings?: readonly string[];
-  credentialWarnings: readonly import("./credential-warnings.js").CredentialWarning[];
+  credentialWarnings: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   hasEncryptedKeys?: boolean;
   setupUrl?: string; adminUrl?: string | null; error?: string; instructions: string;
 }

@@ -15,7 +15,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const { planImport } = await import("../planner.js");
     const { contentHash, CONTENT_HASH_VERSION } = await import("@jini-ai/cms/publish/content/content-hash");
     const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("@jini-ai/cms/publish/transfer");
-    const { getPublishContentRunStatus } = await import("../run-repo.js");
+    const { getPublishContentRunStatus } = await import("@jini-ai/cms/publish/content/run-repo");
     const { initSite } = await import("#src/server/runtime/composition/site-dir");
     const { bootSiteDir } = await import("#src/server/runtime/composition/site-dir");
     const { closeSiteDirBoot } = await import("#src/platform/site-dir/boot-site-dir");

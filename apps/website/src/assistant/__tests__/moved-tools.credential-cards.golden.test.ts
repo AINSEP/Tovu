@@ -16,7 +16,7 @@ import { InMemoryCustomCredentialSetRepo } from '../../features/custom-credentia
 import { createCustomCredential } from '../../features/custom-credentials/store.js';
 import { loadFixtureAuthSchemes } from '../../features/custom-credentials/__tests__/fixture-auth-schemes.fixture.js';
 import { buildPublishHostCredentialHandler, type StaticPublishToolDeps } from '../../features/deployments/publish-agent-tools.js';
-import { InMemoryVendorCredentialSetRepo } from '../../features/deployments/publish-credentials/repo.memory.js';
+import { InMemoryVendorCredentialSetRepo } from '../../features/vendor-credentials/repo.memory.js';
 import { buildSourceControlCredentialHandler } from '../../features/source-control/tool-registrations.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../features/source-control/repo.memory.js';
 import { githubFromSource } from '../../features/source-control/__tests__/fixtures/github-from-source.js';

@@ -2,9 +2,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash } from "node:crypto";
 
 import { downgradedRow, withRefusedItem, type ApplyRowResult } from "./apply-failure.js";
-import { applyRetiringRow } from "./apply-retire.js";
 import {
-  applyOrdinaryRow, checkAgreement, checkExistence, refreshNonWritingRow,
+  applyOrdinaryRow, applyRetiringRow, checkAgreement, checkExistence, refreshNonWritingRow,
   type ApplyRowContext, type ApplyRowStep,
 } from "./apply-row.js";
 import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
@@ -20,7 +19,7 @@ import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey } from "./plan-rows.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./plan-rows.js";
-import { NO_PUBLISH_CONTENT_SEED_HASH } from "./seed-hash.js";
+import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
 import { buildPublishContentCatalog } from "./type-registry.js";
 import type { EntityReplacement, PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

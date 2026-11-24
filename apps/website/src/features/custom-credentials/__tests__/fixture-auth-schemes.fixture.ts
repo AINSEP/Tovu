@@ -1,6 +1,8 @@
 import path from "node:path";
 
-import { loadCredentialSchemeRegistryFromSource } from "../../agent-plugins/auth-schemes.js";
+import { loadCredentialSchemeRegistryFromSource } from "@jini-ai/agent-plugins/site/auth-schemes";
+import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
+import { loadPluginContributionsFromSource } from "../../agent-plugins/lifecycle.js";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 
 /**
@@ -18,7 +20,7 @@ let cached: Promise<readonly CredentialSchemeRule[]> | undefined;
 
 /** The fixture scheme rules, loaded once per test process. Matches `loadAuthSchemes`' shape. */
 export function loadFixtureAuthSchemes(): Promise<readonly CredentialSchemeRule[]> {
-  cached ??= loadCredentialSchemeRegistryFromSource({ pluginId: "example-host", packageRoot: EXAMPLE_HOST_PLUGIN_ROOT }).then((registry) => {
+  cached ??= loadCredentialSchemeRegistryFromSource({ pluginId: "example-host", packageRoot: EXAMPLE_HOST_PLUGIN_ROOT, loadFromSource: loadPluginContributionsFromSource, parseCredentialSchemesFile }).then((registry) => {
     if (registry.refusals.length > 0) throw new Error(`fixture credential schemes were refused: ${registry.refusals.join("; ")}`);
     return registry.rules;
   });

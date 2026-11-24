@@ -1,6 +1,6 @@
 /** Tovu compatibility shim (A10c seam). The portable body lives in `@jini-ai/agent-plugins/connect`; these
  * entries bind Tovu's credential token rule (R1). */
-import type { PluginCredentialsPort } from "./service-ports.js";
+import type { PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { tovuTokenValidator } from "./access-token-tool.js";
 import type { ResolvedAgentPluginForConnect, InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import {

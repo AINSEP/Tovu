@@ -23,7 +23,7 @@ import { buildCommentsRegistrations, type CommentsToolDeps } from "#src/features
 
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";

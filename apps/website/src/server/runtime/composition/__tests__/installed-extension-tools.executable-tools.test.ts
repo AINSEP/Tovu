@@ -20,7 +20,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
-import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
+import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/host-bindings";
 import { acmeTools, allowAll, fakeConnections, fakeHttp, startConfirmingCall, PLUGIN, WORKSPACE } from "#src/features/agent-plugins/executable-tools/__tests__/fixtures";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 

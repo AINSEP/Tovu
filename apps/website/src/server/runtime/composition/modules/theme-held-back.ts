@@ -1,4 +1,5 @@
 import { registerAdminHeldBackThemeRoutes, type HeldBackRouteDeps } from "#src/server/inbound/admin-http/routes/themes/held-back";
+import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -8,14 +9,14 @@ import type { ServerModuleHandle } from "./types.js";
  */
 
 /**
- * @param deps the narrow held-back deps; a full `RouteDeps` satisfies it structurally.
+ * @param deps the narrow held-back deps (site-backup's `explainThemeTree` is bound here); a full `RouteDeps` satisfies it structurally.
  * @complexity O(1).
  */
-export function createThemeHeldBackModule(deps: HeldBackRouteDeps): ServerModuleHandle {
+export function createThemeHeldBackModule(deps: Omit<HeldBackRouteDeps, "explainThemeTree">): ServerModuleHandle {
   return {
     name: "theme-held-back",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminHeldBackThemeRoutes({ app, deps });
+      registerAdminHeldBackThemeRoutes({ app, deps: { ...deps, explainThemeTree } });
     },
   };
 }

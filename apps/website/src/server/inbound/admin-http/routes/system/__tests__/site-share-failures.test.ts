@@ -6,7 +6,7 @@ import { PassThrough } from "node:stream";
 import type { Socket } from "node:net";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { sendSiteShareFailure } from "../site-share-password.js";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 

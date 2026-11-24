@@ -3,7 +3,7 @@
  * product copy ("this Tovu version"), the `credential_save` card lifecycle id and `ui://tovu` card
  * namespace, the credential token rule (R1: same validator, same error object), the installed-plugin
  * read and the saved-token switch. Bytes unchanged from the pre-seam body. */
-import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { credentialText, translateCredentialMessage } from '@tovu/contracts/credential-copy';
@@ -15,7 +15,7 @@ import { agentPluginCardHost, tovuAgentPluginCardIdentity } from "./card-host-bi
 import { tovuAccessTokenFormMessages } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, type AgentPluginConnectToolDeps } from "./connect-tool.js";
 import { tovuFederationMessages } from "./federate-mcp.js";
-import { classifyAgentPluginMcpServerTrust } from "./capability-projection.js";
+import { mcpServerTrustClassifier } from "./lifecycle.js";
 import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
 import {
@@ -76,7 +76,7 @@ export const tovuAgentPluginAccessTokenHost: AgentPluginAccessTokenHost = {
   formMessages: tovuAccessTokenFormMessages,
 };
 
-const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages };
+const tovuTokenFederation = { classifyTrust: mcpServerTrustClassifier, messages: tovuFederationMessages };
 
 /** Old deps -> portable target deps. The installed read falls back to the on-disk walk as before;
  * `routeDeps.mcp` is read on first use (after the permission check), its projections bound once. */

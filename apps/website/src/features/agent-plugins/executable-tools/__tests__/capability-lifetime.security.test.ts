@@ -20,7 +20,8 @@ import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-pol
 import { createSurfaceConnections } from '../../../api-connections/surface-connections.js';
 import type { ApiConnectionHost } from '../../../api-connections/host.js';
 import { createAdminSurfaceCapabilities } from '@jini-ai/agent-plugins/site/admin-surfaces/capabilities';
-import { createAgentPluginAdminSurfaceHandlers } from '../../admin-surfaces/handlers.js';
+import { createAgentPluginAdminSurfaceHandlers } from '@jini-ai/agent-plugins/site/admin-surfaces/handlers';
+import { ADMIN_SURFACES_FILENAME } from '../../admin-surfaces/surfaces.js';
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 import { registerAgentPluginExecutableTools } from '../register.js';
 import { allowAll, fakeHttp, PLUGIN, WORKSPACE, startConfirmingCall } from './fixtures.js';
@@ -78,7 +79,7 @@ async function boot() {
   const handlerModule = descriptor.handlerModule!;
   // One module instance across loads, as a real import is: every refresh re-admits the same module.
   const module = retainingModule();
-  const adminHost = createAgentPluginAdminSurfaceHandlers({ workspaceId: WORKSPACE, issuedTokens, capabilities, hostKind: 'hosted',
+  const adminHost = createAgentPluginAdminSurfaceHandlers({ workspaceId: WORKSPACE, filename: ADMIN_SURFACES_FILENAME, log: () => {}, issuedTokens, capabilities, hostKind: 'hosted',
     loadContributions: async () => ({ items: [{ pluginId: PLUGIN, descriptor: { ...descriptor, handlerModule }, module }], refusals: [] }) });
   await adminHost.refresh();
   const listed: LoadedAdminSurface = { plugin: { pluginId: PLUGIN, packageRoot: '/trusted/acme' }, descriptor };

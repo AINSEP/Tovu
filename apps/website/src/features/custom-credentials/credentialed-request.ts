@@ -1,6 +1,7 @@
-import { probeCredentialConnection as jiniProbe, type CredentialConnectionProbeInput, type CredentialConnectionProbeStatus } from "@jini-ai/integrations/credentialed-http";
+import type { CredentialConnectionProbeInput, CredentialConnectionProbeStatus, CredentialedRequestExecutedResult, CustomCredentialVerificationResult } from "@jini-ai/integrations/credentialed-http";
 import type { Clock } from "@jini-ai/core/primitives";
-// Request validation and secret scrubbing live in Jini packages/integrations/src/credentialed-http/credentialed-request.ts.
+// Request validation and secret scrubbing live in Jini packages/integrations/src/credentialed-http/credentialed-request.ts;
+// the store/client/egress/remedy binding operations live in packages/integrations/src/custom-credentials/credentialed-request.ts.
 /** Tovu's credential-store, audit and diagnostic policy adapter over Jini's guarded requests.
  *
  * Contract rationale for the Jini implementation and this host boundary:
@@ -581,40 +582,17 @@ import type { Clock } from "@jini-ai/core/primitives";
 import {
   ConsoleCredentialedRequestAuditLog as JiniConsoleAuditLog,
   InMemoryCredentialedRequestAuditLog as JiniMemoryAuditLog,
-  CredentialNotFoundError,
-  CredentialedRequestValidationError,
-  makeCredentialedRequest as requestWithCredential,
-  resolveRequestTarget as resolveCredentialTarget,
-  verifyCustomCredential as verifyCredential,
-  type AuthFailureDiagnostic,
   type CredentialedRequestAuditEntry,
-  type CredentialedRequestDeps as JiniRequestDeps,
-  type CredentialedRequestOptions,
-  type CredentialedRequestExecutedResult,
-  type CustomCredentialVerificationResult,
   type MakeCredentialedRequestInput as JiniRequestInput,
 } from "@jini-ai/integrations/credentialed-http";
+import { bindCustomCredentialRequestOperations } from "@jini-ai/integrations/custom-credentials/credentialed-request";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
-// EgressRefusedError is a runtime import so REQUEST_POLICY preserves refusal identity; the barrel
+// EgressRefusedError is a runtime import so the request policy preserves refusal identity; the barrel
 // otherwise supplies types, and feature code must receive its guarded client from composition.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
+import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
-
-export {
-  CredentialedRequestValidationError,
-  CredentialedRequestTransportError,
-} from "@jini-ai/integrations/credentialed-http";
-export type {
-  AuthFailureDiagnostic,
-  CredentialedRequestAuditEntry,
-  CredentialedRequestDeclinedResult,
-  CredentialedRequestExecutedResult,
-  CredentialedRequestOutcome,
-  CustomCredentialCheckStatus,
-  CustomCredentialVerificationResult,
-} from "@jini-ai/integrations/credentialed-http";
 
 /** Existing host audit port; entries contain metadata and safe refusal diagnostics only. */
 export interface CredentialedRequestAuditPort {
@@ -659,102 +637,46 @@ export interface MakeCredentialedRequestInput extends JiniRequestInput {
   readonly body?: unknown;
 }
 
-/** The describe path never decrypts; resolve uses the existing host AAD/store boundary. */
-function adaptCredentialResolver(deps: Pick<CredentialedRequestDeps, "repo" | "sealer">) {
-  return {
-    describe: (input: { workspaceId: string; label: string }) => describeCredentialByLabel({ repo: deps.repo }, input),
-    resolve: (input: { workspaceId: string; label: string }) => resolveCustomCredentialByLabel({ repo: deps.repo, sealer: deps.sealer }, input),
-  };
-}
-
-/** Translate body/audit arguments without changing the guarded transport or plugin trust gates. */
-function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
-  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog({});
-  return {
-    resolver: adaptCredentialResolver(deps),
-    // Forward the policy so a pre-save probe cannot follow redirects through the legacy host ABI.
-    httpClient: { send: ({ request }, options) => deps.httpClient.send(request, options) },
-    clock: deps.clock,
-    audit: { record: ({ entry }) => audit.record(entry) },
-    // Keep installed-plugin digest trust checks in the host; generic scheme precedence needs no
-    // provider catalog. One loaded rule set is shared by header building and failure diagnostics.
-    schemeRegistry: {
-      load: async (input) => deps.loadAuthSchemes(input),
-    },
-  };
-}
-
-/** Return authentication facts without inferring a provider's required scheme from a 401.
- * The credential recovery adapter owns secure token rotation; only provider documentation can
- * establish a need for Basic authentication. Pure, O(1) time and space.
- */
-function mapDiagnostic({ diagnostic }: { diagnostic: AuthFailureDiagnostic }, _optional = {}): AuthFailureDiagnostic {
-  return { schemeSent: diagnostic.schemeSent, usernameStored: diagnostic.usernameStored };
-}
-
-// An egress refusal is a caller-fixable target rejection, not a DNS/timeout crash. Preserve its
-// instanceof identity so the tool layer can publish the safe reason instead of INTERNAL_ERROR.
-const REQUEST_POLICY: CredentialedRequestOptions = {
-  errorPolicy: {
-    isEgressRefusal: ({ error }) => error instanceof EgressRefusedError,
-    describeEgressRefusal: ({ error }) => error instanceof EgressRefusedError ? error.message : "",
+/** Tovu's binding of Jini's request operations: its custom-credential store (describe never decrypts;
+ * resolve uses the existing host AAD/store boundary), its positional guarded client, its egress-refusal
+ * identity, its console audit default and the Access Tokens remedy wording. */
+const operations = bindCustomCredentialRequestOperations<CredentialedRequestDeps>({
+  host: {
+    describe: (deps, input) => describeCredentialByLabel({ repo: deps.repo }, input),
+    resolve: (deps, input) => resolveCustomCredentialByLabel({ repo: deps.repo, sealer: deps.sealer }, input),
+    send: ({ httpClient, request }, options) => httpClient.send(request, options),
+    EgressRefusedError,
+    defaultAudit: () => new ConsoleCredentialedRequestAuditLog({}),
+    savedHostRemedy: "add it to this credential in the Access Tokens form first",
   },
-  diagnosticMapper: mapDiagnostic,
-};
-
-/** Keep host not-found identity and the Access Tokens remedy wording at the adapter boundary. */
-function rethrowHostError({ error }: { error: unknown }, _optional = {}): never {
-  if (error instanceof CredentialNotFoundError) throw new CustomCredentialNotFoundError(error.message);
-  if (error instanceof CredentialedRequestValidationError && error.message.includes("which is not one of this credential's saved hosts (")) {
-    throw new CredentialedRequestValidationError({ message: `${error.message} — add it to this credential in the Access Tokens form first` });
-  }
-  throw error;
-}
+});
 
 /** Validate a DELETE target before confirmation without opening the saved secret.
  * @throws Host not-found or package validation errors; no I/O beyond the workspace repo read.
  * @complexity O(workspace credentials) in the existing host store.
  */
-// DELETE confirmation validates and renders its target without decryption: a human's "no" must not
-// cost a secret read. The persisted base URL/additional hosts alone define what can be requested.
-export async function resolveRequestTarget(
+export const resolveRequestTarget: (
   deps: Pick<CredentialedRequestDeps, "repo">,
-  input: { workspaceId: string; label: string; url: unknown }
-): Promise<{ label: string; url: URL }> {
-  try {
-    return await resolveCredentialTarget({ resolver: {
-      describe: (required) => describeCredentialByLabel({ repo: deps.repo }, required),
-    }, input });
-  } catch (error) { return rethrowHostError({ error }); }
-}
+  input: { workspaceId: string; label: string; url: unknown },
+) => Promise<{ label: string; url: URL }> = operations.resolveRequestTarget;
 
 /** Probe through the guarded port, retaining Tovu's diagnostic policy and host error identity.
  * @complexity O(workspace credentials) plus one bounded HTTP request.
  */
-export async function verifyCustomCredential(
+export const verifyCustomCredential: (
   deps: CredentialedRequestDeps,
-  input: { workspaceId: string; label: unknown }
-): Promise<CustomCredentialVerificationResult> {
-  try { return await verifyCredential({ deps: adaptRequestDeps(deps), input }, REQUEST_POLICY); }
-  catch (error) { return rethrowHostError({ error }); }
-}
+  input: { workspaceId: string; label: unknown },
+) => Promise<CustomCredentialVerificationResult> = operations.verifyCustomCredential;
 
 /** Execute an authorized request; Jini owns validation, header injection and response redaction.
  * @throws Validation/transport errors or the unchanged guarded egress refusal.
  * @complexity O(workspace credentials + bounded request/response bytes).
  */
-// Tovu gates DELETE in tool-registrations.ts with MCP-UI confirmation; GET/POST/PUT/PATCH retain
-// parity with site operations without a plan/confirm/execute ceremony. This adapter executes only
-// after its caller's policy allows it and deliberately has no independent confirmation state.
-export async function makeCredentialedRequest(
+// Tovu gates DELETE in tool-registrations.ts with MCP-UI confirmation (see the Jini binding's comment).
+export const makeCredentialedRequest: (
   deps: CredentialedRequestDeps,
-  input: MakeCredentialedRequestInput
-): Promise<CredentialedRequestExecutedResult> {
-  const { headers, body, ...requiredInput } = input;
-  try {
-    return await requestWithCredential({ deps: adaptRequestDeps(deps), input: requiredInput }, { ...REQUEST_POLICY, headers, body });
-  } catch (error) { return rethrowHostError({ error }); }
-}
+  input: MakeCredentialedRequestInput,
+) => Promise<CredentialedRequestExecutedResult> = operations.makeCredentialedRequest;
 
 /** Adapt the guarded host client to Jini's bodyless, redirect-refusing GET probe.
  * @param required Trusted plugin URL, plaintext connection and installed auth schemes.
@@ -763,6 +685,7 @@ export async function makeCredentialedRequest(
  * @complexity One bounded GET plus O(s) auth rules.
  * @example probeCredentialConnection({ connection, url, schemes }, { httpClient });
  */
-export function probeCredentialConnection(required: CredentialConnectionProbeInput, options: { httpClient: HttpClientPort }): Promise<CredentialConnectionProbeStatus> {
-  return jiniProbe({ ...required, httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
-}
+export const probeCredentialConnection: (
+  required: CredentialConnectionProbeInput,
+  options: { httpClient: HttpClientPort },
+) => Promise<CredentialConnectionProbeStatus> = operations.probeCredentialConnection;

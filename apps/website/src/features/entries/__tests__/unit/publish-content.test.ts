@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type Database from "better-sqlite3";
 
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";

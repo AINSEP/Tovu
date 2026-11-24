@@ -16,11 +16,11 @@ import type { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/to
 import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { InMemorySettingsRepo } from "#src/features/settings/index";
-import type { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import type { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import type { composePluginRuntime } from "../../plugin-runtime.js";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
-import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
+import { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import type { memoryPublishContentApplyPort } from "../slices/publish-apply.js";
 import type { createInMemoryChatHistory } from "../../../../../assistant/index.js";

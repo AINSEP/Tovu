@@ -8,7 +8,7 @@ import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
-import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -123,7 +123,7 @@ const reportedScope = (deps: SourceControlCredentialReadDeps, scoped: ScopedCred
 
 /** The row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
 async function locateById<D extends SourceControlCredentialReadDeps>(deps: D, input: { workspaceId: UUID; id: UUID }): Promise<Located<D> | null> {
-  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId: input.workspaceId })) {
     const record = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
     if (record) return { scoped, record };
   }
@@ -138,7 +138,7 @@ async function locateById<D extends SourceControlCredentialReadDeps>(deps: D, in
 async function listEffective<D extends SourceControlCredentialReadDeps>(deps: D, workspaceId: UUID): Promise<Located<D>[]> {
   const found: Located<D>[] = [];
   const claimed = new Set<string>();
-  for (const scoped of credentialScopes(deps, workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId })) {
     const records = await scoped.deps.repo.listByWorkspace({ workspaceId: scoped.workspaceId });
     for (const record of records.filter((row) => !claimed.has(`${row.providerId}\0${row.label}`))) found.push({ scoped, record });
     for (const record of records) claimed.add(`${record.providerId}\0${record.label}`);
@@ -402,7 +402,7 @@ export async function createSourceControlCredential(
   }
   const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
-  const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
+  const target = credentialCreateTarget({ deps, input, invalid: message => new SourceControlCredentialValidationError(message) });
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
   const id = deps.idGen.newId();
   const summary = await saveConnection({ deps: target.deps, input: { ...credentialScope({ workspaceId: target.workspaceId, kind: "source-control", id }),
@@ -538,7 +538,7 @@ export async function findDefaultSourceControlCredential(deps: SourceControlCred
   input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<Pick<SourceControlCredentialSetRecord, "id" | "label" | "providerId"> | null> {
   if (deps.repo.canonical?.supports(input)) return deps.repo.canonical.describe(input);
   const claimed = new Set<string>();
-  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId: input.workspaceId })) {
     const found = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId, claimed });
     if (found) return found;
   }
@@ -549,7 +549,7 @@ export async function findDefaultSourceControlCredential(deps: SourceControlCred
  * @complexity O(attached inventory); opening retains the vault's context and authentication checks. */
 async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; providerId: SourceControlProviderId }) {
   const claimed = new Set<string>();
-  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+  for (const scoped of credentialScopes({ deps, workspaceId: input.workspaceId })) {
     const selected = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId, claimed });
     if (!selected) continue;
     // The attached-only inventory can select a sole nondefault without changing the project's default.

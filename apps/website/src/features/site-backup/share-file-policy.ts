@@ -1,6 +1,7 @@
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
-import { SiteShareRefusal, SHARE_LIMITS, archiveRefusalName } from "./share-policy.js";
-import { warnCredentialContent, addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
+import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
+import { warnCredentialContent, addCredentialWarning, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
@@ -110,9 +111,9 @@ export function validateSharePath(required: { path: string }, _optional: Record<
 export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; shownPath?: string; notices?: string[]; credentialWarnings?: CredentialWarning[] } = {}): true {
   const credentialWarnings = optional.credentialWarnings ?? [];
   const path = optional.shownPath ?? required.path;
-  warnCredentialContent({ path, text: Buffer.from(required.bytes).toString("latin1"), credentialWarnings }, { codeAware: /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path) });
+  warnCredentialContent({ path, text: Buffer.from(required.bytes).toString("latin1"), credentialWarnings, redactSecretShapes }, { codeAware: /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path) });
   if (!required.path.startsWith("media/") && secretSharePath(required)) {
-    addCredentialWarning({ path, kind: "credential filename", credentialWarnings });
+    addCredentialWarning({ path, kind: "credential filename", credentialWarnings, redactSecretShapes });
   }
   return true;
 }

@@ -27,4 +27,3 @@ export {
 export { publishHostsForCredential } from "./store.js";
 
 export { bindPublishCompatibility, type PublishCompatibilitySource } from "./compatibility-port.js";
-export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

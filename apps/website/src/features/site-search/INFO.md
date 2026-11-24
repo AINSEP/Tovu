@@ -7,6 +7,20 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
 
 ## Responsibilities
 
+- The SQL index-state and target stores live in Jini (`@jini-ai/search/site/index-state-store`,
+  `createSqlSearchIndexStore({ kernel, now, tables })`). `server/runtime/composition/modules/site-search.ts`
+  binds them to the content kernel and the table names of migrations `0027_search_index` and
+  `0028_search_index_retired` (`SEARCH_INDEX_TABLES`).
+- `cms-document-source.ts` — `createCmsSearchDocumentSources({ kernel, now })`:
+  `post` and `page` sources (the two `kind`s of `posts`). `documentIdOf` claims
+  only post.ts's `entry.published|updated|unpublished` with its own
+  `payload.contentType`. `load`/`scan` index exactly what the public site shows
+  (`isLiveAt`); text comes from the post FTS projection's extraction
+  (`toPostSearchDocument`), URLs from `postPublicPath`.
+- `access.ts` — `createCmsSearchAccessPort({ kernel, now })`: re-reads the hit
+  rows (one query per collection) and keeps only live, same-site, same-workspace
+  keys whose member gate admits the viewer. `memberSearchAudiences({ context })`
+  turns a validated `MemberContext` into audience tokens.
 - `index-state-store.ts` — `createSqlSearchIndexStore({ kernel, now })` returns
   `{ indexState, targets }`: `SearchIndexStatePort` and `SearchTargetPort` on the
   tables of migration `0027_search_index` (`search_index_state`,

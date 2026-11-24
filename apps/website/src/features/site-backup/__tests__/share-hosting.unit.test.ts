@@ -16,7 +16,7 @@ import type { PeerCallDeps } from "../../publish-content/peer-transport.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import type { ShareDelivery } from "../share-service.js";
 import { createPeerShareDelivery, createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
-import { SiteShareRefusal } from "../share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 const TOKEN = "a".repeat(16);
 const KEY = `_share/${TOKEN}/site.tovu.zip`;

@@ -136,7 +136,9 @@ test("isPureReExportBarrelSource: true for the real platform/export/index.ts bar
 });
 
 test("isPureReExportBarrelSource: true for the real features/content-types/index.ts barrel (re-exports from an npm package, JSDoc header with braces)", () => {
-  assert.equal(isPureReExportBarrelSource({ sourceText: readRealSource("apps/website/src/features/content-types/index.ts") }), true);
+  // The barrel itself was deleted 2026-11-24 (forwarder removal); its last real source is frozen
+  // byte-for-byte in this fixture so the detector stays pinned to that real shape.
+  assert.equal(isPureReExportBarrelSource({ sourceText: readFixture("real-content-types-barrel.source.txt") }), true);
 });
 
 test("isPureReExportBarrelSource: false for a real logic-bearing file in the same directory as a barrel", () => {

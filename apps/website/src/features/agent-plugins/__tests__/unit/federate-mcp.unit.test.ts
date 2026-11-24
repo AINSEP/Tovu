@@ -19,7 +19,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";
 
-import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers as provisionWithPort, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
+import { planAgentPluginMcpFederation, provisionAgentPluginMcpServers as provisionWithPort, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
+import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList } from "@jini-ai/agent-plugins/connect";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 
 /**

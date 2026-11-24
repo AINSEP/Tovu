@@ -3,7 +3,7 @@ import { changeSetListRoute } from "@jini-ai/cms/admin-http/routes/change-sets/l
 import { changeSetRevertRoute } from "@jini-ai/cms/admin-http/routes/change-sets/revert";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toChangeSetItemResponse } from "@jini-ai/cms/admin-http/http/change-sets";
-import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
+import { toChangeSetView } from "@jini-ai/cms/change-sets/tool-registrations";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 
 /**

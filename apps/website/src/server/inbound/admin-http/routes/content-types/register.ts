@@ -3,9 +3,9 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { toContentTypeOutbox } from "#src/features/content-types/index";
-import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
-import { registerContentType } from "#src/features/content-types/index";
+import { toContentTypeOutbox } from "@jini-ai/cms/content-types";
+import { parseContentTypeFieldDefs } from "@jini-ai/cms/content-types";
+import { registerContentType } from "#src/features/content-types/write-service";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 import { contentTypeWriteErrorStatus } from "@jini-ai/cms/content-types";

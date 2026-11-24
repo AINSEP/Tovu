@@ -7,7 +7,8 @@ import test, { after, before } from "node:test";
 import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
+import { parseDeployConfigsFile } from "@jini-ai/devops/deploy";
+import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, deployConfigGenerators } from "../deploy-config-registry.js";
 
 /**
  * @file `deploy-config-registry.ts` — the generators behind `tovu deploy config --target <id>`, read
@@ -23,7 +24,7 @@ before(async () => { bundle = await composedBundledSourceRoot(); });
 after(() => bundle.dispose());
 
 test("the bundled plugin union declares fly, railway, render in plugin-id order, each with a render()", async () => {
-  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundle.root });
+  const registry = await deployConfigGenerators.loadBundledDeployConfigGenerators({ sourceRoot: bundle.root });
 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(
@@ -63,7 +64,7 @@ test("a module without render() is refused and its siblings still load", async (
       "g/bad.mjs": "export default {};\n",
     },
     async (packageRoot) => {
-      const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
+      const registry = await deployConfigGenerators.loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
       assert.deepEqual(registry.list().map((generator) => generator.descriptor.id), ["good"]);
       assert.deepEqual(registry.refusals, ["deploy config 'bad' from 'fixture' was not loaded: its module has no render() function"]);
     }
@@ -72,7 +73,7 @@ test("a module without render() is refused and its siblings still load", async (
 
 test("a module path that escapes the plugin root is refused", async () => {
   await withPlugin({ [DEPLOY_CONFIGS_FILENAME]: manifest([{ id: "x", label: "X", module: "../x.mjs" }]) }, async (packageRoot) => {
-    const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
+    const registry = await deployConfigGenerators.loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, ["deploy config 'x' from 'fixture' was not loaded: module path '../x.mjs' escapes the plugin root"]);
   });
@@ -80,14 +81,14 @@ test("a module path that escapes the plugin root is refused", async () => {
 
 test("a malformed manifest drops the plugin with the parse reason", async () => {
   await withPlugin({ [DEPLOY_CONFIGS_FILENAME]: JSON.stringify({ schemaVersion: 2, generators: [] }) }, async (packageRoot) => {
-    const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
+    const registry = await deployConfigGenerators.loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
     assert.deepEqual(registry.refusals, [`deploy configs from 'fixture' were not loaded: ${DEPLOY_CONFIGS_FILENAME} is invalid: schemaVersion must be 1`]);
   });
 });
 
 test("a directory without the manifest contributes nothing and is not an error", async () => {
   await withPlugin({}, async (packageRoot) => {
-    const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
+    const registry = await deployConfigGenerators.loadDeployConfigGeneratorsFromSource({ pluginId: "fixture", packageRoot });
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
   });
@@ -108,15 +109,15 @@ test("parseDeployConfigsFile: rejects each malformed shape with its exact reason
 });
 
 test("readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules", () => {
-  assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot: bundle.root }), ["fly", "railway", "render"]);
+  assert.deepEqual(deployConfigGenerators.readBundledDeployConfigTargetIds({ sourceRoot: bundle.root }), ["fly", "railway", "render"]);
 });
 
 test("readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids", async () => {
   await withPlugin({}, async (packageRoot) => {
-    assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
+    assert.deepEqual(deployConfigGenerators.readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
   });
   await withPlugin({ [DEPLOY_CONFIGS_FILENAME]: "{" }, async (packageRoot) => {
-    assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
+    assert.deepEqual(deployConfigGenerators.readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
   });
 });
 
@@ -131,14 +132,14 @@ test("bundled config discovery skips missing categories, non-packages and retire
   files["bad/plugin.json"] = '{"name":"bad","version":"1.0.0"}';
   files[`bad/${DEPLOY_CONFIGS_FILENAME}`] = "{";
   await withPlugin(files, async sourceRoot => {
-    const registry = await loadBundledDeployConfigGenerators({ sourceRoot });
+    const registry = await deployConfigGenerators.loadBundledDeployConfigGenerators({ sourceRoot });
     assert.deepEqual(registry.list().map(item => item.descriptor.id), ["first", "last"]);
     assert.equal(registry.get("shared"), undefined);
     assert.deepEqual(registry.refusals, [
       "deploy configs from 'bad' were not loaded: jini-deploy-configs.json is invalid: not valid JSON",
       "deploy config 'shared' was not loaded: declared more than once",
     ]);
-    assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot }), ["first", "last"]);
+    assert.deepEqual(deployConfigGenerators.readBundledDeployConfigTargetIds({ sourceRoot }), ["first", "last"]);
   });
 });
 

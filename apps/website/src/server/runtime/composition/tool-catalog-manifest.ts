@@ -7,7 +7,7 @@ import { bundledContributionSources } from "#src/features/agent-plugins/bundled-
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
-import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
+import { deployConfigGenerators } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
@@ -23,7 +23,10 @@ import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
-import { buildProviderSettingsCredentialHandler } from "#src/features/custom-credentials/provider-settings-card";
+import { buildProviderSettingsCredentialHandler } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
+import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { bindProviderSettingsCardPorts, listProviderStatuses } from "./provider-settings-save.js";
 import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#src/features/plugin-runtime/provider-status-tool";
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
@@ -99,7 +102,7 @@ import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-too
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
-import { contributeEmailTemplatesTools } from "#src/features/email-templates/index";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -121,7 +124,7 @@ import { contributePreviewSwitcherTools } from "#src/features/theme/preview-swit
 import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
-import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
+import { contributeChangeSetsTools } from "@jini-ai/cms/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
@@ -406,7 +409,7 @@ export function installFirstPartyToolContributors(
     domain: "credential-copy", risk: credentialCopyDerivedRisk,
     build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
   } });
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
+  const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
@@ -661,7 +664,7 @@ function installCredentialSaveTools(contributions: AssistantToolContributions) {
           agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: tokenDeps, surfaces }, optional),
           pluginProvider: api.pluginProvider,
           // A provider plugin's settings, saved through the admin Settings card's rule and store.
-          ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
+          ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, cards: { defineSecretCardTool, askThenReport }, identity: tovuProviderSettingsCardIdentity, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
             ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider, tracker: originalDeps.tracker, userId: `site:${originalDeps.workspaceId}` }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),

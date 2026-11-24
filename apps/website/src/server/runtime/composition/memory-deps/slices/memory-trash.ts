@@ -9,7 +9,7 @@ import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { randomUUID } from "node:crypto";
 import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 import { composePluginRuntime } from "../../plugin-runtime.js";
-import { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeTaxonomyTrashRepos } from "./taxonomy-trash-repos.js";
@@ -22,7 +22,7 @@ import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import type { TrashDb } from "#src/features/trash/index";
 import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import type { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
-import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import type { InMemoryNavLocationBindingRepo } from "@jini-ai/cms/navigation";
 import type { NewsletterRouteDeps } from "../../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 

@@ -3,7 +3,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
-import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { formatByteSize } from "#src/features/site-backup/sources";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {

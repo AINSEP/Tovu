@@ -1,71 +1,11 @@
-/**
- * @file `registerPluginSdkResolver()` — the boot-time SDK module-resolution hook
- * (SPEC-005 ADR "SDK Resolution Mechanism"; CIC U-002, `ESCALATE_SECURITY`).
- * The host SDK import aliases share the bundled SDK module below.
- * They are virtual resolver contracts, not standalone plugin npm packages.
- *
- * Purpose:
- * A plugin's prebuilt `server/index.mjs` does `import { definePlugin } from '@tovu/sdk'`, but
- * that file is dynamically `import()`-ed from `<install-dir>/plugins/<id>/<version>/server/
- * index.mjs` — a directory the runtime binary's own `node_modules` (where `@tovu/sdk` actually
- * lives) is not an ancestor of. Ordinary Node resolution will not find it. This function
- * registers Node's built-in module-customization hook (`node:module`'s `register()`, stable since
- * Node 18.19/20.6) so every `@tovu/sdk`/`@tovu/*` bare-specifier resolution — regardless of the
- * importing file's location on disk — redirects to the runtime's own bundled SDK build,
- * `shortCircuit: true` always winning over any incidental local `node_modules` a plugin might
- * (maliciously or accidentally) plant nearby.
- *
- * **CIC U-002 (Binding, ESCALATE_SECURITY):** this function must be called exactly once,
- * synchronously, during `src/index.ts`'s boot sequence, BEFORE any route is registered and before
- * any code path that could reach `loadPlugin()` is wired into the running process. A plugin
- * `import()` that occurs before this hook exists falls through to ordinary Node resolution, which
- * could resolve `@tovu/sdk` to a plugin-planted local `node_modules/@tovu/sdk` instead of the
- * runtime's real one — defeating ADR-005 rule 1's deep-import blocking by construction (a fake
- * `@tovu/sdk` build could re-export `@tovu/core` internals freely). Any deviation from
- * "registered synchronously, before anything else at boot" requires a recorded
- * `[CIC_DEVIATION_APPROVED]` entry — see
- * `reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002.
- *
- * Architectural role:
- * TDD-certified implementation (implementation outline C-015, CIC U-002). Signature and JSDoc are
- * design-frozen; `registerPluginSdkResolver()` registers Node's `module.register()` customization
- * hook exactly once per process (throwing `PluginSdkResolverAlreadyRegisteredError` on a second
- * call), redirecting `@tovu/sdk` resolution to the runtime's bundled build. Verified against
- * `server/runtime/boot/__tests__/integration/plugin-sdk-resolver.integration.test.ts`.
- */
-
-import { createRequire, register } from "node:module";
-import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 import { LEGACY_PLUGIN_SDK_SPECIFIER, PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
+import { registerPluginSdkResolver as registerResolver } from "@jini-ai/plugins/runtime/sdk-resolver";
 
 /** Used only by `resolveDefaultSdkModulePath()` below to reach real Node package resolution for
  * the `@tovu/sdk` bare specifier — same idiom as `admin-static.ts`, `composition/deps.ts`,
  * `OpenTelemetry package resolution`, and `worker-sandbox.ts` elsewhere in this codebase. */
 const require = createRequire(import.meta.url);
-
-/**
- * The hook module's own source, registered via a `data:` URL rather than a separate file on disk.
- * Node's `module.register()` API requires the hooks module to be a real, independently-loadable
- * ESM module (it runs in a dedicated hooks realm, not this file's own CJS scope) — a `data:
- * text/javascript,...` URL is a self-contained module specifier Node's ESM loader resolves
- * directly, so this mechanism needs no extra `.mjs` file to keep in sync with the compiled
- * `dist/` output. `initialize(data)` receives the values this hook needs at registration time
- * (the resolved SDK URL and accepted specifiers); `resolve()` redirects only the exact canonical
- * and legacy SDK specifiers — deep imports still go through ordinary package export checks.
- */
-const HOOK_MODULE_SOURCE = `
-let sdkUrl;
-let sdkSpecifiers;
-export function initialize(data) { sdkUrl = data.sdkUrl; sdkSpecifiers = data.sdkSpecifiers; }
-export async function resolve(specifier, context, nextResolve) {
-  if (sdkSpecifiers.includes(specifier)) { // legacy alias
-    return { url: sdkUrl, shortCircuit: true };
-  }
-  return nextResolve(specifier, context);
-}
-`;
-
-let registered = false;
 
 /** The runtime's own bundled `@tovu/sdk` build, used when the caller doesn't override
  * `sdkModulePath` (real boot). Resolved via real Node package resolution for the bare specifier
@@ -76,19 +16,10 @@ let registered = false;
  * previous `path.join(import.meta.dirname, "../../../...")` arithmetic was (twice: `f9b42698`,
  * `708e81b2`) — see `ADS-memory/reports/2026-09-05-plugin-sdk-path-verdict.md`. Exported so a test
  * can assert on the real default return value directly, since every other test in this module
- * exercises the `sdkModulePath` override instead. */
+ * exercises the `sdkModulePath` override instead. Jini's resolver cannot do this itself: a package
+ * name resolved from Jini's dist would reach the wrong `node_modules`. */
 export function resolveDefaultSdkModulePath(): string {
   return require.resolve(LEGACY_PLUGIN_SDK_SPECIFIER); // legacy alias: the bundled backing package keeps its workspace name.
-}
-
-/** Thrown by a second `registerPluginSdkResolver()` call in the same process — distinguishes the
- * intentional double-registration guard from any other failure (e.g. this stub's own "not
- * implemented" throw), so a test can assert specifically on THIS failure mode. */
-export class PluginSdkResolverAlreadyRegisteredError extends Error {
-  constructor() {
-    super("registerPluginSdkResolver: already registered for this process — a second call is a boot-sequencing bug");
-    this.name = "PluginSdkResolverAlreadyRegisteredError";
-  }
 }
 
 export interface RegisterPluginSdkResolverOptional {
@@ -99,26 +30,11 @@ export interface RegisterPluginSdkResolverOptional {
   readonly sdkModulePath?: string;
 }
 
-/**
- * Registers the `module.register()` customization hook exactly once for this process. Calling
- * this a second time is a wiring bug, not a silently-tolerated no-op (CIC U-002's own Contract Map
- * note: "must be idempotent-safe if accidentally called twice (should no-op or throw clearly, not
- * double-register)") — this stub's frozen contract commits to throwing clearly on a second call,
- * so a boot-sequencing bug fails loudly rather than silently double-hooking.
- *
- * @throws If called more than once in the same process.
- */
-export function registerPluginSdkResolver(_optional: RegisterPluginSdkResolverOptional = {}): void {
-  // CIC U-002-B1: exactly once per process — a second call is a boot-sequencing bug, never a
-  // silent no-op or a silent double-hook.
-  if (registered) {
-    throw new PluginSdkResolverAlreadyRegisteredError();
-  }
-
-  const sdkModulePath = _optional.sdkModulePath ?? resolveDefaultSdkModulePath();
-  const sdkUrl = pathToFileURL(sdkModulePath).href;
-  const hookModuleUrl = `data:text/javascript,${encodeURIComponent(HOOK_MODULE_SOURCE)}`;
-
-  register(hookModuleUrl, { data: { sdkUrl, sdkSpecifiers: PLUGIN_SDK_SPECIFIERS } }); // legacy alias
-  registered = true;
+/** CIC U-002 (Binding, ESCALATE_SECURITY): registers Jini's SDK resolution hook exactly once per
+ * process, pointing it at the `@tovu/sdk` build this host resolves. Call synchronously during boot,
+ * BEFORE any route is registered and before any code path that could reach `loadPlugin()`.
+ * See `reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002.
+ * @throws PluginSdkResolverAlreadyRegisteredError (Jini) if called twice in one process. */
+export function registerPluginSdkResolver(optional: RegisterPluginSdkResolverOptional = {}): void {
+  registerResolver({ sdkModulePath: optional.sdkModulePath ?? resolveDefaultSdkModulePath(), sdkSpecifiers: PLUGIN_SDK_SPECIFIERS });
 }

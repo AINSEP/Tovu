@@ -5,7 +5,15 @@ import path from "node:path";
 import test from "node:test";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { loadMediaProviderRegistry, MEDIA_PROVIDERS_FILENAME, parseMediaProvidersFile } from "../media-provider-registry.js";
+import { loadMediaProviderRegistry, parseMediaProvidersFile } from "@jini-ai/cms/media/site-generation/media-provider-registry";
+import { contributeProviders, defineProviderContribution, type ProviderContributionDescriptor } from "@jini-ai/agent-plugins/lifecycle";
+import { createMediaProviderRegistry, MEDIA_PROVIDER_CONTRACT, mediaProviderRegistryId, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
+
+/** Host binding, as in composition `deps.ts`: Tovu names the manifest file and supplies the cross-package seams. */
+const MEDIA_PROVIDERS_FILENAME = "tovu-media-providers.json";
+const mediaProviderPorts = { filename: MEDIA_PROVIDERS_FILENAME, contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createMediaProviderRegistry,
+  registryId: mediaProviderRegistryId, contributeProviders,
+    defineProviderContribution: defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution> };
 
 /** A plugin-shaped vendor module; `providerId` lets a test make the manifest id disagree with it. */
 function vendorModule(providerId: string): string {
@@ -33,7 +41,7 @@ const manifest = (providers: unknown[]) => JSON.stringify({ schemaVersion: 1, pr
 
 test("a plugin vendor loads into the built-in registry as one unit, labelled from its provider", async (t) => {
   const loadContributions = await pluginSource(t, { [MEDIA_PROVIDERS_FILENAME]: manifest([{ id: "acme_media", module: "vendor.mjs" }]), "vendor.mjs": vendorModule("acme-media") });
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.deepEqual(refusals, []);
   assert.equal(registry.findProvider({ id: "acme-media" })?.label, "Acme Media");
   assert.equal(registry.providers.get({ id: "acme_media" })?.label, "Acme Media");
@@ -45,27 +53,27 @@ test("a plugin vendor loads into the built-in registry as one unit, labelled fro
 
 test("a manifest label wins over the provider label", async (t) => {
   const loadContributions = await pluginSource(t, { [MEDIA_PROVIDERS_FILENAME]: manifest([{ id: "acme_media", module: "vendor.mjs", label: "Acme (beta)" }]), "vendor.mjs": vendorModule("acme-media") });
-  const { registry } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.equal(registry.providers.get({ id: "acme_media" })?.label, "Acme (beta)");
 });
 
 test("a manifest id that is not the vendor's registry id is refused, naming both", async (t) => {
   const loadContributions = await pluginSource(t, { [MEDIA_PROVIDERS_FILENAME]: manifest([{ id: "acme", module: "vendor.mjs" }]), "vendor.mjs": vendorModule("acme-media") });
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.deepEqual(refusals, ["media provider 'acme' from 'acme-plugin' was not loaded: its module exports provider 'acme-media' (registry id 'acme_media')"]);
   assert.equal(registry.findProvider({ id: "acme-media" }), null);
 });
 
 test("a module that is not a contribution is refused before reaching the registry", async (t) => {
   const loadContributions = await pluginSource(t, { [MEDIA_PROVIDERS_FILENAME]: manifest([{ id: "acme_media", module: "vendor.mjs" }]), "vendor.mjs": "export default { provider: 'acme' };\n" });
-  const { refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.equal(refusals.length, 1);
   assert.match(refusals[0]!, /must export \{ provider, models, adapters \}/);
 });
 
 test("a vendor that takes a built-in id is refused by the registry, not thrown", async (t) => {
   const loadContributions = await pluginSource(t, { [MEDIA_PROVIDERS_FILENAME]: manifest([{ id: "openai", module: "vendor.mjs" }]), "vendor.mjs": vendorModule("openai") });
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.equal(refusals.length, 1);
   assert.match(refusals[0]!, /already registered by the built-in provider/);
   assert.equal(registry.findProvider({ id: "openai" })?.label, "OpenAI");
@@ -73,7 +81,7 @@ test("a vendor that takes a built-in id is refused by the registry, not thrown",
 
 test("a loader fault degrades to the built-in vendors plus one refusal line", async () => {
   const loadContributions = (async () => { throw new Error("EACCES: plugin dir"); }) as unknown as LoadPluginContributions;
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.deepEqual(refusals, ["plugin media providers were not loaded: EACCES: plugin dir"]);
   assert.equal(registry.findProvider({ id: "openai" })?.label, "OpenAI");
 });
@@ -135,7 +143,7 @@ test("an unreadable manifest or a module I/O fault refuses only that plugin; hea
   const loadContributions = fakeLoader([
     { pluginId: "alpha" }, { pluginId: "bravo", readFault: true }, { pluginId: "charlie", importFault: true }, { pluginId: "delta" },
   ]);
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.deepEqual(refusals, [
     `media providers from 'bravo' were not loaded: ${MEDIA_PROVIDERS_FILENAME} could not be read`,
     "media provider 'charlie_media' from 'charlie' was not loaded: module could not be read or imported",
@@ -150,7 +158,7 @@ test("a vendor that throws in Tovu's own id check is one plugin's refusal; later
   // Throws only when read by Tovu's id check, so the engine's export validation still passes it.
   const provider = { ...base.provider, get id(): string { if (new Error().stack?.includes("keepMatchingIds")) throw new Error("boom"); return "bravo-media"; } };
   const loadContributions = fakeLoader([{ pluginId: "alpha" }, { pluginId: "bravo", exported: { ...base, provider } }, { pluginId: "charlie" }]);
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.deepEqual(refusals, ["media provider 'bravo_media' from 'bravo' was not loaded: its contribution could not be registered"]);
   assert.equal(registry.findProvider({ id: "alpha-media" })?.label, "alpha-media");
   assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");
@@ -159,7 +167,7 @@ test("a vendor that throws in Tovu's own id check is one plugin's refusal; later
 test("a contribution that throws inside the registry is one plugin's refusal; later plugins still load", async () => {
   const exploding = { ...(vendorExport("bravo-media") as object), models: [{ provider: "bravo-media", get id(): string { throw new Error("boom"); } }] };
   const loadContributions = fakeLoader([{ pluginId: "alpha" }, { pluginId: "bravo", exported: exploding }, { pluginId: "charlie" }]);
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   // The shared registry (Jini core) now refuses a throwing definition itself, before Tovu's guard.
   assert.deepEqual(refusals, ["media provider from plugin 'bravo' was not loaded: its definition could not be validated"]);
   assert.equal(registry.findProvider({ id: "bravo-media" }), null);
@@ -169,7 +177,7 @@ test("a contribution that throws inside the registry is one plugin's refusal; la
 
 test("models: [undefined] is refused by the registry without failing boot", async () => {
   const loadContributions = fakeLoader([{ pluginId: "bravo", exported: { ...(vendorExport("bravo-media") as object), models: [undefined] } }, { pluginId: "charlie" }]);
-  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws", loadContributions, ...mediaProviderPorts });
   assert.equal(refusals.length, 1);
   assert.match(refusals[0]!, /must have an id and belong to provider 'bravo-media'/);
   assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");

@@ -8,6 +8,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
+import { findAgentPluginMcpServerDefaults } from "@jini-ai/agent-plugins/connect";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
@@ -52,11 +53,11 @@ test("stored config preserves plugin provenance for roster resolution", async ()
 });
 
 test("read defaults match both normalized server identity and exact URL, never only URL", () => {
-  assert.equal(typeof federation.findAgentPluginMcpServerDefaults, "function", "shared endpoint-matching rule must be exported");
+  assert.equal(typeof findAgentPluginMcpServerDefaults, "function", "shared endpoint-matching rule must be exported");
   const declared = servers(["inspect"]);
-  assert.deepEqual(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url } })?.read, ["inspect"]);
-  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url: "https://changed.example/mcp" } }), null);
-  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "other", url } }), null);
+  assert.deepEqual(findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url } })?.read, ["inspect"]);
+  assert.equal(findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url: "https://changed.example/mcp" } }), null);
+  assert.equal(findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "other", url } }), null);
 });
 
 test("each roster read loads the current manifest; URL-only servers never receive read metadata", async () => {
@@ -68,7 +69,7 @@ test("each roster read loads the current manifest; URL-only servers never receiv
       const { agentPluginLayout, ...identity } = input;
       assert.equal(agentPluginLayout, siteLayouts.deps.agentPluginLayout, "the fixed fixture layout reaches manifest resolution");
       calls.push(identity);
-      return new Set(federation.findAgentPluginMcpServerDefaults({ servers: servers(read), row: input })?.read ?? []);
+      return new Set(findAgentPluginMcpServerDefaults({ servers: servers(read), row: input })?.read ?? []);
     },
   }));
   const first = await source.resolve();

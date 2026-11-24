@@ -19,8 +19,9 @@ import { writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { readBootIdentity, withFileLock } from "@jini-ai/platform/fs/file-lock";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
-import { carryCloudflareActivation } from "./deploy-split-activation.js";
-import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
+import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
+import { restoreUnseededUpgrades, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
+import { upgradeTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
@@ -66,7 +67,6 @@ export type RetireBundledAgentPluginsRequired = Omit<JiniRetireRequired, "layout
 export type TovuSeedBundledAgentPluginsResult = import("@jini-ai/agent-plugins/lifecycle").SeedBundledAgentPluginsResult & {
   readonly idUpgrades?: readonly BundledIdUpgradeOutcome[] | undefined;
 };
-export type { BundledIdUpgradeOutcome } from "./bundled-id-upgrade.js";
 export type TrustedPluginPackagesQuery = Omit<JiniTrustedQuery, "onInactive"> & { readonly onInactive?: (plugin: TrustedPluginPackage) => Promise<void> };
 
 /** Adapt the host's validated workspace layout to the lifecycle owner's port. */
@@ -115,7 +115,8 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
         if (reportedIdentityWarnings.has(key)) return;
         reportedIdentityWarnings.add(key);
       }
-      console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message);
+      // Installed mcp.json metadata warnings keep this host's `[agent-plugins]` log prefix.
+      console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : event === "agent-plugin-metadata-warning" ? `[agent-plugins] ${message}` : message);
     },
     // Layout first, then preserve explicit Cloudflare rename decisions before seeding.
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
@@ -123,8 +124,8 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
       const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
-        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef() };
-        await carryCloudflareActivation(required);
+        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef(), fromPluginId: "cloudflare-pages", toPluginId: "cloudflare", actor: "migration:cloudflare-plugin" };
+        await carryPluginRenameActivation(required);
       }
       return migration;
     },
@@ -203,7 +204,7 @@ async function seedWithIdUpgrade({ owner, filesystem }: { owner: LifecycleOwner;
       readBundledSourceManifest: createBundledSourceManifestReader({ bundledSourceRoot: input.sourceRoot }),
       filesystem,
     };
-    upgrades = await upgradeRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
+    upgrades = await upgradeTovuRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
   } catch {
     // Listing failed before anything moved: seeding below reports each affected plugin itself.
   }
@@ -309,8 +310,13 @@ export const {
   recordBundledAgentPluginDigests, removeBundledAgentPluginDigest, rankInstalledAgentPlugins,
   packAgentPluginDirectory, createBundledSourceArchiveReader,
   readTrustedPluginFile, importContainedModule, loadPluginContributionsFromSource,
-  readInstalledSkillFile,
+  readInstalledSkillFile, readInstalledSkillMarkdown, readInstalledMcpServerIds, readInstalledMcpServers,
+  classifyAgentPluginMcpServerTrust,
 } = explicitRootLifecycle;
+
+/** The federation/connect planners take a positional `classifyTrust(server)` callback; this adapts
+ * the lifecycle owner's single object-shaped trust rule to it rather than keeping a second classifier. */
+export const mcpServerTrustClassifier = (server: Parameters<typeof classifyAgentPluginMcpServerTrust>[0]['server']) => classifyAgentPluginMcpServerTrust({ server });
 
 /** This boot's lifecycle owner; installed contributions always use its fixed site layout. */
 export type TovuAgentPluginLifecycle = ReturnType<typeof createTovuAgentPluginLifecycle>;

@@ -43,7 +43,7 @@ import { createRawFileSitePort } from "#src/features/publish-content/publish-bac
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import {
   createVerifiedOrigin,
   InMemoryOriginSettingRepo,

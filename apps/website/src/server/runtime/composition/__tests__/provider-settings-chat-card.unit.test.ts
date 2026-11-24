@@ -13,10 +13,13 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
-import { parsePluginCredentialCards, type CredentialSaveAdapters } from "@jini-ai/agent-plugins/connect";
-import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
-import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
+import { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
+import { type CredentialSaveAdapters, buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
+import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
+import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { buildProviderStatusRegistrations } from "#src/features/plugin-runtime/provider-status-tool";
 
 import { createVaultProviderConfigSource, withAttachedProject } from "../provider-config-source.js";
@@ -94,7 +97,7 @@ async function fixture({ submit, saved, records = [record], reapply, direct = fa
   const cards = direct ? [] : bundledCards();
   const authorized: string[] = [];
   const adapters: CredentialSaveAdapters = { apiCreate: refuse, apiRotate: refuse, mediaProvider: refuse, sourceControl: refuse, publishHost: refuse, agentPluginToken: refuse, pluginProvider: refuse,
-    providerSettings: buildProviderSettingsCredentialHandler({ surfaces: { surfaceExchanges }, loadCards: async () => cards, ports: {
+    providerSettings: buildProviderSettingsCredentialHandler({ surfaces: { surfaceExchanges }, cards: { defineSecretCardTool, askThenReport }, identity: tovuProviderSettingsCardIdentity, loadCards: async () => cards, ports: {
       ...bindProviderSettingsCardPorts({ config, discoverPlugins: async () => records, reapply: apply }),
       authorize: async () => { authorized.push("admin.plugins.enable"); },
     } }) };
@@ -206,7 +209,7 @@ test("a different key card explains site isolation and retains the manifest's he
   const form = buildProviderSettingsForm({ prep: { pluginId: "analytics-example", fields: [], saved: null,
     usage: { keyId: "plugin-state:analytics-example:provider.config", store: "project", usedByThisSite: false, usedBy: ["A"] },
     card: { providerId: "example", label: "Example", title: "Connect Example", category: "ops", baseUrl: "", helpUrl: "https://help.example.test", helpLabel: "Key help", keyHint: "Find your project key", usedFor: ["Product events"] },
-  } });
+  }, app: tovuProviderSettingsCardIdentity.formApp });
   assert.equal(form.description, "Keys are sealed on the server the moment you submit — the assistant never sees them. Your project's saved Example key is used by A. A key entered here is used by this site only.");
   assert.deepEqual(form.details, [{ label: "Key help", value: "https://help.example.test" }, { label: "Where to find it", value: "Find your project key" }, { label: "Used for", value: "Product events" }]);
 });

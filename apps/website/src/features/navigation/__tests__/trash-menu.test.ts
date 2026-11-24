@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MenuConflictError, MenuNotFoundError } from "../index.js";
+import { MenuConflictError, MenuNotFoundError } from "@jini-ai/cms/navigation/node";
 import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { trashMenu, type RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 

@@ -8,13 +8,9 @@ import {
 } from "@jini-ai/cms/admin-http/routes/publish-content/peers";
 import { peerPullRoute } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 import { connectAndRecordDestination, disconnectAndForgetDestination } from "#src/features/publish-content/connect-destination";
-import {
-  createPublishContentPeer, deletePublishContentPeer, listPublishContentPeers, PublishContentPeerDuplicateLabelError,
-  PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError,
-  selectConnectedDestination, updatePublishContentPeer,
-} from "#src/features/publish-content/peers";
+import { createPublishContentPeer, deletePublishContentPeer, listPublishContentPeers, selectConnectedDestination, updatePublishContentPeer } from "#src/features/publish-content/peers";
+import { PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
-// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, PublishTrustConnectError } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";

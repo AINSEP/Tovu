@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
+import { toChangeSetView } from "@jini-ai/cms/change-sets/tool-registrations";
 
 // F4.1/F4.3/F6.2: independent literals distinguish absent values from populated ones.
 // Author Checklist: each test calls the real pure projection, has fresh state and unconditional

@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import type { ContentTypeFieldDef } from "#src/features/content-types/index";
+import type { ContentTypeFieldDef } from "@jini-ai/cms/content-types";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createEntry, publishEntry, updateEntry } from "@jini-ai/cms/entries";

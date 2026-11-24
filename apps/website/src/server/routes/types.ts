@@ -7,7 +7,7 @@ import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
-import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
+import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
 import type { ExportReport } from "#src/contracts/core/export-report";
@@ -34,7 +34,8 @@ import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.j
 import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
-import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
+import type { SiteDisplayNameSource } from "@jini-ai/cms/settings/site/site-title";
+import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
@@ -85,7 +86,7 @@ import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
-import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
+import type { TeardownIndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
 import type { EntryRepoPort } from "@jini-ai/cms/entries";
 import type { EntryListPort } from "@jini-ai/cms/entries";
@@ -100,7 +101,7 @@ import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRev
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
 import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {
@@ -119,7 +120,7 @@ import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revo
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
-import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
+import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
@@ -1195,7 +1196,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   publishContentApplyPort: PublishContentApplyPort;
   /**
    * D1 (publish-types-plan §6) — this destination's seed-version lookup
-   * (`features/publish-content/seed-hash.ts`): the hash an entity had in the stock
+   * (`@jini-ai/cms/publish/content/seed-hash`): the hash an entity had in the stock
    * `content.seed.db` this instance was hydrated from. Passed to BOTH the import route's planner and
    * `publishContentApplyPort`'s apply-time re-verification, so they agree on what counts as
    * "untouched since seed". Real seed-backed lookup in `composition/deps.ts`;
@@ -1295,8 +1296,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * hand-built test bag without them keeps every one of the three families off.
    */
   apiConnections?: import("#src/features/api-connections/connect").ApiConnectionConnectDeps;
-  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/register").AgentPluginExecutableToolHost;
-  adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
+  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/host-bindings").AgentPluginExecutableToolHost;
+  adminSurfaceHost?: import("@jini-ai/agent-plugins/site/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
   /** Same composition: the Agent Plugin update's non-secret settings snapshot (keys and revisions).
    *  Absent, an update is refused before anything changes. */
   snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
@@ -1431,7 +1432,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**
-   * This workspace's self-describing token scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`), read
+   * This workspace's self-describing token scheme rules (`@jini-ai/agent-plugins/site/auth-schemes`), read
    * by `custom_credential_make_request`/`_verify`. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the
    * installed plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled plugins' sources.
    */

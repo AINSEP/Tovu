@@ -2,7 +2,7 @@ import { blobGetRoute, type BlobGetRouteDeps } from "@jini-ai/cms/admin-http/rou
 import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-put";
 import { exportRoute, type ExportRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/export";
 import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";

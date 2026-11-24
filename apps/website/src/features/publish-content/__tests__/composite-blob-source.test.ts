@@ -10,7 +10,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
-import { createCompositePeerBlobSource, FileBlobUnavailableError } from "../composite-blob-source.js";
+import { createCompositePeerBlobSource, FileBlobUnavailableError } from "@jini-ai/cms/publish/content/composite-blob-source";
 
 function sha256Hex(bytes: string): string {
   return createHash("sha256").update(bytes, "utf8").digest("hex");

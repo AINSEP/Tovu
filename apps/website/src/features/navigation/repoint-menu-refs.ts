@@ -1,4 +1,4 @@
-import type { NavItemNode, NavMenuEntry } from "./index.js";
+import type { NavItemNode, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 /**
  * @file Pure tree helpers for R1 of `ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md`

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { registerPluginSdkResolver } from "../../plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../../../../features/plugin-runtime/sdk-resolver.js";
 
 /**
  * @file C-015 `registerPluginSdkResolver()` — SPEC-005 ADR "SDK Resolution Mechanism". **CIC U-002
@@ -78,10 +78,11 @@ test("CIC U-002-B1/ORD1 (ESCALATE_SECURITY): after registration, a plugin's bare
 
 test("CIC U-002: calling registerPluginSdkResolver() a second time in the same process throws PluginSdkResolverAlreadyRegisteredError specifically, not just any error", () => {
   // A fresh process owns both registrations, so this test also works with --test-name-pattern.
-  const moduleUrl = new URL("../../plugin-sdk-resolver.ts", import.meta.url).href;
+  const moduleUrl = new URL("../../../../../features/plugin-runtime/sdk-resolver.ts", import.meta.url).href;
   const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { registerPluginSdkResolver, PluginSdkResolverAlreadyRegisteredError } from ${JSON.stringify(moduleUrl)};
+    import { registerPluginSdkResolver } from ${JSON.stringify(moduleUrl)};
+    import { PluginSdkResolverAlreadyRegisteredError } from ${JSON.stringify(import.meta.resolve("@jini-ai/plugins/runtime/sdk-resolver"))};
     registerPluginSdkResolver({ sdkModulePath: ${JSON.stringify(new URL(import.meta.url).pathname)} });
     assert.throws(() => registerPluginSdkResolver(), PluginSdkResolverAlreadyRegisteredError);
   `], { encoding: "utf8", timeout: 20_000 });

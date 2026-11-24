@@ -3,7 +3,7 @@
  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "@jini-ai/agent-plugins/site/service-ports";
 import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import type { AgentToolDefinition, DerivedRiskByToolId } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
@@ -15,7 +15,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
-import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./capability-projection.js";
+import { readInstalledMcpServers, mcpServerTrustClassifier } from "./lifecycle.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
@@ -112,7 +112,7 @@ export interface AgentPluginConnectToolDeps {
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
   /** Plugin-declared OAuth API connections (`jini-connections.json`). Absent: only MCP servers connect. */
-  readonly apiConnections?: AgentPluginApiConnectionsPort;
+  readonly apiConnections?: AgentPluginApiConnectionsPort<DeclaredApiConnection>;
 }
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
@@ -176,7 +176,7 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
   },
   messages: tovuAgentPluginConnectMessages,
   publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri({ serverId, derivedPublicOrigin }) },
-  federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
+  federation: { classifyTrust: mcpServerTrustClassifier, messages: tovuEnableAccessMessages },
   actors: { connectDeclined: CONNECT_DECLINED_ACTOR },
   waitAtSignInCard: (required, optional) => waitAtAgentPluginSignInCard(required, optional),
   chooseDestination: (required, optional) => chooseApiConnectionDestination(required, optional),

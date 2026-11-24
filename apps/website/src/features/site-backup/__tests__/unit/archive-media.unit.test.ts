@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { bufferArchiveMedia, type ArchiveMediaSource } from "../../archive-media.js";
+import { bufferArchiveMedia } from "../../archive-media.js";
+import type { ArchiveMediaSource } from "../../share-policy.js";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const webp = Buffer.from("RIFF0000WEBPweb-copy");

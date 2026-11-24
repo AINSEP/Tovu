@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
+import { mcpServerTrustClassifier } from "../../lifecycle.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
@@ -77,7 +77,7 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
   assert.equal(defaults.write.includes("apply_migration"), false);
   // Remote + oauth carries no secret and no local execution, so `federate-mcp.ts` auto-provisions the
   // `supabase` row (disabled, empty allowlists) rather than waiting on the stdio confirmation gate.
-  assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
+  assert.equal(mcpServerTrustClassifier(server), "auto-admit");
 });
 
 test("mcp.json offers the access-token fallback: Supabase's tokens page, probed against its projects list", async () => {

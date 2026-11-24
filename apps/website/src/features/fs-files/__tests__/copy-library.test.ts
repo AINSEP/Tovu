@@ -4,16 +4,20 @@ import path from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { buildFilesCopyRegistrations } from '../../asset-transfer/copy-tool.js';
-import { createDocumentArchiveReader } from '../../media/document-archive.js';
+import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
+import * as yauzl from 'yauzl';
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { downloadDocuments } from '../../media/__tests__/download-documents.fixture.js';
 import { assetToolHarness } from './asset-tool-fixture.js';
 import { FS_FILES_READ_PERMISSION } from '../agent-tools.js';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 const destination = { kind: 'library' };
 interface Result { applied: boolean; documents: { id: string; filename: string; publicUrl: null; byteSize: number }[] }
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options,
-  build: (deps: Parameters<typeof buildFilesCopyRegistrations>[0], surfaces: Parameters<typeof buildFilesCopyRegistrations>[1]) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader({}) }, surfaces), toolId: 'files_copy' });
+  build: (deps: Parameters<typeof buildFilesCopyRegistrations>[0], surfaces: Parameters<typeof buildFilesCopyRegistrations>[1]) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), toolId: 'files_copy' });
 
 test('picked, site and theme files copy into the private Library through document ingestion', async t => {
   const h = await harness(t);
