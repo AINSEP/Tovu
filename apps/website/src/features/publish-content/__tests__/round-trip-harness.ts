@@ -1,10 +1,5 @@
-import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
-import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
-import { entryRepoFor } from "#src/features/entries/entry-repo";
-import { FORMS_TABLES, TAXONOMY_TABLES } from "#src/platform/db/content-tables";
-import { schemaErasedKernel } from "#src/platform/db/content-kernel";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { SqlitePostRepo } from "#src/features/post/index";

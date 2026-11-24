@@ -1,5 +1,6 @@
 /** Tovu's confirmation adapter for the human-only strip mounted by Jini's vanilla widget. */
-import { confirmSiteAssistantTool, type ToolConfirmation } from './tool-confirmation';
+import { confirmSiteAssistantTool } from './tool-confirmation';
+import type { ToolConfirmationDirective } from '@jini-ai/core/contracts/site/client-directives';
 
 function toolConfirmationStrip({ element }: { element: HTMLElement }, _options = {}) {
   const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__tool-confirmation');
@@ -55,7 +56,7 @@ function bindVanillaToolConfirmation(required: {
  */
 export function createVanillaToolConfirmation({ element, document }: { element: HTMLElement; document: Document }, { confirm = confirmSiteAssistantTool, sendFailureText = "Couldn't send your decision. Try again." }: { confirm?: typeof confirmSiteAssistantTool; sendFailureText?: string } = {}) {
   let clear = () => {};
-  return ({ directive }: { directive: ToolConfirmation | null }, _options = {}): void => {
+  return ({ directive }: { directive: ToolConfirmationDirective | null }, _options = {}): void => {
     clear();
     if (!directive) return;
     const controls = toolConfirmationStrip({ element });

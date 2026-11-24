@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
 import { createChatStoreFactory, createInMemoryChatHistory } from "../store-factory.js";
-import type { AdminChatPrincipal } from "../tenant-scope.js";
+import type { AdminChatPrincipal } from "@jini-ai/chat/store/runtime";
 
 /**
  * @file `createChatStoreFactory` (the host-db-backed factory) had no direct test anywhere in the

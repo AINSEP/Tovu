@@ -3,7 +3,9 @@ import test from "node:test";
 import express from "express";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
+import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
+import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
+import { tableExists } from "@jini-ai/db/kernel";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -49,7 +51,7 @@ test("destination Undo summary exposes item names but no inverses or private sna
   db.exec(`CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, direction TEXT NOT NULL,
     actor_id TEXT NOT NULL, destination TEXT NOT NULL, reason TEXT NOT NULL, at TEXT NOT NULL, items_json TEXT NOT NULL,
     gap_labels_json TEXT NOT NULL, result TEXT NOT NULL, run_id TEXT, details_json TEXT NOT NULL, inverses_json TEXT NOT NULL)`);
-  const kernel = contentKernel({ store: db }); const audit = createBackstopAuditSqlitePort({ kernel });
+  const kernel = contentKernel({ store: db }); const audit = createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists });
   await audit.save({ record: { id: "run-1", runId: "run-1", workspaceId: "ws", direction: "destination", actorId: "owner",
     destination: "live.example", reason: "Emergency footer fix", at: "2026-10-04", result: "success", gapLabels: ["table:p_banner"],
     items: [{ entityType: "raw-row", id: "p_banner:one", afterHash: "after" }], details: { private: "must not disclose" }, inverses: [] } });

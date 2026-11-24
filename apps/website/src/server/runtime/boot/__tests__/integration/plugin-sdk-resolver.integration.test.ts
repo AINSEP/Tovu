@@ -20,7 +20,7 @@ import { registerPluginSdkResolver } from "../../../../../features/plugin-runtim
  * runner isolates each matched test file in its own process by default, so this file's real
  * `module.register()` call cannot leak into any other test file in the suite.
  *
- * TDD-certified against the stub in `../../plugin-sdk-resolver.ts`; currently RED —
+ * TDD-certified against the stub in `features/plugin-runtime/sdk-resolver.ts`; currently RED —
  * `registerPluginSdkResolver` throws "not implemented". These assertions describe the contract
  * the Programmer stage must satisfy.
  */

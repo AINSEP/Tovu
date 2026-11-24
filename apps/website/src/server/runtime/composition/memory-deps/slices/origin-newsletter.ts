@@ -1,9 +1,9 @@
 import { InMemoryNewsletterListRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { OriginRegistry, InMemoryOriginSettingRepo, createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { seededWorkspace } from "../../../configuration/seed.js";
-import type { MemoryClock } from "../ports.js";
+import type { Clock, IsoClock } from "@jini-ai/core/primitives";
 
-export function composeOriginNewsletter(required: { clock: MemoryClock }, _optional = {}) {
+export function composeOriginNewsletter(required: { clock: Clock & IsoClock }, _optional = {}) {
   const { clock } = required;
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.

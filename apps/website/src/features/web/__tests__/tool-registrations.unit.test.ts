@@ -3,7 +3,8 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { withBatchInput, BATCH_TOOL_SETTINGS } from "../../../assistant/batch-tool-inputs.js";
+import { BATCH_TOOL_SETTINGS } from "../../../assistant/batch-tool-inputs.js";
+import { withBatchInput } from "@jini-ai/core";
 import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import type { HttpRequest } from "#src/platform/http/index";

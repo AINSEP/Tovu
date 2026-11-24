@@ -1,6 +1,6 @@
-import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { createPluginHookErrorEnvelope } from "@jini-ai/cms/admin-http/http/plugin-hook-error";
-import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { pluginHookRefusalText } from "@jini-ai/plugins/host/hook-refusals";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
@@ -20,7 +20,7 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
  */
 const envelope = createPluginHookErrorEnvelope<PluginHookFailedError>({
   isPluginHookFailure: (err): err is PluginHookFailedError => err instanceof PluginHookFailedError,
-  refusalText: pluginHookRefusalText,
+  refusalText: (err) => pluginHookRefusalText({ err }),
   redact: (text) => redactSecretShapes({ text }).text,
   warn: (message) => consoleLogger.warn({ message }),
 });

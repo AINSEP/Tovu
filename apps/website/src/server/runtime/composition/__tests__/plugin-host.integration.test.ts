@@ -32,7 +32,7 @@ import { buildPluginsRegistrations, type PluginsToolDeps } from '#src/features/p
 import { loadEnabledPluginCapabilityToolSources, buildPluginCapabilityToolRegistrations } from '#src/features/plugin-runtime/capability-tool-registrations';
 import { requiredPostReader } from '#src/features/plugin-runtime/__tests__/fixtures/plugin-post-read';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
-import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
+import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '#src/features/agent-plugins/lifecycle';
 import { forceRemove } from '#src/features/agent-plugins/__tests__/fixtures/force-remove';
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";

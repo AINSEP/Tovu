@@ -10,7 +10,8 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerDurableRunStartRoute } from "#src/server/inbound/assistant/durable-run-routes";
 import { createEarlySessionCapture } from "#src/server/inbound/assistant/early-run-session";
 import { captureDaemonRun } from "#src/server/inbound/assistant/__tests__/helpers/daemon-source";
-import { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, CONCURRENT_RUN_REFUSAL_MESSAGE } from "#src/assistant/agent-session-preset";
+import { waitForStoppingRuns, CONCURRENT_RUN_REFUSAL_MESSAGE } from "#src/assistant/agent-session-preset";
+import { createLiveRunTracker, STOPPING_RUN_WAIT_MS } from "@jini-ai/daemon/session-coordination";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { chatKernel } from "#src/platform/db/chat-kernel";

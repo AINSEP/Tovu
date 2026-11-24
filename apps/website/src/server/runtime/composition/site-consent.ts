@@ -1,28 +1,29 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /** @file Composition-only bindings for site consent administration and public delivery. */
 import path from 'node:path';
-import { getEffective, set } from '@jini-ai/core/settings';
-import { ensureSitePrivacyDefaults } from '@jini-ai/cookie-consent/site/ensure-privacy-defaults';
-import { createPost } from '#src/features/post/index';
-import { consentServiceHostPorts } from '#src/features/consent/host-bindings';
-import { SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
-import { resolveSiteTitle } from '@jini-ai/cms/settings/site/site-title';
-import { siteTitleHostBindings } from '#src/features/settings/site-title-legacy';
-import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
-import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
-import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '@jini-ai/cookie-consent/site/settings';
-import { fetchPublishedPage } from '@jini-ai/diagnostics/web-evidence/published-page';
-import { trackFetch } from '@jini-ai/diagnostics/observability';
-import { resolveSitePath } from '@jini-ai/diagnostics/web-evidence/site-path-policy';
-import { RESERVED_SEGMENTS } from '#src/platform/routing/index';
-import type { RouteDeps } from '#src/server/routes/types';
-import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
+import { getEffective, set } from "@jini-ai/core/settings";
+import { ensureSitePrivacyDefaults } from "@jini-ai/cookie-consent/site/ensure-privacy-defaults";
+import { createPost } from "#src/features/post/index";
+import { consentServiceHostPorts } from "#src/features/consent/host-bindings";
+import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
+import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
+import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
+import { readConsentReceiptStorage } from "@jini-ai/cookie-consent/node";
+import { createSiteConsentService } from "@jini-ai/cookie-consent/site/service";
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from "@jini-ai/cookie-consent/site/settings";
+import { fetchPublishedPage } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { resolveSitePath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
+
+import type { RouteDeps } from "#src/server/routes/types";
+import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from "../../inbound/public-http/middleware/site-consent.js";
 import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
-import { isBarePageChoice } from '#src/features/theme/index';
-import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
-import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { isBarePageChoice } from "#src/features/theme/index";
+import { isFullHtmlDocument } from "@jini-ai/cms/presentation/html";
+import type { ConsentProblem } from "@jini-ai/core/contracts/site/core-consent-refusal";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
-import { resolveActiveTheme } from '#src/features/theme/active-theme';
+import { resolveActiveTheme } from "#src/features/theme/active-theme";
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })

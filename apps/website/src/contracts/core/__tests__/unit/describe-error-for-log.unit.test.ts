@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { describeErrorForLog } from "../../model-facing-tool-errors.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 /**
  * @file The website's `describeErrorForLog` must be callable directly inside a catch

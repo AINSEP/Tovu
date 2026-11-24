@@ -1,8 +1,8 @@
 import { sql } from "kysely";
 
-import { gateJournalKernel, type JournalDatabase, type JournalKernel } from "../journal-kernel.js";
+import { gateJournalKernel, type JournalDatabase, type JournalKernel } from "@jini-ai/db/recovery/journal-kernel";
 import { openSqliteFileKernel } from "../kernel/index.js";
-import { applyDatabaseJournalSchema } from "./database-journal-schema.js";
+import { applyDatabaseJournalSchema } from "@jini-ai/db/recovery/journal-schema";
 
 /**
  * @file Sidecar `ops/database-journal.db` bootstrap (ADR-041 §2).
@@ -17,7 +17,7 @@ import { applyDatabaseJournalSchema } from "./database-journal-schema.js";
  * How it relates to the project:
  * The composition root (`apps/website/src/server/runtime/composition/deps.ts`) opens this alongside `content.db`, at
  * `<install-dir>/ops/database-journal.db` (ADR-012's install-dir tree), and injects the kernel into
- * `database-journal-repo.ts`'s adapters.
+ * `@jini-ai/db/recovery/journal-repo.sql`'s adapters.
  *
  * Architectural role:
  * Infrastructure. `features/database`/`features/recovery` domain code depends on the ports those

@@ -1,5 +1,5 @@
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createPublishJobStore, type PublishJobSnapshot, type DeployPublishProgress } from "@jini-ai/devops/deploy";
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";

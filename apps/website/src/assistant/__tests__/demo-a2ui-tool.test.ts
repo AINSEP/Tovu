@@ -4,7 +4,9 @@ import test from "node:test";
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations, validateDemoA2uiMessage } from "../demo-a2ui-tool.js";
+import { validatedA2uiMessage } from "@jini-ai/agentic/render-surface";
+import { parseAgentToRendererMessage } from "@jini-ai/protocol/a2ui";
+import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations } from "../demo-a2ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -207,9 +209,9 @@ test("a run cancelled between the two turns returns the no-answer result for the
   assert.equal(surfaceExchanges.size(), 0);
 });
 
-test("validateDemoA2uiMessage returns a valid message as parsed and refuses an invalid one by name", () => {
+test("validatedA2uiMessage (bound to this tool id) returns a valid message as parsed and refuses an invalid one by name", () => {
   const valid = { version: "v1.0", deleteSurface: { surfaceId: "s1" } };
-  assert.deepEqual(validateDemoA2uiMessage({ message: valid }), valid);
-  assert.throws(() => validateDemoA2uiMessage({ message: { version: "v1.0", deleteSurface: {} } }),
+  assert.deepEqual(validatedA2uiMessage({ message: valid, label: DEMO_A2UI_TOOL_ID, parseAgentMessage: parseAgentToRendererMessage }), valid);
+  assert.throws(() => validatedA2uiMessage({ message: { version: "v1.0", deleteSurface: {} }, label: DEMO_A2UI_TOOL_ID, parseAgentMessage: parseAgentToRendererMessage }),
     new RegExp(`^Error: ${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: `));
 });

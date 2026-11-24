@@ -7,9 +7,10 @@
  * PATH probing performs filesystem I/O. Cache it across session-lifetime health polls because
  * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
-import { AGENT_DEFS, detectAgents, probeAgentModels, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
-import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
-import { createCliProbeCache } from "./cli-probe-cache.js";
+import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createCliProbeCache, createCliProbeQueue } from "@jini-ai/agent-runtime/cli-probe-cache";
+/** One process-wide probe queue: every detection cache shares it, so CLI sweeps never overlap. */
+const CLI_PROBE_QUEUE = createCliProbeQueue();
 import { MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 import type { AgentSummary } from "@jini-ai/daemon/http";
 
@@ -190,6 +191,7 @@ export function createAssistantDetectionCache(
         modelsSource: "fallback", ...(launch.selectedPath ? { path: launch.selectedPath } : {}) };
     }),
     probe: ({ force }) => detect({}, { force }),
+    probeQueue: CLI_PROBE_QUEUE,
   }, {
     retryAfterMs: MODEL_NEGATIVE_TTL_MS,
     // Catalogs own their retry/refresh lifetimes; executable detection stays cached in Jini.

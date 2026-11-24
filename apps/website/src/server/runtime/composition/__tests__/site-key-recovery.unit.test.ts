@@ -18,7 +18,7 @@ import { seedPrincipals } from "#src/platform/db/kernel/__tests__/content-seeds"
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
-import { buildMediaProviderCredentialAad } from "../vault-legacy-codecs.js";
+import { buildMediaProviderCredentialAad } from "@jini-ai/platform/secrets/legacy-codecs";
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { readSealedConnectionString, writeSealedConnectionString } from "../storage-secret.js";
 

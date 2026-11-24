@@ -1,18 +1,11 @@
-import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { POST_SEARCH_HOST } from "./search-host-config.js";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
 
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
-import type {
-  PostAutosaveSnapshot,
-  PostRecord,
-  PostRepoPort,
-  PostRevisionAppendResult,
-  PostRevisionInput,
-  PostRevisionRecord,
-} from "@jini-ai/cms/posts/post";
+import type { PostAutosaveSnapshot, PostRecord, PostRepoPort, PostRevisionAppendResult, PostRevisionInput, PostRevisionRecord } from "@jini-ai/cms/posts/post";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
@@ -164,7 +157,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(record) });
     });
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -193,7 +186,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
-    if (result.applied) invalidateMediaAccessEvidence({ owner: this });
+    if (result.applied) mediaAccessEvidence.invalidate({ owner: this });
     return result;
   }
 
@@ -217,7 +210,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("id", "=", required.id)
         .execute()
     );
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -250,7 +243,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       // when the scoped delete above actually removed the row it projects.
       if (removed.length > 0) await this.search.remove({ kernel: this.searchKernel, postId: required.id });
     });
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
@@ -354,7 +347,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
   async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     try { return await this.kernel.transaction(fn); }
-    finally { invalidateMediaAccessEvidence({ owner: this }); }
+    finally { mediaAccessEvidence.invalidate({ owner: this }); }
   }
 }
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";

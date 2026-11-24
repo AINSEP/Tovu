@@ -1,7 +1,7 @@
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { redirectRepoFor, type RedirectSqlRequired } from "@jini-ai/cms/redirects/sql";
-import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 
 /** The generic SQL repository with Tovu's connection and byte-identical table names. */
 export type SqliteRedirectRepo = ReturnType<typeof redirectRepoFor>;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
+import { createConversationStartLock } from "@jini-ai/daemon/session-coordination";
 
 /**
  * @file Regression suite for the second half of Defect 1 (2026-09-11 chat-lifecycle repair): two

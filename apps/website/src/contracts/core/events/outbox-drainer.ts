@@ -1,11 +1,11 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
-import { startOutboxDrainer as startJiniOutboxDrainer } from "@jini-ai/infra/events/outbox";
-import type { OutboxDrainer } from "@jini-ai/core/contracts/site/events-outbox";
-import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
+import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
+import { outboxWorkerArgs } from "@jini-ai/infra/events/domain-outbox";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
+import { createOutboxHostServices } from "./outbox-worker.js";
 
 /**
  * @file Background outbox drainer: the one owner that delivers outbox rows in a site-serving process.
@@ -56,7 +56,7 @@ export function startOutboxDrainer(
   optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; tracker?: Tracker } = {}
 ): OutboxDrainer {
   const { tracker = createNoopTracker({}), ...drainOptions } = optional;
-  const args = outboxWorkerArgs(required);
+  const args = outboxWorkerArgs({ ...required, ...createOutboxHostServices({}) });
   return startJiniOutboxDrainer({ ...args, bus: trackedDelivery({ bus: args.bus, tracker }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }
 

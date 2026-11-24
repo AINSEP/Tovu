@@ -9,7 +9,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,

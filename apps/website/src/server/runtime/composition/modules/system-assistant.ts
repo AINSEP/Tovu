@@ -4,7 +4,8 @@ import { createOwnerGrantRoutes, type OwnerGrantPolicy } from "@jini-ai/cms/admi
 import { ASSISTANT_PERMANENT_DELETES_PATH, assistantPermanentDeletesGrant } from "@jini-ai/cms/admin-http/routes/system/assistant-permanent-deletes";
 import { ASSISTANT_SUBAGENTS_PATH, assistantSubagentsGrant, type AssistantSubagentsRouteDeps } from "@jini-ai/cms/admin-http/routes/system/assistant-subagents";
 import { readCliPermissionLayer, patchCliPermissionLayer } from "#src/assistant/cli-permission-layer";
-import { readAssistantCliPermissions, readAssistantPermanentDeletesPolicy } from "#src/assistant/runtime-settings";
+import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
+import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
 import { assistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";

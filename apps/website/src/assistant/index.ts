@@ -42,10 +42,6 @@ export type {
   SiteAssistantCallerClass,
 } from "./site/capability-registry.js";
 
-// Only human confirmation directives remain public. Machine page calls use the isolated
-// frontend session transport and never become chat transcript directives.
-export type { ClientDirective } from "./site/client-directives.js";
-
 export { resolveBoundedHistory } from "./site/history.js";
 export type { SiteAssistantHistoryTurn } from "./site/history.js";
 
@@ -69,7 +65,6 @@ export {
 } from "./public-assistant-settings.js";
 export type { PublicAssistantSettings, PublicAssistantSettingKey } from "./public-assistant-settings.js";
 export { resolvePublicAssistantAvailability } from "./public-assistant-availability.js";
-export { resolveByokProtocol } from "./byok-provider-turn.js";
 
 export {
   getSiteAssistantCredential,
@@ -125,7 +120,6 @@ export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js"
 // `assistant-byok.ts` actually constructs.
 export { createStoredExecutionCredentialPort } from "./byok-credential.js";
 
-export { runByokProviderTurn } from "./byok-provider-turn.js";
 export {
   createSiteAssistantErrorReporter,
   siteAssistantIncident,
@@ -133,14 +127,6 @@ export {
   type SiteAssistantErrorLogEntry,
   type SiteAssistantPublicError,
 } from "./site/public-errors.js";
-export type {
-  ByokChatMessage,
-  ByokProtocol,
-  ByokProviderTurnResult,
-  ByokToolCall,
-  ByokToolResult,
-  ByokTurnEvent,
-} from "./byok-provider-turn.js";
 
 export { createByokToolSurface } from "./byok-tool-surface.js";
 export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.js";
@@ -152,17 +138,14 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // files have exactly one external importer, this module) plus `src/index.ts` (the process entry
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
-export { A2UI_ACTIONS_PATH, a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "./a2ui-actions-route.js";
+export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route.js";
 export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken, ensureToolExecToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "./daemon-access.js";
 // Process-spawning daemon lifecycle belongs to server/runtime/lifecycle/daemon-supervisor.ts;
 // re-exporting it here would create an assistant -> server dependency. The pure respawn policy
 // remains public so the supervisor and its tests share crash-loop/backoff decisions.
 export { createRespawnPolicy } from "./daemon-respawn-policy.js";
-export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
-export { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "./live-model-cache.js";
-export type { LiveModelDiscovery } from "./live-model-cache.js";
-export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
-export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-calls-route.js";
+export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
+export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
@@ -243,7 +226,6 @@ export type { DuplicateResourceHandlerContributor } from "./tool-registrations.j
 // ---------------------------------------------------------------------------------------------
 export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
-export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
 // selects the adapter" shape as the chat-history pair immediately above, for the same two

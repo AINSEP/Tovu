@@ -1,13 +1,13 @@
+import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 import { agentPluginFilesRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/files";
 import { agentPluginsListRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/list";
 import { agentPluginSetEnabledRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/set-enabled";
 import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
-import {
-  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError,
-} from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
-import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+
+
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";

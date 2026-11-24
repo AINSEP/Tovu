@@ -1,13 +1,13 @@
-import { createLazyProxy } from "../lazy-proxy.js";
+import { createLazyProxy } from "@jini-ai/core/primitives";
 import { InMemoryRedirectRepo, RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
-import { InMemoryOutbox, InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryOutbox, InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryRestorePointsRepo } from "#src/features/database/repo.memory";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetRenditionRepo } from "#src/features/media/index";
 import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { type ContentDb, openContentDb } from "#src/platform/db/sqlite/content-db";
 import { type TrashDb } from "#src/features/trash/index";
@@ -40,8 +40,9 @@ export function composeMemoryRepos(_required: Record<string, never> = {}, _optio
   // in-memory entries the rest of the hermetic composition writes into (mirrors
   // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
   // below flips the marker on the very store the widget routes read.
-  const entryRepo = new TrashAwareInMemoryEntryRepo({ onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo }) });
+  const entryRepo = new TrashAwareInMemoryEntryRepo({ onWriteSettled: ({ repo }) => mediaAccessEvidence.invalidate({ owner: repo }) });
   const workspaceId = seededWorkspace.id;
+  // Lazy so a root that never touches taxonomy or consent never opens this `:memory:` content db.
   const taxonomyDb = createLazyProxy<ContentDb>({ factory: () => openContentDb(":memory:") });
   const sqliteTrashDb = createLazyProxy<TrashDb>({ factory: () => contentKernel({ store: taxonomyDb }) });
   return { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo };

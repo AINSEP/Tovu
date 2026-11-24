@@ -5,7 +5,7 @@ import { openSiteDbClient } from '#src/platform/db/client/open-site-db-client';
 import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases';
 import { resolveSiteStorage } from '#src/platform/site-dir/site-storage';
 import { resolveWorkspace } from '#src/platform/site-dir/resolve-workspace';
-import { resolveInstallDirTarget } from '#src/platform/site-dir/resolve-install-dir-target';
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { applyOwnerPasswordReset } from "@jini-ai/user-management/identity/owner-reset-env";
 import { identityServiceDepsFrom } from '#src/server/inbound/admin-http/routes/users/deps';
@@ -21,7 +21,7 @@ export async function resetSelfHostedOwner(
   { dir, password, username }: { dir: string; password: string; username?: string },
   _options: Record<string, never> = {},
 ): Promise<string> {
-  const targetDir = resolveInstallDirTarget({ dirArg: dir });
+  const targetDir = resolveDirectoryTarget({ dirArg: dir });
   if (!existsSync(targetDir)) throw new Error('The site directory does not exist');
   const storage = resolveSiteStorage({ siteDir: targetDir });
   const paths = resolveSiteDatabasePaths({ dir: targetDir }, { reserveIdentity: false });

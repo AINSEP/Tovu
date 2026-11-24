@@ -15,7 +15,8 @@ import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/crede
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
-import { buildPluginCredentialForm, type PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
+import { buildPluginCredentialForm } from "../../../../contracts/core/plugin-credential-card.js";
+import { type PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { buildMailProviderRegistrations } from "#src/features/mail-status/provider-tool-registrations";
 import type { HttpClientPort } from "#src/platform/http/index";

@@ -5,9 +5,9 @@ import type { ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
-import { createContentReadFamilyPort } from "#src/assistant/tool-family-port";
+import { createPrefixToolFamilyPort } from "@jini-ai/daemon/http";
 import { buildComponentCatalogQuery, chartCatalogManifests } from "#src/assistant/component-catalog-query";
-import type { DaemonCallContext } from "#src/assistant/daemon-call-context";
+import type { DaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { withToolCatalogAudit } from "#src/assistant/tool-audit-preset";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
@@ -51,7 +51,7 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
     describe: (required: Parameters<ReturnType<typeof buildToolCatalogQuery>["describe"]>[0]) => scopedCatalog(state).describe(required),
   };
   return { start: start.bind(undefined, state), finish: finish.bind(undefined, state),
-    withRun: <T>(input: { runId: string; fn: () => T }, options = {}) => withRun(state, input, options), registry, catalog, refreshComponents: refreshComponents.bind(undefined, state), preflight: preflight.bind(undefined, state), families: createContentReadFamilyPort({ registry }),
+    withRun: <T>(input: { runId: string; fn: () => T }, options = {}) => withRun(state, input, options), registry, catalog, refreshComponents: refreshComponents.bind(undefined, state), preflight: preflight.bind(undefined, state), families: createPrefixToolFamilyPort({ registry, familyId: "content_read", selectorKeys: ["resource", "type", "entity", "kind"] }),
     components: {
       search: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[0], optional?: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[1]) => components(state).search(required, optional),
       describe: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["describe"]>[0]) => components(state).describe(required),

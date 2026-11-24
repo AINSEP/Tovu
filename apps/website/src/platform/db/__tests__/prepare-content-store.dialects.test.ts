@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { emptiedPgContentKernel, freshSqliteContentKernel, sharedPgContentKernel, type ContentKernel } from "../kernel/__tests__/dialect-matrix.js";
-import { kernelStampWatermark } from "../watermark-kernel.js";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "../write-watermark-tables.js";
+import { schemaErasedKernel } from "../content-kernel.js";
 import { prepareContentStore } from "../prepare-content-store.js";
 import { seededPosts, seededPresentation, seededWorkspace } from "#src/server/runtime/configuration/seed";
 
@@ -80,7 +82,7 @@ for (const [dialect, makeKernel] of [
   test(`prepare preserves a stamped watermark and operator edits after a workspace slug rename [${dialect}]`, async () => {
     const kernel = makeKernel();
     await prepareContentStore({ kernel }, { seed });
-    await kernelStampWatermark({ kernel })();
+    await kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES })();
     await kernel.run(async (db) => {
       await db.updateTable("posts").set({ title: "Operator's edited title", body_json: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Edited by the operator" }] }] }) })
         .where("id", "=", seededPosts[0]!.id).execute();

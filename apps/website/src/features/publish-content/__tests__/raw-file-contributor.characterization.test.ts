@@ -10,8 +10,8 @@ import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/index";

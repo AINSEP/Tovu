@@ -3,8 +3,9 @@ import test, { describe } from "node:test";
 
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
 import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
-import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
-import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker } from "../../../../assistant/agent-session-preset.js";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
+import { CONCURRENT_RUN_REFUSAL_MESSAGE } from "../../../../assistant/agent-session-preset.js";
+import { createLiveRunTracker } from "@jini-ai/daemon/session-coordination";
 import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 /**

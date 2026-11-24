@@ -1,12 +1,12 @@
 /** Tovu-app usage projection. Site events keep their original payload on the independent branch. */
-import type { ProductEvent, ProductEventProperties } from '@jini-ai/core/contracts/observability';
+import { freezeProductEventCatalog, projectDeclaredProductEvent, type ProductEventCatalog } from '@jini-ai/analytics/product';
+import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { TOOL_ATTEMPT_PHASES } from '@jini-ai/daemon/tool-audit';
 
 const source = Object.freeze(['admin', 'assistant', 'service']);
 const chatSurface = Object.freeze(['admin', 'daemon', 'public']);
 const runOutcome = Object.freeze(['succeeded', 'failed', 'cancelled', 'canceled']);
 const toolOutcome = Object.freeze(TOOL_ATTEMPT_PHASES.filter(phase => phase !== 'requested'));
-type Rules = Readonly<Record<string, readonly string[] | 'boolean' | 'number'>>;
 
 /** Closed property vocabularies, frozen at both levels. IDs, tool names, target names and text
  * have no rule: installed plugins and deploy targets are open catalogs, not product labels.
@@ -30,7 +30,7 @@ type Rules = Readonly<Record<string, readonly string[] | 'boolean' | 'number'>>;
  * Unlisted identity/free-text properties are intentionally omitted, including tool IDs rather
  * than inventing a category taxonomy. Product events never retain outbox/deduplication IDs.
  */
-export const PRODUCT_EVENTS: Readonly<Record<string, Rules>> = Object.freeze(Object.fromEntries(Object.entries({
+export const PRODUCT_EVENTS: ProductEventCatalog = freezeProductEventCatalog({ catalog: {
   app_started: { launchMode: ['fresh', 'update'] },
   desktop_screen_viewed: { screen: ['home', 'projects', 'templates', 'marketplace', 'tasks', 'generation', 'activity', 'updates', 'deploy', 'diagnostics', 'api-keys', 'settings', 'account', 'appearance', 'create_website', 'import_website'] },
   desktop_action: { action: ['create_website', 'add_existing_website', 'import_website', 'open_admin', 'open_preview', 'start_site', 'stop_site', 'open_settings', 'check_updates', 'open_chat'] },
@@ -52,7 +52,7 @@ export const PRODUCT_EVENTS: Readonly<Record<string, Rules>> = Object.freeze(Obj
   site_publish_blocked: { reasonClass: ['auth', 'config', 'consent', 'busy'], source },
   operation_failed: { operationKind: ['plugin_install'], reasonClass: ['refused', 'internal'], surface: ['admin', 'assistant'], retryable: 'boolean' },
   provider_configured: { contract: ['observability', 'product_analytics', 'ai_trace'], action: ['save'] },
-}).map(([name, rules]) => [name, Object.freeze(Object.fromEntries(Object.entries(rules).map(([key, rule]) => [key, Array.isArray(rule) ? Object.freeze(rule) : rule])))])));
+} });
 
 /** Reduce an existing route template to two segments; later segments can contain site slugs.
  * @returns The projected admin screen, or undefined outside admin. @complexity O(n) route length.
@@ -66,15 +66,10 @@ export function productAdminScreen({ route }: { route: unknown }, _options = {})
   return parts[2] ? `/admin/${parts[2]}` : '/admin';
 }
 
-/** Check one declared value without coercion. @complexity O(e) in the small enum size. */
-function allowedValue({ rule, value }: { rule: Rules[string]; value: unknown }, _options = {}): boolean {
-  if (rule === 'boolean') return typeof value === 'boolean';
-  if (rule === 'number') return typeof value === 'number' && Number.isFinite(value);
-  return typeof value === 'string' && rule.includes(value);
-}
-
 /** Project only catalog properties and replace all caller identity with installation identity.
- * Unknown fields and invalid enum values are omitted; invalid booleans/numbers refuse the event.
+ * Admin pageviews become a two-segment admin screen; every other catalog event goes through the
+ * shared declared-property projection (unknown fields and invalid enums omitted, invalid
+ * booleans/numbers refuse the event).
  * @returns A fresh event, or undefined for unapproved names/values/identity. No effects.
  * @example projectProductEvent({ event: { name: 'app_started', userId: 'ignored' }, installationId: 'fake-install' });
  * @complexity O(k) declared keys, bounded by the frozen catalog; no caller-property scan.
@@ -85,23 +80,5 @@ export function projectProductEvent({ event, installationId }: { event: ProductE
     const screen = productAdminScreen({ route: event.properties?.route });
     return screen ? { name: 'admin_screen_viewed', userId: installationId, properties: { screen } } : undefined;
   }
-  const rules = PRODUCT_EVENTS[event.name];
-  if (!rules) throw new Error(`product event ${event.name} has no declared rules`);
-  const properties = declaredProperties({ rules, properties: event.properties });
-  return properties ? { name: event.name, userId: installationId, properties } : undefined;
-}
-
-/** Declared keys only; invalid enums are omitted, invalid booleans/numbers refuse the event.
- * @complexity O(k) declared keys.
- */
-function declaredProperties({ rules, properties }: { rules: Rules; properties: ProductEvent['properties'] }, _options = {}): ProductEventProperties | undefined {
-  const projected: Record<string, ProductEventProperties[string]> = {};
-  for (const [key, rule] of Object.entries(rules)) {
-    const value = properties?.[key];
-    if (value === undefined) continue;
-    if (allowedValue({ rule, value })) projected[key] = value;
-    else if (!Array.isArray(rule)) return undefined;
-    else { /* Invalid enum values are omitted. */ }
-  }
-  return projected;
+  return projectDeclaredProductEvent({ event, installationId, catalog: PRODUCT_EVENTS });
 }

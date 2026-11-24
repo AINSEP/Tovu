@@ -21,12 +21,12 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { removeVia, restoreVia } from "./remove-redirect-double.js";
 
 const WORKSPACE_ID = "ws-redirects-contract";

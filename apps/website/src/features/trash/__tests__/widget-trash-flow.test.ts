@@ -24,7 +24,7 @@ import { withFollowUps, type UnhideFollowUp, type TrashRegistry } from "@jini-ai
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
  * @file A `widget` moved to the Trash through the widgets domain's own delete (`trashWidgetInstance`,

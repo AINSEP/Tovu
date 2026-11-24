@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { resolveFsFilePath } from './fs-files.js';
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from './layout.js';
-import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
+import { FS_FOLDER_READ_RECOVERY } from "@tovu/contracts/fs-folder-recovery";
 
 export interface SiteFileRequestDeps {
   workspaceId: string;

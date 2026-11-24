@@ -1,9 +1,10 @@
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
+
 import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError } from "@jini-ai/cms/taxonomy";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMergeTermHooks } from "#src/features/taxonomy/gated-hooks";

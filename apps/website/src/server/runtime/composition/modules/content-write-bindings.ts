@@ -2,15 +2,8 @@ import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/post
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { processOutbox } from "#src/contracts/core/events/index";
-import {
-  createPost,
-  deletePost,
-  getAdminPostByIdOrSlug,
-  restorePostForward,
-  updatePost,
-  type UpdatePostInput,
-} from "#src/features/post/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
+import { createPost, deletePost, getAdminPostByIdOrSlug, restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { rejectPluginHookFailure } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";

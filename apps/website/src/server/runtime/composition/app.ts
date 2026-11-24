@@ -1,3 +1,4 @@
+import { createNavMenuReadModel } from "@jini-ai/cms/navigation";
 
 import { assembleMemoryRouteDeps } from "./memory-deps/route-deps/assemble.js";
 import type { MemoryRootContext, MemoryRouteDeps } from "./memory-deps/route-deps/context.js";
@@ -15,17 +16,17 @@ import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settin
 import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
 import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
 import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
-import { getExportRunSnapshot } from '../../../features/deployments/export-run-binding.js';
-import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
-import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
+import { getExportRunSnapshot } from "../../../features/deployments/export-run-binding.js";
+import { getPublishRunSnapshot } from "../../../features/deployments/static-publish/publish-run.js";
+import { registerWarmSiteRetirement } from "../lifecycle/warm-site-retirement.js";
 import { composeAgentPluginMcp } from "./agent-plugin-service-ports.js";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
-import { bindSiteConsentService } from './site-consent.js';
+import { bindSiteConsentService } from "./site-consent.js";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc, createNavMenuReadModel } from "@jini-ai/cms/navigation";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
@@ -64,12 +65,7 @@ import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-au
 import { builtInThemesDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/index";
-import {
-  seededPosts,
-  seededPresentation,
-  seededWorkspace,
-  SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-} from "../configuration/seed.js";
+import { seededPosts, seededPresentation, seededWorkspace, SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../configuration/seed.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";

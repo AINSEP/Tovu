@@ -35,7 +35,9 @@ import {
   NewsletterValidationError,
 } from "@jini-ai/user-management/newsletter/errors";
 import { ObservedOutbox } from "#src/server/runtime/composition/__tests__/form-delivery-oauth.fixture";
-import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
+import { computeDomainOutboxBackoffMs as computeOutboxBackoffMs } from "@jini-ai/infra/events/domain-outbox";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { MAX_OUTBOX_ATTEMPTS } from "@jini-ai/infra/events/outbox";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";

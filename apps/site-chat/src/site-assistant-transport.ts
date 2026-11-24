@@ -30,7 +30,8 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
-import { parseToolConfirmation, type ToolConfirmation } from "./tool-confirmation";
+import { parseToolConfirmation } from "./tool-confirmation";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 const CHAT_URL = "/api/site-assistant/chat";
@@ -161,7 +162,7 @@ export interface SiteAssistantTransportOptions {
     finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
   };
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
-  readonly onToolConfirmation?: (required: { directive: ToolConfirmation | null }, optional?: Record<string, never>) => void;
+  readonly onToolConfirmation?: (required: { directive: ToolConfirmationDirective | null }, optional?: Record<string, never>) => void;
   /** Mints the one turn id a visitor message keeps across every automatic retry of its POST, so the
    *  server can refuse a retry of a turn it already admitted (`visitor-turn-dedupe.ts`). Defaults to
    *  `crypto.randomUUID`. */

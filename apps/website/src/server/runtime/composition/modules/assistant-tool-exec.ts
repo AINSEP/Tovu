@@ -1,6 +1,6 @@
 import { assistantDaemonToken, delegatedAssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 import type { AssistantDaemonConnection } from "@tovu/contracts/daemon-connection";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the
  * daemon keeps the run, this process runs the site tools. `POST /internal/tool-executions` and
@@ -30,7 +30,7 @@ import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import { durableAttemptOwnsAnswer } from "@jini-ai/daemon/run-start-decisions";
 import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
-import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "#src/assistant/daemon-call-context";
+import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";

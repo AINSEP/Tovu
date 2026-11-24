@@ -1,16 +1,17 @@
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult } from "@jini-ai/plugins/host";
 import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { VersionedMediaRepoPort, DocumentTextExtractorPort } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { CommentsProviderRegistry } from "@jini-ai/core/contracts/site/comments-providers";
-import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";
@@ -23,7 +24,6 @@ import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
-import type { RevertRegistry } from "../../contracts/core/commands/index.js";
 import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
 import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
@@ -32,9 +32,15 @@ import type { RemovePostFn } from "../../features/post/index.js";
 import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
 import type { PostSearchPort } from "@jini-ai/cms/posts/search";
+import type { RevertRegistry } from "@jini-ai/core/contracts/site/core-commands";
+
+import type { EntryRepoPort, EntryListPort, EntryPublishReadPort } from "@jini-ai/cms/entries";
+
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
-import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
+import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
+import type { ChatRunLedger } from "../../assistant/persistence/run-ledger.js";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { SiteDisplayNameSource } from "@jini-ai/cms/settings/site/site-title";
@@ -58,13 +64,7 @@ import type { LoadSourceControlProviders } from "../../features/source-control/p
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type {
-  AssetBlobRepoPort,
-  AssetRenditionRepoPort,
-  BlobStorePort,
-  ImageTransformerPort,
-  TransformDefinitionRepoPort,
-} from "../../features/media/index.js";
+import type { AssetBlobRepoPort, AssetRenditionRepoPort, BlobStorePort, ImageTransformerPort, TransformDefinitionRepoPort } from "../../features/media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for
@@ -79,11 +79,7 @@ import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-fo
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "@jini-ai/db/tools";
-import type {
-  RestorePointListPort,
-  RestorePointSavePort,
-  RestorePointIdempotencyLookupPort,
-} from "@jini-ai/db/tools";
+import type { RestorePointListPort, RestorePointSavePort, RestorePointIdempotencyLookupPort } from "@jini-ai/db/tools";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
@@ -91,28 +87,18 @@ import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-por
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
-import type { EntryRepoPort } from "@jini-ai/cms/entries";
-import type { EntryListPort } from "@jini-ai/cms/entries";
+
+
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "@jini-ai/cms/entries/site/public-list";
-import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
-import type {
-  AssignmentCountEntryTermRepoPort,
-  DeletableTaxonomyRepoPort,
-  DeletableTermRepoPort,
-} from "@jini-ai/cms/taxonomy";
-import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
+import type { AssignmentCountEntryTermRepoPort, DeletableTaxonomyRepoPort, DeletableTermRepoPort } from "@jini-ai/cms/taxonomy";
+import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort, MergeableEntryTermRepoPort, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
-import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
-import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
-import type {
-  RemoveTermFn,
-  RemoveTaxonomyFn,
-  TermTrashReadPort,
-  TaxonomyTrashReadPort,
-} from "@jini-ai/cms/taxonomy";
+
+
+import type { RemoveTermFn, RemoveTaxonomyFn, TermTrashReadPort, TaxonomyTrashReadPort } from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
@@ -125,7 +111,6 @@ import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/conten
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
-import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**

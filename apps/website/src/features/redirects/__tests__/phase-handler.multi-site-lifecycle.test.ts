@@ -1,5 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";

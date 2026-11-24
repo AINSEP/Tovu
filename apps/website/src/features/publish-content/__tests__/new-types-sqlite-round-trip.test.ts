@@ -8,8 +8,8 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
 import { contributeFormPublish } from "#src/features/forms/publish-content";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";

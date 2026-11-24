@@ -21,8 +21,8 @@ const drain = await import('../commerce-drain.js');
 mock.module(new URL('../commerce-drain.js', import.meta.url).href, { namedExports: { ...drain, readCommerceDrain: async () => null } });
 const worker = await import('../commerce-worker.js');
 mock.module(new URL('../commerce-worker.js', import.meta.url).href, { namedExports: { ...worker, createCommerceWorker: () => ({ kick: async () => {}, close: async () => {} }) } });
-const settings = await import('../commerce-settings.js');
-mock.module(new URL('../commerce-settings.js', import.meta.url).href, { namedExports: { ...settings, readCommerceConfiguration: async () => { if (configFailure) throw failure(); return null; } } });
+const settings = await import('@jini-ai/commerce');
+mock.module('@jini-ai/commerce', { namedExports: { ...settings, readCommerceConfiguration: async () => { if (configFailure) throw failure(); return null; } } });
 const { composeCommerce } = await import('../commerce.js');
 
 function reset() { activeFailure = false; probeFailure = false; configFailure = false; ledgerFailure = false; storageExists = false; }

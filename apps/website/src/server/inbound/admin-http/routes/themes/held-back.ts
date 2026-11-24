@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { defineJsonRoute, ok, type JsonRouteAuthorize } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme, type ExplainThemeTree } from "#src/features/theme/held-back-themes";
 import { chosenThemeHeldBack, HeldBackThemeError, type HeldBackErrorCode } from "#src/features/theme/held-back-choice";
@@ -10,7 +11,7 @@ import { adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-reque
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
+
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildHeldBackRestoreHooks, HELD_BACK_READ_PERMISSION, HELD_BACK_RESTORE_DOMAIN, HELD_BACK_RESTORE_PERMISSION, type HeldBackRestoreScope } from "#src/features/theme/held-back-gated-hooks";
 import type { RouteDeps } from "#src/server/routes/types";

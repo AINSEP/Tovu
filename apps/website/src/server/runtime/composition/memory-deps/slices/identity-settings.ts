@@ -5,9 +5,9 @@ import { startupSecretEnvironment } from "../../../../../platform/secrets/startu
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { startSettingsRegistration } from "../../settings-registration.js";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
-import type { MemoryClock, MemoryIdGen } from "../ports.js";
+import type { Clock, IdGenerator, IsoClock } from "@jini-ai/core/primitives";
 
-export function composeIdentitySettings(required: { clock: MemoryClock; idGen: MemoryIdGen; settingsRepo: InMemorySettingsRepo }, _optional = {}) {
+export function composeIdentitySettings(required: { clock: Clock & IsoClock; idGen: IdGenerator; settingsRepo: InMemorySettingsRepo }, _optional = {}) {
   const { clock, idGen, settingsRepo } = required;
   // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });

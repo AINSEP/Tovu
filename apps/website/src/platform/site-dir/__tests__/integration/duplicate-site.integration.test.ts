@@ -647,7 +647,7 @@ test("after such a failure the operator's retry is not refused as 'not an empty 
 
     // Both sides realpath'd: on macOS `/var` is a symlink to `/private/var`, and the two spellings
     // name the same directory. The claim is "the retry landed in the operator's target", not which
-    // spelling of it `resolveInstallDirTarget` happened to return.
+    // spelling of it `resolveDirectoryTarget` happened to return.
     assert.equal(fs.realpathSync(result.dir), fs.realpathSync(targetDir));
     assert.equal(readSiteDir({ dir: targetDir }).config.name, "Copy");
   } finally {

@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import { createReactSiteComparisonControl, installSiteChatComparisonSend, readSiteChatComparisonVariant } from '../site-chat-comparison';
+import { createEmbedSendAgentControl, installEmbedSendBridge } from '@jini-ai/chat/browser/embed-send-bridge';
+import { isSiteChatComparisonRoot, readSiteChatComparisonVariant, SITE_CHAT_COMPARISON_COPY, SITE_CHAT_COMPARISON_NAMES } from '../site-chat-comparison';
 import { siteStorageKey } from '../session-store';
 import { startSiteChatLoader } from '../loader-host';
 
@@ -14,6 +15,15 @@ function fixture(variant?: string) {
     root.dispatchEvent(new dom.window.CustomEvent('tovu-compare-send', { detail: { text, done: resolve } }));
   }) };
 }
+
+// Binds Jini's embed send bridge exactly as SiteAssistantActivation.hooks.ts and vanilla-host.ts do;
+// generic bridge behaviour (busy guard, malformed requests, non-Error failures, disposer) is tested
+// in Jini `packages/chat/src/embed-widget/browser/__tests__/embed-send-bridge.test.ts`.
+const createReactSiteComparisonControl = ({ root }: { root: HTMLElement | null }) => createEmbedSendAgentControl(
+  { root, enabled: isSiteChatComparisonRoot({ root }), ...SITE_CHAT_COMPARISON_NAMES }, SITE_CHAT_COMPARISON_COPY);
+const installSiteChatComparisonSend = ({ root, send }: { root: HTMLElement; send: (input: { text: string }) => Promise<void> }) => installEmbedSendBridge(
+  { root, send, enabled: isSiteChatComparisonRoot({ root }), requestEventName: SITE_CHAT_COMPARISON_NAMES.requestEventName, readyMessageType: SITE_CHAT_COMPARISON_NAMES.readyMessageType },
+  { busyMessage: SITE_CHAT_COMPARISON_COPY.busyMessage });
 
 test('wcmp: normal visitors get neither bridge nor a diagnostic listener', () => {
   const f = fixture();
@@ -39,26 +49,6 @@ test('wcmp: React comparison relays the exact prompt to the existing ChatPane ca
   assert.deepEqual(actions, [{ invocationId: 'site-chat-comparison', capabilityId: 'chat.send_message', input: { prompt: '**Show me the posts**' } }]);
   dispose();
   assert.equal(f.root.dataset.compareReady, undefined);
-  f.dom.window.close();
-});
-
-test('wcmp: common-send adapters preserve exact failures, prevent concurrent sends, and remove listeners', async () => {
-  const f = fixture('vanilla');
-  let complete!: () => void;
-  const texts: string[] = [];
-  const dispose = installSiteChatComparisonSend({ root: f.root, send: ({ text }) => {
-    texts.push(text); return new Promise<void>(resolve => { complete = resolve; });
-  } });
-  const first = f.send('Ask the same thing');
-  await Promise.resolve();
-  assert.equal(await f.send('duplicate'), 'This pane is already replying.');
-  assert.deepEqual(texts, ['Ask the same thing']);
-  complete(); assert.equal(await first, undefined);
-  dispose();
-  const failing = installSiteChatComparisonSend({ root: f.root, send: async () => { throw new Error('Provider is unavailable.'); } });
-  assert.equal(await f.send('retry'), 'Provider is unavailable.');
-  failing();
-  f.root.dispatchEvent(new f.dom.window.CustomEvent('tovu-compare-send', { detail: { text: 'removed', done: () => { throw new Error('listener leaked'); } } }));
   f.dom.window.close();
 });
 
@@ -124,20 +114,6 @@ test('comparison catches cross-origin parent access without enabling a channel',
   t.after(() => f.dom.window.close());
   Object.defineProperty(f.dom.window, 'parent', { get: () => { throw new f.dom.window.DOMException('Blocked parent', 'SecurityError'); } });
   assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument }), null);
-});
-
-test('wcmp: malformed send requests are ignored, and a non-Error failure is reported as text', async () => {
-  const f = fixture('vanilla');
-  let calls = 0;
-  const dispose = installSiteChatComparisonSend({ root: f.root, send: async () => { calls += 1; throw 'quota exhausted'; } });
-  for (const detail of [null, { text: 42, done: () => {} }, { text: 'no callback', done: 'nope' }]) {
-    f.root.dispatchEvent(new f.dom.window.CustomEvent('tovu-compare-send', { detail }));
-  }
-  await Promise.resolve();
-  assert.equal(calls, 0, 'a request without text and a done callback never sends');
-  assert.equal(await f.send('go'), 'quota exhausted');
-  assert.equal(calls, 1);
-  dispose(); f.dom.window.close();
 });
 
 test('wcmp: a React pane relays capability errors, and unmounting rejects a send still in flight', async () => {

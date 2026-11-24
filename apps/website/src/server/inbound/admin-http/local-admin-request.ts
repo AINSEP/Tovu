@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
+import { isLoopbackHost } from "@jini-ai/devops/local-dev";
 import { isLocalAdminUrl } from "../../runtime/boot/local-owner-signin.js";
 
 /**

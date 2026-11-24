@@ -4,10 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type BatchResult } from "@jini-ai/core";
 import { discoverAllBuiltInThemes } from "../index.js";
 import { buildThemesRegistrations } from "../tool-registrations.js";
-import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { applyBatchInputs } from "../../../assistant/batch-tool-inputs.js";
 import { getThemesAgentToolCatalog } from "../agent-tools.js";
 import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 

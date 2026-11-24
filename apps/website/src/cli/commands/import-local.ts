@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
-import { readStdinRequestLine, type RequestLineStream } from "@jini-ai/cli";
+import { parseRequestObject, readStdinRequestLine, type RequestLineStream } from "@jini-ai/cli";
 import { leaveSavedKeysOut } from "#src/features/site-backup/saved-keys";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
@@ -105,21 +105,10 @@ function mintOwnerPassword(): string {
   return randomBytes(32).toString("base64url");
 }
 
-/** Parse the request text as an object; reject malformed JSON and non-object values.
- * @throws {ValidationError} when the text is not a JSON object.
- * @complexity O(n) time and space for n characters of JSON.
- */
-function parseRequestObject({ text }: { text: string }, _optional = {}): ImportLocalRequest & { [key: string]: unknown } {
-  let raw: ImportLocalRequest & { [key: string]: unknown };
-  try {
-    raw = JSON.parse(text) as typeof raw;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
-  } catch { throw new ValidationError({ message: "import-local: stdin must contain one JSON request object." }); }
-  return raw;
-}
-
 function parseRequest({ text }: { text: string }, _optional = {}): ImportLocalRequest {
-  const raw = parseRequestObject({ text });
+  const raw: ImportLocalRequest & { [key: string]: unknown } = parseRequestObject({ text }, {
+    invalid: () => new ValidationError({ message: "import-local: stdin must contain one JSON request object." }),
+  });
   if (raw.tidy === true && Object.keys(raw).length === 1) return { tidy: true };
   if (Object.keys(raw).some(key => !["file", "url"].includes(key)) || (raw.file === undefined) === (raw.url === undefined)) {
     throw new ValidationError({ message: "import-local: provide exactly one of file or url." });

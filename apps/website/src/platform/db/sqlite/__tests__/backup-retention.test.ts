@@ -5,16 +5,17 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { journalKernel } from "../database-journal-db.js";
-import { SqliteRestorePointsRepo } from "../database-journal-repo.js";
+import { SqliteRestorePointsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 import { openContentDb } from "../content-db.js";
 import { contentKernel } from "../../content-kernel.js";
 import { SqlPublishContentRunRepo } from "../../repos/publish-content-run-repo.js";
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 test("saving restore points retains newest five row/file pairs, preserving foreign files and folders", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-retention-"));
   const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
+  const repo = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: journal, siteId: "s" });
   const other = path.join(dir, "other");
   fs.mkdirSync(other);
   const foreign = ["content.db", "restore-point-not-ours.db", "pre-migrations-not-ours.db", "notes.txt"];
@@ -35,7 +36,7 @@ test("a caller-supplied publish trigger label cannot bypass restore-point retent
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-trigger-"));
   const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
+  const repo = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: journal, siteId: "s" });
   for (let i = 1; i <= 8; i++) {
     const artifactRef = path.join(dir, `restore-point-s-wm0-${i}.db`);
     fs.writeFileSync(artifactRef, "COPY");
@@ -48,7 +49,7 @@ test("retention cleanup cannot turn a save into an error, and an unlink failure 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-cleanup-"));
   const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
+  const repo = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: journal, siteId: "s" });
   t.mock.method(fsp, "rm", async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); });
   const warnings = t.mock.method(console, "warn", () => {});
   for (let i = 1; i <= 6; i++) {
@@ -72,7 +73,7 @@ test("in-flight publish runs keep their restore points; finished runs do not pin
   const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); content.$client.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const runs = new SqlPublishContentRunRepo(contentKernel({ store: content }));
-  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s", protectedRestorePointIds: () => runs.inFlightRestorePointIds({ workspaceId: "s" }) });
+  const repo = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: journal, siteId: "s", protectedRestorePointIds: () => runs.inFlightRestorePointIds({ workspaceId: "s" }) });
   // Every import records its restore point on its run, so finished runs must not protect them.
   for (const [i, phase] of [[1, "applying"], [2, "planned"], [3, "applied"], [4, "failed"]] as const) {
     await runs.save({ record: { id: `run${i}`, workspaceId: "s", direction: "import", peerPrincipalId: "peer", peerLabel: null,

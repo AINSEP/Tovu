@@ -21,8 +21,8 @@ import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
-import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 
 /**
  * This host's settings ledger, bound once for every `@jini-ai/cms/seo/site/settings` call site

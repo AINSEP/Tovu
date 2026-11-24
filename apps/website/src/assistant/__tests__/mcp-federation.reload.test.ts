@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
-import type { AttachFederatedMcpToolsParams, AttachFederatedToolsResult } from "../mcp-federation/bootstrap.js";
+import type { AttachFederatedMcpToolsParams } from "../mcp-federation/bootstrap.js";
+import type { AttachFederatedToolsResult } from "@jini-ai/mcp/federation";
 import * as shared from "@jini-ai/mcp/federation";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/mcp/federation";

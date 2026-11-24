@@ -25,7 +25,8 @@ import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import { createFederationRuntime, type FederationRuntime } from "./external-mcp-federation-runtime.js";
+import type { FederationRuntime } from "@jini-ai/mcp/federation";
+import { createFederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import type { FederationReloadResult } from "@jini-ai/mcp/federation";

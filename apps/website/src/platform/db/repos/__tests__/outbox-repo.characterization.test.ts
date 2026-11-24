@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
-import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
 import { SqliteOutboxAdapter } from "../../sqlite/outbox-repo.sqlite.js";

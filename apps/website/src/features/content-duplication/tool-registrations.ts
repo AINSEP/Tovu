@@ -45,7 +45,7 @@ import type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } fr
 import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";
-import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
+import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
 import { buildContentDuplicationAgentToolCatalog } from "@jini-ai/cms/content-duplication/agent-tools";
 
 /** The `content_duplicate` catalog bound to Tovu's `content_read` tool name. */
@@ -173,7 +173,7 @@ export function buildContentDuplicationRegistrations<TDeps extends ContentDuplic
     // A resource's own copy can run a plugin save hook (post/page -> `createPost`), so a plugin
     // refusal becomes the same fixed `PLUGIN_HOOK_FAILED` message `content_post_create` gives
     // instead of a redacted 500 — see `withPluginHookRefusals`.
-    handlers: withPluginHookRefusals(handlers),
+    handlers: withPluginHookRefusals({ handlers }),
     derivedRisk: contentDuplicationDerivedRisk,
   });
 }

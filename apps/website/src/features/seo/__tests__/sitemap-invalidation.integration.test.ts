@@ -2,9 +2,9 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
-import { InMemoryPostRepo, createPost, updatePost } from "../../post/index.js";
-import { type PostRecord } from "@jini-ai/cms/posts/post";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
+import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import {

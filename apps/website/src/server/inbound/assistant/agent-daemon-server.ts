@@ -3,13 +3,14 @@ import express from "express";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createAtomicWriterPort } from "@jini-ai/node-adapters/fs";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { backupOriginalOnce, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
-import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
+import { closeWithinBound, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installServerLogCapture } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
@@ -19,6 +20,8 @@ import { initializeStartupSecrets, startupSecretEnvironment } from '../../../pla
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 /** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
 const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
 const scopeEnvironments = new Map<SiteScopeKey, string>();
@@ -58,7 +61,7 @@ async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): P
     // The retained client owns content/chat; process.exit alone leaves WALs. The site server
     // alone owns its ops journal and providers. Drain this daemon before closing its client.
 
-  }, label: "the agent daemon store" });
+  }, label: "the agent daemon store", logger: consoleLogger });
   process.exit(exitCode);
 }
 

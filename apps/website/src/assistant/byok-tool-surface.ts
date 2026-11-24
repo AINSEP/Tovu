@@ -37,7 +37,7 @@ import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetai
 import { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource, type StoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
 import { attachAssistantToolExtensions, type AssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
-import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
+import type { FederationRuntime } from "@jini-ai/mcp/federation";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
@@ -46,13 +46,13 @@ import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor, type AssistantToolExecutorDeps } from "./tool-recovery-preset.js";
-import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
+import { isNonArrayRecord } from "@jini-ai/core/records";
+import { err, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { readDaemonCallContext } from "./daemon-call-context.js";
+import { readDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 
 
-export type { ByokMetaToolResult } from "./byok-meta-tool-result.js";
 
 /** A request-owned exposure; releasing it at turn completion releases its pinned descriptors. */
 export interface ByokToolRun {
@@ -660,7 +660,7 @@ function createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, e
     { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
   ): Promise<ByokMetaToolResult> {
     await syncInstalled();
-    const candidate = { value: call.input }; const args = isRecord(candidate) ? candidate.value : {};
+    const candidate = { value: call.input }; const args = isNonArrayRecord(candidate) ? candidate.value : {};
 
     if (!META_TOOL_IDS.has(call.name) && !exposure) {
       // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its

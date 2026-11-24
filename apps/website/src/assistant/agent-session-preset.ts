@@ -4,10 +4,6 @@ import { agentCarriesOwnMemory as carriesMemory, agentAcceptsHostMintedSessionId
   waitForStoppingRuns as waitForDaemonStoppingRuns } from "@jini-ai/daemon/session-coordination";
 import type { LiveRunTracker, StoppingRunLifecycle } from "@jini-ai/daemon/session-coordination";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-export { createLiveRunTracker, createConversationStartLock, failRunBeforeStart, STOPPING_RUN_WAIT_MS,
-  resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField,
-  extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext } from "@jini-ai/daemon/session-coordination";
-export type { LiveRunTracker, StoppingRunLifecycle, FailingRunLifecycle, ConversationStartLock } from "@jini-ai/daemon/session-coordination";
 export const CONCURRENT_RUN_REFUSAL_MESSAGE = "Another answer in this chat is still running. This turn could not start.";
 const agents = { lookup: ({ agentId }: { agentId: string }) => AGENT_DEFS.find(def => def.id === agentId) };
 export function agentCarriesOwnMemory(required: { agentId: string }, optional = {}): boolean {

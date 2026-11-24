@@ -1,4 +1,4 @@
-import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
+import { createContributionRegistry, resolveHostReadRefs, batchDescriptorFor } from "@jini-ai/core";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -13,18 +13,18 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
  *
  * See APPLY-5 for the two small edits the pre-existing shared test files need.
  */
-import { executeCommand } from "#src/contracts/core/commands/index";
+import { executeCommand } from "@jini-ai/cms/core/commands";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";

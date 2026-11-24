@@ -59,8 +59,6 @@ import {
   type TokenStorePort as ApprovalTokenStore,
 } from "@jini-ai/core/gated-mutations";
 
-export { isRedeemable, TokenExpiredError, TokenAlreadyRedeemedError } from "@jini-ai/core/gated-mutations";
-export type { ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
 
 /** Legacy host storage calls; expire must be an atomic minted -> expired transition. */
 export interface TokenStorePort {

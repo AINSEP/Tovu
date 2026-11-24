@@ -10,8 +10,6 @@ import * as sessions from "../agent-session-preset.js";
 import * as permanentDeletes from "../permanent-delete-settings.js";
 import * as deleteGate from "../permanent-delete-tool-gate.js";
 import * as subagentSettings from "../subagent-settings.js";
-import * as lostFrontend from "../lost-frontend-binding.js";
-import * as navigateErrors from "../rewrap-page-navigate-error.js";
 import * as activeContexts from "../run-active-context.js";
 
 import * as mcpFederation from "@jini-ai/mcp/federation";
@@ -21,7 +19,6 @@ import * as a2uiActionsRoute from "../a2ui-actions-route.js";
 import * as port from "../agent-daemon-port.js";
 import * as agents from "../agents.js";
 import * as componentCatalogQuery from "../component-catalog-query.js";
-import * as customInstructions from "../custom-instructions.js";
 import * as daemonAccess from "../daemon-access.js";
 import * as externalMcpOAuth from "../../features/external-mcp/external-mcp-oauth.js";
 import * as externalMcpStore from "../../features/external-mcp/external-mcp-store.js";
@@ -34,7 +31,6 @@ import * as readOnlyConstraint from "../read-only-tool-constraint.js";
 import * as runPageContext from "../run-page-context.js";
 import * as runStartContext from "../run-start-context.js";
 import * as toolAuditPreset from "../tool-audit-preset.js";
-import * as toolCatalogLiveQuery from "../tool-catalog-live-query.js";
 import * as toolCatalogQuery from "../tool-catalog-query.js";
 import * as serverFederationDiagnosis from "../server-federation-diagnosis.js";
 import * as toolRecoveryPreset from "../tool-recovery-preset.js";
@@ -51,14 +47,12 @@ import * as toolRegistrations from "../tool-registrations.js";
 const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   listAssistantAgents: agents,
   rescanAssistantAgents: agents,
-  createCustomInstructionsCache: customInstructions,
   DELEGATED_TOOL_CALLS_PATH: daemonAccess,
   requireAgentDaemonToken: daemonAccess,
   FRONTEND_CONTROL_CAPABILITIES: frontendControl,
   withReadOnlyFrontendCapabilities: frontendControl,
   attachFederatedMcpTools: federationBootstrap,
   createFederationReloadCoordinator: federationReload,
-  createLiveToolCatalogQuery: toolCatalogLiveQuery,
   buildFederatedRefusalPrefix: mcpFederation,
   withFederatedRefusalDiagnosis: serverFederationDiagnosis,
   readEnabledExternalMcpConfigs: externalMcpStore,
@@ -96,27 +90,14 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   onExternalMcpRosterChanged: rosterChange,
   notifyExternalMcpRosterChanged: rosterChange,
   agentCarriesOwnMemory: sessions,
-  extractSessionRefFromEndEvent: sessions,
-  resolveResumeSessionField: sessions,
-  shouldClearSessionOnFailedResume: sessions,
-  wouldForcedColdStartLoseConversationContext: sessions,
   CONCURRENT_RUN_REFUSAL_MESSAGE: sessions,
-  createLiveRunTracker: sessions,
-  failRunBeforeStart: sessions,
-  STOPPING_RUN_WAIT_MS: sessions,
   waitForStoppingRuns: sessions,
   agentAcceptsHostMintedSessionId: sessions,
-  resolveHostMintedSessionId: sessions,
-  resolveNewSessionField: sessions,
-  createConversationStartLock: sessions,
   readChatPermanentDeletesPolicy: permanentDeletes,
   createChatDeleteScope: deleteGate,
   ALL_CHAT_DELETE_TOOLS: deleteGate,
   readAssistantCliPermissions: subagentSettings,
-  createLostFrontendBindings: lostFrontend,
-  withPageNavigateErrorRewrap: navigateErrors,
   delegatedToolErrorDisclosure: toolRecoveryPreset,
-  createRunActiveContextStore: activeContexts,
   registerRunActiveContextRoute: activeContexts,
   createRunScopedCredentials: daemonAccess,
 };

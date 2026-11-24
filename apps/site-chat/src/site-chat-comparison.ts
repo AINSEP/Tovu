@@ -1,7 +1,3 @@
-import type { ChatPaneProps } from '@jini-ai/chat/react';
-
-type ComparisonRequest = { text: string; done: (error?: string) => void };
-
 /** Keep a pane's variant across real site navigation inside its same-origin comparison iframe. */
 export function readSiteChatComparisonVariant({ document }: { document: Document }, _options = {}): 'react' | 'vanilla' | null {
   const own = parseComparisonVariant({ value: document.getElementById('tovu-site-assistant-root')?.dataset.chatCompare });
@@ -19,50 +15,23 @@ function parseComparisonVariant({ value }: { value: string | null | undefined },
 }
 
 /**
- * Only the guarded comparison frames opt into this product diagnostic channel. Each request uses
- * the mounted widget's conversation owner; it never opens a parallel transport or edits its DOM.
- * One in-flight comparison request per pane prevents a double-click from starting duplicate runs.
+ * Product names for Jini's embed send bridge (`@jini-ai/chat/browser/embed-send-bridge`). Only the
+ * guarded comparison frames opt into this product diagnostic channel; the admin comparison page
+ * dispatches `requestEventName` on the mount root and waits for `readyMessageType`.
  */
-export function installSiteChatComparisonSend({ root, send }: {
-  root: HTMLElement; send: (input: { text: string }, options?: Record<string, never>) => Promise<void>;
-}, _options = {}): () => void {
-  if (!readSiteChatComparisonVariant({ document: root.ownerDocument })) return () => {};
-  let busy = false;
-  const listener = (event: Event) => {
-    const request = (event as CustomEvent<ComparisonRequest>).detail;
-    if (!request || typeof request.text !== 'string' || typeof request.done !== 'function') return;
-    if (busy) { request.done('This pane is already replying.'); return; }
-    busy = true;
-    root.dispatchEvent(new (root.ownerDocument.defaultView!.Event)('jini-chat-open'));
-    void Promise.resolve().then(() => send({ text: request.text })).then(
-      () => request.done(),
-      (error: unknown) => request.done(error instanceof Error ? error.message : String(error)),
-    ).finally(() => { busy = false; });
-  };
-  root.addEventListener('tovu-compare-send', listener);
-  root.dataset.compareReady = 'true';
-  const view = root.ownerDocument.defaultView;
-  view?.parent.postMessage({ type: 'tovu-site-chat-ready' }, view.location.origin);
-  return () => { root.removeEventListener('tovu-compare-send', listener); delete root.dataset.compareReady; };
-}
+export const SITE_CHAT_COMPARISON_NAMES = {
+  requestEventName: 'tovu-compare-send',
+  readyMessageType: 'tovu-site-chat-ready',
+  invocationId: 'site-chat-comparison',
+} as const;
 
-/** Reuses ChatPane's opt-in bridge and chat.send_message capability; ordinary visitors omit it. */
-export function createReactSiteComparisonControl({ root }: { root: HTMLElement | null }, _options = {}): ChatPaneProps['agentControl'] {
-  if (!root || !readSiteChatComparisonVariant({ document: root.ownerDocument })) return undefined;
-  let pending: { resolve: () => void; reject: (error: Error) => void } | null = null;
-  return { enabled: true, bridgeAccess: {
-    subscribe: onAction => {
-      const dispose = installSiteChatComparisonSend({ root, send: ({ text }) => new Promise<void>((resolve, reject) => {
-        pending = { resolve, reject };
-        onAction({ invocationId: 'site-chat-comparison', capabilityId: 'chat.send_message', input: { prompt: text } });
-      }) });
-      return () => {
-        dispose();
-        pending?.reject(new Error('Comparison pane was unmounted.'));
-        pending = null;
-      };
-    },
-    respondSuccess: async () => { pending?.resolve(); pending = null; },
-    respondError: async (_id, message) => { pending?.reject(new Error(message)); pending = null; },
-  } };
+/** Copy for a comparison send that cannot complete (busy pane, unmounted React pane). */
+export const SITE_CHAT_COMPARISON_COPY = {
+  busyMessage: 'This pane is already replying.',
+  unmountedMessage: 'Comparison pane was unmounted.',
+} as const;
+
+/** Host decision for the bridge's `enabled`: true only inside a guarded comparison frame. */
+export function isSiteChatComparisonRoot({ root }: { root: HTMLElement | null }, _options = {}): boolean {
+  return root !== null && readSiteChatComparisonVariant({ document: root.ownerDocument }) !== null;
 }

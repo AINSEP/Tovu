@@ -5,8 +5,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { Validator, type Schema } from "@cfworker/json-schema";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createPost } from "../post-create.js";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";

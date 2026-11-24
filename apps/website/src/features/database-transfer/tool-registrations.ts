@@ -1,20 +1,20 @@
-import { toolMetadata } from '@jini-ai/core/tool-metadata/database-transfer';
+import { type DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/database-transfer";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
-import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
-import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
+import { createDestinationExchangeReporter } from "./destination-exchange.js";
+import { resolveOperatorLocale } from "#src/contracts/core/operator-locale";
+import type { OperatorLocaleDeps } from "@jini-ai/core/contracts/headless/plugin-host";
+import { assertCredentialToken, CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
-import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
-import {
-  SURFACE_DISMISSED_PARAM,
-} from "@jini-ai/daemon/surface-exchanges";
+import { ForbiddenError } from "@jini-ai/cms/core";
+
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
+import { SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
 import { countPartialExclusions } from "./copy-engine.js";
@@ -70,7 +70,7 @@ export type DatabaseTransferAdapters = Pick<Parameters<typeof createDatabaseTran
 
 /** Input errors name the rule, never the connection string. */
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER" }),
+  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER", error: ForbiddenError }),
   { error: InvalidConnectionStringError, code: "DATABASE_TRANSFER_INVALID_CONNECTION_STRING" },
   { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" },
 ];

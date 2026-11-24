@@ -1,4 +1,5 @@
-import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from "#src/platform/media-access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { AssetReferenceScan, AssetReferenceIndex } from "@jini-ai/cms/media/site/access-evidence";
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "@jini-ai/cms/publish/content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { parseRangeHeader } from "@jini-ai/http-kit/range";
@@ -237,7 +238,7 @@ async function buildAssetReferenceIndex(
  * Failed reads are not retained. Session checks below still run for every gated request.
  * @complexity O(p + r) per workspace refresh; no source bodies retained in the cache. */
 async function cachedReferenceIndex(deps: MediaRenditionRouteDeps): Promise<AssetReferenceIndex> {
-  const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
+  const cache = mediaAccessEvidence.getCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
   const key = deps.workspaceId;
   const now = deps.clock.nowMs();
   const cached = cache.get(key);

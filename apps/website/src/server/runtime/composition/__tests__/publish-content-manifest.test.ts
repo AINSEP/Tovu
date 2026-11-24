@@ -3,7 +3,7 @@ import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { FORMS_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — proves
  * `installFirstPartyPublishContentTypes()` (`../publish-content-manifest.ts`) actually registers the
@@ -32,8 +32,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";

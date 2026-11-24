@@ -33,7 +33,7 @@ import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
 import { stockThemesDir } from "./product-root.js";
 import { readTemplate, type ReadTemplateOptional } from "./read-template.js";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { runtimeSchemaVersion } from "./schema-guard.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
@@ -62,7 +62,7 @@ import { resolveNewSiteAdminPassword } from "./new-site-owner.js";
  *
  * Architectural role:
  * `site-dir` domain logic. No dependency on `cli/**` or `express`. Every fs write in this file is
- * derived from the ONE `target` variable `resolveInstallDirTarget` returns — never re-derived
+ * derived from the ONE `target` variable `resolveDirectoryTarget` returns — never re-derived
  * from the raw `dir` argument (INV-01, CIC U-004-B1).
  */
 
@@ -228,7 +228,7 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   const { dir, name, deps } = required;
   assertVerifiedImportInput(required, options);
   const adminPassword = resolveNewSiteAdminPassword(required);
-  const target = resolveInstallDirTarget({ dirArg: dir });
+  const target = resolveDirectoryTarget({ dirArg: dir });
 
   const resolvedName = resolveSiteName({ target, name }); // step 1 (VALIDATION) — before any target/fs check.
   const storage = required.storage ?? { kind: "sqlite" };

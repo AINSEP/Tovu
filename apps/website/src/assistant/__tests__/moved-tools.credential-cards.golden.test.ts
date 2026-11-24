@@ -10,7 +10,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from '../../__tests__/fixtures/site-layout-context.js';
 import { credentialSaveFixtureRegistrations } from '../../__tests__/support/credential-save.js';
-import type { PluginCredentialCard } from '../../contracts/core/plugin-credential-card.js';
+import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from '../../features/custom-credentials/tool-registrations.js';
 import { InMemoryCustomCredentialSetRepo } from '../../features/custom-credentials/repo.memory.js';
 import { createCustomCredential } from '../../features/custom-credentials/store.js';

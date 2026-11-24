@@ -4,7 +4,8 @@ import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
-import { InMemoryEventBus, InMemoryOutbox, startOutboxDrainer } from "../index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { startOutboxDrainer } from "../outbox-drainer.js";
 import {
   createNoopObservabilityPort,
   type ObservabilityPort,

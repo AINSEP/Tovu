@@ -10,7 +10,7 @@ import { WidgetAreaConflictError, WidgetInstanceNotFoundError } from "@jini-ai/c
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { bindWidgetArea, mutateWidgetAreaPlacements, reconcileWidgetRegionBindings, type RegionAreaServiceDeps } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
  * @file C-006 `widget_area` region composition — SPEC-043 REQ-11..17, AC-06..11, INV-02/03.

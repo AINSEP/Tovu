@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, describe, test } from "node:test";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createApp } from "../app.js";
 import {
   awaitNewPlan, bootSite, deliveryJobs, FakePushDestinations, FakeReceiver, FORM_ID, installFixtureHook, installFixturePlugin,

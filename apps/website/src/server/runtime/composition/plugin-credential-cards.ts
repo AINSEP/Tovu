@@ -1,15 +1,16 @@
+import { type PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import { bundledAgentPluginsDir } from "./site-paths.js";
-import { formatErrorForLog } from '@jini-ai/core';
-import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from '#src/features/agent-plugins/lifecycle';
-import { credentialCardsContribution, mergePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
-import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
-import { parseSourceControlProvidersFile } from '#src/features/source-control/provider-registry';
-import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
-import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
-import { readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from "#src/features/agent-plugins/lifecycle";
+import { credentialCardsContribution, mergePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
+import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets/registry";
+import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
+import { parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
+import { readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
+
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
 

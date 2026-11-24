@@ -6,7 +6,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryWidgetRegionBindingRepo, WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminWidgetCreateRoute, registerAdminWidgetEmbedInsertRoute, registerAdminWidgetEmbedRemoveRoute, registerAdminWidgetEmbedReorderRoute, registerAdminWidgetGetRoute, registerAdminWidgetListRoute, registerAdminWidgetPreviewRoute, registerAdminWidgetRegionBindRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionMutatePlacementsRoute, registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute, registerAdminWidgetAgentToolsRoutes } from "#src/server/runtime/composition/modules/widgets";

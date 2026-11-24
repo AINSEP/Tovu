@@ -9,7 +9,7 @@ import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { createRouteDeps } from "../../app.js";
 import { createAssistantByokModule } from "../assistant-byok.js";
 import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } from "../assistant-tool-exec.js";
-import { runWithDaemonCallContext } from "../../../../../assistant/daemon-call-context.js";
+import { runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
 

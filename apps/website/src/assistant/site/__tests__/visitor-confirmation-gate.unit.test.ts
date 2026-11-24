@@ -4,7 +4,7 @@ import type { ToolConfirmationRequest } from "@jini-ai/daemon";
 import { createVisitorConfirmationGate, VisitorPlanRefused } from "../visitor-confirmation-gate.js";
 import type { VisitorExecutionPorts } from "../visitor-executor.js";
 import { parseVisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
-import type { ToolConfirmationDirective } from "../visitor-confirmations.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { CanonicalJsonError } from "@jini-ai/core/records";
 
 function fixture({ mode = "ask", channel = true, allow = true, fail = false, resumeError = false, toolId = "list_categories" }: {

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { computeBlobStorageKey } from "#src/features/media/index";
 import { rescanThemes } from "#src/features/theme/index";
 import { createRedirect } from "@jini-ai/cms/redirects";

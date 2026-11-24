@@ -1,9 +1,10 @@
-import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
@@ -52,7 +53,7 @@ test("two processes booting at once: the mismatched rows go exactly once, one ma
   await insertEntry(api!, "both-widget", "widget", { ext: { widget: { payload: "{}" }, site: { payload: "stray" } } });
   await insertEntry(api!, "recipe", "recipe", { ext: { site: { servings: 2 } } });
 
-  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel }), kernel }, { log: () => {} })));
+  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: () => {} })));
 
   assert.deepEqual(results.map((result) => result.ran).sort(), [false, true], "the second runner waits on the lock, then sees the marker");
   const winner = results.find((result) => result.ran)!;

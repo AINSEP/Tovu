@@ -1,5 +1,5 @@
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { RedirectSlugChangeCapture } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
@@ -14,7 +14,7 @@ import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import type { StoreCloseRegistration } from "./open-store.js";
-import type { InMemoryEventBus } from "#src/contracts/core/events/index";
+import type { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import type { RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
 
 interface ComposeRedirectsRequired {

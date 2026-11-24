@@ -1,6 +1,8 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
+import { describeComponentTool, searchComponentsTool } from "@jini-ai/mcp";
+
 import { buildComponentCatalogQuery } from "./component-catalog-query.js";
 
 /**
@@ -53,15 +55,23 @@ export const DESCRIBE_COMPONENT_TOOL_ID = "describe_component";
 const SEARCH_LIMIT_MAX = 25;
 const SEARCH_LIMIT_DEFAULT = 10;
 
-/** Descriptions and schemas deliberately match `@jini-ai/mcp`'s `component-catalog-tools.ts` word
- *  for word: a model that has learned either surface's contract must not have to relearn a second
- *  dialect for the other, the same parity `byok-tool-surface.ts`'s own `META_TOOL_DESCRIPTORS` keeps
- *  with `@jini-ai/mcp`'s tool-catalog defs. */
+/** The model-facing descriptions and schema shapes deliberately match `@jini-ai/mcp`'s
+ *  `component-catalog-tools.ts` word for word: a model that has learned either surface's contract
+ *  must not have to relearn a second dialect for the other, the same parity `byok-tool-surface.ts`'s
+ *  own `META_TOOL_DESCRIPTORS` keeps with `@jini-ai/mcp`'s tool-catalog defs. The description texts
+ *  are therefore read from those defs rather than restated; only this registry's extra `clamp`
+ *  repair declaration and the limit bounds above are local. */
+function mcpPropertyDescription({ tool, key }: { tool: typeof searchComponentsTool; key: string }, _optional = {}): string {
+  const property = (tool.inputSchema.properties as Record<string, { description: string } | undefined>)[key];
+  // A missing def is a drift between this registry and @jini-ai/mcp; fail at load, not with a blank description.
+  if (!property) throw new Error(`@jini-ai/mcp ${tool.name} has no "${key}" input property to describe.`);
+  return property.description;
+}
+
 export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: SEARCH_COMPONENTS_TOOL_ID,
-    description:
-      "Search the registered interactive-UI component catalog. Returns ranked {id, provider, capabilities, description, score} candidates only — no propsSchema, so this stays cheap to call broadly. Call describe_component on the 1-3 candidates that look right before composing an A2UI or MCP-UI message that names one. Describe what interaction or data shape you need, not a component class name — e.g. \"tabular list of records the user can click into\" rather than \"table\".",
+    description: searchComponentsTool.description,
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: {
@@ -69,8 +79,7 @@ export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
       properties: {
         query: {
           type: "string",
-          description:
-            'Describe the interaction or data shape you need, in plain language — what the user should see and do, not a component name. Example: "let the user pick one date from a range" rather than "DatePicker". Required.',
+          description: mcpPropertyDescription({ tool: searchComponentsTool, key: "query" }),
         },
         limit: {
           type: "integer",
@@ -85,14 +94,13 @@ export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: DESCRIBE_COMPONENT_TOOL_ID,
-    description:
-      "Get the full descriptor for one component id found via search_components — provider, capabilities, and propsSchema. Paid for only on the candidates that survive search.",
+    description: describeComponentTool.description,
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string", description: "Component id returned by search_components. Required." },
+        id: { type: "string", description: mcpPropertyDescription({ tool: describeComponentTool, key: "id" }) },
       },
       required: ["id"],
       additionalProperties: false,

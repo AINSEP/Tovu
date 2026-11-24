@@ -13,7 +13,7 @@ import { createExternalMcpAgentToolCatalog } from "@jini-ai/mcp/external/agent-t
 import { createExternalMcpOperationsToolCatalog, type ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 import { createServerAdmissionsReader } from "@jini-ai/mcp/federation/external-mcp-admissions";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { credentialText } from "@tovu/contracts/credential-copy";
 import { connectMcpHttpSession } from "../../assistant/index.js";
 import { createExternalMcpProbe } from "@jini-ai/mcp/federation/external-mcp-probe";

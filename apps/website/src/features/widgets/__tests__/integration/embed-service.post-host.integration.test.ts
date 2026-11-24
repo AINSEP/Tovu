@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { registerContentType } from "#src/features/content-types/write-service";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRepo, createEntry } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
@@ -15,7 +15,7 @@ import { WidgetInstanceNotFoundError } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";
 import { buildWidgetAreaFieldsJson, emptyWidgetAreaDoc, ensureWidgetContentTypesRegistered } from "@jini-ai/cms/widgets";
 import { WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
  * @file RED regression suite for the bug captured in

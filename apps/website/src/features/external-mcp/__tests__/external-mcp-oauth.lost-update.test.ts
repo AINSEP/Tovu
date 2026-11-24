@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
-import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";

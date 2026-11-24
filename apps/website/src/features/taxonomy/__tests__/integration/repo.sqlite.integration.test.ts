@@ -7,8 +7,9 @@ import path from "node:path";
 import test from "node:test";
 
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
-import { contentKernel, schemaErasedKernel } from "../../../../platform/db/content-kernel.js";
-import { kernelStampWatermark } from "../../../../platform/db/watermark-kernel.js";
+import { schemaErasedKernel } from "../../../../platform/db/content-kernel.js";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "../../../../platform/db/write-watermark-tables.js";
 import {
   createTaxonomy,
   createTerm,
@@ -53,7 +54,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     revisions: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
-    stampWatermark: kernelStampWatermark({ kernel: contentKernel({ store: db }) }),
+    stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: db }), tables: WRITE_WATERMARK_TABLES }),
     outbox: { enqueue: async () => {} },
     // `deleteTerm`/`deleteTaxonomy` (coordinator review addition) and `assignTerms` are the only
     // functions in this file's test set that dereference these two — `createTaxonomy`/`createTerm`/

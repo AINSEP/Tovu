@@ -11,7 +11,7 @@ import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { Express, Request, Response } from 'express';
 import { buildToolGapsRegistrations } from '../../../assistant/tool-gaps-tool.js';
 import { registerAdminToolGapsRoute } from '../../../server/runtime/composition/http-app/mount-admin-system.js';
-import { redactSecretShapes } from '../../../contracts/core/secret-redaction.js';
+import { redactSecretShapes } from '@tovu/contracts/secret-redaction';
 
 /** The existing audit table on SQLite/PGlite: latest revision, scoped reads and no catalog noise. */
 describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], make: kernel => kernel }, makeKernel => {

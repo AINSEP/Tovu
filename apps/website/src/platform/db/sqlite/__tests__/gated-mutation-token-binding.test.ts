@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ConfirmationTokenRecord } from "#src/contracts/core/gated-mutations/token";
+import type { ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import { type InnerTokenStore, SqliteTokenStore } from "../gated-mutation-token-repo.sqlite.js";
 

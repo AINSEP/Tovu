@@ -1,9 +1,9 @@
 /** @file Owner request 2026-10-11: collection keys cannot own reserved public routes. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { registerContentType, buildContentTypesRegistrations } from "../write-service.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, ReservedContentTypeKeyError } from "@jini-ai/cms/content-types";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 const workspaceId = "reserved-content-types";
 const clock = { nowMs: () => Date.parse("2026-10-11T00:00:00Z") };

@@ -2,7 +2,7 @@ import type { SourceControlKitHost } from "@jini-ai/devops/source-control/site/p
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { EgressRefusedError } from "../../platform/http/index.js";
 
 /**

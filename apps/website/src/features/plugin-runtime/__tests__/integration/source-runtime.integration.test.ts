@@ -9,9 +9,9 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled } from '@jini-ai/plugins/host';
 import { composePluginRuntime } from '#src/server/runtime/composition/plugin-runtime';
-import { reconcilePluginActivationsOnce } from '#src/server/runtime/composition/plugin-activation-polling';
-import { InMemoryOutbox } from '#src/contracts/core/events/index';
-import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
+import { reconcilePluginActivationsOnce } from '@jini-ai/plugins/host';
+import { InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
+import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';
 import { buildPluginSourceRegistrations } from '../../source-tools.js';
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from '../../install.js';
@@ -104,7 +104,7 @@ test('new versions update active pointers across workspaces and the existing pol
   await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 3;\n' }); await h.source.seal({ id });
   assert.equal((await h.activationRepo.getActivation({ workspaceId: remoteWorkspace, pluginId: id }))?.version, '0.1.1');
   let reloads = 0;
-  const poll = { workspaceId: remoteWorkspace, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: remote.pluginLoadedVersion,
+  const poll = { logger: { info: () => {}, warn: () => {}, error: () => {} }, workspaceId: remoteWorkspace, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: remote.pluginLoadedVersion,
     onPluginEnabled: async (pluginId: string) => { reloads++; await remote.onPluginEnabled(pluginId); }, onPluginDisabled: remote.onPluginDisabled };
   const attached = new Set([id]);
   await reconcilePluginActivationsOnce({ deps: poll, attachedIds: attached });
@@ -134,7 +134,7 @@ test('a newly installed package does not replace the active pointer at boot unti
   await restarted.attachEnabledPluginsAtBoot();
   assert.deepEqual(await restarted.beforeSaveHook(draft), { [id]: { value: 1 } });
   assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
-  await reconcilePluginActivationsOnce({ deps: { workspaceId, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: restarted.pluginLoadedVersion, onPluginEnabled: restarted.onPluginEnabled, onPluginDisabled: restarted.onPluginDisabled }, attachedIds: new Set([id]) });
+  await reconcilePluginActivationsOnce({ deps: { logger: { info: () => {}, warn: () => {}, error: () => {} }, workspaceId, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: restarted.pluginLoadedVersion, onPluginEnabled: restarted.onPluginEnabled, onPluginDisabled: restarted.onPluginDisabled }, attachedIds: new Set([id]) });
   assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
 });
 

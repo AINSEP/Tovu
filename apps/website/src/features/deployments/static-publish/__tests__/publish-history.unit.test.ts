@@ -6,10 +6,7 @@ import { workspaces } from "#src/platform/db/schema.sqlite";
 
 import { InMemoryPublishHistoryStore, listPublishDestinations, listStaticPublishDestinations, publicPublishConfigFields, type PublishHistoryEntry } from "../publish-history.js";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
-import {
-  MAX_PUBLISH_HISTORY_LIST_LIMIT,
-  resolvePublishHistoryListLimit,
-} from "#src/contracts/core/publish-history-list-limit";
+import { MAX_PUBLISH_HISTORY_LIST_LIMIT, resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 
 /**
  * @file Publish-history port and in-memory double: persistent append-only history, not a last-value

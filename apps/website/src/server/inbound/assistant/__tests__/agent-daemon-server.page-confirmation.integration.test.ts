@@ -10,10 +10,12 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, SURFACE_TYPED_ANSWER_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";
-import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
+import { withPageNavigateErrorRewrap } from "@jini-ai/agentic";
+import { describeAdminScreenRefusal } from "#src/assistant/rewrap-page-navigate-error";
+import { createLostFrontendBindings } from "@jini-ai/daemon/http";
+import { ADMIN_TAB_LOST_FRONTEND_MESSAGES } from "#src/assistant/lost-frontend-binding";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
-import { pageApprovalOptions } from "#src/assistant/page-approval-context";
+import { pageApprovalOptions } from "@jini-ai/daemon";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
@@ -45,10 +47,10 @@ async function fixture({ missingRevision = false } = {}) {
   const loop = statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry").find(statement => ts.isForOfStatement(statement) && statement.expression.getText(statement.getSourceFile()).includes("frontendControl.toolRegistrations"));
   assert.ok(loop);
   await evaluateDaemonStatements([loop], {
-    registry, surfaceExchanges, withReadOnlyFrontendCapabilities, withPageNavigateErrorRewrap,
+    registry, surfaceExchanges, withReadOnlyFrontendCapabilities, withPageNavigateErrorRewrap, describeAdminScreenRefusal,
     applyToolApprovalPolicy, pageApprovalOptions,
     execute: (...args: Parameters<typeof toolExecutor.execute>) => toolExecutor.execute(...args),
-    lostFrontendBindings: createLostFrontendBindings(),
+    lostFrontendBindings: createLostFrontendBindings({ messages: ADMIN_TAB_LOST_FRONTEND_MESSAGES }),
     frontendControl: { toolRegistrations: [registration, readRegistration] },
   });
   toolExecutor = createToolExecutor({ registry });

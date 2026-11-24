@@ -3,15 +3,9 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express } from "express";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
-import {
-  publishTrustChallengeRoute,
-  publishTrustIdentityRoute,
-  publishTrustSessionRoute,
-  type PublishTrustHandshakeBaseDeps,
-  type PublishTrustHandshakeCopy,
-} from "@jini-ai/cms/public-http/routes/publish-trust/handshake";
+import { publishTrustChallengeRoute, publishTrustIdentityRoute, publishTrustSessionRoute, type PublishTrustHandshakeBaseDeps, type PublishTrustHandshakeCopy } from "@jini-ai/cms/public-http/routes/publish-trust/handshake";
 
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
 import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";

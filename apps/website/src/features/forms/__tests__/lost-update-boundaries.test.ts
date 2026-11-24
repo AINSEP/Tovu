@@ -4,7 +4,7 @@ import express from "express";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
 import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";

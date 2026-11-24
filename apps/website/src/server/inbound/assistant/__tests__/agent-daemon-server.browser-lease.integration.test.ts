@@ -7,7 +7,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, set, SCOPE_BIT } from "@jini-ai/core/settings";
 import { createInMemoryEventLog, createRunLifecycle, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { createExclusiveRunLease, type ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
-import { failRunBeforeStart } from "#src/assistant/agent-session-preset";
+import { failRunBeforeStart } from "@jini-ai/daemon/session-coordination";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, readAssistantRuntimePreferences } from "#src/assistant/runtime-preferences";
 import { ADMIN_INTERFACE_NAMESPACE, ensureAdminInterfaceSettingDefinitions, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";

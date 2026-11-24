@@ -8,9 +8,9 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { registerContentType } from "#src/features/content-types/write-service";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createEntry } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
@@ -20,7 +20,7 @@ import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetIns
 import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
 import { buildWidgetInstanceFieldsJson, buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "@jini-ai/cms/widgets";
 import { WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
  * @file C-007 `Jini/packages/cms/src/widgets/embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.

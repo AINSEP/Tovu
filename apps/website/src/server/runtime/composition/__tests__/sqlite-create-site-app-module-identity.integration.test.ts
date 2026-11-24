@@ -11,8 +11,8 @@ import test, { type TestContext } from "node:test";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
-import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent, EventBusPort } from "@jini-ai/core/contracts/events";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";

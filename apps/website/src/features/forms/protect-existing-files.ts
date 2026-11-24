@@ -1,7 +1,7 @@
 import { access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { protectFormAttachments, FormAttachmentOwnerMismatchError } from '@jini-ai/cms/forms';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import type { ContentKernel } from '#src/platform/db/content-kernel';
 
 type Site = { kernel: ContentKernel; workspaceId: string };

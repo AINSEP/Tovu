@@ -1,3 +1,5 @@
+import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
+import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
 import { nowIso } from "@jini-ai/core/primitives";
 import { observed } from "@jini-ai/core/errors/idioms";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -24,12 +26,15 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { ensureAdminInterfaceSettingDefinitions } from "@jini-ai/cms/settings/site/admin-interface";
 import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
-import { ensureCommerceSetting } from "../commerce-settings.js";
-import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
+
 import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
 import { ensureMailProviderSettings } from "@jini-ai/cms/settings/site/mail-provider";
-import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
+
 import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, set } from "@jini-ai/core/settings";
+import { ensureCommerceSetting } from "@jini-ai/commerce";
+
+
+
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";

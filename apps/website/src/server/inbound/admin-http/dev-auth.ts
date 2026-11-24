@@ -33,7 +33,8 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts
 import { createBootSessionTokenStore } from "@jini-ai/user-management/identity/boot-session-token";
 import { redeemBootSessionToken } from "#src/features/identity/boot-session-token-binding";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { asyncRoute } from "../../../platform/express/async-route.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "@jini-ai/user-management/identity/delete-user-service";

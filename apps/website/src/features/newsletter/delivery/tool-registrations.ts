@@ -1,5 +1,5 @@
 import { toolMetadata } from '@jini-ai/core/tool-metadata/newsletter';
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
  * Subscriber delivery uses browser-only confirmation; test recipients resolve from the owner profile.

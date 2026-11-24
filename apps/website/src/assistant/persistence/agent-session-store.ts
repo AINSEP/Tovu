@@ -4,10 +4,7 @@ import {
   createInMemoryAgentSessionStore as createMemorySessions,
   type AgentSessionStore,
 } from "@jini-ai/daemon/store/agent-sessions";
-import { createSqliteAgentSessionStore as createSqliteSessions } from "@jini-ai/daemon/store/agent-sessions/sqlite";
-import { createPgliteAgentSessionStore } from "@jini-ai/daemon/store/agent-sessions/pglite";
-import { createPostgresAgentSessionStore } from "@jini-ai/daemon/store/agent-sessions/postgres";
-export type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
+import { createAgentSessionStoreForKernel } from "@jini-ai/daemon/store/agent-sessions/kernel";
 
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
@@ -33,13 +30,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * Uses assistant_agent_sessions, with its existing FK cascade and overwrite/clear semantics.
  */
 export function createSqliteAgentSessionStore({ store, clock }: { store: ChatKernel | SqliteConnectionSource; clock: Clock }, _optional = {}): AgentSessionStore {
-  const kernel = chatKernel({ store });
-  switch (kernel.transport) {
-    case "better-sqlite3": return createSqliteSessions({ kernel, clock });
-    case "pglite":
-    case "pglite-socket": return createPgliteAgentSessionStore({ kernel, clock });
-    default: return createPostgresAgentSessionStore({ kernel, clock });
-  }
+  return createAgentSessionStoreForKernel({ kernel: chatKernel({ store }), clock });
 }
 
 /** Private lazy-composition/test mapping with daemon's opaque-pair overwrite/clear behavior. */

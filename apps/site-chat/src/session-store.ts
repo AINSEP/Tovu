@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { createBrowserSessionStore } from "@jini-ai/chat/browser/session-store";
 import { readSiteChatComparisonVariant } from "./site-chat-comparison";
 
 /**
@@ -44,8 +44,6 @@ export interface PersistedSiteAssistantState {
   readonly messages: ChatMessage[];
 }
 
-const EMPTY_STATE: PersistedSiteAssistantState = { open: false, messages: [] };
-
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -57,13 +55,24 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
  * are checked; anything else on a real `ChatMessage` (`events`, `attachments`, …) is passed through
  * unchecked if present, same as it always was before this file existed.
  */
-function isValidMessage(value: unknown): value is ChatMessage {
+function isValidMessage({ value }: { value: unknown }): boolean {
   if (!isPlainRecord(value)) return false;
   return typeof value.id === "string" && (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
 }
 
-function byteLength({ value }: { value: string }, _options = {}): number {
-  return new TextEncoder().encode(value).length;
+/**
+ * The Jini store bound to this module's key, caps and allowlist. `overCapReads: "read"` keeps
+ * rehydrating an envelope stored over the caps (this module never capped reads, so an existing
+ * visitor transcript must survive) while every new write is still capped. Load, decode, save and
+ * clear failures stay silent, as they always were here. A serialization failure (circular data)
+ * was never caught here, so it still throws to the caller.
+ */
+function transcriptStore(storage: SessionStore) {
+  return createBrowserSessionStore({
+    storage, transcriptKey: TRANSCRIPT_STORAGE_KEY, maxMessages: MAX_MESSAGES, maxBytes: MAX_BYTES,
+    validateMessage: isValidMessage, overCapReads: "read",
+    onFailure: ({ operation, error }) => { if (operation === "serialize") throw error; },
+  });
 }
 
 /**
@@ -81,18 +90,7 @@ function byteLength({ value }: { value: string }, _options = {}): number {
  * @overallScore 100
  */
 export function loadPersistedState(storage: SessionStore): PersistedSiteAssistantState {
-  const raw = orFallbackSync({ work: () => storage.getItem(TRANSCRIPT_STORAGE_KEY), fallback: null, step: "Read visitor transcript" });
-  if (raw === null) return EMPTY_STATE;
-
-  return orFallbackSync({ work: () => {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isPlainRecord(parsed)) throw new Error("persisted state is not an object");
-    if (typeof parsed.open !== "boolean") throw new Error("persisted state.open is not a boolean");
-    if (!Array.isArray(parsed.messages) || !parsed.messages.every(isValidMessage)) {
-      throw new Error("persisted state.messages is not a valid ChatMessage[]");
-    }
-    return { open: parsed.open, messages: parsed.messages };
-  }, fallback: EMPTY_STATE, step: "Decode visitor transcript" }, { observe: () => clearPersistedState(storage) });
+  return transcriptStore(storage).load({});
 }
 
 /**
@@ -107,25 +105,16 @@ export function loadPersistedState(storage: SessionStore): PersistedSiteAssistan
  * @overallScore 100
  */
 export function savePersistedState({ storage, state }: { storage: SessionStore; state: PersistedSiteAssistantState }, _optional: Record<string, never> = {}): void {
-  let messages = state.messages;
-  if (messages.length > MAX_MESSAGES) messages = messages.slice(messages.length - MAX_MESSAGES);
-
-  let serialized = JSON.stringify({ open: state.open, messages });
-  while (messages.length > 0 && byteLength({ value: serialized }) > MAX_BYTES) {
-    messages = messages.slice(1);
-    serialized = JSON.stringify({ open: state.open, messages });
-  }
-
   // Quota exceeded (even after trimming) or storage disabled — the conversation continues in
   // memory for this tab; nothing here may throw into a message-send path.
-  orFallbackSync({ work: () => storage.setItem(TRANSCRIPT_STORAGE_KEY, serialized), fallback: undefined, step: "Save visitor transcript" });
+  transcriptStore(storage).save({ state });
 }
 
 /** "New thread" must clear the persisted copy, not just in-memory state (REQ-1) — otherwise a reload
  *  right after resetting would rehydrate the discarded conversation straight back. */
 export function clearPersistedState(storage: SessionStore): void {
   // Storage inaccessible — there is nothing to clear, and nothing here may throw.
-  orFallbackSync({ work: () => storage.removeItem(TRANSCRIPT_STORAGE_KEY), fallback: undefined, step: "Clear visitor transcript" });
+  transcriptStore(storage).clear({});
 }
 
 /**

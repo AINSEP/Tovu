@@ -3,7 +3,7 @@ import { readSseFrames, translateRunFrame } from "#src/contracts/core/assistant-
 
 import type { Checkpointer } from "./checkpointer.js";
 import { interruptionEvents, type Watch } from "./watch-state.js";
-import { releaseUnreadBody } from "./release-body.js";
+import { releaseUnreadBody } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 
 /**
  * @file Reads one events connection of a watched run. It owns the `events`, `retainedEvents`,

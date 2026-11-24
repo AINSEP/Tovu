@@ -1,3 +1,4 @@
+import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 /**
  * @file `TrashAdapter` for redirects. Marker: `redirects.status = 'disabled'`.
  *
@@ -11,7 +12,6 @@
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
 import type { TrashDb as MarkerStore } from "../db-port.js";
-import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 import { loose } from "@jini-ai/cms/trash/sql";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";

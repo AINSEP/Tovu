@@ -9,7 +9,7 @@ import express from "express";
 import { createCoreModule } from "../../runtime/composition/modules/core.js";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { createIntegrationsModule } from "../../runtime/composition/modules/integrations.js";
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";

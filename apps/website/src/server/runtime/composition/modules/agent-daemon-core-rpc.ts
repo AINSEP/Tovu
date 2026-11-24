@@ -1,7 +1,8 @@
 /** Retained daemon state at its site owner. Auth precedes the bounded parser, as with tool RPC. */
 import { json, type RequestHandler } from "express";
 import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
-import { DaemonCoreError, daemonCoreRequest, type DaemonCoreRequest, type DaemonAttemptHead } from "#src/assistant/daemon-core-protocol";
+import { DaemonCoreError, daemonCoreRequest, type DaemonAttemptHead, type DaemonSettingsNamespace } from "#src/assistant/daemon-core-protocol";
+import type { DaemonCoreRequest } from "@jini-ai/core/contracts/site/daemon-core-rpc";
 import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { readAssistantToolConsentSnapshot, allowAssistantRunTools } from "#src/server/inbound/assistant/assistant-tool-access";
@@ -33,7 +34,7 @@ export function registerAgentDaemonCoreRoutes({ router, deps }: { router: Intern
  * Session and mutation writes reuse the store's atomic generation fences, including after cancel.
  * @complexity O(1) indexed owner calls; bootstrap awaits the existing readiness promises.
  */
-async function dispatch({ deps, request }: { deps: CoreDeps; request: DaemonCoreRequest }, _options = {}): Promise<unknown> {
+async function dispatch({ deps, request }: { deps: CoreDeps; request: DaemonCoreRequest<DaemonSettingsNamespace> }, _options = {}): Promise<unknown> {
   if (request.operation === "bootstrap") return bootstrapSnapshot({ deps });
   if (request.operation === "getEffective") return readSetting({ deps, input: request.input });
   if (request.operation.startsWith("telemetry")) return telemetry({ deps, request });
@@ -48,7 +49,7 @@ async function dispatch({ deps, request }: { deps: CoreDeps; request: DaemonCore
 
 /** Site scoping precedes every accepted-attempt operation, including consent. */
 async function retainedRunOperation({ deps, request, run, store }: {
-  deps: CoreDeps; request: DaemonCoreRequest;
+  deps: CoreDeps; request: DaemonCoreRequest<DaemonSettingsNamespace>;
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
   store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
@@ -63,7 +64,7 @@ async function retainedRunOperation({ deps, request, run, store }: {
 /** Resolve the actor from the accepted attempt. Wire callers cannot select a principal or site. */
 async function cliConsent({ deps, request, run, store }: {
   deps: CoreDeps;
-  request: Extract<DaemonCoreRequest, { operation: "cliConsentSnapshot" | "cliConsentAllow" }>;
+  request: Extract<DaemonCoreRequest<DaemonSettingsNamespace>, { operation: "cliConsentSnapshot" | "cliConsentAllow" }>;
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
   store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
@@ -92,7 +93,7 @@ function isLiveConsentRun({ deps, run }: {
 /** Dispatch only daemon-retained methods. Acceptance, advance and recovery stay server-only.
  * @complexity One indexed store call; atomic liveness/uncertainty checks belong to that owner.
  */
-async function durable({ store, request }: { store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>; request: DaemonCoreRequest }): Promise<unknown> {
+async function durable({ store, request }: { store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>; request: DaemonCoreRequest<DaemonSettingsNamespace> }): Promise<unknown> {
   switch (request.operation) {
     case "captureSession": return store.captureSession(request.input, {});
     case "clearSession": return store.clearSession(request.input, {});
@@ -106,7 +107,7 @@ async function durable({ store, request }: { store: NonNullable<CoreDeps["chatRu
  * Flushing a daemon must never dispose the server's provider leases.
  * @complexity One bounded event per request; no retained process-global queue here.
  */
-async function telemetry({ deps, request }: { deps: CoreDeps; request: DaemonCoreRequest }): Promise<void> {
+async function telemetry({ deps, request }: { deps: CoreDeps; request: DaemonCoreRequest<DaemonSettingsNamespace> }): Promise<void> {
   switch (request.operation) {
     case "telemetryCapture": await deps.tracker.capture(request.input, { properties: request.input.properties }); return;
     case "telemetryError": {
@@ -146,7 +147,7 @@ async function bootstrapSnapshot({ deps }: { deps: CoreDeps }): Promise<unknown>
 
 /** Read a retained setting in the server's own workspace, preserving fresh ledger semantics.
  * @complexity O(1), fixed readiness and the existing effective-setting resolution. */
-async function readSetting({ deps, input }: { deps: CoreDeps; input: Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] }): Promise<unknown> {
+async function readSetting({ deps, input }: { deps: CoreDeps; input: Extract<DaemonCoreRequest<DaemonSettingsNamespace>, { operation: "getEffective" }>["input"] }): Promise<unknown> {
   if (input.scopeContext.workspaceId !== deps.workspaceId) throw new DaemonCoreError({ reason: "foreign settings workspace" });
   await Promise.all([deps.settingsUiTabsReady, deps.siteTitleReady]);
   return deps.getEffective({ deps: { repo: deps.settingsRepo }, ...input });

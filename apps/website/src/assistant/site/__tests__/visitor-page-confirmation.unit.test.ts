@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { visitorPageNeedsConfirmation } from '../visitor-page-tools.js';
-const publication = { revision: 'rev', elements: [{ handle: 'send', action: 'submit' as const }, { handle: 'menu', action: 'menu' as const }] };
-test('fill/select and a published submitter always require confirmation, menu clicks do not', () => {
-  for (const toolId of ['page.fill', 'page.select_option']) assert.equal(visitorPageNeedsConfirmation({ toolId, input: { handle: 'field' }, publication }), true);
-  assert.equal(visitorPageNeedsConfirmation({ toolId: 'page.click', input: { handle: 'send' }, publication }), true);
-  assert.equal(visitorPageNeedsConfirmation({ toolId: 'page.click', input: { handle: 'menu' }, publication }), false);
-});
+// The publication-only confirmation case moved to Jini with its function:
+// packages/agentic/src/core/__tests__/published-page-input.test.ts.
 
 import { confirmationFixture } from './visitor-confirmations.fixture.js';
 import { createVisitorExecutor, type VisitorExecutionPorts } from '../visitor-executor.js';

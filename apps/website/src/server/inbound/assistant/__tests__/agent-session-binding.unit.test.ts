@@ -3,11 +3,8 @@ import test, { describe } from "node:test";
 
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 
-import {
-  agentAcceptsHostMintedSessionId,
-  resolveHostMintedSessionId,
-  resolveNewSessionField,
-} from "../../../../assistant/agent-session-preset.js";
+import { agentAcceptsHostMintedSessionId } from "../../../../assistant/agent-session-preset.js";
+import { resolveHostMintedSessionId, resolveNewSessionField } from "@jini-ai/daemon/session-coordination";
 
 /**
  * @file Regression suite for Defect 1 (2026-09-11 chat-lifecycle repair): a conversation forked

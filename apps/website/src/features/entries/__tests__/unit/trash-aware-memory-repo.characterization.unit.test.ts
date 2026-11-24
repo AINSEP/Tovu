@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
@@ -11,7 +11,7 @@ import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/tra
  * @file S2c: the memory twin's write-completion contract and its shared read/trash/slug rows. Written on the unmoved code (S2c T0), kept
  * after the class moved to Jini `@jini-ai/cms/entries` as the binding test: the repo is built the way composition builds it, so each
  * test proves the host's `onWriteSettled` binding reaches the REAL access-evidence cache. Four sites empty the caches linked to THIS repository
- * (the cache is `getMediaAccessEvidenceCache`, seeded with one never-resolved entry), and three of them are deliberately NOT
+ * (the cache is `mediaAccessEvidence.getCache`, seeded with one never-resolved entry), and three of them are deliberately NOT
  * in a `finally`: a refused `save`, and a `hardDelete` of a missing id, leave the cache alone (the SQL repo differs: its `save`
  * invalidates on failure too). Each test names the one-line mutation of Jini's `repo.trash-aware.memory.ts` that turns it red.
  */
@@ -26,7 +26,7 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache() {
   const repo = trashAwareEntryRepo();
-  const cache = getMediaAccessEvidenceCache({ postRepo: {}, entryRepo: repo });
+  const cache = mediaAccessEvidence.getCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();
   return { repo, cache, seed };

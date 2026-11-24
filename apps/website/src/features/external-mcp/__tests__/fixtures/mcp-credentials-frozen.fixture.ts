@@ -3,7 +3,7 @@ import { ensureVaultRepoFixture } from "../../../../platform/db/repos/__tests__/
 import { type ContentKernel, contentKernel } from "../../../../platform/db/content-kernel.js";
 import { closeSqliteConnection } from "../../../../platform/db/kernel/drivers/sqlite.js";
 import { type ContentDb, openContentDb } from "../../../../platform/db/sqlite/content-db.js";
-import type { OAuthProviderDescriptor } from "../../../../platform/oauth/index.js";
+import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { SITE_KEY_ENV_VAR_NAME } from "../../../webhooks/site-key-sources.js";

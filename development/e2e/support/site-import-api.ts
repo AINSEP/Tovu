@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "../../../apps/website/src/server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../../apps/website/src/server/runtime/composition/deps.js";
+import { defaultContentDbPath, siteDir } from "../../../apps/website/src/server/runtime/composition/site-paths.js";
 import { createServingApp } from "../../../apps/website/src/server/runtime/composition/serving-app.js";
 import { buildBootModules } from "../../../apps/website/src/server/runtime/boot/bootstrap.js";
 import { awaitSiteBootReadiness } from "../../../apps/website/src/server/runtime/boot/site-boot-readiness.js";

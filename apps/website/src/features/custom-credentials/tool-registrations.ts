@@ -20,10 +20,8 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { createApprovalHandler, indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import {
-  describeErrorForLog,
-  forbiddenRule,
-} from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { describeErrorForLog, forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
@@ -181,7 +179,7 @@ const TOVU_CUSTOM_CREDENTIAL_HOST: CustomCredentialToolHost = {
  * allowlist, {@link FORM_SAVE_CALLER_SAFE_ERRORS}.
  */
 const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule({ domainPrefix: "CUSTOM_CREDENTIALS" }),
+  forbiddenRule({ domainPrefix: "CUSTOM_CREDENTIALS", error: ForbiddenError }),
   { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND", guidance: "Call credential_save with kind api to open the secure credential card, then retry once." },
   { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
   { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
