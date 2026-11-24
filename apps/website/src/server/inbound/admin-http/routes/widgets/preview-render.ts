@@ -1,4 +1,3 @@
-import type { JsonObject } from '@jini-ai/core/primitives';
 import { findWidgetTypeRegistration, validateWidgetConfig, WidgetConfigValidationError, WidgetTypeUnregisteredError } from '@jini-ai/cms/widgets';
 import { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
@@ -8,8 +7,8 @@ import { renderStaticFragment } from '#src/features/theme/rendering';
 import { renderWidgetIr } from '../../../public-http/http/site/render/content-html.js';
 import { pageShell } from '../../../public-http/http/site/render/document-shell.js';
 import type { RouteDeps } from '#src/server/routes/types';
+import type { WidgetPreviewInput } from '@jini-ai/cms/admin-http/routes/widgets/preview';
 
-export interface WidgetPreviewInput { widgetType: string; content: JsonObject }
 export type WidgetPreviewDeps = Pick<RouteDeps, 'workspaceId' | 'presentationRepo' | 'themes'>;
 
 /** Never persists a widget. The registry dispatcher, sanitizer and public HTML renderer own
