@@ -40,7 +40,7 @@ export function createDesktopUpdateHost({ updater, appVersion, migrate }: Deskto
         if (found !== version) throw new Error(`The app updater offers ${found ?? "no update"}, not the approved ${version}. Nothing was changed.`);
         await updater.downloadUpdate();
       },
-      applyStaged: async () => { updater.quitAndInstall(); },
+      applyStaged: async (_approved: { version: string }) => { updater.quitAndInstall(); },
       rollbackTo: async ({ version }: { version: string }) => {
         if (appVersion() === version) return;
         throw new Error(`The desktop app cannot step back to ${version} by itself. Reinstall ${version} from the release page; your site data was restored.`);
