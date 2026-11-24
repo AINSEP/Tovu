@@ -9,8 +9,7 @@ import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-ht
 import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
 import { registerPublishContentBundleCreateRoute, registerPublishContentCapabilitiesRoute } from "./publish-content-ingest.js";
 import { registerPublishContentImportRoutes } from "./publish-content-import.js";
-import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes } from "./publish-content-transport.js";
-import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
+import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes, registerPublishContentPeerTransportRoutes } from "./publish-content-transport.js";
 import { registerPublishBackstopRoutes } from "./publish-content-backstop.js";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import {

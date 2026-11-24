@@ -2,8 +2,6 @@ import type { PeerCallDeps } from "#src/features/publish-content/peer-transport"
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Request, Response } from "express";
 
-import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
-// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
@@ -51,6 +49,8 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
  * - `POST .../push/execute` → relay the redemption; the peer applies.
  * - `POST .../pull` → fetch the peer's export and stage it HERE, returning a local `bundleId` that
  *   this instance's own `/import/plan|confirm|execute` then drives. One importer, two directions.
+ *   That route is the Jini spec `@jini-ai/cms/admin-http/routes/publish-content/peer-transport`,
+ *   mounted by `runtime/composition/modules/publish-content-transport.ts` after the three below.
  *
  * ## FROZEN CONTRACT: every route here takes a `peerId`
  *
@@ -257,7 +257,6 @@ interface PeerRouteContext {
   app: Parameters<PublishContentRouteRegistrar>[0]["app"];
   deps: PeerRouteDeps;
   base: string;
-  guard: PeerGuard;
   pushGuard: PeerGuard;
 }
 
@@ -359,35 +358,16 @@ function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteConte
   });
 }
 
-function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
-  app.post(`${base}/pull`, async (req, res) => {
-    try {
-      const principalId = await guard({ req, res });
-      if (principalId === null) return;
-
-      res.status(201).json(await pullAndStageFromPeer({
-                                                        deps,
-                                                        input: {
-          peerId: readRouteParam({ req, name: "peerId" }),
-          principalId,
-        }
-                                                      }));
-    } catch (err) {
-      respondWithError({ res, err });
-    }
-  });
-}
-
-export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+/** The three push routes, in their registered order; the pull spec follows them
+ *  (`modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes`). */
+export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const context: PeerRouteContext = {
     app,
     deps,
     base: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId",
-    guard: ({ req, res }) => peerGuard({ deps, req, res }),
     pushGuard: ({ req, res }) => peerPushGuard({ deps, req, res }),
   };
   registerPushPlanRoute(context);
   registerPushConfirmRoute(context);
   registerPushExecuteRoute(context);
-  registerPullRoute(context);
 };
