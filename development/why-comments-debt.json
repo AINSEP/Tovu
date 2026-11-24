@@ -4540,6 +4540,466 @@
     {
       "id": "0e644f4b582f",
       "reason": "Doc of the deleted duplicate shellStalenessFailure; Jini's doc keeps the 'missing timestamps defer to existence checks, no tolerance' rule (Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc))."
+    },
+    {
+      "id": "4ed482445d7b",
+      "reason": "Spinner.tsx deleted: deduped onto @jini-ai/ui Spinner (AX-57, OWNER-Q-15 rec); ring rationale now in app.css next to the .jini-loading-spinner skin (w4-desktop B5)"
+    },
+    {
+      "id": "ea1fde4ca65f",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat create-staged-attachment-uploader.ts, reworded neutral (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "d015f60f4007",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat create-staged-attachment-uploader.ts, reworded neutral (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "9b02b8111a5b",
+      "reason": "Comment rewritten in place: the pane now lives in @jini-ai/chat/react/conversation-chat-pane and the test asserts App.tsx does not import it (w4-desktop B2, OWNER-Q-13 rec)"
+    },
+    {
+      "id": "890dcd1abb76",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "ae1f19ef78f8",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "5104a8302d73",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "9bfd56a337b3",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "c9f932f0f241",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "bca59f2d964d",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "ee809b5bbb4c",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "82a91a8a7762",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "3a4593c6457e",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "efe5f53f71b2",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "a85b573a20c4",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "27fde8c5942f",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations conversation-controller.ts (+ __tests__/conversation-controller.test.ts), reworded neutral (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "641898f89f3e",
+      "reason": "Moved to Jini @jini-ai/ui/app-version use-app-version.ts (w4-desktop B4, AX-55)"
+    },
+    {
+      "id": "59dabbc7dcb2",
+      "reason": "tokensForCreate moved to Jini @jini-ai/agent-plugins/connect token-map.ts (+ token-map.unit.test) (w4-desktop B5, AX-41)"
+    },
+    {
+      "id": "0be7c941545c",
+      "reason": "tokensForCreate moved to Jini @jini-ai/agent-plugins/connect token-map.ts (+ token-map.unit.test) (w4-desktop B5, AX-41)"
+    },
+    {
+      "id": "c4233ec41cc8",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "f84c70d5c29e",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "08443067e13d",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "3ad68eacc03c",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "14847d7b5e1e",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "c7da47630ec2",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "dafb4a4a4ebe",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "ed7128d24619",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "9496a0f403ba",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "6060d8bcb9da",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "bf11a90f735a",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "8fa1064baf32",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "31c706d6dc91",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "5fbceca06a02",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "dcf019594037",
+      "reason": "Moved with the find bar rules/hooks to Jini @jini-ai/ui/find (find-target, find-input-focus, use-find-* hooks; tests in __tests__/find-rules.test.ts) (w4-desktop B1, AX-48/49/51)"
+    },
+    {
+      "id": "7905c0541ab6",
+      "reason": "Moved to Jini @jini-ai/ui/import-handoff use-import-handoff.ts; the host keeps the bridge lookup and websiteAddress validator (w4-desktop B4, AX-120)"
+    },
+    {
+      "id": "1863bbbb4e5b",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor use-resource-readings.hooks.ts, reworded neutral; the host keeps the browser ports (w4-desktop B6, AX-78)"
+    },
+    {
+      "id": "86e28f4ba2ec",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor use-resource-readings.hooks.ts, reworded neutral; the host keeps the browser ports (w4-desktop B6, AX-78)"
+    },
+    {
+      "id": "aba252c5a40c",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "60bed9fbff32",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "4d9a0be50fa6",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "2ef5055c4050",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "bb98bc1c2872",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "0230826e13bd",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "d4e49c3dcc6d",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "20d86dbda2f3",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "0a8ed6f6ae92",
+      "reason": "Moved to Jini @jini-ai/chat/react/conversations hooks/useStoredConversations + useConversationDeleteConfirmation (+ render tests); the host file keeps only the bridge binding (w4-desktop B3, AX-71)"
+    },
+    {
+      "id": "8180648e52ac",
+      "reason": "Moved to Jini @jini-ai/ui/site-card use-site-preview.hooks.ts (+ unit/render tests), reworded neutral (w4-desktop B6, AX-87)"
+    },
+    {
+      "id": "e7ba8db3eef1",
+      "reason": "Moved to Jini @jini-ai/ui/site-card use-site-preview.hooks.ts (+ unit/render tests), reworded neutral (w4-desktop B6, AX-87)"
+    },
+    {
+      "id": "483bf49726f6",
+      "reason": "Moved to Jini @jini-ai/ui/site-card use-site-preview.hooks.ts (+ unit/render tests), reworded neutral (w4-desktop B6, AX-87)"
+    },
+    {
+      "id": "7e8749579697",
+      "reason": "Moved to Jini @jini-ai/ui/site-card use-site-preview.hooks.ts (+ unit/render tests), reworded neutral (w4-desktop B6, AX-87)"
+    },
+    {
+      "id": "308d289b69dc",
+      "reason": "Moved to Jini @jini-ai/ui/site-card use-site-preview.hooks.ts (+ unit/render tests), reworded neutral (w4-desktop B6, AX-87)"
+    },
+    {
+      "id": "0d6bb8f8745a",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-site-view-preference.ts (bounds injected) (w4-desktop B4, AX-118)"
+    },
+    {
+      "id": "23445e259d7a",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-site-view-preference.ts (bounds injected) (w4-desktop B4, AX-118)"
+    },
+    {
+      "id": "0de44bd711fa",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-webview-load-failure.ts (+ tests) (w4-desktop B4, AX-64)"
+    },
+    {
+      "id": "8660d360618e",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-webview-load-failure.ts (+ tests) (w4-desktop B4, AX-64)"
+    },
+    {
+      "id": "2815096dad1e",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-webview-load-failure.ts (+ tests) (w4-desktop B4, AX-64)"
+    },
+    {
+      "id": "fa3dc232df01",
+      "reason": "Moved to Jini @jini-ai/ui/live-views use-webview-load-failure.ts (+ tests) (w4-desktop B4, AX-64)"
+    },
+    {
+      "id": "be09e40ca38d",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "2d65627fdfe2",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "6a1251d2e5b3",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "237c046518e0",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "a2506c7e3689",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "ae6997618d4b",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "1dcad03ee2ed",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "3bca51553e0c",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "770477940a06",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "36cad25ad6ea",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "9b90f6d9687e",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "6ee3481becff",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "f0b26abbe776",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "f66f7a09fa74",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "ae1e57f3a3de",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "dc190e2a4e67",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "dc4d50ac310a",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "3da30df177ae",
+      "reason": "Moved with the pane hook to Jini @jini-ai/chat/react/conversation-chat-pane (hooks/useConversationChatPane.hooks.ts, rules.ts, types.ts); folder-drop rationale lives in @jini-ai/ui/core folder-path-drop rules.ts (w4-desktop B2, P13-D1/D2)"
+    },
+    {
+      "id": "439b43180eb3",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "65e2c0e69eb6",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "88b6fb692ceb",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "988ad7613edb",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "9551e581e1e5",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "db6aa89bd1ce",
+      "reason": "Moved to Jini @jini-ai/chat/react/bridged-chat hooks/useBridgedChatTransport (+ render test); the host file keeps only the bridge + IPC transport binding (w4-desktop B3, AX-69)"
+    },
+    {
+      "id": "36f863e90480",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "29a327d7c6c6",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "30501123654b",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "b86a70bd1a79",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "e91b50038eef",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "892e6e34465a",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "c45d7b51503c",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "9d7037cb94a7",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "e9b5853a08be",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "8a32f8dbb396",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "dbb21e6d5f28",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "a9903d6a96c7",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "7ae49c6f71d3",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "d44652527084",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "b728b5c9c667",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "d2644cff6867",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "8fab0fe7d3de",
+      "reason": "Moved to Jini @jini-ai/ui/zoom use-zoom.ts (+ __tests__/use-zoom*.test.ts); the host keeps the storage key and bridge lookup (w4-desktop B4, AX-53)"
+    },
+    {
+      "id": "e13a32d12e49",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "a69fd15e25d0",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "f080bc50c3d0",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "e42d818bab01",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "d5f72a0e89f6",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "d4506de3498d",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "18ec5ea9e8d2",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "69a8c77547c3",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "c84bac49031d",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "7959188a579d",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "2776fe62514f",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "b1d692391e69",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "4245e6f7cc7e",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "144e046ec392",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "610eb6299fac",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "1c22f2b1cc14",
+      "reason": "Moved with WorkspaceChatPane to Jini @jini-ai/chat/react/conversation-chat-pane (components/*, tests in __tests__/ConversationChatPane.test.tsx), reworded neutral (w4-desktop B2, P13-D2)"
+    },
+    {
+      "id": "7f5b7e04c6f5",
+      "reason": "Moved verbatim to Jini @jini-ai/desktop-host/shell/supervised-site-url.ts, header reworded neutral (w4-desktop B7)"
     }
   ]
 }
