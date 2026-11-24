@@ -11,7 +11,7 @@ import { defaultMenusPort, menusHostKit } from "../menus-host-ports";
 
 /**
  * Binds the real `/api/.../menus` client and a `MENUS_DICT`-bound translator — see
- * `menus-dependencies.hooks.ts`.
+ * `menus-host-ports.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Menus` composes
  * this and a test composes {@link useMenus} with `createFakeMenusPort`.
