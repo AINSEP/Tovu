@@ -1,7 +1,7 @@
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
-import type { EntityReverter, RevertRegistry } from "../../contracts/core/commands/index.js";
+import type { EntityReverter, RevertRegistry } from "@jini-ai/core/contracts/site/core-commands";
 
 import { updateMenuTree } from "@jini-ai/cms/navigation";
 import type { MenuRepoPort, NavItemNode } from "@jini-ai/cms/navigation";

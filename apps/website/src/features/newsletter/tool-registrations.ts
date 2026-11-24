@@ -1,6 +1,6 @@
 import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
 import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.

@@ -4,8 +4,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";

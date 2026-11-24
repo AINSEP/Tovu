@@ -4,7 +4,7 @@ import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-o
 import { startSiteDaemonListener } from "../../server/runtime/boot/site-daemon-listener.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
-import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
+import { closeStoreOnShutdown, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";

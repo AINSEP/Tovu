@@ -10,7 +10,7 @@ import { createExternalMcpOAuthService } from "../../../../../features/external-
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createLazyProxy } from "../lazy-proxy.js";
+import { createLazyProxy } from "@jini-ai/core/primitives";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { registerMenuReverters } from "#src/features/navigation/index";

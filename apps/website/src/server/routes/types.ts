@@ -8,7 +8,7 @@ import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";
@@ -21,7 +21,7 @@ import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
-import type { RevertRegistry } from "../../contracts/core/commands/index.js";
+import type { RevertRegistry } from "@jini-ai/core/contracts/site/core-commands";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,

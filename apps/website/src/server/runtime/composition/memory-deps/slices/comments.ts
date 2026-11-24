@@ -10,7 +10,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
-import type { InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import type { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { InMemoryTrashRepo, TrashPort } from "@jini-ai/cms/trash";

@@ -1,7 +1,7 @@
 import type { ToolRegistration } from '@jini-ai/core';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
 import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';

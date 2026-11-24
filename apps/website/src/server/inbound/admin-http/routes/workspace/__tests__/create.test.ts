@@ -6,7 +6,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminWorkspaceCreateRoute } from "../create.js";
 import type { WorkspaceRouteDeps } from "../deps.js";

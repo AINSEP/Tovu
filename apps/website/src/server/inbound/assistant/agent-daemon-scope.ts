@@ -9,7 +9,7 @@ import { type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
 import { type ToolAccessRun } from '@jini-ai/daemon';
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import express from "express";

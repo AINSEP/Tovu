@@ -1,6 +1,6 @@
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { PluginHookFailedError } from "../../contracts/core/plugin-hook-failed-error.js";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentOutcomeRow } from "./plan-rows.js";

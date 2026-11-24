@@ -1,7 +1,7 @@
 /** @file Owner request 2026-10-11: collection keys cannot own reserved public routes. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import {
   registerContentType, buildContentTypesRegistrations, InMemoryContentTypeRepo,
   NoopContentTypeIndexProvisioner, ReservedContentTypeKeyError,

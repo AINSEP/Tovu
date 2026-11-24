@@ -21,7 +21,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryPostRepo } from "#src/features/post/index";

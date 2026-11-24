@@ -1,5 +1,5 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
-import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
+import { pluginHookRefusalText } from "@jini-ai/plugins/host/hook-refusals";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 

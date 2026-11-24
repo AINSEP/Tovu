@@ -11,7 +11,7 @@ import test from "node:test";
 import { OWNER_LOCK_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { openSiteStore, PGLITE_DATA_DIR_NAME } from "#src/server/runtime/composition/open-site-store";
-import { closeStoreOnShutdown, type ShutdownProcess } from "../close-store-on-shutdown.js";
+import { closeStoreOnShutdown, type ShutdownProcess } from "@jini-ai/server/shutdown";
 
 /**
  * @file Every storage dialect closes through the same bounded shutdown.
@@ -70,7 +70,7 @@ test("T47/runtime-0#3: beforeExit stops the daemon before closing its shared sto
 test("real signals use the default process, close once across SIGTERM/SIGINT, and run the exit handler after closing", { timeout: 15_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shutdown-signals-"));
   const resultPath = path.join(dir, "result.json");
-  const moduleUrl = new URL("../close-store-on-shutdown.ts", import.meta.url).href;
+  const moduleUrl = "@jini-ai/server/shutdown";
   const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
     import { writeFileSync } from 'node:fs';
     import { closeStoreOnShutdown } from ${JSON.stringify(moduleUrl)};

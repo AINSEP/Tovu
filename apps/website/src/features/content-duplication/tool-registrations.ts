@@ -45,7 +45,7 @@ import type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } fr
 import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";
-import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
+import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
 import { contentDuplicationAgentToolCatalog } from "./agent-tools.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: contentDuplicationAgentToolCatalog });

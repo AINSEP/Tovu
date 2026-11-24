@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";

@@ -15,8 +15,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "#src/features/change-sets/tool-registrations";

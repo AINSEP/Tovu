@@ -12,10 +12,10 @@ import { type JsonObject } from "@jini-ai/core/primitives";
 import { type AgentToolDefinition as PostAgentToolDefinition, type ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
-import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
+import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import { executeCommand } from "../../contracts/core/commands/index.js";
-import { processOutbox } from "../../contracts/core/events/index.js";
+import { executeCommand } from "@jini-ai/cms/core/commands";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { PostNotFoundError, type PostRecord } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.

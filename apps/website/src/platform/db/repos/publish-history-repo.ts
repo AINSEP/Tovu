@@ -8,7 +8,7 @@ import type {
   PublishTrigger,
   StaticPublishTargetId,
 } from "#src/features/deployments/static-publish/index";
-import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
+import { resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishHistoryTable } from "../content-database.generated.js";
 import { toBool } from "@jini-ai/core/contracts/storage";

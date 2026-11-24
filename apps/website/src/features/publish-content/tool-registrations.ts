@@ -25,7 +25,8 @@ import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contracts/core/plugin-hook-failed-error.js";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import { toModelFacingPluginHookError } from "@jini-ai/plugins/host/hook-refusals";
 import {
   connectDestination,
   disconnectDestination,

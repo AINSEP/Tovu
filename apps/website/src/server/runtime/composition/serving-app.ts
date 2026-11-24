@@ -5,7 +5,8 @@ import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme
 import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";
 import type { Express } from "express";
 
-import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
+import { startOutboxDrainer } from "#src/contracts/core/events/outbox-drainer";
+import { type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
 import type { CreateAppOptions } from "./create-app-options.js";

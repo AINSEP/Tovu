@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

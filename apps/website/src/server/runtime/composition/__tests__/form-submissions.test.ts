@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";

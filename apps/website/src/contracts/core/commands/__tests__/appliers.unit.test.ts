@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRevertRegistry, type EntityReverter } from "../appliers.js";
+import { createRevertRegistry } from "@jini-ai/cms/core/commands";
+import type { EntityReverter } from "@jini-ai/core/contracts/site/core-commands";
 
 test("createRevertRegistry allows registering and resolving entity reverters", async () => {
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
 
   assert.equal(registry.resolve("post", "update"), undefined);
 

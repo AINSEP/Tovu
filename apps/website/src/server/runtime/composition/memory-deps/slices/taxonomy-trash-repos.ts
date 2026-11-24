@@ -1,5 +1,5 @@
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
-import type { InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { SqliteTermRepo, SqliteTaxonomyRevisionRepo, SqliteTaxonomyRepo, SqliteEntryTermRepo } from "#src/features/taxonomy/repo.sqlite";

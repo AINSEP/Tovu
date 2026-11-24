@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring, type FormDefinitionRecord } from "@jini-ai/cms/forms";
-import { executeCommand, InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
 test("definition listing omits stored HTML while retaining authoring metadata", async () => {

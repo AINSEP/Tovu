@@ -1,5 +1,5 @@
 import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { AgentSessionStore } from "#src/assistant/session-services";
 import type { ProcessStartReader } from "./attempt-process-identity.js";
 

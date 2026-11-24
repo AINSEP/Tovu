@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 import {
   grantAllowsCapability,

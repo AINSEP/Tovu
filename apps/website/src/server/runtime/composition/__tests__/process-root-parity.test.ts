@@ -420,7 +420,7 @@ test("daemon shutdown waits for publication even when durability fails after ren
   let rejectPublication!: (error: Error) => void;
   const publication = new Promise<void>((_resolve, reject) => { rejectPublication = reject; });
   const calls: string[] = [];
-  const { closeWithinBound } = await import("../../lifecycle/close-store-on-shutdown.js");
+  const { closeWithinBound } = await import("@jini-ai/server/shutdown");
   let releaseStore!: () => void;
   const storeClosed = new Promise<void>((resolve) => { releaseStore = resolve; });
   const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "scopes",

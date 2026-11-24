@@ -6,7 +6,7 @@ import { AgentPluginActivationsBusyError, AgentPluginHostIncompatibleError, Agen
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createExpiringSurfaces } from "../../../../__tests__/support/expiring-surfaces.js";
 import { buildPluginsRegistrations } from "../../tool-registrations.js";
 import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, approveEnable, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";

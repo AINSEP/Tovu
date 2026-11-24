@@ -4,7 +4,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryContentTypeRepo, type ContentTypeRecord } from "#src/features/content-types/index";
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminContentTypeRegisterRoute } from "../register.js";
 import { registerAdminContentTypeUpdateFieldsRoute } from "../update-fields.js";

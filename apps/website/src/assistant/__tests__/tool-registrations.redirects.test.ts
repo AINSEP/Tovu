@@ -20,7 +20,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryOutbox } from "../../contracts/core/events/index.js";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import {
   createVerifiedOrigin,
   InMemoryOriginSettingRepo,

@@ -3,9 +3,7 @@ import { checkpointIntervalMs as scaledCheckpointIntervalMs, checkpointProgress 
 import type { ChatRunLedger } from "#src/assistant/index";
 import { runContentFromEvents, runEventsForSave } from "#src/contracts/core/assistant-run-events";
 
-import { approximateJsonBytes, checkpointGrew, hasUnsavedCheckpointGrowth } from "./checkpoint-policy.js";
-import type { RunLogPort, RunTimerPort } from "./ports.js";
-import { reportSafely } from "./report.js";
+import { approximateJsonBytes, checkpointGrew, hasUnsavedCheckpointGrowth, reportSafely, type RunLogPort, type RunTimerPort } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 import { clearTrailing, type Watch } from "./watch-state.js";
 
 /**

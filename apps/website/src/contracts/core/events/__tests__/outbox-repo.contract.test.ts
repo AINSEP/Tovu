@@ -6,8 +6,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { InMemoryOutbox } from "../memory-bus.js";
-import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { MAX_OUTBOX_ATTEMPTS } from "@jini-ai/infra/events/outbox";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 /**

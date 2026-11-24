@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 
 import { previewCommitExport, type CommitSiteInput } from "../commit-site.js";
 import type { StaticSitePackagerPort } from "../static-site-packager-port.js";

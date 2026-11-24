@@ -29,8 +29,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";

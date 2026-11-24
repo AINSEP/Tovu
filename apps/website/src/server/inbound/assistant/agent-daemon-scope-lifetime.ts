@@ -5,7 +5,7 @@ import { type RunLifecycle } from "@jini-ai/daemon";
 import { type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createRunScopedCredentials } from "#src/assistant/daemon-access";
-import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
+import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 
 type ScopeLifetime = {
   disposed: boolean; closing: Promise<void> | undefined; responses: Set<express.Response>;

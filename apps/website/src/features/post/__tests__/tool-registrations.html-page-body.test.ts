@@ -4,8 +4,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "../post-create.js";
 import { DEFAULT_BODY_JSON } from "../post.js";

@@ -3,8 +3,8 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlWidgetRegionBindingRepo, type WidgetsDatabase } from "@jini-ai/cms/widgets/sql";
 
-import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
-export { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
+export { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 
 /**
  * @file The widget region-binding repo on a site's SQLite `content.db`:

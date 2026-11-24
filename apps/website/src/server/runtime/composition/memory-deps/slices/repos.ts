@@ -1,6 +1,6 @@
-import { createLazyProxy } from "../lazy-proxy.js";
+import { createLazyProxy } from "@jini-ai/core/primitives";
 import { InMemoryRedirectRepo, RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
-import { InMemoryOutbox, InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryOutbox, InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryRestorePointsRepo } from "#src/features/database/repo.memory";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
@@ -42,6 +42,7 @@ export function composeMemoryRepos(_required: Record<string, never> = {}, _optio
   // below flips the marker on the very store the widget routes read.
   const entryRepo = new TrashAwareInMemoryEntryRepo({ onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo }) });
   const workspaceId = seededWorkspace.id;
+  // Lazy so a root that never touches taxonomy or consent never opens this `:memory:` content db.
   const taxonomyDb = createLazyProxy<ContentDb>({ factory: () => openContentDb(":memory:") });
   const sqliteTrashDb = createLazyProxy<TrashDb>({ factory: () => contentKernel({ store: taxonomyDb }) });
   return { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo };

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
-import { mintToken, redeemToken, TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
+import { mintToken, redeemToken } from "#src/contracts/core/gated-mutations/token";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import type { ContentKernel } from "../../content-kernel.js";
 import { SqliteTokenStore } from "../../sqlite/gated-mutation-token-repo.sqlite.js";
 

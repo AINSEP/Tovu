@@ -19,8 +19,8 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";

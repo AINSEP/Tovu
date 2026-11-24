@@ -111,7 +111,7 @@ test('one principal-bound confirmation approves one frozen call; cancel changes 
 
 test('every supported locale translates the exact approval text and choices', async()=>{
   const { APPROVAL_COPY, approvalText }=await import('../../contracts/core/approval-i18n.js');
-  const { ADMIN_LOCALES }=await import('../../contracts/core/admin-locales.js');
+  const { ADMIN_LOCALES }=await import('@tovu/contracts/admin-locales');
   assert.deepEqual(Object.keys(APPROVAL_COPY).sort(),ADMIN_LOCALES.map(locale=>locale.code).sort());
   for(const locale of ADMIN_LOCALES)for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','Publish static site','Publish'] as const) {
     assert.ok(approvalText({locale:locale.code,key}));

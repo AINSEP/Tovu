@@ -15,8 +15,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { afterEach } from "node:test";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryBlobStore, InMemoryAssetBlobRepo, type AssetBlobRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";

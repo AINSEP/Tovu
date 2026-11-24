@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { RecordingHttpClient } from "#src/features/webhooks/http.memory";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";

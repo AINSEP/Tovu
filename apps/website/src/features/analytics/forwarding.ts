@@ -6,7 +6,7 @@ import {
 import type { Clock as ClockPort, HttpClientPort as EngineHttpClientPort } from "@jini-ai/core/primitives";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ProviderRegistry } from "@jini-ai/core/provider-registry";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { AnalyticsConfigPort, AnalyticsHooks } from "./ports.js";
 
 /**

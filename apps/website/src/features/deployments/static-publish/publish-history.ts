@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { StaticPublishTargetId } from "./types.js";
-import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
+import { resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 import type { DeployTargetDescriptor, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishContentPeerSummary } from "#src/features/publish-content/peers";
 

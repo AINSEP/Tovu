@@ -14,7 +14,7 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,

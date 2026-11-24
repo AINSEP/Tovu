@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { PluginHookFailedError } from "../../../contracts/core/plugin-hook-failed-error.js";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";

@@ -4,7 +4,7 @@ import { requireToolPermission, adaptLegacyAuthorize } from '@jini-ai/cms/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { plan, confirm, execute, PlanStaleError, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
-import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';
+import { TokenExpiredError, TokenAlreadyRedeemedError } from '@jini-ai/core/gated-mutations';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
 import type { StaticPublishToolDeps } from '../publish-tool-deps.js';
 import type { StaticPublishConfig, PublishCredentialSource } from './types.js';

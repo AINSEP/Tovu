@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { createLogBuffer } from "../../log-buffer.js";
 
 const identity = ({ text }: { text: string }) => text;

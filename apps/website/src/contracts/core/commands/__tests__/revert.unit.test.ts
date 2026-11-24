@@ -10,7 +10,8 @@ import {
   RevertForbiddenError,
   type RevertChangeSetDeps,
 } from "@jini-ai/cms/core/commands";
-import { createRevertRegistry, type EntityReverter } from "../appliers.js";
+import { createRevertRegistry } from "@jini-ai/cms/core/commands";
+import type { EntityReverter } from "@jini-ai/core/contracts/site/core-commands";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
   ChangeSetItemRecord,
@@ -95,7 +96,7 @@ function baseItem(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItemRe
 
 test("throws ChangeSetNotFoundError when no change set matches (workspace + id)", async () => {
   const changeSets = new InMemoryChangeSetRepo([], []);
-  const deps: RevertChangeSetDeps = { changeSets, registry: createRevertRegistry(), clock, idGen };
+  const deps: RevertChangeSetDeps = { changeSets, registry: createRevertRegistry({}, {}), clock, idGen };
 
   await assert.rejects(
     () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "missing-cs" } }),
@@ -110,7 +111,7 @@ test("throws ChangeSetNotFoundError when no change set matches (workspace + id)"
 test("throws ChangeSetInvalidStatusError when the change set is not 'applied'", async () => {
   const changeSet = baseChangeSet({ status: "proposed" });
   const changeSets = new InMemoryChangeSetRepo([changeSet], []);
-  const deps: RevertChangeSetDeps = { changeSets, registry: createRevertRegistry(), clock, idGen };
+  const deps: RevertChangeSetDeps = { changeSets, registry: createRevertRegistry({}, {}), clock, idGen };
 
   await assert.rejects(
     () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
@@ -129,7 +130,7 @@ test("throws RevertNotPossibleError when no reverter is registered for the item'
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", operation: "update" });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry(); // nothing registered
+  const registry = createRevertRegistry({}, {}); // nothing registered
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
   await assert.rejects(
@@ -149,7 +150,7 @@ test("throws RevertNotPossibleError when the item has no inverse payload", async
   const changeSet = baseChangeSet();
   const item = baseItem({ id: "csi-9", inversePayload: undefined });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -170,7 +171,7 @@ test("throws RevertConflictError with 'missing' when the entity no longer exists
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: null }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -193,7 +194,7 @@ test("throws RevertConflictError with the found version when the entity has sinc
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 5 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -219,7 +220,7 @@ test("applies inverses in descending position order (last-applied item is revert
   ];
   const changeSets = new InMemoryChangeSetRepo([changeSet], items);
   const applyOrder: string[] = [];
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register(
     "widget",
     "update",
@@ -261,7 +262,7 @@ test("throws ChangeSetInvalidStatusError ('already reverted concurrently') when 
     },
     async save() {},
   };
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -283,7 +284,7 @@ test("enqueues a change-set.reverted event on the outbox when one is provided", 
   const changeSet = baseChangeSet();
   const item = baseItem();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const enqueued: DomainEvent[] = [];
   const outbox: OutboxPort = {
@@ -323,7 +324,7 @@ test("completes without enqueuing anything when no outbox is provided", async ()
   const changeSet = baseChangeSet();
   const item = baseItem();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -353,7 +354,7 @@ test("conflict message names the actor when the reverter resolves one via curren
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: "principal-42" }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -376,7 +377,7 @@ test("conflict message omits the actor suffix when a currentActor method exists 
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: null }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -398,7 +399,7 @@ test("force:true past a stale-version conflict resolves without throwing and app
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   let applyInverseCalled = false;
   registry.register(
     "widget",
@@ -420,7 +421,7 @@ test("force:true does NOT bypass a missing entity — still throws RevertConflic
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   let applyInverseCalled = false;
   registry.register(
     "widget",
@@ -448,7 +449,7 @@ test("force omitted/false with a real mismatch is unchanged — the default path
   const changeSet = baseChangeSet();
   const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 5 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -481,7 +482,7 @@ test("force:true with an agent principal throws RevertForbiddenError before any 
     },
     async save() {},
   };
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
   await assert.rejects(
@@ -504,7 +505,7 @@ test("an agent principal WITHOUT force reverts normally — the restriction is f
   const changeSet = baseChangeSet();
   const item = baseItem();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
@@ -529,7 +530,7 @@ test("checks every item's version before applying any inverse or emitting/saving
   changeSets.save = async (record) => { saves.push(record); await originalSave(record); };
   const applied: string[] = [];
   const enqueued: DomainEvent[] = [];
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", {
     currentVersion: async ({ entityId }) => entityId === "valid" ? 1 : 2,
     applyInverse: async ({ item }) => { applied.push(item.entityId); },
@@ -564,7 +565,7 @@ test("a change set deleted during inverse application cannot be saved back as re
     listByWorkspace: stored.listByWorkspace.bind(stored),
     save: async () => { saved = true; },
   };
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { deleted = true; } }));
   await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen },
     input: { workspaceId: WS, changeSetId: "cs-1" } }, {}), {
@@ -576,7 +577,7 @@ test("a change set deleted during inverse application cannot be saved back as re
 
 test("L079: inverse availability is checked before any version read, including under force", async () => {
   const reads: string[] = [];
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", {
     currentVersion: async ({ entityId }) => { reads.push(entityId); return null; },
     applyInverse: async () => { assert.fail("preconditions must prevent writes"); },
@@ -592,7 +593,7 @@ test("L079: inverse availability is checked before any version read, including u
 
 test("L079: force without principal kind is refused before any write", async () => {
   const changeSets = new InMemoryChangeSetRepo([baseChangeSet()], [baseItem()]);
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   const applied: string[] = [];
   registry.register('widget', 'update', fakeReverter({ currentVersion: 2, onApplyInverse: item => { applied.push(item.id); } }));
   await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen },
@@ -614,7 +615,7 @@ test("L079: a later inverse failure leaves earlier writes applied (reported, not
   const values = new Map([["first", "new-first"], ["later", "new-later"]]);
   const attempted: string[] = [];
   const failure = new Error("inverse write failed");
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", {
     currentVersion: async () => 1,
     applyInverse: async ({ item }) => {

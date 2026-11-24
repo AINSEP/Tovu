@@ -7,7 +7,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../../../__tests__/support/plugin-tool-host.js";

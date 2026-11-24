@@ -2,7 +2,7 @@ import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";

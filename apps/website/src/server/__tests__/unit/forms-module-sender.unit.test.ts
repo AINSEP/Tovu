@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { createMailSenderIdentityResolver, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
 
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";

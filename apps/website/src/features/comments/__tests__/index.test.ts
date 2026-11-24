@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { EntryRecord, EntryStatus } from "@jini-ai/cms/entries";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createCommentsHostPorts, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";

@@ -3,14 +3,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
-import {
-  ChangeSetInvalidStatusError,
-  ChangeSetNotFoundError,
-  RevertConflictError,
-  RevertForbiddenError,
-  RevertNotPossibleError,
-  revertChangeSet,
-} from "#src/contracts/core/commands/index";
+import { ChangeSetInvalidStatusError, ChangeSetNotFoundError, RevertConflictError, RevertForbiddenError, RevertNotPossibleError, revertChangeSet } from "@jini-ai/cms/core/commands";
 import { toChangeSetHeaderResponse } from "#src/server/inbound/admin-http/http/change-sets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";

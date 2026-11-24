@@ -6,7 +6,8 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDelive
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { composeFormDelivery } from "../form-delivery.js";

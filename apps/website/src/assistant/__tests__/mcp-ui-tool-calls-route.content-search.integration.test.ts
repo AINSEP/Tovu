@@ -6,8 +6,8 @@ import express from "express";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "#src/features/post/index";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 import type { RouteDeps } from "#src/server/routes/types";

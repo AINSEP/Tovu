@@ -3,7 +3,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { updateEntry } from "@jini-ai/cms/entries";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 import { entriesDeps, entryWriteErrorStatus } from "@jini-ai/cms/entries";

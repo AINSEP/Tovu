@@ -22,23 +22,23 @@ import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js"
 import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readiness.js";
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
-import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "./features/plugin-runtime/sdk-resolver.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from './server/runtime/composition/build-release.js';
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
-import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
+import { closeStoreOnShutdown, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
 import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
-import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
+import { reserveBootListener } from "@jini-ai/devops/local-dev";
 import { pinSiteListenerOrigin } from "./server/runtime/boot/site-listener-origin.js";
 import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-listener.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 // The parent-watchdog doc (why, checks, escape hatch, platform posture) moved with the code.
-import { startOwnParentWatchdog } from "./server/runtime/boot/parent-watchdog.js";
+import { startOwnParentWatchdog } from "@jini-ai/sidecar";
 
 /**
  * @file Process entrypoint.
@@ -76,6 +76,8 @@ const devScheme = deriveDevScheme({ tlsActive: devTls.active });
 // Same placement rationale as the daemon's own `startParentWatchdog()` call.
 startOwnParentWatchdog({
   env: process.env,
+  envNames: { disable: "TOVU_DISABLE_PARENT_WATCHDOG", devSupervisorPid: "TOVU_DEV_SUPERVISOR_PID" },
+  logTag: "[index]",
   ppid: () => process.ppid,
   signalZero: (pid) => { process.kill(pid, 0); },
   exit: (code) => { process.exit(code); },

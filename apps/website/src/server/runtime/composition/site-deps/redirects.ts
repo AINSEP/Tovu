@@ -14,7 +14,7 @@ import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import type { StoreCloseRegistration } from "./open-store.js";
-import type { InMemoryEventBus } from "#src/contracts/core/events/index";
+import type { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import type { RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
 
 interface ComposeRedirectsRequired {

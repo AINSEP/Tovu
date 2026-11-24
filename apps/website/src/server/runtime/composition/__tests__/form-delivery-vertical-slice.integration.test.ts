@@ -8,7 +8,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { deliverFormJob } from "@jini-ai/cms/forms";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createApp } from "../app.js";
 import { createServingApp } from "../serving-app.js";

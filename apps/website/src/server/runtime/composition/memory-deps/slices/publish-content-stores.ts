@@ -1,4 +1,4 @@
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
@@ -6,7 +6,7 @@ import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import type { InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 export function composePublishContentStores(required: { outbox: InMemoryOutbox }, _optional = {}) {
   const { outbox } = required;

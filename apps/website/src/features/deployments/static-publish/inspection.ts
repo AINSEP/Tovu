@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
 import type { DeployTargetInspection } from '../deploy-targets/types.js';
 import type { FormDestinationForm } from '@jini-ai/core/contracts/site/cms-forms';

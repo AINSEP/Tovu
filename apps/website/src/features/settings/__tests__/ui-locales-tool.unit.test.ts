@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { ForbiddenError } from "#src/contracts/core/commands/index";
+import { ForbiddenError } from "@jini-ai/cms/core/commands";
 import { contributeUiLocalesTools } from "../ui-locales-tool.js";
 
 const context = (input?: unknown): ToolExecutionContext => ({

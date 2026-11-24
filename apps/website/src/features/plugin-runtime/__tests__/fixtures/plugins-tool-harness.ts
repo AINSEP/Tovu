@@ -9,8 +9,8 @@ import { InMemoryPluginActivationRepo, type PluginSourcePolicyPort } from "@jini
 import type { PluginActivationRecord, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/host/node";
 
-import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
-import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "@jini-ai/core/contracts/headless/plugin-host";
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../../../agent-plugins/provider-plugin-link.js";
 import type { PluginProviderFacesPort } from "../../service-ports.js";

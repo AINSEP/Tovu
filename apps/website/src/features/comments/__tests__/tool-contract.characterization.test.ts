@@ -20,7 +20,7 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions } from "../settings.js";
 import { contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";

@@ -45,7 +45,7 @@ const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const EXPORT_COMMAND_MODULE = path.resolve(import.meta.dirname, "../../commands/export.ts");
 const PLUGIN_SDK_RESOLVER_MODULE = path.resolve(
   import.meta.dirname,
-  "../../../server/runtime/boot/plugin-sdk-resolver.ts"
+  "../../../features/plugin-runtime/sdk-resolver.ts"
 );
 
 const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-export-sdk-resolver-worker-coverage-"));

@@ -8,7 +8,8 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminChangeSetRevertRoute } from "../../inbound/admin-http/routes/change-sets/revert.js";
-import { createRevertRegistry, type EntityReverter } from "../../../contracts/core/commands/index.js";
+import { createRevertRegistry } from "@jini-ai/cms/core/commands";
+import type { EntityReverter } from "@jini-ai/core/contracts/site/core-commands";
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import type { PrincipalRecord } from "@jini-ai/user-management";
@@ -23,7 +24,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
  * the workspace-mismatch guard and every `sendChangeSetRevertError` mapping
  * (404/409/409/422/500), which no existing suite exercises through real HTTP.
  *
- * `deps.revertRegistry` is overridden with a bare `createRevertRegistry()` registered against a
+ * `deps.revertRegistry` is overridden with a bare `createRevertRegistry({}, {})` registered against a
  * fake `widget/update` reverter (matching `revert.unit.test.ts`'s own fixtures) rather than the
  * real post-domain registry `createRouteDeps()` wires up — this file is testing the route's error
  * mapping, not post-domain revert semantics, so a minimal, fully-controllable reverter is the
@@ -51,7 +52,7 @@ function fakeReverter(opts: {
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
-  deps.revertRegistry = createRevertRegistry();
+  deps.revertRegistry = createRevertRegistry({}, {});
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
 
   const app = express();
@@ -142,7 +143,7 @@ test("change-sets revert: a change set that is not 'applied' is 409 CHANGE_SET_I
 test("change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  deps.revertRegistry = createRevertRegistry();
+  deps.revertRegistry = createRevertRegistry({}, {});
   let inverseCalls = 0;
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, onApplyInverse: () => { inverseCalls += 1; } }));
   await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-conflict" }), items: [
@@ -163,7 +164,7 @@ test("change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT",
 test("change-sets revert: an item with no registered reverter is 422 REVERT_NOT_POSSIBLE", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  deps.revertRegistry = createRevertRegistry(); // nothing registered
+  deps.revertRegistry = createRevertRegistry({}, {}); // nothing registered
   await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-unrevertible" }), items: [
     seededItem({ changeSetId: "cs-unrevertible" }),
   ] });
@@ -289,7 +290,7 @@ test("change-sets revert: an agent principal with force:true is 403 REVERT_FORBI
 test("change-sets revert: force:true past a real conflict reverts the entity through the real HTTP route (200)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  deps.revertRegistry = createRevertRegistry();
+  deps.revertRegistry = createRevertRegistry({}, {});
   let applyInverseCalled = false;
   let inverseCalls = 0;
   const entities = new Map([[`${WS}/entity-1`, { field: "new-value", version: 5 }], ["other-workspace/entity-1", { field: "other-site", version: 5 }]]);
@@ -334,7 +335,7 @@ test("change-sets revert: force:true past a real conflict reverts the entity thr
 test("change-sets revert: without force, a real conflict names the newer version and the actor in the 409 details", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  deps.revertRegistry = createRevertRegistry();
+  deps.revertRegistry = createRevertRegistry({}, {});
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: "principal-77" }));
   await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-actor" }), items: [
     seededItem({ changeSetId: "cs-actor", entityVersionAtApply: 3 }),

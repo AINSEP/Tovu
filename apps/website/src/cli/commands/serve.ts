@@ -14,7 +14,7 @@ import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-re
 import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
-import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
+import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";

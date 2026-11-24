@@ -1,7 +1,7 @@
 /** t09: drive the real held-open card and gateway; a model's input never substitutes for a click. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ConfirmationTokenRecord } from "../../../contracts/core/gated-mutations/token.js";
+import type { ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { confirm, ForbiddenError } from "../../../contracts/core/gated-mutations/gateway.js";
 import { buildConfirmOnlyHooks } from "../../../contracts/core/gated-mutations/composition.js";

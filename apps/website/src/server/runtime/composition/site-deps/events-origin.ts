@@ -1,4 +1,4 @@
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import { RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
 import { SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";

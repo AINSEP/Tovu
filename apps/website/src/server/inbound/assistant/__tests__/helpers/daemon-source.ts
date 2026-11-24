@@ -4,8 +4,8 @@ import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermi
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
-import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";

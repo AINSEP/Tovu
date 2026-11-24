@@ -13,7 +13,7 @@ import { followProviderActivations } from "#src/features/agent-plugins/provider-
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeTaxonomyTrashRepos } from "./taxonomy-trash-repos.js";
-import type { InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

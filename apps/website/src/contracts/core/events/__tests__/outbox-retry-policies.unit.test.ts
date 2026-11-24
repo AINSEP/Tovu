@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, FormDeliveryError } from "@jini-ai/cms/forms";
-import { InMemoryEventBus, InMemoryOutbox } from "../memory-bus.js";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { startOutboxDrainer } from "../outbox-drainer.js";
 import { outboxRetryPolicyForEvent } from "../outbox-retry-policies.js";
 import { processOutbox } from "../outbox-worker.js";

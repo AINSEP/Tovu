@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { childProcessCoverageEnv } from '../../__tests__/helpers/child-process-coverage-env.js';
-import { InMemoryEventBus, InMemoryOutbox } from '../memory-bus.js';
+import { InMemoryEventBus, InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
 import { startOutboxDrainer } from '../outbox-drainer.js';
 
 // Author Checklist: scheduling before drain completion must deliver 'second' while 'first' is

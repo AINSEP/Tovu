@@ -22,7 +22,7 @@ import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../set
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
-import { processOutbox } from "../../contracts/core/events/index.js";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";
 
 export { createSeoPageHeadHook } from "./page-head-contributor.js";

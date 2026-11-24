@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,

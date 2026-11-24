@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildRestoreHooks, RestorePointNotFoundError, toRecoveryResult, type BuildRestoreHooksInput } from "../../gated-hooks.js";
 import { ForbiddenError, PlanStaleError } from "../../../../contracts/core/gated-mutations/gateway.js";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../../../contracts/core/gated-mutations/token.js";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 for (const [error, expected] of [

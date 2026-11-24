@@ -8,7 +8,7 @@ import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
-import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
+import { closeWithinBound, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installServerLogCapture } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";

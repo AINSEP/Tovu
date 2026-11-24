@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import {
   PostConflictError,
   PostNotFoundError,

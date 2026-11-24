@@ -17,7 +17,7 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { DELIVERY_STATUS_MAX_LIMIT, FormFieldValidationError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FieldDescriptor, type FormSubmissionRecord } from "@jini-ai/cms/forms";
 
-import { executeCommand, InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createFormDefinition } from "../index.js";
 import { contributeFormsDuplicateHandlers, contributeFormsTools, type FormsToolDeps } from "../tool-registrations.js";
 

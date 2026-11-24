@@ -14,7 +14,7 @@ import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";

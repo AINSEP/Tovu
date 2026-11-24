@@ -13,7 +13,7 @@ import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { PluginInstallPreview } from "@jini-ai/plugins/host/node";
 
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createSitePluginPolicy } from "#src/features/plugin-runtime/install";
