@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 import {
-  SiteShareUploadRefusal, siteShareAcknowledgeRoute, siteShareArtifactDeleteRoute, siteShareArtifactUploadRoute, siteShareCreateRoute,
+  SiteShareUploadRefusal, siteShareAcknowledgeRoute, siteShareArtifactDeleteRoute, siteShareCreateRoute,
   siteShareListRoute, siteShareRevokeRoute, siteShareStaticCreateRoute, siteShareStaticOptionsRoute,
   type SiteShareFailureArgs, type SiteShareRoute, type SiteShareRouteBackend, type SiteShareRouteDeps,
 } from "@jini-ai/cms/admin-http/routes/system/site-shares";
@@ -10,7 +10,7 @@ import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-rou
 import type { AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
-import { readShareInput, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { readShareInput, registerAdminSiteShareArtifactUploadRoute, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { createSiteSharePasswordHandler, sendSiteShareFailure } from "#src/server/inbound/admin-http/routes/system/site-share-password";
 import { parseStaticExportInput } from "#src/features/site-backup/static-export-selection";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
@@ -40,7 +40,7 @@ const STEP_BY_ROUTE = new Map<SiteShareRoute, string>([
   [siteShareListRoute, "Export history"], [siteShareCreateRoute, "Export creation"],
   [siteShareStaticOptionsRoute, "Static export options"], [siteShareStaticCreateRoute, "Static export creation"],
   [siteShareAcknowledgeRoute, "Export acknowledgement"], [siteShareRevokeRoute, "Export revocation"],
-  [siteShareArtifactUploadRoute, "Share artifact upload"], [siteShareArtifactDeleteRoute, "Share artifact deletion"],
+  [siteShareArtifactDeleteRoute, "Share artifact deletion"],
 ]);
 
 /** `sendSiteShareFailure`'s reply, captured: the same copy, status and tracker report the hand-written
@@ -110,5 +110,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/password", createSiteSharePasswordHandler({ deps }));
   mountSiteShareRoute({ app, spec: siteShareAcknowledgeRoute, routeDeps });
   registerAdminSiteShareDownloadRoute({ app, deps });
-  for (const spec of [siteShareRevokeRoute, siteShareArtifactUploadRoute, siteShareArtifactDeleteRoute]) mountSiteShareRoute({ app, spec, routeDeps });
+  mountSiteShareRoute({ app, spec: siteShareRevokeRoute, routeDeps });
+  registerAdminSiteShareArtifactUploadRoute({ app, deps });
+  mountSiteShareRoute({ app, spec: siteShareArtifactDeleteRoute, routeDeps });
 }
