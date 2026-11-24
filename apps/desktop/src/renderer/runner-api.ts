@@ -29,7 +29,7 @@ import type {
 } from '../contracts/workspace-conversations.js';
 import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
 import type { ZoomDirection } from '../contracts/zoom.js';
-import type { RunnerAppVersionBridge, RunnerUpdateCheckBridge } from '../contracts/app-version.js';
+import type { AppVersionBridge, UpdateCheckBridge } from '@jini-ai/desktop-host/app-version';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
 import type { OwnerStoreBridge } from '../contracts/owner-store.js';
 import type { ImportHandoffRequest } from '../contracts/import-handoff.js';
@@ -39,9 +39,9 @@ export interface RunnerInventoryBridge {
    * Join sites by SiteRecord.id, label RSS “about”, and keep Stop on stopSite({ id }). */
   getResources?: (input: ResourcesRequest, options?: {}) => Promise<ResourcesSnapshot>;
   /** Optional for a stale preload; the current bridge resolves Electron's app.getVersion(). */
-  getAppVersion?: RunnerAppVersionBridge['getAppVersion'];
+  getAppVersion?: AppVersionBridge['getAppVersion'];
   /** Optional for a stale preload; the Settings menu hides "Check for updates…" without it. */
-  checkForUpdates?: RunnerUpdateCheckBridge['checkForUpdates'];
+  checkForUpdates?: UpdateCheckBridge['checkForUpdates'];
   /** Settings "Loaded sites": how many tabs keep a running guest. Optional for an older
    *  preload, which leaves the renderer on its default of 1 (`use-live-views.hooks.ts`). */
   getMaximumLiveSiteViews?: () => Promise<number>;

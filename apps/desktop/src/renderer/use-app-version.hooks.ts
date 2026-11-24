@@ -1,7 +1,6 @@
 /** Version loading for the sites home brand; no package metadata enters the renderer bundle. */
-import { createAppVersionLoader, type AppVersionState } from '@jini-ai/desktop-host/app-version';
+import { createAppVersionLoader, type AppVersionBridge, type AppVersionState } from '@jini-ai/desktop-host/app-version';
 import { useAppVersion as useVersionLabel } from '@jini-ai/ui/app-version';
-import type { RunnerAppVersionBridge } from '../contracts/app-version.js';
 import { runnerInventoryBridge } from './runner-api.js';
 
 /**
@@ -13,7 +12,7 @@ import { runnerInventoryBridge } from './runner-api.js';
  */
 export function useAppVersion(
   _requiredArgs: Record<string, never>,
-  { bridge = runnerInventoryBridge() }: { bridge?: Partial<RunnerAppVersionBridge> } = {},
+  { bridge = runnerInventoryBridge() }: { bridge?: AppVersionBridge } = {},
 ): AppVersionState {
   return useVersionLabel({ bridge, createLoader: createAppVersionLoader });
 }

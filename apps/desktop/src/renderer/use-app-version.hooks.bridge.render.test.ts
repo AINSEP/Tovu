@@ -7,7 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { RunnerAppVersionBridge } from '../contracts/app-version.js';
+import type { AppVersionBridge } from '@jini-ai/desktop-host/app-version';
 import { deferred, renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
 import { useAppVersion } from './use-app-version.hooks.js';
 
@@ -26,7 +26,7 @@ test('useAppVersion: reads the exact main-process version once and keeps it acro
 test('useAppVersion: a replacement bridge drops the old request\'s reply, and one without the method clears the version', async (t) => {
   const first = deferred<string>();
   const second = deferred<string>();
-  let bridge: Partial<RunnerAppVersionBridge> = { getAppVersion: () => first.promise };
+  let bridge: AppVersionBridge = { getAppVersion: () => first.promise };
   const hook = renderHook(t, () => useAppVersion({}, { bridge }));
   bridge = { getAppVersion: () => second.promise };
   hook.rerender();

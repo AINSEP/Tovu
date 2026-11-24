@@ -1,7 +1,6 @@
 /** Settings › Check for updates…: main runs the check and shows every notice; this only waits. */
-import { createUpdateCheck, type UpdateCheckState } from '@jini-ai/desktop-host/app-version';
+import { createUpdateCheck, type UpdateCheckBridge, type UpdateCheckState } from '@jini-ai/desktop-host/app-version';
 import { useUpdateCheck as useCheckRow } from '@jini-ai/ui/app-version';
-import type { RunnerUpdateCheckBridge } from '../contracts/app-version.js';
 import { runnerInventoryBridge } from './runner-api.js';
 
 /** Main reports check failures itself; this is only a broken IPC channel. Module-level, so stable. */
@@ -17,7 +16,7 @@ function reportBrokenChannel({ message }: { readonly message: string }, _optiona
  */
 export function useUpdateCheck(
   { onDone }: { onDone: () => void },
-  { bridge = runnerInventoryBridge() }: { bridge?: Partial<RunnerUpdateCheckBridge> } = {},
+  { bridge = runnerInventoryBridge() }: { bridge?: UpdateCheckBridge } = {},
 ): UpdateCheckState & { checkForUpdates: () => Promise<void> } {
   return useCheckRow({ bridge, onDone, report: reportBrokenChannel, createCheck: createUpdateCheck });
 }
