@@ -158,7 +158,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
     return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
   }));
   const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
-  return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix, isYamlMapping: isFailsafeYamlMapping }) };
+  return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
 }
 
 /** Soon-lock and supersession policy wrapped around the owner's activation and contribution writers. */

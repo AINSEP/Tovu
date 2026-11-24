@@ -13,7 +13,8 @@ import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev
 import { readShareInput, registerAdminSiteShareArtifactUploadRoute, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { createSiteSharePasswordHandler, sendSiteShareFailure } from "#src/server/inbound/admin-http/routes/system/site-share-password";
 import { parseStaticExportInput } from "#src/features/site-backup/static-export-selection";
-import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE, SHARE_TOKEN } from "#src/features/site-backup/share-registry";
 import { receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 import type { SiteShareBackend } from "#src/features/site-backup/share-backend";
