@@ -5,10 +5,11 @@ import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "@jini-ai/platform/mail";
-import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
+import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { listCustomCredentials } from "../../custom-credentials/index.js";
 import { mailWebhookSecretLabels } from "../../mail/index.js";
-import { evaluateLaunchGate, type LaunchGateDeps } from "../../newsletter/launch-gate.js";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { evaluateLaunchGate, type LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
@@ -145,7 +146,7 @@ function mailer(driver: string): MailerPort {
 function launchGate(overrides: Partial<LaunchGateDeps> = {}): LaunchGateDeps {
   return {
     isSendingEnabled: async () => true, consentCapability: {} as LaunchGateDeps["consentCapability"],
-    originRegistry: { canonicalOrigin: async () => ({ origin: "https://site.test" }) } as unknown as LaunchGateDeps["originRegistry"], mailer: mailer("smtp"), ...overrides,
+    originRegistry: { canonicalOrigin: async () => ({ origin: "https://site.test" }) } as unknown as LaunchGateDeps["originRegistry"], mailer: mailer("smtp"), orFallback, ...overrides,
   };
 }
 

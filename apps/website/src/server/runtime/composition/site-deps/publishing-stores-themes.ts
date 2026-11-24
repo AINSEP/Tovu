@@ -18,7 +18,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { themeRosterPorts } from "#src/features/theme/index";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 
 interface ComposePublishingStoresThemesRequired {
   kernel: SiteStore["content"];
@@ -66,6 +66,6 @@ export function composePublishingStoresThemes(required: ComposePublishingStoresT
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   return { mediaContentTypeStore, publishContentBundleRepo, publishContentBaselineRepo, publishContentFileBlobIndex, publishContentPeerRepo, publishContentSeedHash, siteThemes, removeTheme };
 }

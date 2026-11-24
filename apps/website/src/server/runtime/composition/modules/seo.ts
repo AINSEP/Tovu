@@ -9,8 +9,8 @@ import { seoGetSettingsRoute } from "@jini-ai/cms/admin-http/routes/seo/get-sett
 import { seoPostSitemapRegenerateRoute } from "@jini-ai/cms/admin-http/routes/seo/post-sitemap-regenerate";
 import { seoPutEntryRoute } from "@jini-ai/cms/admin-http/routes/seo/put-entry";
 import { seoPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/seo/put-settings";
-import { getSeoSettings } from "@jini-ai/cms/seo/site/settings";
-import { setSeoSettings, type SeoSettingsPatch } from "@jini-ai/cms/seo/site/settings";
+import { getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "@jini-ai/cms/seo/site/settings";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/sitemap";
 import { registerSeoRobotsRoute } from "#src/server/inbound/public-http/routes/site/robots";
@@ -130,14 +130,14 @@ export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = ({ app, d
 
 /** The `seo.*` settings ledger mapping is host-local (`features/seo/settings.ts`), bound here. */
 export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const readSeoSettings = (input: { workspaceId: string }) => getSeoSettings({ settingsRepo: deps.settingsRepo, getEffective }, input);
+  const readSeoSettings = (input: { workspaceId: string }) => getSeoSettings({ ...seoSettingsHostBindings, settingsRepo: deps.settingsRepo }, input);
   mountAdminJsonRoute({ app, spec: seoGetSettingsRoute, deps: { ...seoPortDeps({ deps }), readSeoSettings } }, mountOptions({ operation: "routes/seo/get-settings", authorization: "direct" }));
 };
 
 export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const writeSeoSettings = (input: { workspaceId: string; patch: unknown; callerPrincipalId: string }) => setSeoSettings(
     {
-      settingsRepo: deps.settingsRepo, getEffective, set, createPrincipalLookup: createSettingsPrincipalLookup, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
+      ...seoSettingsHostBindings, settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
       invalidateSitemap: deps.sitemapService.invalidateSitemapCache, media: deps.seoDeps.media,
     },
     { workspaceId: input.workspaceId, patch: input.patch as SeoSettingsPatch, callerPrincipalId: input.callerPrincipalId },

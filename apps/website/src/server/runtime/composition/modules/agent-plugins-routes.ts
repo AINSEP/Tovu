@@ -1,8 +1,9 @@
 import { agentPluginFilesRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/files";
 import { agentPluginsListRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/list";
 import { agentPluginSetEnabledRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/set-enabled";
+import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
 import {
-  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError,
+  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";

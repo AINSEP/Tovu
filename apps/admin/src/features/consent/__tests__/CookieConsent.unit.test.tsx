@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '@jini-ai/admin/screens/consent/use-consent-page.hooks';
+import { useAdminKit } from '@jini-ai/admin/react/kit';
+import { agentHandle } from '@jini-ai/core/agent-handles';
 import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
 import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@jini-ai/admin/shell/lib/router';

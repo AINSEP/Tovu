@@ -1,6 +1,6 @@
 import { resolveDefinitionRaw } from "@jini-ai/core/settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { ForbiddenError, ValueValidationFailedError, type ClearValueRequired, type ResetNamespaceRequired, type SetValueRequired } from "@jini-ai/core/settings";
+import { ForbiddenError, ValueValidationFailedError, resolveDefinitionRaw, type ClearValueRequired, type ResetNamespaceRequired, type SetValueRequired } from "@jini-ai/core/settings";
 import {
   clear as clearWithPolicies, dedicatedSettingsWriters, refuseDedicatedSettingClear as refuseClearWithPolicies,
   refuseDedicatedSettingReset as refuseResetWithPolicies, resetNamespace as resetWithPolicies, set as setWithPolicies,

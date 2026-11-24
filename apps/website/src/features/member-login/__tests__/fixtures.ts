@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
-import type { LoginProvider } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
 import { formatAad } from "@jini-ai/platform/secrets";
 

@@ -1,4 +1,5 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { useT } from "@jini-ai/ui";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";

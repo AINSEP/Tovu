@@ -6,8 +6,9 @@ import { createStoreManifest } from "@jini-ai/plugins/site/store/manifest";
 import { createLipayManifest } from "@jini-ai/plugins/site/lipay/manifest";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
-/** The stored provenance publisher of every bundled data module. `checkNamespaceAdoption` compares it
- * with the stored identity row on every boot, so changing it turns repeat boots into consent refusals. */
+/** The host's first-party publisher id. It is persisted in each built-in's `_plugin_identity` row and compared
+ *  strictly on every boot, so sites that already minted `store`/`lipay` under it keep working: the engine
+ *  manifests take it from here and never declare their own. Changing it is a data migration. */
 export const FIRST_PARTY_PUBLISHER = "tovu-core";
 
 // Host-side notes on the newsletter module (`@jini-ai/user-management/newsletter/data-module-manifest`),
@@ -46,4 +47,9 @@ export const FIRST_PARTY_PUBLISHER = "tovu-core";
  * `declareDataModule` and {@link FIRST_PARTY_PUBLISHER}, and `createNewsletterDataModule` is in {@link FIRST_PARTY_DATA_MODULES}.
  */
 
-export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [createStoreManifest({ publisher: FIRST_PARTY_PUBLISHER }), createLipayManifest({ publisher: FIRST_PARTY_PUBLISHER }), createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER }), COMMENTS_DATA_MODULE];
+export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [
+  createStoreManifest({ publisher: FIRST_PARTY_PUBLISHER }),
+  createLipayManifest({ publisher: FIRST_PARTY_PUBLISHER }),
+  createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER }),
+  COMMENTS_DATA_MODULE,
+];

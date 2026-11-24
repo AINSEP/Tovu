@@ -15,7 +15,10 @@ import { t } from "@jini-ai/admin/users/users-i18n";
 
 /** Bind host locale, workspace scope and dictionary; Jini owns the controller. */
 export function useUsers({ port, openOwnPasswordReset, navigate }: { port: UsersPort; openOwnPasswordReset?: boolean; navigate?: (path: string, options?: { replace?: boolean }) => void }, _optional: Record<string, never> = {}): LocalizedUsersController {
-  return useLocalizedUsers({ port, openOwnPasswordReset, onOwnPasswordResetClosed: () => navigate?.("/users"), useUsers: useJiniUsers, useAdminLocale, queryScope: WORKSPACE_ID, t });
+  // The host owns the deep-link close route (rv1123l FIX 9): back to the Users list. A normal
+  // row-menu reset never calls this.
+  const onOwnPasswordResetClosed = useCallback(() => navigate?.("/users"), [navigate]);
+  return useLocalizedUsers({ port, openOwnPasswordReset, onOwnPasswordResetClosed, useUsers: useJiniUsers, useAdminLocale, queryScope: WORKSPACE_ID, t });
 }
 
 /**

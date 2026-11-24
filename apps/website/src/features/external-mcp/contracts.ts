@@ -1,7 +1,7 @@
 /** External-MCP host bindings of the canonical generic contracts; no assistant or service initialization.
  * Every other external-MCP type is imported from its owner (`@jini-ai/core/contracts/hosted-mcp`,
  * `@jini-ai/integrations/api-connections/hosted-mcp`, `@jini-ai/mcp/federation/hosted`); never re-export them here. */
-import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { ExternalMcpServerView as CanonicalExternalMcpServerView } from "@jini-ai/core/contracts/hosted-mcp";
 import type { SharedExternalMcpOwner } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ExternalMcpOAuthDeps as CanonicalExternalMcpOAuthDeps } from "@jini-ai/core/contracts/site/api-connections-hosted-mcp";

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { createMemoryRedirectsApi } from '@jini-ai/admin/redirects/adapters/memory';
 import { Redirects } from '@jini-ai/admin/screens/redirects';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../modules.hooks';
 import { RedirectsModuleLoading } from '../redirects-module.hooks';
 import { redirectsEvents } from '../redirects-ports';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
@@ -29,7 +29,7 @@ async function fixture({ useLocale = () => 'en' }: { useLocale?: () => string } 
   const hits = vi.spyOn(api, 'getRedirectHitStats');
   const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { redirectsPorts: { redirectsApi: api, redirectsEvents } });
   scopes.push(runtime);
-  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects useModulePanel={useModulePanel} ModuleLoading={() => <RedirectsModuleLoading useAdminLocaleHook={useLocale} />} /></AdminModulesContext.Provider></FetchQueryProvider>;
+  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects useModulePanel={useModulePanel} ModuleLoading={bindModuleLoading({ Loading: RedirectsModuleLoading, useAdminLocaleHook: useLocale })} /></AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, row, list, hits, runtime, node };
 }
 

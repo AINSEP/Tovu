@@ -15,9 +15,9 @@ import { createToolNameMap } from "@jini-ai/core";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
-import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
-import type { InMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
+import { writeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
+import type { InMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch

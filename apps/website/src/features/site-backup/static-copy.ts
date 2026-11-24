@@ -4,11 +4,7 @@ import path from "node:path";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import { shareFileStem } from "./share-service.js";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
-import * as htmlSourceEdits from "@jini-ai/cms/html/site/source-edits";
-import { escapeHtml } from "@jini-ai/core/text";
-
-/** The HTML editor the backup package injects: the source-located edits plus this host's attribute escaping. */
-const sourceEdits = { ...htmlSourceEdits, escapeHtml };
+import { downloadHtmlSourceEdits } from "./download-html-source-edits.js";
 
 export interface StaticSiteMetadata {
   exportedAt: string;
@@ -95,7 +91,7 @@ function downloadableFiles({ files, publicOrigin, pages }: { files: { path: stri
   const rewritten = files.map(file => {
     if (!/\.html$/i.test(file.path)) return file;
     const page = pages.get(file.path) ?? "/" + file.path.replace(/(?:\/)?index\.html$/, "");
-    const result = downloadForms({ html: file.content.toString(), page, publicOrigin, sourceEdits });
+    const result = downloadForms({ html: file.content.toString(), page, publicOrigin, sourceEdits: downloadHtmlSourceEdits });
     references.push(...result.removed, ...result.serverLinks);
     return { ...file, content: Buffer.from(result.html) };
   });

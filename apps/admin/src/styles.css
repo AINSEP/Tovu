@@ -78,14 +78,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary,
-.btn-ghost,
-.btn-danger,
-.btn-warning,
-.btn-primary,
-.btn-explore,
-.jini-content-analysis-btn-secondary {
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .sites-page .jini-btn-secondary, .sites-page .jini-btn-danger, .sites-page .jini-btn-primary {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .sites-page .jini-btn-secondary, .sites-page .jini-btn-danger, .sites-page .jini-btn-primary, .jini-content-analysis-btn-secondary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -180,8 +173,7 @@ input[type="checkbox"], input[type="radio"] {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
-.field-hint, .jini-content-analysis-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
-.field-hint, .sites-page .jini-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+.field-hint, .sites-page .jini-field-hint, .jini-content-analysis-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
 .field-error { font-size: var(--text-xs); color: var(--danger); margin: 0; }
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
@@ -1237,15 +1229,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .jini-content-analysis-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover, .jini-content-analysis-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .sites-page .jini-btn-secondary:hover, .jini-content-analysis-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover), .jini-content-analysis-btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .sites-page .jini-btn-secondary:where(:hover), .jini-content-analysis-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active), .jini-content-analysis-btn-secondary:where(:not(:disabled):active) {
-.btn-secondary:hover, .sites-page .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
-.btn-secondary:where(:hover), .sites-page .jini-btn-secondary:where(:hover) {
-.btn-secondary:where(:not(:disabled):active), .sites-page .jini-btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .sites-page .jini-btn-secondary:where(:not(:disabled):active), .jini-content-analysis-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1253,8 +1242,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled, .jini-content-analysis-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
-.btn-secondary:disabled, .sites-page .jini-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .sites-page .jini-btn-secondary:disabled, .jini-content-analysis-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
 .btn-danger, .sites-page .jini-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover, .sites-page .jini-btn-danger:hover { background: var(--danger-bg); opacity: 1; }
@@ -1335,13 +1323,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    rule's own `:hover` variant, so both states need an explicit override, not just the resting
    one). Verified against the Dashboard's "View site ↗" `.btn-secondary` anchor, a real caller —
    without this it rendered as underlined text wearing a border, no padding, no centering. */
-a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary, a.jini-content-analysis-btn-secondary {
+a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary, .sites-page a.jini-btn-secondary, .sites-page a.jini-btn-danger, .sites-page a.jini-btn-primary, a.jini-content-analysis-btn-secondary {
   display: inline-flex; align-items: center; text-decoration: none;
 }
-a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover, a.btn-warning:hover, a.btn-primary:hover, a.jini-content-analysis-btn-secondary:hover { text-decoration: none; }
-a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary, .sites-page a.jini-btn-secondary, .sites-page a.jini-btn-danger, .sites-page a.jini-btn-primary {
 a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover,
-a.btn-warning:hover, a.btn-primary:hover, .sites-page a.jini-btn-secondary:hover, .sites-page a.jini-btn-danger:hover, .sites-page a.jini-btn-primary:hover { text-decoration: none; }
+a.btn-warning:hover, a.btn-primary:hover, .sites-page a.jini-btn-secondary:hover, .sites-page a.jini-btn-danger:hover, .sites-page a.jini-btn-primary:hover, a.jini-content-analysis-btn-secondary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
@@ -1904,9 +1890,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
    reads as a slightly more emphatic box than a plain card, just without a directional rail. */
 .notice,
-.jini-login-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
-.notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
-.notice, .sites-page .jini-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.jini-login-notice,
+.sites-page .jini-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
 .notice.error, .sites-page .jini-notice.jini-notice-error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
@@ -1945,11 +1930,16 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
 .list-table tbody tr:last-child td, .jini-roles-list-table tbody tr:last-child td { border-bottom: none; }
 /* DataTable's `rowDetail`: the record and its full-width line read as one row. */
-.list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
-.list-table .list-table-detail > td { padding-block-start: 0; }
+.list-table tbody tr:has(+ .list-table-detail) td,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
+.list-table .list-table-detail > td,
+.jini-roles-list-table .list-table-detail > td { padding-block-start: 0; }
 .list-table tbody tr:has(+ .list-table-detail:hover),
-.list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
-.list-table tbody tr:hover { background: var(--surface-2); }
+.list-table tbody tr:hover + .list-table-detail,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail:hover),
+.jini-roles-list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
+.list-table tbody tr:hover,
+.jini-roles-list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
    rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
    "New user" plus 4× "Disable" plus 4× "Manage" — nine identically loud buttons on one screen)
@@ -1976,10 +1966,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    action semantic promotion (a genuinely destructive or access-affecting row action earning
    `.btn-danger` or the `.btn-warning` scaffold below) needs the owning section's own markup and
    is phase 2 — see the report's hierarchy-spec section. */
-.list-table td button:not([class*="btn-"]):not(.link-button) {
+.list-table td button:not([class*="btn-"]):not(.link-button),
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button) {
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
-.list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
+.list-table td button:not([class*="btn-"]):not(.link-button):hover,
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
 /* Collision on file, named per this comment block's own convention: `ThemePagesTab.tsx`'s Publish
    switch (`.theme-explore-switch`, reused verbatim from `ThemeExplore.tsx`'s toolbar toggle) sits
    inside a `.list-table td` same as every other row control, so this reset's `:not([class*="btn-"])`
@@ -2025,8 +2017,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
 :root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: var(--accent-ink); }
-.jini-content-analysis-status, .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
-.status, .sites-page .jini-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.status, .sites-page .jini-status, .jini-content-analysis-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 /* A disabled form is switched off, not failed or destructive — so it takes the same muted
@@ -2073,11 +2064,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    (gate passed/not-applicable, daemon known-failure, env var set/unsafe) don't map onto any
    existing published/active/trashed vocabulary above. */
 .status-ok, .jini-content-analysis-status-ok { background: var(--ok-bg); color: var(--ok); }
-.status-warning, .jini-content-analysis-status-warning { background: var(--warning-bg); color: var(--warning); }
-.status-neutral, .jini-content-analysis-status-neutral { background: var(--surface-3); color: var(--muted); }
-.status-ok { background: var(--ok-bg); color: var(--ok); }
-.status-warning, .sites-page .jini-status-warning { background: var(--warning-bg); color: var(--warning); }
-.status-neutral, .sites-page .jini-status-neutral { background: var(--surface-3); color: var(--muted); }
+.status-warning, .sites-page .jini-status-warning, .jini-content-analysis-status-warning { background: var(--warning-bg); color: var(--warning); }
+.status-neutral, .sites-page .jini-status-neutral, .jini-content-analysis-status-neutral { background: var(--surface-3); color: var(--muted); }
 /* `.jini-menu-page-link-unavailable`: `@jini-ai/admin` `MenuPageLinkFields`'s "Page not published" hint. */
 .muted-cell, .jini-roles-muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
 .integrations-form, .jini-roles-integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
@@ -2283,12 +2271,9 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
-.jini-content-analysis-editor-actions, .editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
-.save-ok { color: var(--ok); font-size: 0.85rem; }
-.save-error, .jini-content-analysis-save-error { color: var(--danger); font-size: 0.85rem; }
-.editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.editor-actions, .jini-content-analysis-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok, .sites-page .jini-save-ok { color: var(--ok); font-size: 0.85rem; }
-.save-error { color: var(--danger); font-size: 0.85rem; }
+.save-error, .jini-content-analysis-save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
@@ -6729,54 +6714,81 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    `useListTableCellLabels` sets `data-label` at every width, so nothing JS-side is phone-gated.
    ------------------------------------------------------------------------ */
 @container admin-content (max-width: 620px) {
-  .table-scroll:has(> table.list-table) { overflow-x: visible; }
-  table.list-table { display: block; min-width: 0; table-layout: auto; }
-  table.list-table > colgroup { display: none; }
+  .table-scroll:has(> table.list-table),
+  .jini-roles-table-scroll:has(> table.jini-roles-list-table) { overflow-x: visible; }
+  table.list-table,
+  table.jini-roles-list-table { display: block; min-width: 0; table-layout: auto; }
+  table.list-table > colgroup,
+  table.jini-roles-list-table > colgroup { display: none; }
   table.list-table > thead,
-  table.list-table > tbody { display: block; }
+  table.list-table > tbody,
+  table.jini-roles-list-table > thead,
+  table.jini-roles-list-table > tbody { display: block; }
 
-  table.list-table > thead:not(:has(button, input)) { display: none; }
-  table.list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-  table.list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
-  table.list-table > thead > tr > th:not(:has(button, input)) { display: none; }
+  table.list-table > thead:not(:has(button, input)),
+  table.jini-roles-list-table > thead:not(:has(button, input)) { display: none; }
+  table.list-table > thead > tr,
+  table.jini-roles-list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  table.list-table > thead > tr > th,
+  table.jini-roles-list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
+  table.list-table > thead > tr > th:not(:has(button, input)),
+  table.jini-roles-list-table > thead > tr > th:not(:has(button, input)) { display: none; }
   /* A select-all checkbox alone read as an empty grey bar (owner, Trash, 2026-10-07). Its label
      already carries the translated screen-reader text ("Select every item shown"); on a phone that
      text is shown beside the box, and the whole label is the tap target. */
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]),
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden,
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
     position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
     font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--muted);
   }
 
-  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-  table.list-table > tbody > tr:last-child { border-bottom: none; }
+  table.list-table > tbody > tr,
+  table.jini-roles-list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  table.list-table > tbody > tr:last-child,
+  table.jini-roles-list-table > tbody > tr:last-child { border-bottom: none; }
   /* A record and its `rowDetail` line are one card. */
-  table.list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
-  table.list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
-  table.list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
+  table.list-table > tbody > tr:has(+ .list-table-detail),
+  table.jini-roles-list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
+  table.list-table > tbody > tr.list-table-detail,
+  table.jini-roles-list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
+  table.list-table > tbody > tr.list-table-detail > td:first-child,
+  table.jini-roles-list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
-  table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
-  table.list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
-  table.list-table > tbody > tr > td:empty { display: none; }
+  table.list-table > tbody > tr::after,
+  table.jini-roles-list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
+  table.list-table > tbody > tr > td,
+  table.jini-roles-list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+  table.list-table > tbody > tr > td:empty,
+  table.jini-roles-list-table > tbody > tr > td:empty { display: none; }
 
   table.list-table > tbody > tr > td:first-child,
-  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td,
+  table.jini-roles-list-table > tbody > tr > td:first-child,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
     order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
   }
-  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
+  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]),
+  table.jini-roles-list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select),
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
     order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
   }
 
   /* Meta line: "LABEL value". Not on the title, the actions slot or a lone checkbox. */
-  table.list-table > tbody > tr > td[data-label]::before {
+  table.list-table > tbody > tr > td[data-label]::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]::before {
     content: attr(data-label); margin-right: 6px;
     font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
   }
   table.list-table > tbody > tr > td:first-child::before,
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
 
   /* Each meta cell is its own "LABEL | value" line, labels in one fixed-width column (owner,
      2026-10-07). As inline "LABEL value" runs side by side, the pairs wrapped wherever the line
@@ -6786,25 +6798,32 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      the value's children stay in ordinary flow however many there are, every value line keeps
      the indent, and `flow-root` grows the cell when a long label wraps to two lines. Excluded:
      the title, the actions slot, editable cells (label above, below) and colspan detail rows. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]),
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
     --list-meta-label-w: 7.5rem;
     flex: 0 0 100%; display: flow-root; padding-left: calc(var(--list-meta-label-w) + 12px); line-height: 20px;
   }
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
     float: left; width: var(--list-meta-label-w); margin: 0 0 0 calc(-1 * (var(--list-meta-label-w) + 12px)); line-height: 20px;
   }
   /* A button value (Collections' "Copy embed code") is 44px tall on phones: centre the label on it. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
 
   /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
      label ABOVE the control and a share of the line, so a field reads as a small labelled form —
      including the primary cell, whose control is otherwise anonymous. */
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
-  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select),
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
+  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
   /* An inline detail row (Users' expanded panel spans every column) now gets the card's width,
      not the old table's — its own controls must not keep a desktop min-width past it. */
-  table.list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
+  table.list-table > tbody > tr > td[colspan] :is(select, input),
+  table.jini-roles-list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
 }
 
 /* ------------------------------------------------------------------------

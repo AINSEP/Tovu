@@ -2,7 +2,8 @@ import { Badge, Button, ConfirmDialog, Dialog, IconButton, Menu, Notice, Select,
 import { useNativeDialog } from '@jini-ai/ui-kit/react/native';
 import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
   isProviderBaseUrlInvalid, invalidBaseUrlProviderIds, Icon, useT, SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES,
-  RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, useCodeWrap } from '@jini-ai/ui';
+  RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, useCodeWrap,
+  useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId } from '@jini-ai/ui';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
   createFailureChannel } from '@jini-ai/ui/panel-kit';
@@ -10,7 +11,6 @@ import { InfoTip, Lightbox, Select as WidgetSelect, useInfoTip, usePanelPosition
   closeLightboxDialog } from '@jini-ai/ui/admin-widgets';
 import { TabBar, useTabBarKeyboard, resolveTabBarTabIndex } from '@jini-ai/ui/tab-strip';
 import { buildSandboxProxyDataUrl } from '@jini-ai/ui/mcp-ui/surfaces';
-import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog, useCopyToClipboard } from '@jini-ai/ui';
 import { PreviewModalShell } from '@jini-ai/ui/preview-modal-shell';
 import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';

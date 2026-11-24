@@ -6,7 +6,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import {
   createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
@@ -17,6 +17,7 @@ import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "@ji
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
 import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WS = "member-passwords";
 const EMAIL = "ada@example.test";
@@ -30,6 +31,7 @@ function harness() {
   const verifications: Array<{ hash: string; password: string }> = [];
   const hashInputs: string[] = [];
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     // Policy tests use memory ports; real lock/rollback guarantees live in password-lifecycle.dialects.test.ts.
     credentialLifecycle: createInMemoryCredentialLifecycle(),
     clock, ids: { newId: () => `id-${++seq}` }, members: new InMemoryMemberRepo(),

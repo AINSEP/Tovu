@@ -78,6 +78,7 @@ const WIRED_HOOKS: readonly string[] = [
   "integrations/jini-admin/widgets-ports.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",
   // The package owns the Recovery read lifecycle; this host binding retains the bus subscription.
+  "features/recovery/hooks/recovery-dependencies.hooks.ts",
   // Screen and sidebar share this read/subscription owner; Jini owns it (built output, read through
   // the package link) and subscribes itself, so the call is checked where it now lives.
   "../node_modules/@jini-ai/admin/dist/screens/sites/use-sites-snapshot.hooks.js",

@@ -9,9 +9,11 @@ import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
 import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { formatUserFacingError } from "@jini-ai/core";
+import { isAbortError } from "@jini-ai/core/text";
 
 /** The host binding the dock registry passes the Jini card. */
-const cardBindings = { formatUserFacingError, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS };
+const cardBindings = { useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, formatUserFacingError, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS };
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";

@@ -24,18 +24,8 @@ import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } fr
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 import type { RevertRegistry } from "../../contracts/core/commands/index.js";
-import type {
-  PasswordHasherPort,
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  PrincipalPolicyRepoPort,
-  PrincipalRepoPort,
-  PrincipalRoleRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-  SessionRepoPort,
-  UserRepoPort,
-} from "@jini-ai/user-management";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
+import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
@@ -51,6 +41,9 @@ import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
 import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";

@@ -1,6 +1,6 @@
 import { reactModuleUi } from '@jini-ai/admin/core/react';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
-import { createElement, useContext, useEffect, useState, Suspense, type ReactNode } from 'react';
+import { createElement, useContext, useEffect, useState, Suspense, type ComponentType, type ReactNode } from 'react';
 import { createAdmin } from '@jini-ai/admin/core/module';
 import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
 import { media } from '@jini-ai/admin/media/react';
@@ -41,7 +41,7 @@ export function createHostAdminScope({ permissions, useAdminLocaleHook }: { perm
   const seoFeature = createHostSeoModule({ useAdminLocaleHook });
   const widgetsFeature = createHostWidgetsModule({ useAdminLocaleHook });
   const formsFeature = createHostFormsModule({ useAdminLocaleHook });
-  const securityFeature = createHostSecurityModule({}, { useAdminLocaleHook, ownerPorts: securityOwnerPorts });
+  const securityFeature = createHostSecurityModule({ useAdminLocaleHook }, securityOwnerPorts ? { ownerPorts: securityOwnerPorts } : {});
   // Scope membership uses object identity: host Provider wrappers are copies of the bound modules.
   const admin = createAdmin({ modules: [feature.react.module, commentsFeature.react.module, redirectsFeature.react.module, seoFeature.react.module, widgetsFeature.react.module, formsFeature.react.module, securityFeature.react.module, pickerConsumer], ports: { mediaApi, embedPolicy, mediaEvents, mediaProviders: createMediaProvidersPort({}), ...commentsPorts, ...redirectsPorts, ...seoPorts, ...widgetsPorts, ...formsPorts, ...securityPorts } }, { permissions: [...mediaSessionGrants({ permissions }), ...commentsSessionGrants({ permissions }), ...redirectsSessionGrants({ permissions }), ...seoSessionGrants({ permissions }), ...formsSessionGrants({ permissions }), ...securitySessionGrants({ permissions }, { grantsReady })] });
   return { permissionKey: scopeKey({ permissions, grantsReady }), admin, overlays, picker: admin.scope({ module: pickerConsumer }).mediaPicker, bindings: { media: feature.react, comments: commentsFeature.react, redirects: redirectsFeature.react, seo: seoFeature.react, widgets: widgetsFeature.react, forms: formsFeature.react, security: securityFeature.react } };
@@ -59,7 +59,7 @@ export function useAdminModules({ permissions, useAdminLocaleHook, grantsReady =
     const current = createHostAdminScope({ permissions, useAdminLocaleHook }, { grantsReady });
     setRuntime(current);
     return () => { current.admin.dispose(); current.overlays.dispose(); };
-  }, [key, useAdminLocaleHook]);
+  }, [key, useAdminLocaleHook, grantsReady]);
   // During grant changes the old scope must not render with stale affordances.
   return runtime?.permissionKey === key ? runtime : null;
 }
@@ -84,6 +84,26 @@ function resolveModulePage({ runtime, moduleId, pageId }: { runtime: Runtime; mo
 }
 /** One bridge absorbs the legacy route context and the new module/page/tab shape.
  * Future modules supply bindings in the root scope and reuse this adapter. */
+const boundModuleLoadings = new WeakMap<ComponentType<{ useAdminLocaleHook: UseAdminLocaleHook }>, WeakMap<UseAdminLocaleHook, ComponentType>>();
+
+/**
+ * Binds the host's locale hook into a module-loading component so a Jini screen that takes a
+ * prop-less `ModuleLoading` (`Seo`, `Redirects`) still renders the host's localized fallback.
+ * Memoized per (Loading, hook) pair: a fresh component per render would remount the fallback.
+ */
+export function bindModuleLoading(
+  { Loading, useAdminLocaleHook }: { Loading: ComponentType<{ useAdminLocaleHook: UseAdminLocaleHook }>; useAdminLocaleHook: UseAdminLocaleHook },
+  _optional: Record<string, never> = {},
+): ComponentType {
+  const byHook = boundModuleLoadings.get(Loading) ?? new WeakMap<UseAdminLocaleHook, ComponentType>();
+  boundModuleLoadings.set(Loading, byHook);
+  const existing = byHook.get(useAdminLocaleHook);
+  if (existing) return existing;
+  const Bound = () => createElement(Loading, { useAdminLocaleHook });
+  byHook.set(useAdminLocaleHook, Bound);
+  return Bound;
+}
+
 export function useModulePanel(props: ModulePanelProps, { loadingContent }: { loadingContent?: ReactNode } = {}) {
   const runtime = useContext(AdminModulesContext);
   if (!runtime) return { content: loadingContent ?? createElement('p', { role: 'status' }, 'Loading admin modules…') };

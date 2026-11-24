@@ -14,7 +14,7 @@ import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-crede
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import { bindTovuCredentialToolOperations, customCredentialsDerivedRisk } from '../tool-registrations.js';
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from '@jini-ai/integrations/credentialed-http/tools';
-import type { DeployTargetRegistry, LoadedDeployTarget } from '../../deployments/contracts.js';
+import type { DeployTargetRegistry, LoadedDeployTarget } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { CustomCredentialDuplicateLabelError, CustomCredentialValidationError, CustomCredentialSecretStoreUnconfiguredError } from '../store.js';
 import type { CustomCredentialToolHost, CredentialToolActorDeps, CredentialToolOperations } from '@jini-ai/integrations/credentialed-http/tools';
 import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';

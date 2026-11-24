@@ -1,7 +1,9 @@
 /**
  * @file Tovu's bindings for the collaborators the `@jini-ai/admin` shell takes by injection
  * (ex5-fnd-kit review, rv-g FIX 1/3). Jini's shell imports no core implementation and writes no
- * console output; this file is where the admin app chooses them.
+ * console output; this file is where the admin app chooses them. The owner auth clients (sign-in,
+ * MFA, passkeys, recovery, initial-session bootstrap) are NOT bound here: their single host binding
+ * is `./owner-clients.ts` (rv1123k fnd T1), built over Jini's `@jini-ai/user-management/react/auth`.
  */
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createConsoleLogger } from "@jini-ai/core/primitives";

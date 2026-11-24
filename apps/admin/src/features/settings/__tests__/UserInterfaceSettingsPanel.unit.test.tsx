@@ -1,4 +1,5 @@
 import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { describe, expect, it, vi } from "vitest";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
@@ -45,7 +46,7 @@ describe("useUserInterfaceTab", () => {
 describe("UserInterfaceSettingsPanel", () => {
   it("renders a labelled switch that reflects the value and autosaves on click", () => {
     const onChange = vi.fn();
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" }, onChange }} locale="en" agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" }, onChange }} locale="en" useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />);
     const toggle = screen.getByRole("switch", { name: "Hide the chat button while the chat is open" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(toggle);
@@ -54,7 +55,7 @@ describe("UserInterfaceSettingsPanel", () => {
 
   it("renders the tab-wrapping switch, off by default, and autosaves on click", () => {
     const onChange = vi.fn();
-    render(<UserInterfaceSettingsPanel slice={{ value: null, onChange }} locale="en" agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />);
+    render(<UserInterfaceSettingsPanel slice={{ value: null, onChange }} locale="en" useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />);
     const toggle = screen.getByRole("switch", { name: "Wrap tabs instead of scrolling" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(toggle);
@@ -62,7 +63,7 @@ describe("UserInterfaceSettingsPanel", () => {
   });
 
   it("exposes each switch to the page driver under a stable agent handle", () => {
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="en" agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="en" useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />);
     expect(screen.getAllByRole("switch").map((toggle) => toggle.getAttribute("data-agent-element"))).toEqual([
       "settings-interface-hide-chat-fab",
       "settings-interface-wrap-tabs",
@@ -70,7 +71,7 @@ describe("UserInterfaceSettingsPanel", () => {
   });
 
   it("translates its copy", () => {
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="es" agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="es" useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />);
     expect(screen.getByRole("switch", { name: "Ocultar el botón del chat mientras el chat está abierto" })).toBeTruthy();
     expect(screen.getByRole("switch", { name: "Ajustar las pestañas en varias filas en lugar de desplazarlas" })).toBeTruthy();
   });

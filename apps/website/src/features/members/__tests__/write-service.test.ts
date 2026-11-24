@@ -32,6 +32,7 @@ import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/ac
 import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WORKSPACE_ID = "ws-1";
 
@@ -81,6 +82,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
   const principals = new InMemoryPrincipalRepo({});
 
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     clock,
     ids,
     members: new InMemoryMemberRepo(),

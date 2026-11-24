@@ -6,7 +6,7 @@ import type { Express, Request, Response } from "express";
 
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
 import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
-import { registerPublishTrustHandshakeRoutes, type PublishTrustHandshakeDeps } from "../handshake.js";
+import { registerPublishTrustHandshakeRoutes, type PublishTrustHandshakeDeps } from "#src/server/runtime/composition/modules/publish-trust";
 
 // A process started without its site key cannot derive its own installation id. Express 4 does not
 // catch a rejected async handler, so each handshake route that awaited the derivation left the

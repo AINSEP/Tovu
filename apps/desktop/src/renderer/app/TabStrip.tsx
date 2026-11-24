@@ -37,6 +37,11 @@ function ImportTabItem({ importTab }: { importTab: ImportTab }) {
   );
 }
 
+/** The "All" tab is selected only when no site tab is active and the Import tab is not selected. */
+function isSitesHomeSelected({ activeTab, importTab }: { activeTab: string | null; importTab: ImportTab | undefined }): boolean {
+  return activeTab === null && importTab?.selected !== true;
+}
+
 /**
  * One tab per open site, plus a permanent leading tab for Tovu's own screens. That leading tab is
  * labelled "All" because what it shows is the grid of every website; `tab--sites-home`

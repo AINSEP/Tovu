@@ -9,7 +9,7 @@ import { originFixture } from "#src/features/member-login/__tests__/fixtures";
 import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { MEMBER_OIDC_BINDING_COOKIE,
   type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
 import { lastRouteHandler } from "../helpers/last-route-handler.js";

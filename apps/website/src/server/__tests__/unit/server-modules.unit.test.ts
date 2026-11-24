@@ -17,8 +17,10 @@ import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
 import type { MailerSendOptions } from "@jini-ai/platform/mail";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { type MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`

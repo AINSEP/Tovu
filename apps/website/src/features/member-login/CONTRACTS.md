@@ -43,17 +43,13 @@ The member suite command includes existing password/code/reset/set-password regr
 
 ## Wiring
 
-- The member OIDC route template `MEMBER_OIDC_PATH` is owned by Jini at
-  `@jini-ai/core/contracts/headless/member-login`; route adapters, composition and the plugin exports runtime
-  import it from there. The former `public-path.ts` forwarder is deleted; this feature keeps the login
-  services, provider readiness and credentials (host).
 The OIDC protocol facade (`beginOidcLogin`, `completeOidcLogin`, `memberLoginCallbackUrl`, `sealLoginEmailContinuation`, `openLoginEmailContinuation`) lives in Jini at `@jini-ai/user-management/member-login/oidc-login`; its folder README has the package-side Wiring. The link service (`resolveFederatedIdentity`, `requestLoginEmailProof`, `MemberLoginLinkDeps`) lives at `@jini-ai/user-management/member-login/link-service`; routes import it directly. This folder keeps the host halves: plugin-pinned providers, credential lookup and readiness.
 
 - **Host injects into `OidcLoginDeps`:** `beginAuthorizationCode`, `completeAuthorizationCode`, `createSealedAuthorizationState`, `createSealerStateCodec`, `validateOidcIdToken` (from `@jini-ai/oauth`), `formatAad` (from `@jini-ai/platform/secrets`) and `appIdentity` (the product's OAuth client display name and software id), beside the existing ports.
 - **Composition:** `server/runtime/composition/modules/members.ts` `createMemberOidcRouteDeps`; tests reuse `__tests__/fixtures.ts` `oidcOperationsFixture`.
 - **Link deps mail transport:** `requestLoginEmailProof` calls Jini's `@jini-ai/user-management/members/member-challenge-request`, so `MemberLoginLinkDeps` must carry `mailTransport` (`features/members/mail-transport.ts` `membersMailTransport`); the composition gets it through `toPublicMembersWriteServiceDeps`.
 - **Link deps failure reporter:** `MemberLoginLinkDeps.reportFailure` is bound in `createMemberOidcRouteDeps` to `reportServerFailure` (`server/inbound/shared/admin-failure.ts`, operation `public:member-login:request-email-proof`), so a failed inbox-proof request keeps its redacted cause in the server log while the visitor still gets only `LOGIN_UNAVAILABLE`.
-- **Never:** the Jini facade imports no host code and no `@jini-ai/oauth`/`platform`; this folder must not re-export it (routes import the Jini subpath directly). `MEMBER_OIDC_PATH` comes from `contracts/headless`.
+- **Never:** the Jini facade imports no host code and no `@jini-ai/oauth`/`platform`; this folder must not re-export it (routes import the Jini subpath directly). `MEMBER_OIDC_PATH` comes from Jini `@jini-ai/core/contracts/headless/member-login` (the former `public-path.ts` forwarder is deleted).
 
 ```ts
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";

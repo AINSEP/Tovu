@@ -1,18 +1,10 @@
-# Observability
-
-Admin screen built on the settings-dialog shell.
-
-## Wiring
-
-- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
-- Kit slots: `I18nProvider`, `SettingsDialogShell` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
-- Residual `@jini-ai/ui` imports: `SETTINGS_DIALOG_DICTIONARIES` (Observability.tsx); `findActiveTab`, `resolveInitialActiveTabId`, `useTabbedDialog` (hooks/use-observability-tab.hooks.ts).
 # features/observability
 
 Operations > Observability. The screen, its API client, ports, state hooks and dictionary live in
 `@jini-ai/admin/screens/observability` (see its README); this folder is the host wiring that binds
 this app into it. `panels.tsx` imports only `index.ts`.
 
+## Wiring
 
 `index.ts` (`HOST_BINDINGS`) binds every required `ObservabilityProps` member:
 

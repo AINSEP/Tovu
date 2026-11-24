@@ -14,7 +14,7 @@ itself (`Login`, `useLogin`, `OwnerRecoverySignIn`, the login dictionary) lives 
 
 ## Wiring
 
-Tovu injects into the Jini screen: `useWiredLogin`, `useWiredAdminLocale`, the product name
+Tovu injects into the Jini screen: `useWiredLogin`, the App-supplied `useAdminLocaleHook`, the product name
 (`"Tovu"`, host copy), `SecretInput`, `LoginErrorNotice` (`disclosure="id-only"`), the owner passkey
 client (`ownerPasskeySignInPort`), the owner recovery client (`ownerRecoveryPort.recover`) and its
 `ownerRecoveryFailure` describer, `authApi.me`, `ApiError` (as `LOGIN_API_ERRORS`), and
@@ -25,3 +25,9 @@ Styles for the screen's `jini-login-*` classes live in `styles.css` beside the o
 
 - Session/token storage or the authenticated shell itself — both live in `App.tsx` and `lib/api`.
   This feature is the form only.
+## Wiring
+
+**Locale (P12 #6.T).** The host `Login` (`index.tsx`, binding the Jini screen) takes a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `App.tsx`'s `AdminShell` passes it to the early Login mount; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

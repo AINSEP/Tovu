@@ -1,4 +1,5 @@
 import { membersMailTransport } from "#src/features/members/mail-transport";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
@@ -15,6 +16,14 @@ import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
 import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+/**
+ * @file In-memory adapters for all 6 Newsletter repo ports (ADR-PIPE-011 File Map).
+ *
+ * One class per port, matching `apps/website/src/features/members/repo.memory.ts`'s private rows and
+ * plain array find/filter/push-or-replace methods. Each constructor copies its optional initial rows.
+ * Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
+ */
+// Now: the in-memory adapters live in `@jini-ai/user-management/newsletter/repo.memory`; `TOVU_DB=memory` composes them here.
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

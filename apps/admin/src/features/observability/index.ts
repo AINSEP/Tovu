@@ -11,6 +11,8 @@
  * helpers this admin binds into the admin kit in `integrations/jini-kits.ts`), the theme boundary, the TanStack devtools panel, and the
  * stylesheets. Tests may override any binding through props.
  */
+import { useCopyToClipboard, useTabbedDialog } from "@jini-ai/ui";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { createElement } from "react";
 import "@jini-ai/ui/settings-dialog.css";
 import "@jini-ai/admin/screens/observability/observability.css";

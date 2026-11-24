@@ -174,7 +174,6 @@ DTO lookups (recorded content type, public URL, blob size), the transactional `r
 the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
 `MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
 `@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
-`@jini-ai/cms/admin-http/http/media`. list and original
 remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).
 Assistant settings, credentials and visitor tools (`runtime/composition/modules/assistant-settings.ts`)
 mount `@jini-ai/cms/admin-http/routes/assistant/*` `"direct"` and inject `ADMIN_ASSISTANT_PERMISSION`, the
@@ -202,8 +201,6 @@ probe, OAuth connect/sign-in/device-poll and the session-credential routes stay 
 Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
 (`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
 id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
-
-update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
 Agent plugins memory GET/PUT (`modules/agent-plugin-memory-routes.ts`, own module so the error test's partial
 mocks load) mount `@jini-ai/cms/admin-http/routes/agent-plugins/memory` (`"guarded"`) with the installed check,
 `pluginMemory` and the default caps bound; PUT's `failureFor` claims only errors its bound `writeNote` threw

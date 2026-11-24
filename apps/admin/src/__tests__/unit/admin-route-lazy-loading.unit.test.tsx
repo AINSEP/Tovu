@@ -16,7 +16,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/themes", moduleId: "themes", exports: ["Themes", "ThemeExplore"] },
   { modulePath: "../../features/admin-ui/AdminUi", moduleId: "admin-ui", exports: ["AdminUi"] },
   { modulePath: "../../features/dashboard", moduleId: "dashboard", exports: ["Dashboard"] },
-  { modulePath: "../../features/import-export/ImportExportPanel", moduleId: "import-export", exports: ["ImportExportPanel"] },
+  { modulePath: "../../features/import-export", moduleId: "import-export", exports: ["ImportExport"] },
   { modulePath: "../../integrations/jini-admin/consent-screen", moduleId: "consent", exports: ["CookieConsent"] },
   { modulePath: "../../features/posts", moduleId: "posts", exports: ["PostEditor", "Posts"] },
   { modulePath: "../../features/pages", moduleId: "pages", exports: ["PageEditor", "Pages"] },
@@ -87,7 +87,7 @@ beforeEach(() => {
   // The SEO screen adapter now lives in Jini and panels.tsx injects the host's module-panel hook and
   // loading view. Like the mocked eager bridges, those host modules (the whole admin module scope,
   // media picker, publish button) are stubbed at the same thin-adapter seam.
-  vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
+  vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }), bindModuleLoading: () => () => null }));
   vi.doMock("../../integrations/jini-admin/seo-module.hooks", () => ({ SeoModuleLoading: () => null }));
   vi.doMock("../../integrations/jini-admin/redirects-module.hooks", () => ({ RedirectsModuleLoading: () => null }));
 });
@@ -163,7 +163,7 @@ describe("admin routes load only the page being visited", () => {
     ["/themes", "Themes", "themes"],
     ["/admin-ui", "AdminUi", "admin-ui"],
     ["/dashboard", "Dashboard", "dashboard"],
-    ["/import-export", "ImportExportPanel", "import-export"],
+    ["/import-export", "ImportExport", "import-export"],
     ["/consent", "CookieConsent", "consent"],
     ["/posts", "Posts list", "posts"],
     ["/pages", "Pages list", "pages"],

@@ -12,7 +12,6 @@ import { requestSignInLink } from "@jini-ai/user-management/members/member-chall
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
 import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/platform/mail";
-import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

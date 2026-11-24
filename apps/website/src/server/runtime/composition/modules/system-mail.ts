@@ -15,7 +15,7 @@ import {
 } from "@jini-ai/platform/mail";
 import { mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { readMailDnsStatus, verifyMailDnsStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
-import { type DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-tool-registrations";
 import { mailDomainDepsFrom } from "@jini-ai/user-management/mail/status/domain-deps";
 import { readMailFeedbackSetup } from "@jini-ai/platform/mail/feedback-setup";

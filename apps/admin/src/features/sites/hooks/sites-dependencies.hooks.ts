@@ -2,6 +2,7 @@ import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-site
 import { sitesApi } from "@/features/sites/api/sites-api";
 import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 import { useSitesSnapshot, type SitesListingScope } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
+import type { UseSitesSnapshotHook } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
 import type { LocalSitesDeps } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 import type { SiteConfirmPresentation } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 import { useSitesConfig, type SitesConfigController } from "@jini-ai/admin/screens/sites/use-sites-config.hooks";
@@ -30,6 +31,10 @@ export const LOCAL_SITE_CONFIRM_PRESENTATION: Record<ConfirmableAction, SiteConf
 
 /** The site-list cache key and content-refresh resource `useSitesSnapshot` (`@jini-ai/admin`) reads under. */
 export const SITES_LISTING: SitesListingScope = { listKey: KEYS.list, resource: SITES_RESOURCE };
+
+/** `useSitesSnapshot` bound to `SITES_LISTING`, for the shell's sites sidebar nav, which passes only
+ *  `{ port }`: it must read the same cached list (and refresh subscription) as the Sites screen. */
+export const useHostSitesSnapshot: UseSitesSnapshotHook = ({ port }, options) => useSitesSnapshot({ port, listing: SITES_LISTING }, options);
 
 /** This admin's list key, copy keys, write-error rules and interval for `useLocalSites` (`@jini-ai/admin`). */
 export const localSitesDeps: LocalSitesDeps = {

@@ -3,7 +3,7 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import { createDnsProviderRegistry, type AuthoritativeDnsPort } from "@jini-ai/devops/dns";
-import type { SenderDomainVerification } from "@jini-ai/platform/mail";
+import type { SenderDomainVerification } from "@jini-ai/core/contracts/mail";
 import type { DomainBinding } from "@jini-ai/devops/dns/site/binding.repo";
 import { inspectDomainDns } from "@jini-ai/devops/dns/site/dns-changes";
 import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";

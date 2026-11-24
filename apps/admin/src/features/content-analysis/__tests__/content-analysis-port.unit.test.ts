@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminApiError } from '@jini-ai/core/admin-runtime';
 import { WORKSPACE_ID } from '../../../lib/admin-http/config';
-import { contentAnalysisPort } from '../content-analysis-ports';
+import { defaultContentAnalysisPort as contentAnalysisPort } from '../hooks/content-analysis-dependencies.hooks';
 
 /**
- * @file The host's live `ContentAnalysisPort` (formerly `useWiredContentAnalysis`'s binding): the
+ * @file The host's live `ContentAnalysisPort` (`defaultContentAnalysisPort`, bound by `useWiredContentAnalysis`): the
  * workspace-scoped preview routes, and the host `ApiError` -> `AdminApiError` translation the Jini
  * card's rules depend on.
  */

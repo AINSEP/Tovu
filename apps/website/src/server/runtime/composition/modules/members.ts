@@ -7,9 +7,10 @@ import { memberGetRoute } from "@jini-ai/cms/admin-http/routes/members/get-by-id
 import { memberListRoute } from "@jini-ai/cms/admin-http/routes/members/list";
 import type { MemberErrorClassifier } from "@jini-ai/cms/admin-http/routes/members/shared";
 import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/members/request-magic-link";
-import { toMembersWriteServiceDeps } from "#src/server/inbound/admin-http/routes/members/deps";
+import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
@@ -38,6 +39,11 @@ import type { ServerModuleHandle } from "./types.js";
 // and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
+import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { MemberConflictError, MemberNotFoundError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
 import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
@@ -52,6 +58,7 @@ import { registerMemberOidcStartRoute } from "#src/server/inbound/public-http/ro
 import { registerMemberOidcCallbackRoute } from "#src/server/inbound/public-http/routes/members/oidc-callback";
 import { registerMemberOidcVerifyEmailRoute } from "#src/server/inbound/public-http/routes/members/oidc-verify-email";
 import { registerMemberUnlinkIdentityRoute } from "#src/server/inbound/public-http/routes/members/unlink-identity";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
 import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
@@ -67,7 +74,7 @@ function memberPortDeps({ deps }: { deps: MembersRouteDeps }, _optional: Record<
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
  *  had: list/get never consulted the publishing-credential override (`"direct"`); disable and delete
  *  did (`"guarded"`). Switching either is an authorization change, not a move. */
-function mountOptions(operation: string, authorization: AdminRouteAuthorization) {
+function mountOptions({ operation, authorization }: { operation: string; authorization: AdminRouteAuthorization }, _optional: Record<string, never> = {}) {
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
@@ -85,12 +92,12 @@ export const classifyMemberError: MemberErrorClassifier = ({ err }, _optional = 
 
 export const registerAdminMemberListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions("routes/members/list", "direct"));
+  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions({ operation: "routes/members/list", authorization: "direct" }));
 };
 
 export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions("routes/members/get-by-id", "direct"));
+  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions({ operation: "routes/members/get-by-id", authorization: "direct" }));
 };
 
 /**
@@ -109,7 +116,7 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: rou
     disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, versionConflictMessage: MEMBER_VERSION_CONFLICT_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions("routes/members/disable", "guarded"));
+  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions({ operation: "routes/members/disable", authorization: "guarded" }));
 };
 
 /** The trash move is the members library's, bound here to this request's repo, remover and clock. The
@@ -120,7 +127,7 @@ export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: rout
     trashMember: (input: Parameters<typeof trashMember>[0]) => trashMember(input, { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }),
     classifyMemberError,
   };
-  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions("routes/members/delete", "guarded"));
+  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions({ operation: "routes/members/delete", authorization: "guarded" }));
 };
 
 /** The 503 copy for a site whose mailer has no sender identity: the mailer's own message names internal setup. */
@@ -139,7 +146,7 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, 
     requestSignInLink: (input: { workspaceId: string; email: string; redirectPath: string | undefined }) => requestSignInLink({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, senderNotConfiguredMessage: MEMBER_SENDER_NOT_CONFIGURED_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions("routes/members/request-magic-link", "direct"));
+  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions({ operation: "routes/members/request-magic-link", authorization: "direct" }));
 };
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot

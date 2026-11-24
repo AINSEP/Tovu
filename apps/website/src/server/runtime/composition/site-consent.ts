@@ -14,6 +14,8 @@ import { fetchPublishedPage } from '@jini-ai/diagnostics/web-evidence/published-
 import { trackFetch } from '@jini-ai/diagnostics/observability';
 import { resolveSitePath } from '@jini-ai/diagnostics/web-evidence/site-path-policy';
 import { RESERVED_SEGMENTS } from '#src/platform/routing/index';
+import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '@jini-ai/cookie-consent/site/settings';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";

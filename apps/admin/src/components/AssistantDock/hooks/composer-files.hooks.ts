@@ -1,3 +1,4 @@
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { partitionChatPackages } from "./chat-package-kind";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";

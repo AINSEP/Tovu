@@ -1,9 +1,8 @@
 // Before any catalog module: the hosting plugins ship from @jini-ai/agent-plugins (see the fixture).
 import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
-import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
+import { consentAgentToolCatalog } from '@jini-ai/cookie-consent/site/tool-registrations';
 import { createObservabilityAgentToolCatalog } from '@jini-ai/diagnostics/observability/tool-registrations';
 import { TELEMETRY_TEST_ERROR_MESSAGE } from '#src/features/observability/test-error-message';
-import { observabilityAgentToolCatalog } from '#src/features/observability/tool-registrations';
 import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -62,10 +61,10 @@ import { catalog as credentialCopyCatalog } from "../../features/custom-credenti
 import { catalog as siteGuideCatalog } from "../../server/runtime/composition/site-guide-tools.js";
 import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
-import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
-import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
-import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
 import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/tool-registrations.js";
+import { domainDnsAgentToolCatalog } from "@jini-ai/devops/dns/site/tools";
+import { dnsChangeAgentToolCatalog } from "@jini-ai/devops/dns/site/dns-tools";
+import { mailDnsAgentToolCatalog } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "@jini-ai/devops/deploy/site/agent-tools";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
@@ -104,12 +103,12 @@ import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
-import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
 import { mailDeliveryAgentToolCatalog } from "@jini-ai/user-management/mail/status/delivery-agent-tools";
-import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
+import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";

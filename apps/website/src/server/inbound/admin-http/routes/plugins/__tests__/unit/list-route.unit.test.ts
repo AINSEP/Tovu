@@ -5,7 +5,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { createPluginSourcePolicy } from "@jini-ai/plugins/host";
 import type { PluginActivationRecord, PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord, PluginInstallerPort } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord, PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { registerPluginsListRoute, type PluginsListRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 
 // Route-level tests for PLUGINS_LIST: every guard, the per-row projection inputs and the

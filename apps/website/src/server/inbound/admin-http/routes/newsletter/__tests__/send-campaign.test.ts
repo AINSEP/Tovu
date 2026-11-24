@@ -11,8 +11,8 @@ import { createAdminNewsletterSendCampaignRoute, registerAdminNewsletterSendCamp
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "../deps.js";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import type { CampaignRecord } from "#src/features/newsletter/types";
 import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 /**
  * @file Route-level tests for `SEND_CAMPAIGN` (`POST .../newsletter/campaigns/:id/send`).

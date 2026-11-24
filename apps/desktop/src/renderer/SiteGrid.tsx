@@ -137,7 +137,7 @@ export function SiteGrid({
   return (
     <>
       <SiteListToolbar list={list} copy={siteListCopy(list)} />
-      {allHiddenNotice(list)}
+      <AllHiddenNotice visibleCount={list.visible.length} />
       <div className="grid">
       {list.visible.map(({ project }) => (
         <SiteCard
@@ -145,7 +145,7 @@ export function SiteGrid({
           project={project}
           list={list}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={gridCardOverlay({ id: project.id, pendingId, renamingId: rename.renamingId, confirmingStopId: power.confirmingStopId })}
+          overlay={overlayForCard({ id: project.id, pendingId, renamingId: rename.renamingId, confirmingStopId: power.confirmingStopId })}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -164,14 +164,15 @@ export function SiteGrid({
   );
 }
 
-/** Shown when the list's filter leaves nothing visible. @complexity O(1). */
-function allHiddenNotice(list: Pick<SiteListController<unknown>, 'visible'>) {
-  return list.visible.length === 0 ? <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p> : null;
+/** Which overlay a card shows; an absent stop-confirmation id reads as "none confirming". @complexity O(1). */
+function overlayForCard({ id, pendingId, renamingId, confirmingStopId }: { id: string; pendingId: string | null; renamingId: string | null; confirmingStopId: string | null | undefined }): CardOverlayMode {
+  return cardOverlay({ id, pendingDeleteId: pendingId, renamingId }, { confirmingStopId: confirmingStopId ?? null });
 }
 
-/** The overlay a grid card shows: a stop that is still unconfirmed reads as no id, not `undefined`. @complexity O(1). */
-function gridCardOverlay({ id, pendingId, renamingId, confirmingStopId }: { id: string; pendingId: string | null; renamingId: string | null; confirmingStopId: string | null | undefined }) {
-  return cardOverlay({ id, pendingDeleteId: pendingId, renamingId }, { confirmingStopId: confirmingStopId ?? null });
+/** The empty-list hint, shown only when every website is hidden. @complexity O(1). */
+function AllHiddenNotice({ visibleCount }: { visibleCount: number }) {
+  if (visibleCount !== 0) return null;
+  return <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p>;
 }
 
 /** Every word on the list's toolbar. @complexity O(1). */

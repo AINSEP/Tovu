@@ -31,6 +31,7 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
     useIdleSiteSleep: () => ({ available: false }), IdleSiteSleepRow: () => null,
     useMenuKeyboard: () => ({ menuRef: {}, triggerRef: {}, onMenuKeyDown() {} }),
     useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
+    UpdateCheckMenuItem: () => null,
     SitesFoldersDialog: ({ settings: state }: any) => state.open ? createElement('div', { role: 'dialog', 'data-placement': state.databases }) : null,
   } });
   const props = { theme: 'system', onThemeChange() {}, onOpenAppearance() {} };

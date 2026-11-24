@@ -1,5 +1,6 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { trashMember } from "@jini-ai/user-management/members/trash-member";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/members';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
@@ -345,7 +346,7 @@ function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: buildMembersWriteServiceDeps({ deps: { ...deps, mailTransport: membersMailTransport, orFallbackSync } }),
+        deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync, mailTransport: membersMailTransport } }),
         input: {
           workspaceId: deps.workspaceId,
           email,

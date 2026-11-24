@@ -11,7 +11,7 @@ import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteToolAttemptAuditSink } from "../../repo.sqlite.js";
 import { MAX_ROWS_PER_WORKSPACE } from "@jini-ai/diagnostics/tool-audit/repo";
-import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 /**
  * @file Real SQLite persistence for the agent tool-attempt audit trail. Uses a temp-file database

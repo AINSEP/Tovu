@@ -2,8 +2,6 @@ import type { PeerCallDeps } from "#src/features/publish-content/peer-transport"
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Request, Response } from "express";
 
-import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
-// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import type { PublishScope } from "@jini-ai/cms/publish/content/dialog/contract";
 import {
   confirmPeerImport,

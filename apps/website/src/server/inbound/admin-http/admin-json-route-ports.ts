@@ -4,8 +4,8 @@ import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from 
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { RouteDeps } from "#src/server/routes/types";
-import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
 import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
@@ -58,15 +58,10 @@ export interface AdminJsonRouteMountOptions {
    *  both decisions this way instead of forcing one mode on every check. */
   authorizationByPermission?: Readonly<Record<string, AdminRouteAuthorization>>;
   /** Opt-in: a request with no session principal reaches `parse` instead of failing in
-   *  `authenticate`. Only for routes whose hand-written version refused a bad body BEFORE reading the
+   *  `authenticate`. Refused together with {@link AdminJsonRouteMountOptions.sessionCredentialOnly}. Only for routes whose hand-written version refused a bad body BEFORE reading the
    *  principal (so that 400 still wins); the spec must call `authorize` before any side effect,
    *  because that is where the missing principal then fails closed. */
   deferMissingPrincipal?: boolean;
-  /** Opt-in: register the handler through `asyncRoute` (named `forwardRejection`), as the
-   *  hand-written route was. A rejection that escapes the spec adapter (its own error answer
-   *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
-   *  request open; the route-table pin sees the same registration as before the move. */
-  forwardRejection?: boolean;
   /** Refuse every credential but a session with `rejectUnlessSessionCredential`'s exact 403, in
    *  `authenticate` — after the workspace 404, before parse, authorization or any side effect. */
   sessionCredentialOnly?: SessionCredentialGate;
@@ -79,6 +74,11 @@ export interface AdminJsonRouteMountOptions {
   /** `"route"` (default) is `sendAdminFailure`'s method/route-derived copy; `"operation"` is the
    *  operation-only `adminFailureResponse` body the presentation PATCH writes. */
   failureCopy?: "route" | "operation";
+  /** Opt-in: register the handler through `asyncRoute` (named `forwardRejection`), as the
+   *  hand-written route was. A rejection that escapes the spec adapter (its own error answer
+   *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
+   *  request open; the route-table pin sees the same registration as before the move. */
+  forwardRejection?: boolean;
 }
 
 /** The denied decision a {@link AdminJsonRouteMountOptions.forbidden} override answers. */
@@ -144,12 +144,17 @@ function writeAdminFailure({ res, error, options }: { res: Response; error: unkn
 
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
+ * @throws Error at registration for `deferMissingPrincipal` + `sessionCredentialOnly` (rv1123l T6): a
+ *   deferred sessionless request would skip the credential gate, which must answer before parse.
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
  */
 export function createAdminJsonRoutePorts(
   required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean } = {},
   _optional: Record<string, never> = {},
 ): AdminPorts {
+  if (required.deferMissingPrincipal && required.sessionCredentialOnly) {
+    throw new Error("admin route ports: deferMissingPrincipal cannot be combined with sessionCredentialOnly — the credential gate must run before parse");
+  }
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
@@ -222,9 +227,8 @@ export function createPublicJsonRoutePorts(
 export function adminPortsFor({ path, options }: { path: string; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): AdminPorts {
   // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
   const workspaceScoped = path.includes(":workspaceId");
-  const { forwardRejection: _forwardRejection, ...portOptions } = options;
-  const customized = Object.values(portOptions).some((value) => value !== undefined);
-  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...portOptions, workspaceScoped }) : adminJsonRoutePorts;
+  const customized = Object.values(options).some((value) => value !== undefined);
+  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped }) : adminJsonRoutePorts;
 }
 
 /** Mount a Jini admin route spec behind the admin ports. `deps` is the route's own small deps type

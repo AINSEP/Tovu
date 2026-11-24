@@ -17,7 +17,7 @@ export const Themes = lazy(() => import("./features/themes").then(module => ({ d
 export const ThemeExplore = lazy(() => import("./features/themes").then(module => ({ default: module.ThemeExplore })));
 export const AdminUi = lazy(() => import("./features/admin-ui/AdminUi").then(module => ({ default: module.AdminUi })));
 export const Dashboard = lazy(() => import("./features/dashboard").then(module => ({ default: module.Dashboard })));
-export const ImportExport = lazy(() => import("./features/import-export/ImportExportPanel").then(module => ({ default: module.ImportExportPanel })));
+export const ImportExport = lazy(() => import("./features/import-export").then(module => ({ default: module.ImportExport })));
 export const CookieConsent = lazy(() => import("./integrations/jini-admin/consent-screen").then(module => ({ default: module.CookieConsent })));
 export const PostEditor = lazy(() => import("./features/posts").then(module => ({ default: module.PostEditor })));
 export const Posts = lazy(() => import("./features/posts").then(module => ({ default: module.Posts })));
@@ -37,7 +37,7 @@ export const Roles = lazy(() => import("./features/roles").then(module => ({ def
 export const SettingsUi = lazy(() => import("./features/settings").then(module => ({ default: module.SettingsUi })));
 export { Seo } from "@jini-ai/admin/screens/seo";
 // The SEO screen mounts through the host module scope; panels.tsx injects these into it.
-export { useModulePanel } from "./integrations/jini-admin/modules.hooks";
+export { useModulePanel, bindModuleLoading } from "./integrations/jini-admin/modules.hooks";
 export { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
 export { Redirects } from "@jini-ai/admin/screens/redirects";
 export { RedirectsModuleLoading } from "./integrations/jini-admin/redirects-module.hooks";

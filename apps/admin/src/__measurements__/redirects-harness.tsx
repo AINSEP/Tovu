@@ -2,7 +2,7 @@
 import { useRedirects, useHitCountCell } from '@jini-ai/admin/redirects/react';
 import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
 import { Redirects as HostRedirects } from '@jini-ai/admin/screens/redirects';
-import { useAdminModules, useModuleProviderContent, useModulePanel } from '../integrations/jini-admin/modules.hooks';
+import { useAdminModules, useModuleProviderContent, useModulePanel, bindModuleLoading } from '../integrations/jini-admin/modules.hooks';
 import { RedirectsModuleLoading } from '../integrations/jini-admin/redirects-module.hooks';
 import { createRedirectsTranslator, redirectsHostPorts } from '../integrations/jini-admin/redirects-ports';
 
@@ -24,5 +24,5 @@ export function Redirects({
   useAdminModulesHook?: typeof useAdminModules;
   useModuleProviderContentHook?: typeof useModuleProviderContent; } = {}) {
   const runtime = useAdminModulesHook({ permissions: ['*'], useAdminLocaleHook: useHostAdminLocale });
-  return useModuleProviderContentHook({ runtime, children: <HostRedirects useModulePanel={useModulePanel} ModuleLoading={() => <RedirectsModuleLoading useAdminLocaleHook={useHostAdminLocale} />} /> });
+  return useModuleProviderContentHook({ runtime, children: <HostRedirects useModulePanel={useModulePanel} ModuleLoading={bindModuleLoading({ Loading: RedirectsModuleLoading, useAdminLocaleHook: useHostAdminLocale })} /> });
 }

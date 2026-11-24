@@ -1,5 +1,6 @@
 import { nowIso } from "@jini-ai/core/primitives";
 import { observed } from "@jini-ai/core/errors/idioms";
+import { nowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { type IdentityRouteDepsSlice } from "#src/features/identity/wiring";

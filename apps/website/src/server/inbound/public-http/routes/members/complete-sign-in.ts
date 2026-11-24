@@ -1,10 +1,10 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Response } from "express";
+import { serialize } from "cookie";
 import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
 import { type MemberSignInInput } from "@jini-ai/user-management/members/ports";
-import { serialize } from "cookie";
 import { MEMBER_SESSION_COOKIE, toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";

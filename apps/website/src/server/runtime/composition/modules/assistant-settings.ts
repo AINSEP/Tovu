@@ -22,7 +22,7 @@ import {
 } from "#src/assistant/index";
 import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
 import type { VisitorToolsManagementPort } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
-import { ValueValidationFailedError } from "#src/features/settings/index";
+import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import {
   mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,

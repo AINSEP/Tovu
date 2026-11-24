@@ -1,7 +1,6 @@
 /** Plugin modules retain Tovu's HTTP and mail call shapes at their host boundary. */
 import type { MailAdapterCredential, MailAdapterModule as JiniMailAdapterModule, PositionalMailer as MailerPort } from "@jini-ai/core/contracts/mail";
 import type { HttpClientPort } from "../http/index.js";
-export type { MailAdapterCredential } from "@jini-ai/platform/mail";
 
 /** Hosted providers live in Agent Plugins, keeping vendor dependencies out of core; boot loads
  * their modules with saved credentials and this kit. SMTP remains the core fallback. */

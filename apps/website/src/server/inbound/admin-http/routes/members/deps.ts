@@ -34,5 +34,5 @@ export interface MembersRouteDeps extends RouteDeps, MembersDeps {
  * @overallScore 100
  */
 export function toMembersWriteServiceDeps(deps: MembersRouteDeps): MembersWriteServiceDeps {
-  return buildMembersWriteServiceDeps({ deps: { ...deps, mailTransport: deps.membersMailTransport, orFallbackSync } });
+  return buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync, mailTransport: deps.membersMailTransport } });
 }

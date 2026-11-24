@@ -1,11 +1,11 @@
-import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { cleanup, fireEvent, render, screen } from '@/__tests__/render-with-jini-kits';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { buildSeoSettingsPatch as buildPatch } from '@jini-ai/admin/seo';
 import { resolveSeoTabs as resolveTabs, sitemapStateLabel as stateLabel } from '@jini-ai/admin/seo/react';
 import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { Seo } from '@jini-ai/admin/screens/seo';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../../../integrations/jini-admin/modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../../../integrations/jini-admin/modules.hooks';
 import { SeoModuleLoading } from '../../../integrations/jini-admin/seo-module.hooks';
 import { createSeoTranslator } from '../../../integrations/jini-admin/seo-ports';
 
@@ -19,7 +19,7 @@ export async function mountSeoHost() {
   runtime = createHostAdminScope({ permissions: ['admin.seo.manage'], useAdminLocaleHook }, {
     seoPorts: { seoApi: createMemorySeoApi({}) },
   });
-  render(<FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={null} useModulePanel={useModulePanel} ModuleLoading={() => <SeoModuleLoading useAdminLocaleHook={useAdminLocaleHook} />} /></AdminModulesContext.Provider></FetchQueryProvider>);
+  render(<FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={null} useModulePanel={useModulePanel} ModuleLoading={bindModuleLoading({ Loading: SeoModuleLoading, useAdminLocaleHook })} /></AdminModulesContext.Provider></FetchQueryProvider>);
   await screen.findByRole('tab', { name: 'Site defaults' });
 }
 

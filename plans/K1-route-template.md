@@ -186,8 +186,11 @@ so its missing-session 500 still comes before parse.
 - Keep every `registerAdmin…Route` export name and the module's registration order: the route-table
   pin (`create-app-route-table.pin.test.ts`) must not change (mounted handlers are `<anonymous>`, as before).
 - Public routes use `mountPublicJsonRoute({ app, spec, deps, failure: { operation, visitorError } })`.
-- Non-JSON routes (streams, uploads, HTML, SSE, static, redirects-as-302) do **not** use this template:
-  they are core `ServerRoute` factories mounted through `@jini-ai/http-kit/node-bridge` `createNodeDispatcher`.
+- Non-JSON routes (streams, downloads, `express.raw` uploads, HTML, XML/text, redirects-as-302) do **not** use
+  this JSON template: they use the raw mounts of §9.3 (`mountAdminRawRoute` / `mountPublicRawRoute`), behind the
+  SAME host ports. Only a core `ServerRoute` factory (SSE, a route shared with a non-Express host) goes through
+  `@jini-ai/http-kit/node-bridge`, and then behind a method-scoped host adapter (`app[method](path, …)`) in the
+  old route's position — never an `app.use` dispatcher layer. §9.3 is the one raw-route instruction.
 - Host ports (`admin-json-route-ports.ts`) are shared composition: a family conversion never edits them.
   If a family needs a port change, stop and raise it — the pilot needed two mount options (§6.2, §6.3),
   now available to every family as per-mount opt-ins.
@@ -450,8 +453,9 @@ composition mounts it. Both are object fields — never positional.
   ```
 - **`requestFacts: true`** — the route needs client IP / User-Agent / Host (rate limiting, analytics ingest,
   publish-trust identity `originOf`, external-mcp probe/poll/connect). `raw.facts` is
-  `{ clientAddress, userAgent?, host? }`; `clientAddress` is Tovu's trust-proxy answer (`captureRequestFacts`
-  → `resolveClientIp(req)`), `host` is `req.get("host")`, `userAgent` is `req.get("user-agent")`. Every
+  `{ clientAddress, userAgent?, host?, protocol? }`; `clientAddress` is Tovu's trust-proxy answer (`captureRequestFacts`
+  → `resolveClientIp(req)`), `host` is `req.get("host")`, `userAgent` is `req.get("user-agent")`, `protocol` is
+  `req.protocol` under the same trust-proxy setting (publish-trust origin checks compare scheme + host). Every
   Tovu mount (admin and public, JSON and raw) binds the `requestFacts` port; it is consulted only for a spec
   that opts in (a spec that opts in on a mount without the port throws at mount time).
   ```ts
@@ -478,6 +482,14 @@ return ok({ value: routeReply({ status: 204 }) });
 
 ### 9.3 Raw routes — `mountAdminRawRoute` / `mountPublicRawRoute`
 
+Three layers, kept apart:
+
+| layer | owner | what it is |
+|---|---|---|
+| **Contract** (server-neutral) | `@jini-ai/core/contracts/server` | `RouteInputContext`, `ServerApiError`, `routeReply`, `RouteHostContext` / `OriginContext` (the same-origin policy port) — no Express type |
+| **HTTP adapter** | `@jini-ai/http-kit` | `defineRawRoute` / `mountRawRoute` (and `mountJsonRoute`): the gate order, `requireSameOrigin`'s guard, web `Response` write-back |
+| **Host binding** | Tovu `admin-raw-route-ports.ts` | `mountAdminRawRoute` / `mountPublicRawRoute`: Tovu's ports plus the host-supplied `origin` |
+
 For HTML, XML/text, streams, downloads, `express.raw` uploads, `302` + `Set-Cookie`. The spec is
 `defineRawRoute({ method, path, handle }, { readHeaders?, requestFacts?, responseHeaders?, maxBodyBytes? })`;
 `handle({ raw, deps, context, authorize }, { signal })` returns a web `Response` (each `Set-Cookie` header
@@ -491,6 +503,18 @@ mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps: { ...portDeps, instal
 mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError: "The sitemap couldn’t load." }, workspaceId: deps.workspaceId });
 // spec: return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8" } });
 ```
+
+- **Origin context on guarded raw mounts.** A spec with `requireSameOrigin: true` needs the host's
+  `RouteHostContext` (`{ originPolicy }`); pass it as `origin` on the mount. Both wrappers forward it to
+  http-kit, and a guarded spec mounted WITHOUT it is refused at registration (rv1123l T5) — never a
+  per-request 500. Same-origin reaches the handler; cross-origin is http-kit's 403.
+  ```ts
+  mountAdminRawRoute({ app, spec: guardedRoute, deps, origin: routeHostContext }, { failure });
+  ```
+- **Route inventory vs handler-name parity.** `mountRawRoute`/`mountJsonRoute` register with
+  `app[method](path, …)`, so the route table keeps its rows (method + path, position). That does NOT prove
+  handler-name parity: mounted handlers are `<anonymous>`, so the route-table pin
+  (`create-app-route-table.pin.test.ts`) must still be rerun and pinned after every move.
 
 ### 9.4 Admin mount options (`AdminJsonRouteMountOptions`, also taken by `mountAdminRawRoute`)
 
@@ -512,6 +536,11 @@ mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site
   mountAdminJsonRoute({ app, spec: publishImportRoute, deps: { ...portDeps, requestFacts: adminRequestFactsFor } });
   // spec: const { credentialKind, publishTrust } = deps.requestFacts({ context });
   ```
+- **`adminPublishTrustFor({ context })`** — a spec that needs only the publish-trust grant (not the
+  credential kind) binds this accessor (`admin-request-facts.ts`) instead of `adminRequestFactsFor`; it answers
+  `PublishTrustContext | null` for that request's principal and never reads `res`.
+- **`deferMissingPrincipal` + `sessionCredentialOnly`** is refused at registration (rv1123l T6): a deferred
+  sessionless request would reach parse past the credential gate.
 - **`forbidden: (decision) => { status, body }`** — the route's denial body was not `authorizeOrRespond`'s
   (media where-used/text `{ error: "media.read is required", code: "FORBIDDEN" }`, import-url
   `"not authorized for media.upload"`). Receives `{ principalId, permission, entityType?, entityId?, reason }`.

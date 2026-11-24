@@ -4,8 +4,9 @@ import type { Express } from "express";
 import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
-import { memberOidcContext, memberOidcCookie, memberOidcHeaders, redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { memberOidcContext, memberOidcCookie, memberOidcHeaders,
+  redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Plain-link entry point. Independent browser proof stays out of the authorization URL. A
  * refusal (cross-site, provider unavailable) sends the person back to /signin with its code.

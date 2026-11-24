@@ -1,5 +1,6 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 /**
  * @file Deps bundle for the new PUBLIC (unauthenticated) `members` route family
@@ -18,12 +19,12 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
  */
 import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
-import type { PositionalMailer as MailerPort } from "@jini-ai/core/contracts/mail";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { MailSenderIdentityPort } from "@jini-ai/platform/mail";
-import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
+import type { MailSenderIdentityPort } from "@jini-ai/core/contracts/site/platform-mail";
+import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { Request, Response } from "express";
 import { isSameOriginCommentPost } from "../site/comments-submit.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

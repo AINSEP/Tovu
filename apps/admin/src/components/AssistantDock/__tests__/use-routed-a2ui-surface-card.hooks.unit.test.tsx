@@ -76,7 +76,7 @@ describe("latestSurfaceIdIn", () => {
       { updateComponents: { surfaceId: "s1" } },
       { createSurface: { surfaceId: "s2" } },
     ];
-    expect(latestSurfaceIdIn({ events: events })).toBe("s2");
+    expect(latestSurfaceIdIn({ events })).toBe("s2");
   });
 
   it("skips events with no surfaceId of their own, keeping the most recent real one", () => {
@@ -85,7 +85,7 @@ describe("latestSurfaceIdIn", () => {
       { someUnrelatedEvent: true },
       { __simulateError: true },
     ];
-    expect(latestSurfaceIdIn({ events: events })).toBe("s1");
+    expect(latestSurfaceIdIn({ events })).toBe("s1");
   });
 
   it("returns undefined for an empty stream or one with no recognizable surfaceId anywhere", () => {

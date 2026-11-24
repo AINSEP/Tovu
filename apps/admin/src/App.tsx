@@ -2,7 +2,7 @@ import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
 import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
-import { defaultSitesPort, useSitesNavSnapshot } from "./features/sites/hooks/sites-dependencies.hooks";
+import { defaultSitesPort, useHostSitesSnapshot } from "./features/sites/hooks/sites-dependencies.hooks";
 import { useAdminDocumentLocale } from "@jini-ai/admin/shell/hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
@@ -675,7 +675,7 @@ function AdminSidebar(props: {
           Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
           so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
       <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel}
-        port={defaultSitesPort} useSitesSnapshot={useSitesNavSnapshot} translateNavLabel={translateAdminNavLabel} useSitesSidebarNavHook={useSitesSidebarNav}
+        port={defaultSitesPort} useSitesSnapshot={useHostSitesSnapshot} translateNavLabel={translateAdminNavLabel} useSitesSidebarNavHook={useSitesSidebarNav}
         SidebarNav={Sidebar.Nav} useSidebar={useSidebar} />
       <Sidebar.RailToggle />
       {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to

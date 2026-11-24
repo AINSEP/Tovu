@@ -18,7 +18,7 @@ import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connecti
  *
  * `ExternalMcpServerRepoPort`/`ExternalMcpOAuthService` are type-imported from `#src/assistant/
  * index` rather than restated, unlike `AuthorizeFn`/`ClockPort` (an external package) and
- * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/features/webhooks/index.js`,
+ * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `@jini-ai/integrations/webhooks`,
  * ADR-058's shared sealer/keyring types, the same instances the BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
  * `listExternalMcpServerViews`/etc. from that same `#src/assistant/mcp-services` barrel — the identical

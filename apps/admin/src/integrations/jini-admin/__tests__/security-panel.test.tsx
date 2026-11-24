@@ -30,9 +30,9 @@ const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
 const securityPorts = () => ({ securityApi: createMemorySecurityApi({}), otherCredentials: createMemoryOtherCredentials({}), rootKey: createMemoryRootKey({}) });
 
 function mount({ permissions = ['*'], grantsReady = true, tab = null as string | null, owner = ownerPorts() } = {}) {
-  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook }, { securityPorts: securityPorts(), securityOwnerPorts: owner, grantsReady });
+  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: () => 'en' }, { securityPorts: securityPorts(), securityOwnerPorts: owner, grantsReady });
   disposers.push(() => { runtime.admin.dispose(); runtime.overlays.dispose(); });
-  render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={permissions} grantsReady={grantsReady} useAdminLocaleHook={useAdminLocaleHook} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} /></AdminModulesProvider></KitProvider>);
+  render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={permissions} grantsReady={grantsReady} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} /></AdminModulesProvider></KitProvider>);
   return { owner };
 }
 const tabNames = () => screen.getAllByRole('tab').map(tab => tab.textContent?.trim());
@@ -66,12 +66,12 @@ describe('Security host panel', () => {
   });
 
   it('denied page: a scope without the session grant shows the denied notice', async () => {
-    const feature = createHostSecurityModule({}, { useAdminLocaleHook: () => 'en', ownerPorts: ownerPorts() });
+    const feature = createHostSecurityModule({ useAdminLocaleHook: () => 'en' }, { ownerPorts: ownerPorts() });
     const admin = createAdmin({ modules: [feature.react.module], ports: securityPorts() }, { permissions: [] });
     const overlays = createOverlayController({});
     disposers.push(() => { admin.dispose(); overlays.dispose(); });
     const runtime = { permissionKey: '[]', admin, overlays, picker: null as never, bindings: { security: feature.react } } as unknown as Runtime;
-    render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={[]} grantsReady useAdminLocaleHook={useAdminLocaleHook} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} /></AdminModulesProvider></KitProvider>);
+    render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={[]} grantsReady useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} /></AdminModulesProvider></KitProvider>);
     expect(await screen.findByText('Permission denied')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
   });

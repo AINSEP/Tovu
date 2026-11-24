@@ -4,7 +4,7 @@ import { createTempSiteLayoutFixture, testSiteLayoutContext, type TestSiteLayout
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { registerSkillsManagementRoutes } from "../../manage.js";
+import { registerSkillsManagementRoutes } from "#src/server/runtime/composition/modules/skills";
 import { listManagedSkills } from "@jini-ai/agentic/skills/site/install-service";
 
 const base = "/api/admin/v1/workspaces/:workspaceId/skills";

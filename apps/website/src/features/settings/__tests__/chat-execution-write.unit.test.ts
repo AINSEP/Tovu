@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
-import { validateRuntimeSelection, type DetectedAgent } from "@jini-ai/agent-runtime";
+import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "@jini-ai/cms/settings/site/chat-execution-write";
 
 type Write = Parameters<typeof prepareChatExecutionWrite>[0];

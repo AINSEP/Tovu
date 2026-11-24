@@ -10,7 +10,8 @@ import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, withAttachedProject, withUnavailableProject } from "#src/server/runtime/composition/provider-config-source";
+import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 
 /**

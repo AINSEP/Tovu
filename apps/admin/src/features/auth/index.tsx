@@ -18,9 +18,9 @@ import { useWiredLogin } from "./hooks/use-wired-login.hooks";
 /** The product name shown as the sign-in heading (host copy, passed to the Jini screen). */
 const PRODUCT_NAME = "Tovu";
 
-/** The Login screen with this host's collaborators bound in. `useAdminLocaleHook` is the host's one
- *  locale hook (App passes it to the early Login mount). `useLoginHook` stays overridable so a
- *  test can drive the markup with a fake controller. */
+/** The Login screen with this host's collaborators bound in. `useLoginHook` stays overridable so a
+ *  test can drive the markup with a fake controller. The locale hook is REQUIRED (P12 #6.T): App
+ *  passes the host's one `useHostAdminLocale` to the early Login mount. */
 export function Login({ onLogin, useAdminLocaleHook, useLoginHook = useWiredLogin }: { onLogin: (user: AdminUser) => void; useAdminLocaleHook: UseAdminLocaleHook; useLoginHook?: (props: LoginHookProps) => LoginController }) {
   return <LoginScreen onLogin={onLogin} useLoginHook={useLoginHook} useAdminLocaleHook={useAdminLocaleHook} productName={PRODUCT_NAME}
     SecretInput={SecretInput} ErrorNotice={LoginErrorNotice} PasskeySignIn={OwnerPasskeySignIn} OwnerRecoverySignIn={OwnerRecoverySignIn} loadCurrentUser={authApi.me} />;

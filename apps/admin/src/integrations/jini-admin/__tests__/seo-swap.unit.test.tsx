@@ -5,7 +5,7 @@ import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper
 import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';
 import { Seo } from '@jini-ai/admin/screens/seo';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../modules.hooks';
 import { seoEvents } from '../seo-ports';
 import { SeoMediaPickerSlot, SeoModuleLoading } from '../seo-module.hooks';
 import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
@@ -36,7 +36,7 @@ function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset>
   const subscribe = vi.fn(seoEvents.subscribe);
   const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { seoPorts: { seoApi: api, seoEvents: { subscribe } } });
   scopes.push(runtime);
-  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} useModulePanel={useModulePanel} ModuleLoading={() => <SeoModuleLoading useAdminLocaleHook={useLocale} />} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
+  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} useModulePanel={useModulePanel} ModuleLoading={bindModuleLoading({ Loading: SeoModuleLoading, useAdminLocaleHook: useLocale })} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
   return { api, load, subscribe, runtime, node };
 }
 

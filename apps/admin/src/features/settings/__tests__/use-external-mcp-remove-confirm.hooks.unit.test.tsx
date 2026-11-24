@@ -8,7 +8,10 @@ import { ConfirmActionDialog } from "../../../components/ConfirmActionDialog";
 import { buildExternalMcpRemoveConfirmCopy } from "../rules";
 
 // Host integration: the moved dialog with this host's own markup (`ConfirmActionDialog`) and copy bound in.
-const HOST = { ConfirmDialog: ConfirmActionDialog, buildCopy: buildExternalMcpRemoveConfirmCopy, useExternalMcpRemoveConfirmHook: useExternalMcpRemoveConfirm, useFocusTrapHook: useFocusTrap };
+const HOST = {
+  ConfirmDialog: ConfirmActionDialog, buildCopy: buildExternalMcpRemoveConfirmCopy,
+  useExternalMcpRemoveConfirmHook: useExternalMcpRemoveConfirm, useFocusTrapHook: useFocusTrap,
+};
 
 // F2.3/F3.3/F6.2: use the real dialog, DOM listeners and focus trap; exercise update and unmount.
 // Author Checklist: literal OAuth copy, exact callback delivery, real keyboard input, fresh renders.

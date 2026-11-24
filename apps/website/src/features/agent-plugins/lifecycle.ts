@@ -1,5 +1,6 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */

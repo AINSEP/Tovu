@@ -1,5 +1,5 @@
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import type { UIResource } from '@jini-ai/protocol/mcp-ui';
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { requireHumanConfirm } from '../../contracts/core/human-confirm.js';
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 

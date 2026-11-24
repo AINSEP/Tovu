@@ -14,6 +14,7 @@ import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai
 import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WS = "password-lifecycle";
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -28,6 +29,7 @@ function harness(kernel: ContentKernel) {
   const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
   const magicLinks = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel }));
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     credentialLifecycle: kernel, clock, ids: { newId: () => `password-${++sequence}` }, members, sessions, magicLinks,
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}),

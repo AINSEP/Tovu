@@ -7,10 +7,14 @@ import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
-import { useSitesNavSnapshot } from "@/features/sites/hooks/sites-dependencies.hooks";
+import { useHostSitesSnapshot } from "@/features/sites/hooks/sites-dependencies.hooks";
 
-/** The host collaborators the Jini hook takes as required args (App.tsx binds the same two). */
-const host = { useSitesSnapshot: useSitesNavSnapshot, translateNavLabel: (required: { locale: string; key: string }) => navI18n.translateAdminNavLabel(required) };
+/** The host collaborators the Jini hook requires; the translator is read through the module
+ *  namespace at call time so `vi.spyOn(navI18n, ...)` below still reaches it. */
+const host = {
+  useSitesSnapshot: useHostSitesSnapshot,
+  translateNavLabel: (args: { locale: string; key: string }) => navI18n.translateAdminNavLabel(args),
+};
 
 const groups: readonly AdminNavGroup[] = [{ items: [
   { id: "sites", label: "Sites", href: "/sites", order: 1 },

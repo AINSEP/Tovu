@@ -22,11 +22,6 @@ own tab — the four failures are in the "not-yet-built roadmap accordion" block
 content without activating the "Not built yet" tab first. This is pre-existing, known breakage, not
 introduced by this feature move — do not "fix" it as a side effect of an unrelated change.
 
-## Wiring
-
-- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
-- Kit slots: `I18nProvider`, `SettingsDialogShell` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
-- Residual `@jini-ai/ui` imports: `ByokProviderForm`, `ExecutionTab`, `SETTINGS_DIALOG_DICTIONARIES`.
 ## What moved to the engine
 
 - `AssistantToggleRow`, `OwnerGrantStatus`, the locale-sync and owner-grant hooks, and the Visitor
@@ -65,3 +60,8 @@ introduced by this feature move — do not "fix" it as a side effect of an unrel
   types) live in `@jini-ai/core/contracts/site/api-ai-assistant-api-types`.
 - Translations stay here (`ai-assistant-i18n.ts`, `visitor-tools-i18n.ts`) and reach the engine
   through `t`. Rationale: `docs/decisions/DR-005-portable-package-boundaries.md` in the engine repo.
+## Wiring
+
+- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
+- Kit slots: `I18nProvider`, `SettingsDialogShell` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
+- Residual `@jini-ai/ui` imports: `ByokProviderForm`, `ExecutionTab`, `SETTINGS_DIALOG_DICTIONARIES`.
