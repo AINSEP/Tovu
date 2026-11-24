@@ -3,6 +3,7 @@ import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo } from "@jini-ai/cms/tax
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { existsSync, readFileSync } from "node:fs";
@@ -85,7 +86,9 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
   const seedBytes = inMemoryReadableBytes({ bytes: readFileSync(input.seedDbPath) }, {});
   const seedDb = openContentDb(":memory:", { open: (_file, options) => openNativeSqlite(seedBytes, options) });
   const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
-  const seedPostRepo = new SqlitePostRepo({ store: seedDb });
+  // A throwaway in-memory seed copy that never serves media: its repos get their own private evidence store, not the site's.
+  const seedEvidence = createMediaAccessEvidence();
+  const seedPostRepo = new SqlitePostRepo({ store: seedDb, mediaAccessEvidence: seedEvidence });
   const { workspaceId } = input;
   return {
     workspaceId: input.workspaceId,
@@ -119,7 +122,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
         entryTermRepo: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: TAXONOMY_TABLES, workspaceId }, {}),
         taxonomyRevisionRepo: unusedBySeedInspect({ label: "taxonomyRevisionRepo" }),
         stampWatermark: () => unusedBySeedInspect<{ call: never }>({ label: "stampWatermark" }).call,
-        entryRepo: entryRepoFor({ store: seedDb }),
+        entryRepo: entryRepoFor({ store: seedDb, mediaAccessEvidence: seedEvidence }),
         entryRefsRepo: unusedBySeedInspect({ label: "entryRefsRepo" }),
         widgetBindingRepo: unusedBySeedInspect({ label: "widgetBindingRepo" }),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.

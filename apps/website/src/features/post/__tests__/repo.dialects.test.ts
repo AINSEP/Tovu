@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -34,7 +35,7 @@ describeEachDialect<PostRepoPort>(
   "post repo",
   {
     tables: ["posts", "post_revisions"],
-    make: postRepoFor,
+    make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }),
   },
   (makeRepo) => {
     test("a transaction's save + appendRevision roll back together; a nested one joins", async () => {

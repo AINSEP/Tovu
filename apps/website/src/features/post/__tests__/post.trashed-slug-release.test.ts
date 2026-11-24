@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -51,7 +52,7 @@ const ADAPTERS: Array<{ name: string; make: (rows: PostRecord[]) => Promise<Post
       (db as unknown as { $client: Database.Database }).$client
         .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
         .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-      const repo = new SqlitePostRepo({ store: db });
+      const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
       for (const row of rows) await repo.save(row);
       return repo;
     },
@@ -174,7 +175,7 @@ function openRealTrash() {
   client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  const repo = new SqlitePostRepo({ store: db });
+  const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
   let seq = 0;
   const trash = createTrashService({

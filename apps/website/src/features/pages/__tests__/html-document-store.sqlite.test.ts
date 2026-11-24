@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -395,7 +396,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertPost(db, { id: "post-guard", kind: "post", body_json: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Keep me"}]}]}' });
     const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow());
-    const repo = postRepoFor(db);
+    const repo = postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-guard" }, { kernel: db, clock, revisions: repo });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow()), before);
@@ -409,7 +410,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const registrations = buildPagesRegistrations({
       workspaceId: WS,
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      postRepo: postRepoFor(db),
+      postRepo: postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() }),
       pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore(scope, { kernel: db, clock }),
     });
     const call = (name: string, input: Record<string, unknown>) => {

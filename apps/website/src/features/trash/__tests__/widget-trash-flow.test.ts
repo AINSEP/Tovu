@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
@@ -77,7 +78,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     transaction: ({ work }) => (transaction)(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const entries = entryRepoFor({ store: db });
+  const entries = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
     contentTypeRepo: contentTypeRepoFor({ store: db }),

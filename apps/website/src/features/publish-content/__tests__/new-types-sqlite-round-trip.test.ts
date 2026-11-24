@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
@@ -36,7 +37,7 @@ function instance(name: string) {
   const repos = {
     forms: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
     contentTypes: contentTypeRepoFor({ store: db }),
-    entries: entryRepoFor({ store: db }),
+    entries: entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }),
     entryRefs: new SqliteEntryRefsRepo({ store: db }),
     bindings: widgetRegionBindingRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: WIDGETS_TABLES }),
   };

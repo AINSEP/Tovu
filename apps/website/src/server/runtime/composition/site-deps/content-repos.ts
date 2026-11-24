@@ -2,6 +2,7 @@ import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { FORMS_TABLES, TAXONOMY_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
@@ -12,17 +13,18 @@ interface ComposeContentReposRequired {
   kernel: SiteStore["content"];
   workspaceId: string;
   storeBound: ReturnType<typeof storeBoundServicesFor>;
+  mediaAccessEvidence: MediaAccessEvidence;
 }
 
 export function composeContentRepos(required: ComposeContentReposRequired, _optional = {}) {
-  const { kernel, workspaceId, storeBound } = required;
+  const { kernel, workspaceId, storeBound, mediaAccessEvidence } = required;
 
   // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
   // repo the rest of this composition root wires (mirrors `restorePointsRepo`'s identical
   // hoisting rationale above). The actual `commentsReady` I/O (declareDataModule against the
   // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
   // pure, synchronous, I/O-free wiring only.
-  const entryRepo = entryRepoFor({ store: kernel });
+  const entryRepo = entryRepoFor({ store: kernel, mediaAccessEvidence });
   // Hoisted (2026-09-02 taxonomy render-surface gap fix) so the SAME instance backs both
   // `entryTermRepo` and the new `entryTermReadRepo` field below — one concrete class satisfying two
   // differently-shaped dependency slots, rather than two separate connections to the same table.

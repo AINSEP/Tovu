@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
@@ -558,7 +559,7 @@ test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead
 test("insertWidgetEmbed rolls back document, version, refs and revision when ref persistence fails", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const entryRepo = entryRepoFor({ store: db });
+  const entryRepo = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const contentTypeRepo = contentTypeRepoFor({ store: db });
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: db });
   const memory = makeSharedRepos();

@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import test from "node:test";
@@ -38,7 +39,7 @@ for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
   test(`${dialect.name}: boot re-indexes legacy projections once, without a resave`, async (t) => {
     const kernel = dialect.make();
     if (dialect.dialect === "sqlite") t.after(() => kernel.close());
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     const find = async (query: string) => (await searchAdminPosts({
       deps: { search }, input: { workspaceId: "reindex-ws", query },
@@ -71,7 +72,7 @@ for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
   test(`${dialect.name}: an unreadable stored projection version counts as old, so the default-batch rebuild runs again`, async (t) => {
     const kernel = dialect.make();
     t.after(() => kernel.close());
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     await repo.save(page);
     await repo.save(docPost);
     assert.equal(await reindexStalePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 2);

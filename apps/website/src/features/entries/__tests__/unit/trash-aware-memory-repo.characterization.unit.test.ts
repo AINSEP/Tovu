@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
@@ -25,7 +25,8 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache() {
-  const repo = trashAwareEntryRepo();
+  const mediaAccessEvidence = createMediaAccessEvidence();
+  const repo = trashAwareEntryRepo({ mediaAccessEvidence });
   const cache = mediaAccessEvidence.getCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();

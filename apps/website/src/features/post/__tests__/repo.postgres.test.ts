@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { sql } from "kysely";
@@ -55,8 +56,8 @@ function revision(seq: number): PostRevisionInput {
 }
 
 test("two connections: a concurrent appendRevision waits for the open one and chains after it", async () => {
-  const repoA = postRepoFor(first);
-  const repoB = postRepoFor(second);
+  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoB = postRepoFor(second, { mediaAccessEvidence: createMediaAccessEvidence() });
   const base = await repoA.appendRevision(revision(1));
 
   let appended!: () => void;

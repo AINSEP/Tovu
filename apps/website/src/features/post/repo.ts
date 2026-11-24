@@ -1,5 +1,5 @@
 import { POST_SEARCH_HOST } from "./search-host-config.js";
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
@@ -33,13 +33,17 @@ import { postSearchFor, type PostSearchProjection } from "@jini-ai/cms/posts/sql
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   protected readonly kernel: ContentKernel;
   private readonly search: PostSearchProjection;
+  /** The process-wide evidence store the composition root also hands the media-rendition reader; every write below clears the entries linked to this repo. */
+  private readonly mediaAccessEvidence: MediaAccessEvidence;
   /** The same kernel, schema erased, for the Jini search adapters. */
   private readonly searchKernel: ReturnType<typeof schemaErasedKernel>;
   constructor(
     kernel: ContentKernel,
-    search: PostSearchProjection
+    search: PostSearchProjection,
+    { mediaAccessEvidence }: { mediaAccessEvidence: MediaAccessEvidence }
   ) {
     this.kernel = kernel;
+    this.mediaAccessEvidence = mediaAccessEvidence;
     this.search = search;
     this.searchKernel = schemaErasedKernel({ store: kernel });
   }
@@ -157,7 +161,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(record) });
     });
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -186,7 +190,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
-    if (result.applied) mediaAccessEvidence.invalidate({ owner: this });
+    if (result.applied) this.mediaAccessEvidence.invalidate({ owner: this });
     return result;
   }
 
@@ -210,7 +214,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("id", "=", required.id)
         .execute()
     );
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -243,7 +247,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       // when the scoped delete above actually removed the row it projects.
       if (removed.length > 0) await this.search.remove({ kernel: this.searchKernel, postId: required.id });
     });
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
@@ -347,11 +351,11 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
   async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     try { return await this.kernel.transaction(fn); }
-    finally { mediaAccessEvidence.invalidate({ owner: this }); }
+    finally { this.mediaAccessEvidence.invalidate({ owner: this }); }
   }
 }
 
 /** The post repo for `kernel`, with its dialect's search projection. */
-export function postRepoFor(kernel: ContentKernel, _optional: Record<string, never> = {}): SqlPostRepo {
-  return new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel }), POST_SEARCH_HOST));
+export function postRepoFor(kernel: ContentKernel, options: { mediaAccessEvidence: MediaAccessEvidence }): SqlPostRepo {
+  return new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel }), POST_SEARCH_HOST), options);
 }

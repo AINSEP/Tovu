@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -263,7 +264,7 @@ test("a DERIVED slug takes a trashed row's slug instead of suffixing past it", a
 
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
   { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:"), mediaAccessEvidence: createMediaAccessEvidence() }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 

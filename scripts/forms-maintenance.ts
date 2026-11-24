@@ -1,5 +1,6 @@
 /** Explicit SQLite maintenance entrypoint. Preview opens read-only; apply holds exclusive admission.
  * No migration, owner bootstrap, schedule, file listing or immediate object deletion occurs here. */
+import { createMediaAccessEvidence } from "../apps/website/src/features/media/access-evidence.js";
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -43,7 +44,8 @@ export async function runFormsMaintenanceCommand(
     if (!exists) throw new Error('The selected workspace is absent from this database. No form files were changed.');
     const clock = { nowMs: () => Date.now() };
     const media = { mediaRepo: new SqlMediaRepo(kernel), blobRepo: new SqlAssetBlobRepo(kernel), renditionRepo: new SqlAssetRenditionRepo(kernel),
-      entryRefsRepo: new SqliteEntryRefsRepo({ store: kernel }), postRepo: new SqlitePostRepo({ store: kernel }), clock };
+      // Offline maintenance never serves media: its repo gets a private evidence store nothing reads.
+      entryRefsRepo: new SqliteEntryRefsRepo({ store: kernel }), postRepo: new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), clock };
     return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqliteOutboxAdapter({ store: kernel }), clock }, { apply, ...(after === undefined ? {} : { after }) });
   } finally { native.close(); }
 }

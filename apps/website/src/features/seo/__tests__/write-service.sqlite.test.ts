@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { createSeoFeaturedImagePort, createSeoPostPort } from "../index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
@@ -29,7 +30,7 @@ function openTestDb() {
 
 test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_json via the real SQLite adapter", async () => {
   const db = openTestDb();
-  const repo = new SqlitePostRepo({ store: db });
+  const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   await repo.save(buildPostRecord({
     id: "post-1",
     workspaceId: "workspace-local",
@@ -65,7 +66,7 @@ test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_
 
 test("setEntrySeoOverrides: entry-not-found against the real SQLite adapter rejects SeoEntryNotFoundError", async () => {
   const db = openTestDb();
-  const repo = new SqlitePostRepo({ store: db });
+  const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
 
   await assert.rejects(
     () =>
@@ -83,7 +84,7 @@ test("setEntrySeoOverrides: entry-not-found against the real SQLite adapter reje
 });
 
 test("setEntrySeoOverrides: SQLite retries a stale read and preserves the competing content and SEO save", async () => {
-  const repo = new SqlitePostRepo({ store: openTestDb() });
+  const repo = new SqlitePostRepo({ store: openTestDb(), mediaAccessEvidence: createMediaAccessEvidence() });
   await repo.save(buildPostRecord({ id: "post-race", workspaceId: "workspace-local", title: "Original", slug: "race",
     bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 }));
   const read = repo.findById.bind(repo);

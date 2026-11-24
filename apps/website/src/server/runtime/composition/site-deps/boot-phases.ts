@@ -1,3 +1,4 @@
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { CreateSiteRouteDepsOverrides } from "./overrides.js";
 import type { StoreCloseRegistration } from "./open-store.js";
 import type { SiteStore } from "../open-site-store.js";
@@ -63,6 +64,7 @@ export function composeStoragePhase(required: ComposeStoragePhaseRequired, _opti
 }
 
 interface ComposeSiteServicesPhaseRequired {
+  mediaAccessEvidence: MediaAccessEvidence;
   dbPath: string;
   overrides: Partial<CreateSiteRouteDepsOverrides>;
   onStoreClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void;
@@ -85,7 +87,7 @@ interface ComposeSiteServicesPhaseRequired {
 }
 
 export function composeSiteServicesPhase(required: ComposeSiteServicesPhaseRequired, _optional = {}) {
-  const { dbPath, overrides, onStoreClose, lifecycleTracker, routeDepsBuiltForPluginHost, formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo, mediaRepo, postRepo, mediaContentTypeStore, routeDeps, consoleLogger } = required;
+  const { mediaAccessEvidence, dbPath, overrides, onStoreClose, lifecycleTracker, routeDepsBuiltForPluginHost, formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo, mediaRepo, postRepo, mediaContentTypeStore, routeDeps, consoleLogger } = required;
   logMediaProviderRefusals({ refusals: mediaProviders.refusals });
   const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo } = composeStoreBasics({ kernel, workspaceId, agentPluginLayout });
   const { pluginRuntime } = composeSitePluginRuntime({ lifecycleTracker: () => lifecycleTracker(), routeDepsBuiltForPluginHost: () => routeDepsBuiltForPluginHost(), workspaceId, clock, pluginActivationRepo, resolvedSiteBinding, contentTypeRepo: () => contentTypeRepo, idGen, outbox: () => outbox, overrides });
@@ -95,10 +97,10 @@ export function composeSiteServicesPhase(required: ComposeSiteServicesPhaseRequi
   const { trashRegistry, sqliteTrashDb, trashRepo, taxonomyFollowUpTermRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, formDeliveryRepo } = composeTrashStores({ kernel, workspaceId, outbox, clock, idGen });
   const { trashFollowUpHooks } = composeTrashFollowUpHooks({ kernel, mediaRepo: () => mediaRepo(), workspaceId, postRepo: () => postRepo(), clock, assetBlobRepo: () => assetBlobRepo(), assetRenditionRepo, blobStore, entryRefsRepo: () => entryRefsRepo, outbox, formDeliveryRepo, routeDeps: () => routeDeps(), menuRepo, idGen, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox });
   const { pluginTrashAdapter, trashAdapters } = composeTrashAdapters({ pluginRuntime, pluginActivationRepo, kernel, mediaRepo: () => mediaRepo(), entryRefsRepo: () => entryRefsRepo, postRepo: () => postRepo(), assetBlobRepo: () => assetBlobRepo(), assetRenditionRepo, blobStore, clock, identity, idGen, trashRegistry, sqliteTrashDb, trashFollowUpHooks });
-  const { trashTransaction, trash, removePlugin, removeUser, isInTrash } = composeTrashService({ kernel, trashRepo, trashAdapters, postRepo: () => postRepo(), pluginTrashAdapter, workspaceId });
+  const { trashTransaction, trash, removePlugin, removeUser, isInTrash } = composeTrashService({ kernel, trashRepo, trashAdapters, postRepo: () => postRepo(), pluginTrashAdapter, workspaceId, mediaAccessEvidence });
   const { redirectsWriteDeps } = composeRedirects({ redirectRepo, trash, trashRepo, originRegistry, clock, idGen, outbox, onStoreClose, bus, redirectHitSink });
   const { databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection } = composeDatabaseJournal({ dbPath, onStoreClose, workspaceId, kernel, storeBound });
-  const { entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo } = composeContentRepos({ kernel, workspaceId, storeBound });
+  const { entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo } = composeContentRepos({ kernel, workspaceId, storeBound, mediaAccessEvidence });
   const { formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability } = composeContentResolversComments({ kernel, siteTimeZone, entryRepo, mediaRepo: () => mediaRepo(), transformDefinitionRepo, mediaContentTypeStore: () => mediaContentTypeStore(), postRepo: () => postRepo(), menuRepo, navLocationBindingRepo, formDefinitionRepo, formCollectionProviders: () => formCollectionProviders(), routeDeps: () => routeDeps(), outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, trashTransaction, commentsReady, commentsSettingsReady, identity, settingsPrincipals });
   const { runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer } = composeSiteKeysMembers({ dbPath, overrides, kernel });
   return { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo, pluginRuntime, identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady, outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo, trashRegistry, sqliteTrashDb, trashRepo, formDeliveryRepo, trashAdapters, trashTransaction, trash, removePlugin, removeUser, isInTrash, redirectsWriteDeps, databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection, entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo, formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability, runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer };
@@ -139,6 +141,7 @@ export function composeProviderLifecyclePhase(required: ComposeProviderLifecycle
 }
 
 interface ComposeInstrumentedContentPhaseRequired {
+  mediaAccessEvidence: MediaAccessEvidence;
   overrides: Partial<CreateSiteRouteDepsOverrides>;
   pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>>;
   agentPluginLifecycle: ReturnType<typeof composeStoragePhase>["agentPluginLifecycle"];
@@ -161,12 +164,12 @@ interface ComposeInstrumentedContentPhaseRequired {
 }
 
 export function composeInstrumentedContentPhase(required: ComposeInstrumentedContentPhaseRequired, _optional = {}) {
-  const { overrides, pendingLifecycleEvents, agentPluginLifecycle, kernel, workspaceId, chat, clock, idGen, identity, settingsPrincipals, settingsRepo, siteTitleReady, originRegistry, runtimeMode, siteAssistantSecretSealer, externalMcpServerRepo, customCredentialSetRepo, observability, tracker } = required;
+  const { mediaAccessEvidence, overrides, pendingLifecycleEvents, agentPluginLifecycle, kernel, workspaceId, chat, clock, idGen, identity, settingsPrincipals, settingsRepo, siteTitleReady, originRegistry, runtimeMode, siteAssistantSecretSealer, externalMcpServerRepo, customCredentialSetRepo, observability, tracker } = required;
   flushLifecycleEvents({ pending: pendingLifecycleEvents, tracker });
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   const { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeMailHttp({ workspaceId, customCredentialSetRepo, siteAssistantSecretSealer, observability, agentPluginLifecycle, externalMcpServerRepo, runtimeMode, settingsRepo, clock, idGen, settingsPrincipals, identity, siteTitleReady, kernel, originRegistry, overrides });
-  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel });
+  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel, mediaAccessEvidence });
   return { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient, postRepo, changeSets, mediaRepo, assetBlobRepo };
 }
 

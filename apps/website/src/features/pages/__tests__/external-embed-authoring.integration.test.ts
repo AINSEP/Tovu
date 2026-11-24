@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -11,7 +12,7 @@ test('H2: guidance points to plugin embeds, and owner-authorized page HTML is st
   t.after(() => kernel.close());
   const clock = { nowMs: () => Date.parse('2026-10-31T00:00:00Z') };
   await kernel.run(q => q.insertInto('posts').values({ id: 'booking', workspace_id: 'site', title: 'Book', slug: 'book', kind: 'page', body_format: 'html', body_html: '<section data-agent-element="booking"></section>', body_json: null, status: 'draft', updated_at: '2026-10-31T00:00:00Z', version: 1, ext: '{}' }).execute());
-  const deps = { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel), pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new SqlPagesHtmlDocumentStore(scope, { kernel, clock }) };
+  const deps = { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new SqlPagesHtmlDocumentStore(scope, { kernel, clock }) };
   const tools = buildPagesRegistrations(deps);
   const embed = '<div class="vendor-inline-widget" data-url="https://book.vendor.test/owner/meeting"></div><script async src="https://assets.vendor.test/widget.js"></script>';
   const context = (input: unknown) => ({ executionId: 'embed', principal: { id: 'owner' }, run: { id: 'chat' }, input, signal: new AbortController().signal });

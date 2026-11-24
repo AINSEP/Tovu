@@ -5,7 +5,7 @@ import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
@@ -21,10 +21,12 @@ interface ComposeTrashServiceRequired {
   postRepo: () => SqlitePostRepo;
   pluginTrashAdapter: ReturnType<typeof createDirectoryTrashAdapter>;
   workspaceId: string;
+  /** The one site-wide evidence store, shared with the media-rendition reader. */
+  mediaAccessEvidence: MediaAccessEvidence;
 }
 
 export function composeTrashService(required: ComposeTrashServiceRequired, _optional = {}) {
-  const { kernel, trashRepo, trashAdapters, postRepo, pluginTrashAdapter, workspaceId } = required;
+  const { kernel, trashRepo, trashAdapters, postRepo, pluginTrashAdapter, workspaceId, mediaAccessEvidence } = required;
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
   // "marker + revision append", and `remove` is called from inside it (a nested one joins). Named (not inlined) because
   // the comments moderation service needs the SAME runner to wrap its own two writes.

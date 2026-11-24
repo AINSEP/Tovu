@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -77,7 +78,7 @@ async function bodyHtml(db: ContentKernel): Promise<string | null | undefined> {
 
 describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
   tables: ["posts", "post_revisions"],
-  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor(kernel) }),
+  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }),
 }, (harness) => {
   const sweep = (repo: SqlPostRepo, outbox: OutboxPort, nowIso: string) => announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: WS, nowIso } });
 

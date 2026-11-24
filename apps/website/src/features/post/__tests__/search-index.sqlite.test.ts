@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import test from "node:test";
@@ -57,7 +58,7 @@ interface Harness {
 
 function harness(): Harness {
   const db = openContentDb(":memory:");
-  const repo = new SqlitePostRepo({ store: db });
+  const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const search = new SqlitePostSearchIndex({ kernel: schemaErasedKernel({ store: db }), config: POST_SEARCH_HOST });
 
   return {

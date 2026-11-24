@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -39,7 +40,7 @@ function setup(kernel: ContentKernel) {
   const counted: ContentKernel = { ...kernel, run: (fn) => { runs += 1; return kernel.run(fn); } };
   const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...CMS_SEARCH_RULES }) as [SearchDocumentSource, SearchDocumentSource];
   return {
-    kernel, repo: postRepoFor(kernel), posts, pages, clock,
+    kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), posts, pages, clock,
     access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...CMS_SEARCH_RULES }),
     runs: () => runs,
     load: (source: SearchDocumentSource, documentId: string, occurredAtMs = T0, workspaceId = WS) => source.load({ siteId: SITE, workspaceId, documentId, occurredAtMs }),

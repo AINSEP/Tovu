@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -28,7 +29,7 @@ function harness(_required = {}, _options = {}) {
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
   const kernel = contentKernel({ store: db });
   const clock = createFakeClock({ startIso: AT });
-  const postRepo = postRepoFor(kernel);
+  const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
   let sequence = 0;
   const deps: EmailTemplateDeps = {
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },

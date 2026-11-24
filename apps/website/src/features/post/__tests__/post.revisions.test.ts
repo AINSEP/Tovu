@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -54,7 +55,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
   { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:"), mediaAccessEvidence: createMediaAccessEvidence() }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 

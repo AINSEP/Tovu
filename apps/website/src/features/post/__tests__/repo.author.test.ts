@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -9,7 +10,7 @@ import { postRepoFor } from "../repo.js";
 
 const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
 
-describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
+describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
   test("author and showAuthor round-trip through insert, CAS update, omission, clearing, and revisions", async () => {
     const repo = makeRepo();
     const created = (await createPost({ deps: { repo, clock }, input: {

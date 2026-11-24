@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -102,7 +103,7 @@ const listQuery = (overrides: Partial<CollectionListQuery>): CollectionListQuery
 
 describeEachDialect<Fixture>(
   "EntryRepoPort",
-  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: entryRepoFor({ store: kernel }), kernel }) },
+  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: entryRepoFor({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), kernel }) },
   (make) => {
     test("trash-aware lookups return null for a missing or foreign-workspace row", async () => {
       const { repo } = make();
@@ -137,7 +138,7 @@ describeEachDialect<Fixture>(
       const entry = await createPublished({ repo, idSeed: "r-1", slug: "soup", siteFields: {} });
       const failure = new Error("database connection closed");
       const unavailable: ContentKernel = { ...kernel, run: async () => { throw failure; } };
-      await assert.rejects(entryRepoFor({ store: unavailable }).save({ ...entry, title: "Must not save" }), (error) => error === failure);
+      await assert.rejects(entryRepoFor({ store: unavailable, mediaAccessEvidence: createMediaAccessEvidence() }).save({ ...entry, title: "Must not save" }), (error) => error === failure);
       assert.equal((await repo.findById({ workspaceId: "ws-1", id: entry.id }))?.title, entry.title);
     });
 

@@ -1,4 +1,4 @@
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence, type MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
@@ -20,6 +20,7 @@ import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entri
  */
 
 export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
+  private readonly mediaAccessEvidence: MediaAccessEvidence;
   private rows: PostRecord[];
   /** Standing-draft autosave snapshots, keyed apart from `rows` — mirrors `repo.sqlite.ts`'s own
    *  `autosave_json` column being a sibling of the row rather than a `PostRecord` field (see
@@ -29,8 +30,10 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (see `PostRepoPort.appendRevision`'s doc for the append-only contract both adapters share). */
   private revisions: PostRevisionRecord[] = [];
 
-  constructor(_required: Record<string, never>, { initialRows = [] }: { initialRows?: PostRecord[] } = {}) {
+  constructor(_required: Record<string, never>, { initialRows = [], mediaAccessEvidence }: { initialRows?: PostRecord[]; mediaAccessEvidence?: MediaAccessEvidence } = {}) {
     this.rows = [...initialRows];
+    // Optional only because ~560 unit tests build this repo bare and never read evidence; a bare repo gets its own private store (per repo, not shared state). Memory composition passes the shared one explicitly.
+    this.mediaAccessEvidence = mediaAccessEvidence ?? createMediaAccessEvidence();
   }
 
   private autosaveKey({ workspaceId, id }: { workspaceId: string; id: string }, _optional: Record<string, never> = {}): string {
@@ -92,7 +95,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   async save(record: PostRecord): Promise<void> {
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
     const index = this.rows.findIndex((row) => row.id === record.id);
     if (index === -1) {
       this.rows.push(record);
@@ -119,7 +122,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     if (index === -1 || this.rows[index]?.version !== required.ifVersion) return { applied: false };
 
     this.rows[index] = required.record;
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
     return { applied: true };
   }
 
@@ -143,7 +146,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const row = this.rows[index];
     if (row === undefined) return;
 
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
     this.rows[index] = {
       ...row,
       deletedAt: required.deletedAt,
@@ -162,7 +165,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    * @complexity O(n + r) over the rows and revisions this adapter holds.
    */
   async hardDelete(required: { workspaceId: string; id: string }): Promise<void> {
-    mediaAccessEvidence.invalidate({ owner: this });
+    this.mediaAccessEvidence.invalidate({ owner: this });
     this.rows = this.rows.filter(
       (row) => !(row.workspaceId === required.workspaceId && row.id === required.id)
     );
@@ -254,7 +257,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       this.autosaves = autosavesSnapshot;
       throw error;
     } finally {
-      mediaAccessEvidence.invalidate({ owner: this });
+      this.mediaAccessEvidence.invalidate({ owner: this });
     }
   }
 }

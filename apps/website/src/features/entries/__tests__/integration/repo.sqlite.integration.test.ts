@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -44,7 +45,7 @@ function fixedContentTypeLookup(workspaceId: string, key: string, fields: Conten
 test("create -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = entryRepoFor({ store: db });
+    const repo = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     let idCounter = 0;
 
@@ -62,7 +63,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     assert.equal(created.ok, true);
 
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = entryRepoFor({ store: dbAfterRestart });
+    const repoAfterRestart = entryRepoFor({ store: dbAfterRestart, mediaAccessEvidence: createMediaAccessEvidence() });
     const found = await repoAfterRestart.findBySlug({ workspaceId: "ws-1", type: "recipe", slug: "banana-bread" });
     assert.ok(found);
     assert.equal(found?.title, "Banana Bread");

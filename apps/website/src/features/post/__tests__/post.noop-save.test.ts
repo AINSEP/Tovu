@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
@@ -96,7 +97,7 @@ function saveContract(makeRepo: () => PostRepoPort): void {
 
 describe("no-op saves: memory", () => saveContract(() => new InMemoryPostRepo({})));
 describeEachDialect("no-op saves: SQL", {
-  tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel),
+  tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }),
 }, (repo) => saveContract(repo));
 
 test("no-op saves skip both write ports and revision append, with or without expectedVersion", async () => {

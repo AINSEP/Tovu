@@ -34,6 +34,7 @@ import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/si
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 
 interface RouteDepsContentTrashRequired {
   assistantAgentInventory: ReturnType<typeof composeAgentPluginBootstrap>["assistantAgentInventory"];
@@ -48,6 +49,7 @@ interface RouteDepsContentTrashRequired {
   trashTransaction: ReturnType<typeof composeTrashService>["trashTransaction"];
   trash: ReturnType<typeof composeTrashService>["trash"];
   postRepo: ReturnType<typeof composeContentStores>["postRepo"];
+  mediaAccessEvidence: MediaAccessEvidence;
   pluginExports: ReturnType<typeof composePreAssembly>["pluginExports"];
 }
 
@@ -64,10 +66,11 @@ interface RouteDepsChatAgentsRequired {
   pluginExports: ReturnType<typeof composePreAssembly>["pluginExports"];
 }
 
-export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "siteBackupSanitize" | "pluginExports" | "assistantAgentInventory" | "workspaceId" | "peerSiteReads" | "workspaceRepo" | "trash" | "removePost" | "removeComment" | "removeMedia" | "removeRedirect" | "removeWidget" | "forgetRemovedMedia" | "forgetRemovedPost" | "sweepTrash" | "isTrashableEntityType" | "registry" | "db" | "postRepo" | "postGoLiveCandidates" | "postSearch"> {
-  const { assistantAgentInventory, resolvedSiteBinding, kernel, workspaceId, postSearchBackfillReady, trashRegistry, sqliteTrashDb, trashRepo, trashAdapters, trashTransaction, trash, postRepo, pluginExports } = required;
+export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "siteBackupSanitize" | "mediaAccessEvidence" | "pluginExports" | "assistantAgentInventory" | "workspaceId" | "peerSiteReads" | "workspaceRepo" | "trash" | "removePost" | "removeComment" | "removeMedia" | "removeRedirect" | "removeWidget" | "forgetRemovedMedia" | "forgetRemovedPost" | "sweepTrash" | "isTrashableEntityType" | "registry" | "db" | "postRepo" | "postGoLiveCandidates" | "postSearch"> {
+  const { assistantAgentInventory, resolvedSiteBinding, kernel, workspaceId, postSearchBackfillReady, trashRegistry, sqliteTrashDb, trashRepo, trashAdapters, trashTransaction, trash, postRepo, mediaAccessEvidence, pluginExports } = required;
   return {
     siteBackupSanitize: sanitizeShareDatabase,
+    mediaAccessEvidence,
     pluginExports,
     assistantAgentInventory,
     workspaceId: workspaceId,

@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import assert from "node:assert/strict";
@@ -64,7 +65,7 @@ function nextRecord(from: PostRecord, text: string): PostRecord {
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-save-if-version-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { db, repo: new SqlitePostRepo({ store: db }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { db, repo: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. `withRepo` hands the
