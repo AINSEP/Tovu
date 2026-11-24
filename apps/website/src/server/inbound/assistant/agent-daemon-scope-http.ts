@@ -7,6 +7,7 @@ import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostConte
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createRunScopedCredentials, createRunOwnerRegistry, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireRunOwnership, createOwnedRunListHandler } from "#src/assistant/daemon-access";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
+import { createToolCatalogFor, discoveryPrincipalResolver } from "#src/assistant/tool-catalog-principal-scope";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
 import { FRONTEND_CONTROL_CAPABILITIES } from "#src/assistant/frontend-control-capabilities";
 import { adminFrontendOwner } from "#src/assistant/admin-frontend-owner";
@@ -219,7 +220,7 @@ registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
 mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
 }
 
-function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeDeps, siteTools, resolveDiscoveryCaller }: MountPorts, _optional = {}) {
+function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeDeps, siteTools, resolveDiscoveryCaller, runCredentials, principalByRunId }: MountPorts, _optional = {}) {
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
@@ -253,13 +254,15 @@ mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sess
   resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }),
 }) });
 
-  mountDiscoveryRoutes({ app, siteTools, routeHost, resolveDiscoveryCaller });
+  mountDiscoveryRoutes({ app, siteTools, routeHost, resolveDiscoveryCaller, runCredentials, principalByRunId });
 }
 
-function mountDiscoveryRoutes({ app, siteTools, routeHost, resolveDiscoveryCaller }: Pick<MountPorts, "app" | "siteTools" | "routeHost" | "resolveDiscoveryCaller">, _optional = {}) {
+function mountDiscoveryRoutes({ app, siteTools, routeHost, resolveDiscoveryCaller, runCredentials, principalByRunId }: Pick<MountPorts, "app" | "siteTools" | "routeHost" | "resolveDiscoveryCaller" | "runCredentials" | "principalByRunId">, _optional = {}) {
   // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
   // state before returning descriptors. The native FTS owner is released with the final run.
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: siteTools.catalog }, host: routeHost }) });
+  // Each request sees only what its live run's principal may discover (a read-only run: read-only
+  // tools); a bearer naming no live run is refused, never served the unscoped catalog.
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalogFor: createToolCatalogFor({ catalog: siteTools.catalog, registry: siteTools.registry, resolvePrincipal: discoveryPrincipalResolver({ runCredentials, principalByRunId }) }) }, host: routeHost }) });
   app.use("/api/components", (req, res, next) => {
     const caller = resolveDiscoveryCaller(req);
     if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
