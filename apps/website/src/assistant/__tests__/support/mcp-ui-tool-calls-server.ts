@@ -1,3 +1,11 @@
+/**
+ * @file Test support: the PRODUCTION MCP-UI callback route, mounted exactly as the daemon mounts it
+ * (express.json(), then `registerMcpUiToolCallsRoute` through the Jini dispatcher) and served on a
+ * real loopback listener. Only the transport is real HTTP instead of a fake; the route's allowlist,
+ * principal check, exchange delivery and the tool's own write all run for real, so a tool test sees
+ * exactly the status/body a browser would. Tests used to capture the Express handler from a fake
+ * `app.post`; that stopped being possible when the route moved onto the dispatcher (no `app.post`).
+ */
 import type { TestContext } from "node:test";
 
 import express from "express";

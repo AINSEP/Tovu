@@ -5428,6 +5428,26 @@
     {
       "id": "842ac114609f",
       "reason": "Moved to Jini packages/sidecar/src/daemon-connection.ts set() doc (w5 rv1123r fix 5: capture endpoint + credential together; old-run probes retain both)."
+    },
+    {
+      "id": "52bb0c576411",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "868c9fa350b7",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "932abbf62565",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "087eccd250bb",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "5394a49e018f",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
     }
   ]
 }
