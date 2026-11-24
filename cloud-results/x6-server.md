@@ -1,8 +1,10 @@
-FIRSTLINE
+PARTIAL 76f2bebc60 42fad8470: 233 lane files left (public-http 86, admin-http 65, contracts-core 25, site-backup 37, publish-content 20); next wins need mount opt-ins (413 body, text/plain writers, path body parser), the content-html factory, gated-hooks injection (SEC) and the SEC route families (Opus)
+
+SHAs in the first line are the work tips before this report commit (Tovu `codex/x6-server-tovu`, Jini `codex/x6-server-jini`).
 
 # x6-server (2026-11-24): Tovu -> Jini extraction, SERVER/CONTRACT lane
 
-This was an unattended cloud run. Opus coordinated. Every move or conversion was done by a Sonnet subagent at high effort: 13 dispatches, at most 4 running at once. No Opus subagent was needed. Security-adjacent pieces were either kept host (`gated-mutations/*`) or moved verbatim with a byte pin (`saved-keys` AAD).
+This was an unattended cloud run. Opus coordinated. Every move or conversion was done by a Sonnet subagent at high effort: 16 dispatches (A–P), at most 4 running at once. No Opus subagent was needed. Security-adjacent pieces were either kept host (`gated-mutations/*`) or moved verbatim with a byte pin (`saved-keys` AAD).
 
 `AI-Dev-Shop/agents/programmer/skills.md` (v1.7.5) was read first, and **this report confirms it**. Every worker got a common brief built from it:
 - root cause first, minimum change;
@@ -74,7 +76,7 @@ LOC in the lane: 38,200 → 33,029.
 | `contracts/core/human-confirm.ts` | STAYS-HOST: `ui://tovu/…` and `tovu-<tool>` names, plus host copy imports. A split would need three injected params (recommended later, behaviour-sensitive). |
 | `features/site-backup/{archive-media,static-export-selection}.ts` | STAYS-HOST: thin bindings over Jini `bufferArchiveMedia` and the selection parser. |
 | `features/site-backup/share-policy.ts` | STAYS-HOST: the neutral refusal names are already in Jini `share-refusal`. What is left is limits, tables, copy and exit codes (decision 8). |
-| `features/site-backup/*` (33 others) | BLOCKED: `platform/site-dir`, `platform/http`, `@tovu/contracts/secret-redaction`, `archive-paths` (KEEP), or devops lacking edges to cms/agent-plugins/platform/plugins/db/integrations. Per-file list: `cloud-results/x6-server-route-classify.md` is routes only; for site-backup see worker D below. |
+| `features/site-backup/*` (33 others) | BLOCKED: `platform/site-dir`, `platform/http`, `@tovu/contracts/secret-redaction`, `archive-paths` (KEEP), or devops lacking edges to cms/agent-plugins/platform/plugins/db/integrations. Files: `archive-extensions`, `archive-manifest`, `backup-service`, `bundled-export-file-policy`, `download-html-source-edits`, `import-{backend,backend-steps,database,keep-off,plugin-state,registry,restore,restore-placement,verifier,verifier-inventory,verifier-projection}`, `package-file-inventory`, `plan-content`, `push-content`, `share-{backend,database/repo.sqlite,file-policy,hosting,preparation,preparation-steps,registry,service,zip}`, `sources`, `static-{copy,download-landing,download-layout,site-packager}`, `tool-registrations`. `archive-paths` and `import-archive-reader` are KEEP. |
 | `features/publish-content/{publish-content-peer-repo,publish-content-peer-repo.sqlite,publish-backstop-row.sqlite,tool-deps,gated-hooks}.ts` | STAYS-HOST: SQLite/content-kernel adapters, host wiring; `gated-hooks` needs `planHashOf`/`resolveActorClassIdentity` from host gated-mutations (security seam). |
 | `features/publish-content/{push-plan,apply-report,peers,peer-transport,destination-credential,connect-destination,pull,disconnect-tool,publish-tool,tool-registrations,file-tree-policy,permissions,raw-file-contributor,raw-row-contributor,export-bundle callers}` | BLOCKED: `peer-transport` (Tovu `tovu_api_key` redaction rule + `platform/http`), `peers` (`platform/secrets/vault-kinds`), `gated-hooks`, `platform/routing`, or a missing cms edge (diagnostics, user-management, admin, plugins). |
 | `server/inbound/public-http/middleware/{canonical-site-host,render-theme-override,theme-content-security-headers,site-serving-gate}.ts` | STAYS-HOST: Express `app.use` adapters over existing Jini modules. |
@@ -98,7 +100,7 @@ LOC in the lane: 38,200 → 33,029.
 | Jini vitest on the changed test files (chat, cms, core, devops, infra) | — | all 0 |
 | Tovu `tsc -p tsconfig.json` / `typecheck:e2e` / admin tsc | 0 / – / 0 | 0 / 0 / 0 |
 | Tovu `check:hooks` | — | ok |
-| Tovu `check:why-comments --base merge-20` | — | WHYLINE |
+| Tovu `check:why-comments --base merge-20` | — | 44 lost blocks found, now 0 open, exit 0:<br>- 8 restored verbatim in the host files (`seo-documents.ts`, `serving-origin.ts`);<br>- 36 `why-comments-debt.json` entries, each citing where the block now lives in Jini (lightly reworded, e.g. "./index.ts" → "the host aggregator"). |
 | Tovu node tests: 528 files (108 changed test files plus 474 importers of changed sources; `--test-concurrency=2`) | 6324 tests, 190 fail in 188 files (Node 22 drift) | 6329 tests, 191 fail in 189 files. The one new red file (`forms/__tests__/provider-save.unit.test.ts`, a missed importer) was fixed in `3f17e209ac` and is now 1/1 pass. **Net: no new red.** |
 
 `apps/desktop` was not touched, so the pre-push hook skipped the desktop gates on every push.
@@ -121,9 +123,9 @@ LOC in the lane: 38,200 → 33,029.
   - Moved test fixtures use neutral strings.
 
 ## Caps
-- **Wall clock:** about 2 h 10 min.
+- **Wall clock:** about 2 h 15 min (21:35–23:50 UTC).
 - **Coordinator:** about 185 tool calls; context stayed under the cap.
-- **Subagents:** 15 in total, at most 4 at once.
+- **Subagents:** 16 in total (A–P), at most 4 at once.
 - **Per-subagent budget:**
   - Three ran over the 45-call budget: K 58, N 51 and G 49 (each near or just over 100k tokens; K about 181k).
   - Their returns were verified by the coordinator's gates.
