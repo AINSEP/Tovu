@@ -9,7 +9,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { LedgerReadPort, LedgerRow } from "@jini-ai/db/tools";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
-import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/core/keyset-cursor";
 import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
 import type { JournalDatabase } from "../journal-kernel.js";

@@ -1,5 +1,6 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { renderA2uiSurface } from "@jini-ai/agentic/render-surface";
+import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage } from "@jini-ai/protocol/a2ui";
 
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
@@ -55,6 +56,8 @@ export const renderUiAgentToolCatalog: AgentToolDefinition[] = [
 
 export const renderUiDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([[RENDER_UI_TOOL_ID, "none"]]);
 
+/** The catalog every surface this tool creates is validated against (same catalog the chat renderer builds). */
+const SURFACE_CATALOG = createLabCatalog({});
 const CATALOG_BY_ID = new Map(renderUiAgentToolCatalog.map((entry) => [entry.name, entry]));
 
 type EmitSurface = NonNullable<ToolExecutionOptions["emitSurface"]>;
@@ -69,7 +72,7 @@ async function renderUiTool(
   }
   const components = (ctx.input as { components?: unknown[] }).components ?? [];
 
-  const outcome = await renderA2uiSurface({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, components }, rejectionGraceMs == null ? {} : { rejectionGraceMs });
+  const outcome = await renderA2uiSurface({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, components, parseAgentMessage: parseAgentToRendererMessage, catalog: SURFACE_CATALOG, displayOnlyProperty: A2UI_DISPLAY_ONLY_PROPERTY }, rejectionGraceMs == null ? {} : { rejectionGraceMs });
   if (outcome.rendered) {
     return {
       rendered: true,

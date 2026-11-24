@@ -11,7 +11,8 @@ import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { pageAdminPath, pagePublicPath } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
-import { useWiredThemePages, type ThemePagesController } from "./hooks/use-theme-pages.hooks";
+import type { ThemePagesController } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
+import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
 import { ThemePagesTab } from "./ThemePagesTab";
 
 /**
