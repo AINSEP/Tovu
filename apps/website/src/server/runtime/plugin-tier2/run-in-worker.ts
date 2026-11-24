@@ -1,6 +1,6 @@
 /**
  * @file `createTier2WorkerRunner()` — Tovu's binding of the host side of the Tier-2 plugin ABI
- * (ADR-024 §3/§4) onto `@jini-ai/sandbox/per-call-worker-runner` (a FRESH bounded worker per call;
+ * (ADR-024 §3/§4) onto `@jini-ai/sandbox/node-worker/per-call-runner` (a FRESH bounded worker per call;
  * the rationale lives with that module). Tovu binds its sibling `worker.ts`/`typescript-bootstrap.cjs`
  * entry files, `TOVU_PLUGIN_TIER2_TIMEOUT_MS`, the Tier-2 budgets and the Tier-2 reply codec.
  * Modeled on the theme renderer's `server/inbound/public-http/http/site/worker-sandbox.ts`.
@@ -13,7 +13,7 @@ import path from "node:path";
 import type { ResourceLimits } from "node:worker_threads";
 
 import type { WorkerFactory, WorkerScheduler } from "@jini-ai/sandbox/node-worker";
-import { createPerCallWorkerRunner, resolvePerCallWorkerTimeoutMs } from "@jini-ai/sandbox/per-call-worker-runner";
+import { createPerCallWorkerRunner, resolvePerCallWorkerTimeoutMs } from "@jini-ai/sandbox/node-worker/per-call-runner";
 
 import { decodeTier2Reply, type Tier2CallRunner } from "@jini-ai/plugins/host/worker";
 
@@ -68,10 +68,11 @@ export interface CreateTier2WorkerRunnerOptional {
  */
 export function createTier2WorkerRunner(
   _required: CreateTier2WorkerRunnerRequired,
-  { moduleExtension, ...optional }: CreateTier2WorkerRunnerOptional = {},
+  { moduleExtension, env, ...optional }: CreateTier2WorkerRunnerOptional = {},
 ): Tier2CallRunner {
   return createPerCallWorkerRunner({
     ...TIER2_TIMEOUT_POLICY,
+    env: env ?? process.env,
     entryDirectory: import.meta.dirname,
     workerEntryName: "worker",
     moduleExtension: moduleExtension ?? path.extname(import.meta.filename),

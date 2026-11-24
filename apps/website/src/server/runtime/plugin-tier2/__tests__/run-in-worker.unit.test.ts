@@ -9,8 +9,8 @@ import { createTier2WorkerRunner, resolveTier2TimeoutMs } from "../run-in-worker
 
 /**
  * @file `createTier2WorkerRunner()` — Tovu's binding of a Tier-2 call onto
- * `@jini-ai/sandbox/per-call-worker-runner` (whose generic behaviour, including the worker env
- * allowlist, is tested in Jini's `per-call-worker-runner.test.ts`). These prove the Tovu wiring:
+ * `@jini-ai/sandbox/node-worker/per-call-runner` (whose generic behaviour, including the worker env
+ * allowlist, is tested in Jini's `per-call-runner.test.ts`). These prove the Tovu wiring:
  * sibling entry, Tovu env name, Tier-2 budgets, reply codec and error label. Fake worker/timer ports
  * here; the real worker is the composition integration test.
  *
