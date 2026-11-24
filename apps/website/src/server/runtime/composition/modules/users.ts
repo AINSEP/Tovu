@@ -10,7 +10,7 @@ import { userUpdateRoute } from "@jini-ai/user-management/admin-http/routes/user
 import {
   assertCallerHasAnyPermission, assignRole, attachPolicy, createUser, disablePrincipal, enablePrincipal, normalizeUsername, resetUserPassword, updateUser,
 } from "@jini-ai/user-management/server";
-import { trashUser } from "#src/features/identity/delete-user-service";
+import { trashUser } from "#src/features/identity/trash-user-binding";
 import { assertUserAccountAction, SelfDeleteError, UserInTrashError, userAccountProtection } from "@jini-ai/user-management/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";

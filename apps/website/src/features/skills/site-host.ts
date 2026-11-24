@@ -24,7 +24,7 @@ const SKILL_LIFECYCLE_LOG_MESSAGES: Record<SkillLifecycleEvent["kind"], string> 
 
 export const SKILL_SITE_HOST: SkillSiteHost = {
   overrideEnvVar: "TOVU_SKILLS_DIR",
-  stateFileName: SKILL_STATE_FILE,
+  legacyStateFileNames: [SKILL_STATE_FILE],
   processEnv: () => process.env,
   resolveSiteRoot,
   filesystem,

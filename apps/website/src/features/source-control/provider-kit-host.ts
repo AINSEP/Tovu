@@ -17,7 +17,9 @@ import { EgressRefusedError } from "../../platform/http/index.js";
 export function sourceControlKitHost(required: { readonly observability?: ObservabilityPort } = {}, _optional: Record<string, never> = {}): SourceControlKitHost {
   const { observability } = required;
   return {
-    describeEgressRefusal: ({ error }) => error instanceof EgressRefusedError ? { refusal: error.callerSafeMessage, logDetail: error.message } : undefined,
+    describeTransportError: ({ error }) => error instanceof EgressRefusedError
+      ? { refusal: error.callerSafeMessage, logDetail: error.message }
+      : { refusal: undefined, logDetail: error instanceof Error ? error.message : String(error) },
     ...(observability ? { observeFetch: ({ fetch }: { fetch: typeof globalThis.fetch }) => trackFetch({ fetch, observability }) } : {}),
   };
 }
