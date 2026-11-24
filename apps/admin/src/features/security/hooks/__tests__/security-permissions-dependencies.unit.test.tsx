@@ -2,8 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { defaultSecurityPermissionsPort } from "../security-permissions-dependencies.hooks";
-import { useWiredSecurityPermissions } from "../use-security-permissions.hooks";
+import { defaultSecurityPermissionsPort, useWiredSecurityPermissions } from "../security-permissions-dependencies.hooks";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Security } from "../Security";
 import { SITE_KEY_MANAGE_PERMISSION } from "../rules";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
-import type { SecurityPermissionsController } from "../hooks/use-security-permissions.hooks";
+import type { SecurityPermissionsController } from "@jini-ai/admin/security/host/hooks/use-security-permissions.hooks";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 
 /**

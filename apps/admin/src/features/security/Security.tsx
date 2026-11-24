@@ -15,7 +15,7 @@ import { SiteKeyTab } from "./SiteKeyTab";
 import { AccessTokensIcon, SiteKeyIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
-import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
+import { useWiredSecurityPermissions } from "./hooks/security-permissions-dependencies.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 const ACCESS_TOKENS_TAB = "access-tokens";
