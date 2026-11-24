@@ -1441,7 +1441,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**
-   * This workspace's self-describing token scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`), read
+   * This workspace's self-describing token scheme rules (`@jini-ai/agent-plugins/site/auth-schemes`), read
    * by `custom_credential_make_request`/`_verify`. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the
    * installed plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled plugins' sources.
    */

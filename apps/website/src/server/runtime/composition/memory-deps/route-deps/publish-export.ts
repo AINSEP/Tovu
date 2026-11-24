@@ -23,7 +23,10 @@ import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-o
 import { loadBundledSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailCredentialCards } from "../../../boot/mail-provider-catalog.js";
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import { loadBundledCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
+import { loadBundledCredentialSchemeRegistry } from "@jini-ai/agent-plugins/site/auth-schemes";
+import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
+import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
+import { loadPluginContributionsFromSource } from "#src/features/agent-plugins/lifecycle";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -179,7 +182,7 @@ export function memoryDeployRegistryDeps(_required: MemoryRootContext, _optional
       loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: bundledAgentPluginsDir() }) }),
     // And the bundled plugins' credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
     loadAuthSchemes: async () =>
-      (await loadBundledCredentialSchemeRegistry({ sourceRoot: bundledAgentPluginsDir() })).rules,
+      (await loadBundledCredentialSchemeRegistry({ sourceRoot: bundledAgentPluginsDir(), sources: bundledContributionSources, loadFromSource: loadPluginContributionsFromSource, parseCredentialSchemesFile })).rules,
     // 2026-08-16 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.
