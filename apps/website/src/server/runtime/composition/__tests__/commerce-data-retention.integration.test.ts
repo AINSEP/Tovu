@@ -17,7 +17,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/index";
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "#src/platform/db/migrations/0011_drop_empty_core_commerce_tables";
 import { declareDataModule } from "@jini-ai/db/data-modules";
-import { LIPAY_MANIFEST } from "@jini-ai/plugins/site/lipay/manifest";
+import { FIRST_PARTY_DATA_MODULES } from "../data-modules.js";
 import { STORE_MANIFEST } from "@jini-ai/plugins/site/store/manifest";
 import { buildBootModules } from "../../boot/bootstrap.js";
 import { runBootLifecycle } from "../../lifecycle/boot-lifecycle.js";
@@ -103,7 +103,7 @@ for (const populated of [false, true]) {
         await runMigrations({ kernel: sqliteKernel<unknown>({ source: db }), steps: CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID) });
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
-        for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
+        for (const decl of FIRST_PARTY_DATA_MODULES.filter(module => module.pluginId === "lipay" || module.pluginId === "store")) {
           const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: filePath, decl });
           assert.equal(result.ok, true);
         }
