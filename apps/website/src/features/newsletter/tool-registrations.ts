@@ -373,6 +373,8 @@ function createNewsletterCreateCampaignHandler(deps: NewsletterToolDeps): ToolHa
     input: {
       workspaceId: deps.workspaceId,
       actorId: ctx.principal.id,
+      // Recorded at write time so the agent-pause hold can tell this campaign from an owner-made one.
+      creatorKind: "agent",
       fields: {
         subject: requireString({ input, key: "subject" }),
         preheader: typeof input.preheader === "string" ? input.preheader : null,
