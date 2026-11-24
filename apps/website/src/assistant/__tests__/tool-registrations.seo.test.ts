@@ -33,7 +33,7 @@ import { ensureSeoSettingDefinitions, getSeoSettings } from "@jini-ai/cms/seo/si
 import { createSitemapService, getSeoAgentToolCatalog, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
 import { createSeoDeps, seoSettingsHostBindings } from "../../features/seo/index.js";
 import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
 
 import {

@@ -29,7 +29,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import { createSeoDeps, seoSettingsHostBindings } from "../index.js";
 import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";
 import { contributeSeoTools, type SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
 

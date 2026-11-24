@@ -142,7 +142,7 @@ import { contributeNewsletterTools } from "#src/features/newsletter/tool-registr
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
 import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
 import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
 import { seoSettingsHostBindings } from "#src/features/seo/index";

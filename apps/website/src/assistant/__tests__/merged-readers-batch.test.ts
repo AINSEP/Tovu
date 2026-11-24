@@ -20,7 +20,7 @@ import { InMemoryPostRepo } from "../../features/post/index.js";
 import { buildPostRecord } from "../../features/post/__tests__/post-record.fixture.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";

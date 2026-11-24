@@ -22,7 +22,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";

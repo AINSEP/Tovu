@@ -17,7 +17,7 @@ import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/redirects";

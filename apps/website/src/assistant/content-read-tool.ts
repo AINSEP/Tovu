@@ -1,4 +1,4 @@
-import { toolMetadata } from '@jini-ai/core/tool-metadata/content-read';
+import { toolMetadata } from '../contracts/core/tool-metadata/content-read.js';
 import { buildDomainRegistrations, dispatchByIdPresence, isRecord, renameInputSelectors, renameSchemaSelector, requireInputRecord, requireString, rewriteSchemaDescriptions, ToolInputError, unionInputSchema, valueAtPath, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolInputNormalizer, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";

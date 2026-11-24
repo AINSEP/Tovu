@@ -14,7 +14,7 @@ import type { GuideTopic as CapabilityCard } from "@jini-ai/core/contracts/site/
 import { contentCapabilityCard as content, formsCapabilityCard as forms, widgetsCapabilityCard as widgets } from "#src/features/site-guide/cms-capability-cards";
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { capabilityCard as membersCard } from "@jini-ai/user-management/members/capability-card";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { capabilityCard as seo } from "@jini-ai/cms/seo/site/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
