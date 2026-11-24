@@ -2,7 +2,7 @@
 import { File as NativeFile } from "node:buffer";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { SkillInstallPayload } from "../api";
+import type { SkillInstallPayload } from "@jini-ai/admin/screens/skills/api/skills-api.types";
 import { useSkillInstall } from "../use-skill-install.hooks";
 
 afterEach(() => vi.unstubAllGlobals());

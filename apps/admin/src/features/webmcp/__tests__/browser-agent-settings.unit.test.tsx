@@ -29,6 +29,17 @@ describe("admin browser-agent opt-out binding", () => {
     expect(localStorage.getItem(WEBMCP_PREFERENCE_KEY)).toBe("false");
   });
 
+  it("follows another tab opting out and storage being cleared through the bound hook", () => {
+    const view = renderHook(() => useAdminBrowserAgentSettings({}));
+    act(() => {
+      localStorage.setItem(WEBMCP_PREFERENCE_KEY, "false");
+      window.dispatchEvent(new StorageEvent("storage", { key: WEBMCP_PREFERENCE_KEY }));
+    });
+    expect(view.result.current.enabled).toBe(false);
+    act(() => { localStorage.clear(); window.dispatchEvent(new StorageEvent("storage", { key: null })); });
+    expect(view.result.current.enabled).toBe(true);
+  });
+
   it("supplies all new UI and confirmation strings in every admin locale", () => {
     for (const { code } of ADMIN_LOCALES) {
       for (const key of WEBMCP_KEYS) expect(WEBMCP_DICT[code]?.[key], `${code}: ${key}`).toBeTruthy();

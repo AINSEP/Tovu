@@ -1,4 +1,4 @@
-import { useSkillsTranslator } from "./Skills.hooks";
+import { useSkillsTranslator } from "@jini-ai/admin/screens/skills/Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
