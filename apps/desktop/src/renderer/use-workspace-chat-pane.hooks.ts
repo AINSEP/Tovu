@@ -3,7 +3,7 @@
  * handler it hands to its markup, so the component itself is markup only — this repo keeps functions
  * and raw React primitives out of `.tsx` component bodies.
  *
- * `captureFolderDrop`, `workspaceConversationView` and `WORKSPACE_RUN_CONTEXT` are plain exports
+ * `workspaceConversationView` and `WORKSPACE_RUN_CONTEXT` are plain exports
  * rather than logic inside `useWorkspaceChatPane`'s body, for the reason `use-site-rename.hooks.ts`
  * gives: this package has no React renderer, so a decision left inside a hook body cannot be tested
  * here, while a plain function can (`use-workspace-chat-pane.hooks.test.ts`).
@@ -30,7 +30,7 @@ import {
   type ConversationDeleteConfirmationState,
   type UseRunnerConversations,
 } from './App.hooks.js';
-import { folderPathsFromDataTransfer } from '@jini-ai/ui/core';
+import { captureFolderPathDrop } from '@jini-ai/ui/core';
 
 /**
  * The picker's model/reasoning choice reaches the transport through `runContext`, not through
@@ -45,52 +45,6 @@ export const WORKSPACE_RUN_CONTEXT = (({ selection }) => ({
   ...(selection.model === undefined ? {} : { model: selection.model }),
   ...(selection.reasoning === undefined ? {} : { reasoning: selection.reasoning }),
 })) satisfies ChatPaneRunContext;
-
-/** Exactly what {@link captureFolderDrop} reads off a drop event, so a test can pass a plain object. */
-export interface FolderDropEvent {
-  dataTransfer: DataTransfer;
-  preventDefault: () => void;
-  stopPropagation: () => void;
-}
-
-/**
- * The pane's capture-phase drop handler: a drop carrying at least one FOLDER is swallowed and the
- * folder path(s) go into the composer draft as text; any other drop passes through untouched.
- *
- * Capture phase, deliberately not a bubble-phase `onDrop`: this has to see the raw event BEFORE
- * `ChatPane`'s own drop handler (buried in its tree, attached in the bubble phase) would expand a
- * dropped folder into synthesized leaf files via the `FileSystemEntry` API — see
- * `folderPathsFromDataTransfer`'s doc for why that expansion loses the folder's own path.
- *
- * Unlike an earlier version of this handler, a recovered folder path now `preventDefault`s AND
- * `stopPropagation`s instead of passing the event through: letting `ChatPane` see it is exactly
- * the bug this exists to fix (desktop backlog, "Chat composer: folder drop should yield a path, not an
- * upload") — the owner dropped a folder wanting a path and got "You can attach at most 10 files
- * to one message." The path goes into the composer as TEXT via `composerHandle.insertText`
- * instead; the fleet agent already has filesystem/Bash access on this machine and can act on it
- * directly. A drop that resolves to no folder at all (a loose file, a plain text drag) is left
- * alone on purpose: `ChatPane` now has `uploadAttachments` wired (`chat-attachments.ts`'s
- * `createLocalAttachmentUploader`), so that case is a real staged attachment, not an unhandled
- * drop — exactly the folder/file distinction this handler exists to preserve.
- *
- * @param input.event the drop, narrowed to the three members read.
- * @param input.getPathForFile the bridge's path lookup; `undefined` without a desktop bridge, which
- *   leaves every drop to `ChatPane`.
- * @param input.composerHandle populated by `ChatPane` once mounted. A folder drop while it is still
- *   `null` is swallowed all the same, and nothing is inserted.
- * @complexity O(n) in the number of dragged items (`folderPathsFromDataTransfer`).
- */
-export function captureFolderDrop(
-  { event, getPathForFile, composerHandle }: { event: FolderDropEvent; getPathForFile: ((file: File) => string) | undefined; composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null> }, _options: Record<string, never> = {},
-): void {
-  if (getPathForFile === undefined) return;
-  // Electron's webUtils.getPathForFile returns '' for synthesized Files, so read the raw drop first.
-  const folders = folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, port: { getPathForFile } });
-  if (folders.length === 0) return;
-  event.preventDefault();
-  event.stopPropagation();
-  composerHandle.current?.insertText(folders.join(' '));
-}
 
 /** What `WorkspaceChatPane` hands `ConversationList` and `ChatPane` from `useRunnerConversations`. */
 export interface WorkspaceConversationView {
@@ -131,7 +85,7 @@ export interface WorkspaceChatPaneState extends WorkspaceConversationView {
   setWorkingDirectory: Dispatch<SetStateAction<string | null>>;
   /** Handed to `ChatPane`, which populates it once mounted. */
   composerHandle: RefObject<ChatPaneComposerHandle | null>;
-  /** The `<aside>`'s `onDropCapture` — see {@link captureFolderDrop}. */
+  /** The `<aside>`'s capture-phase `onDropCapture` (`@jini-ai/ui/core` `captureFolderPathDrop`). */
   onDropCapture: (event: DragEvent<HTMLElement>) => void;
 }
 
@@ -160,13 +114,19 @@ export function useWorkspaceChatPane(
   const conversations = useConversations();
   const deleteConfirmation = useDeleteConfirmation();
   // The working-directory picker (native folder dialog + MRU list) — unrelated to, and untouched
-  // by, the drop handler below. A folder drop no longer feeds this: see `captureFolderDrop`'s doc.
+  // by, the drop handler below. A folder drop no longer feeds this: its path goes into the draft as text.
   const [workingDirectory, setWorkingDirectory] = useState<string | null>(null);
   // Populated by `ChatPane` itself once mounted (`ChatPaneComposerHandle`, `@jini-ai/chat`). The
-  // seam `captureFolderDrop` uses to write a dropped folder's path into the draft as text.
+  // seam the folder drop uses to write a dropped folder's path into the draft as text.
   const composerHandle = useRef<ChatPaneComposerHandle | null>(null);
   const onDropCapture = useCallback(
-    (event: DragEvent<HTMLElement>) => captureFolderDrop({ event, getPathForFile, composerHandle }),
+    // Folder drop: `@jini-ai/ui/core` `captureFolderPathDrop`, port = preload `getPathForFile`,
+    // composer = `ChatPane` `composerHandle`; quoted when a path has whitespace. Capture phase so a
+    // dropped folder yields a path, not an upload (desktop backlog, "Chat composer: folder drop
+    // should yield a path, not an upload").
+    (event: DragEvent<HTMLElement>) => {
+      captureFolderPathDrop({ event, port: getPathForFile === undefined ? undefined : { getPathForFile }, composer: composerHandle });
+    },
     [getPathForFile],
   );
 

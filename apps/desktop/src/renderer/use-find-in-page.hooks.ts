@@ -63,13 +63,13 @@
 import { useCallback } from 'react';
 import { runnerInventoryBridge } from './runner-api.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
-import type { FindBridge, FindableGuest } from './find-target.js';
+import type { FindBridge, FindableGuest } from '@jini-ai/ui/find';
 import { formatMatchCount } from './find-bar-state.js';
-import { liveFindClock, type FindFocusClock } from './find-focus-clock.js';
-import { useFindBarState as useFindBarStateHook } from './use-find-bar-state.hooks.js';
-import { useFindFocusReclaim as useFindFocusReclaimHook } from './use-find-focus-reclaim.hooks.js';
-import { useFindBarEffects as useFindBarEffectsHook } from './use-find-bar-effects.hooks.js';
-import { useFindInputBinding as useFindInputBindingHook } from './use-find-input-binding.hooks.js';
+import { liveFindClock, type FindFocusClock } from '@jini-ai/ui/find';
+import { useFindBarState as useFindBarStateHook } from '@jini-ai/ui/find';
+import { useFindFocusReclaim as useFindFocusReclaimHook } from '@jini-ai/ui/find';
+import { useFindBarEffects as useFindBarEffectsHook } from '@jini-ai/ui/find';
+import { useFindInputBinding as useFindInputBindingHook } from '@jini-ai/ui/find';
 
 export interface FindInPage {
   open: boolean;

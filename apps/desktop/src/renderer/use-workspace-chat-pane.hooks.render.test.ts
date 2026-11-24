@@ -62,3 +62,17 @@ test('a folder dropped on the pane is written into the composer the ChatPane pub
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation']);
   assert.deepEqual(inserted, ['/Users/x/Site']);
 });
+
+test('a dropped folder whose path contains a space is inserted quoted', (t) => {
+  const fake = ports((file) => (file as unknown as { path: string }).path);
+  const hook = renderHook({ t, useHook: () => useWorkspaceChatPane({}, fake.options) });
+  const inserted: string[] = [];
+  hook.current().composerHandle.current = { insertText: (text: string) => void inserted.push(text) } as never;
+  const event = {
+    dataTransfer: { items: [{ kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) }], files: [{ path: '/Users/x/My Site' }] },
+    preventDefault: () => {},
+    stopPropagation: () => {},
+  } as unknown as DragEvent<HTMLElement>;
+  hook.current().onDropCapture(event);
+  assert.deepEqual(inserted, ['"/Users/x/My Site"']);
+});

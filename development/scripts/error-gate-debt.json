@@ -355,11 +355,6 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/renderer/find-target.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/desktop/src/renderer/product-telemetry.ts",
     "rule": "catch-reads-error",
     "value": 1

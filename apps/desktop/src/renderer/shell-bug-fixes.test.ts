@@ -1,4 +1,4 @@
-import { runFind, type FindableGuest } from './find-target.js';
+import { runFind, type FindableGuest } from '@jini-ai/ui/find';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { siteNameError, namePasteHandler } from '../contracts/site-name.js';

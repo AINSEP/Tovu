@@ -1,6 +1,6 @@
 /**
  * @file Behavioural tests for `use-workspace-chat-pane.hooks.ts`'s plain exports —
- * `captureFolderDrop`, `workspaceConversationView`, `WORKSPACE_RUN_CONTEXT` — run against the real
+ * `workspaceConversationView`, `WORKSPACE_RUN_CONTEXT` — run against the real
  * code. `useWorkspaceChatPane` and `WorkspaceChatPane` are rendered from their real modules in
  * `use-workspace-chat-pane.hooks.render.test.ts` and `WorkspaceChatPane.render.test.ts`; the last
  * test here is a source-text guard that the component holds no React state of its own.
@@ -13,8 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
+import { captureFolderPathDrop } from '@jini-ai/ui/core';
 import {
-  captureFolderDrop,
   WORKSPACE_RUN_CONTEXT,
   workspaceConversationView,
 } from './use-workspace-chat-pane.hooks.js';
@@ -55,12 +55,12 @@ function recordingDrop(entries: readonly DraggedEntry[]) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// captureFolderDrop
+// folder drop (`@jini-ai/ui/core` `captureFolderPathDrop`, the pane's capture-phase handler)
 // ---------------------------------------------------------------------------------------------
 
 test('a dropped folder is swallowed and its path written into the composer draft', () => {
   const { calls, event, getPathForFile, composer } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
+  captureFolderPathDrop({ event, port: { getPathForFile }, composer });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation', 'insertText:/Users/x/Site']);
 });
 
@@ -70,31 +70,31 @@ test('several dropped folders go in as ONE space-joined insert, in drop order, l
     { path: '/a/loose.txt', isDirectory: false },
     { path: '/a/Two', isDirectory: true },
   ]);
-  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
+  captureFolderPathDrop({ event, port: { getPathForFile }, composer });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation', 'insertText:/a/One /a/Two']);
 });
 
 test('a drop with no folder in it passes through untouched, so ChatPane can stage it as an attachment', () => {
   const { calls, event, getPathForFile, composer } = recordingDrop([{ path: '/a/loose.txt', isDirectory: false }]);
-  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
+  captureFolderPathDrop({ event, port: { getPathForFile }, composer });
   assert.deepEqual(calls, []);
 });
 
 test('without a desktop bridge (no getPathForFile) even a folder drop passes through untouched', () => {
   const { calls, event, composer } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop({ event, getPathForFile: undefined, composerHandle: composer });
+  captureFolderPathDrop({ event, port: undefined, composer });
   assert.deepEqual(calls, []);
 });
 
 test('a folder whose path cannot be recovered is not a folder drop — the event passes through', () => {
   const { calls, event, composer } = recordingDrop([{ path: '', isDirectory: true }]);
-  captureFolderDrop({ event, getPathForFile: () => '', composerHandle: composer });
+  captureFolderPathDrop({ event, port: { getPathForFile: () => '' }, composer });
   assert.deepEqual(calls, []);
 });
 
 test('a folder drop before ChatPane publishes its composer handle is still swallowed, with nothing inserted', () => {
   const { calls, event, getPathForFile } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop({ event, getPathForFile, composerHandle: { current: null } });
+  captureFolderPathDrop({ event, port: { getPathForFile }, composer: { current: null } });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation']);
 });
 

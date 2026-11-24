@@ -6,7 +6,7 @@ import { useLiveViews } from '../use-live-views.hooks.js';
 import type { LiveGuest, ParkedView } from '@jini-ai/ui/core';
 import type { SiteAdminPage } from '../import-site-entry.js';
 import { useComposedGuestRef } from '../use-find-in-page.hooks.js';
-import { type FindableGuest } from '../find-target.js';
+import { type FindableGuest } from '@jini-ai/ui/find';
 import type { ZoomableGuest } from '../use-zoom.hooks.js';
 import type { SiteRecord, SiteSurface } from '../../contracts/project.js';
 import { SiteStartPanel } from './SiteStartPanel.js';
