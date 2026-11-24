@@ -4,7 +4,7 @@ import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createToolRegistry } from "@jini-ai/core";
 import { createRoutingToolExecutor } from "@jini-ai/daemon";
-import { createFrontendControl } from "@jini-ai/daemon/http";
+import { createFrontendControl, createLostFrontendBindings } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
@@ -12,7 +12,7 @@ import { pageApprovalOptions } from "@jini-ai/daemon";
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";
 import { withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
-import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
+import { ADMIN_TAB_LOST_FRONTEND_MESSAGES } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 
 export function createScopeToolRegistry({ env, siteToolToken, routeDeps, surfaceExchanges, readSnapshot, contextFor, execute }: {
@@ -35,9 +35,9 @@ const visibleRegistry = siteTools.registry;
 /**
  * Runs whose tab bound with a token this daemon does not know — the tab outlived a restart and has
  * not reconnected yet. Their frontend tools say "reload the admin page" instead of the bare "no
- * frontend is bound". See `lost-frontend-binding.ts`.
+ * frontend is bound". `@jini-ai/daemon/http` owns the mechanics; `lost-frontend-binding.ts` the admin copy.
  */
-const lostFrontendBindings = createLostFrontendBindings();
+const lostFrontendBindings = createLostFrontendBindings({ messages: ADMIN_TAB_LOST_FRONTEND_MESSAGES });
 
 /**
  * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,

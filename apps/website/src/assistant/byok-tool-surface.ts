@@ -46,7 +46,8 @@ import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor, type AssistantToolExecutorDeps } from "./tool-recovery-preset.js";
-import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
+import { isNonArrayRecord } from "@jini-ai/core/records";
+import { err, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { readDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
@@ -660,7 +661,7 @@ function createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, e
     { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
   ): Promise<ByokMetaToolResult> {
     await syncInstalled();
-    const candidate = { value: call.input }; const args = isRecord(candidate) ? candidate.value : {};
+    const candidate = { value: call.input }; const args = isNonArrayRecord(candidate) ? candidate.value : {};
 
     if (!META_TOOL_IDS.has(call.name) && !exposure) {
       // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its
