@@ -5,7 +5,7 @@ import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent'
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import { hasRequestRenderTheme } from "./render-theme-override.js";
+import { hasRequestRenderTheme } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */

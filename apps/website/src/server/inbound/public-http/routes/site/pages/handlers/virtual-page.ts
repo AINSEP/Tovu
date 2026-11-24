@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
+import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { resolveTemplateBranchChoice } from "#src/features/theme/static-template-choice";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
@@ -72,7 +72,7 @@ export async function serveVirtualPage({ req, res, deps, post }: {
 }): Promise<void> {
   deps = withListingBatch({ deps, req });
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
-    resolveRenderThemeId(res, deps),
+    resolveRenderThemeId({ response: res, deps }),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),
   ]);
   const resolved = resolveActiveTheme({ deps, activeThemeId });

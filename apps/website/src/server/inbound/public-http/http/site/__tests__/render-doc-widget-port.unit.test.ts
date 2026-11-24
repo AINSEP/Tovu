@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderDocNodeWith } from "../render/doc/doc-nodes.js";
+import { renderDocNodeWith } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
+import { TOVU_DOC_NODE_HOST } from "../render/doc/doc-host.js";
 import { WIDGET_PLACEHOLDER_IR } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { renderDocNode } from "../render/content-html.js";
 
@@ -22,7 +23,7 @@ const RESOLVED_IR: WidgetRenderIR = { componentId: "text", props: { body: "hello
 test("a widgetEmbed node renders through the injected port with its resolved IR", () => {
   const { seen, renderWidget } = recordingWidgetRenderer();
   const html = renderDocNodeWith(
-    { node: { type: "widgetEmbed", attrs: { placementId: "p1" } }, renderWidget },
+    { node: { type: "widgetEmbed", attrs: { placementId: "p1" } }, renderWidget, host: TOVU_DOC_NODE_HOST },
     { inlineResolved: new Map([["p1", RESOLVED_IR]]) },
   );
   assert.equal(html, `<fake-widget n="1"/>`);
@@ -31,8 +32,8 @@ test("a widgetEmbed node renders through the injected port with its resolved IR"
 
 test("an unresolved widgetEmbed passes the placeholder IR to the port", () => {
   const { seen, renderWidget } = recordingWidgetRenderer();
-  renderDocNodeWith({ node: { type: "widgetEmbed", attrs: { placementId: "missing" } }, renderWidget });
-  renderDocNodeWith({ node: { type: "widgetEmbed", attrs: {} }, renderWidget });
+  renderDocNodeWith({ node: { type: "widgetEmbed", attrs: { placementId: "missing" } }, renderWidget, host: TOVU_DOC_NODE_HOST });
+  renderDocNodeWith({ node: { type: "widgetEmbed", attrs: {} }, renderWidget, host: TOVU_DOC_NODE_HOST });
   assert.deepEqual(seen, [WIDGET_PLACEHOLDER_IR, WIDGET_PLACEHOLDER_IR]);
 });
 test("the port reaches a widgetEmbed nested under other nodes, and wraps with the node's own class", () => {
@@ -43,7 +44,7 @@ test("the port reaches a widgetEmbed nested under other nodes, and wraps with th
       { type: "widgetEmbed", attrs: { placementId: "p1", cssClass: "wide" } },
     ] }] }],
   };
-  const html = renderDocNodeWith({ node: doc, renderWidget }, { inlineResolved: new Map([["p1", RESOLVED_IR]]) });
+  const html = renderDocNodeWith({ node: doc, renderWidget, host: TOVU_DOC_NODE_HOST }, { inlineResolved: new Map([["p1", RESOLVED_IR]]) });
   assert.equal(html, `<ul><li><div class="widget-embed wide"><fake-widget n="1"/></div></li></ul>`);
   assert.deepEqual(seen, [RESOLVED_IR]);
 });

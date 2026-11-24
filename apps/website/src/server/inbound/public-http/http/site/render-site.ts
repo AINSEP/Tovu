@@ -16,7 +16,7 @@ import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "./render/site-assistant-mount.js";
 import { pageShell } from "./render/document-shell.js";
 import { siteHeader, siteFooter } from "./render/components/layout.js";
-import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
+import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
 import { entryContent } from "./render/post-body.js";
 import { entryList, productEntryContent, productEntryList } from "./render/components/entry-lists.js";
 import { renderBlock } from "./render/blocks.js";

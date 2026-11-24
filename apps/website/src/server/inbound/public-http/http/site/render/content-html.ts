@@ -1,6 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { DocRenderOptions, WidgetDocRendering } from "@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract";
-import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "./doc/doc-nodes.js";
+import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
+import { TOVU_DOC_NODE_HOST } from "./doc/doc-host.js";
 import { randomUUID } from "node:crypto";
 import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-markers";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
@@ -22,7 +23,7 @@ import type { SiteRenderContext } from "../render-context.js";
  * `post-content` widget renders its body through this function.
  */
 export function renderDocNode({ node }: { node: JsonValue }, options: DocRenderOptions = {}): string {
-  return renderDocNodeWith({ node, renderWidget: renderWidgetIr }, options);
+  return renderDocNodeWith({ node, renderWidget: renderWidgetIr, host: TOVU_DOC_NODE_HOST }, options);
 }
 
 /**
@@ -42,7 +43,7 @@ export function renderDocBodyAsPageHtml({ bodyJson }: { bodyJson: unknown }, _op
  *  makes, so a title node or a legacy gallery image renders exactly as any other doc content. */
 const WIDGET_DOC_RENDERING: WidgetDocRendering = {
   renderDocNode,
-  renderNodes: (required) => renderNodes({ ...required, renderWidget: renderWidgetIr }),
+  renderNodes: (required) => renderNodes({ ...required, renderWidget: renderWidgetIr, host: TOVU_DOC_NODE_HOST }),
 };
 
 /** One renderer per resolvable `componentId` — a lookup instead of a `switch` so the number of widget

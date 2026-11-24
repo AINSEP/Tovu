@@ -1,6 +1,6 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { FORM_SUCCESS_CLASS } from "@jini-ai/cms/public-http/http/site/form-presentation-assets";
-import { FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-wire-policy.js";
+import { FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, FORM_PRESENTATION_NAMES } from "../form-wire-policy.js";
 import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "@jini-ai/cms/forms/form-controls";
 import { fieldMaxChars } from "@jini-ai/cms/forms/field-length-caps";
 import { str, arr } from "@jini-ai/cms/public-http/http/site/render/value-readers";
@@ -12,6 +12,13 @@ import { escapeHtml } from "@jini-ai/core/text";
 
 /** Field rendering, attribute allowlisting and help/error association belong to Jini's registry
  * renderer. The host supplies its existing CSS classes and id prefix for theme compatibility. */
+/** Tovu's legacy field class names, bound as host inputs: `@jini-ai/cms` defaults to its own `jini-*` names. */
+const FORM_FIELD_CLASSES = {
+  fieldClass: FORM_PRESENTATION_NAMES.fieldClass,
+  fieldHelpClass: FORM_PRESENTATION_NAMES.fieldHelpClass,
+  errorClass: FORM_PRESENTATION_NAMES.fieldErrorClass,
+  fieldCheckboxClass: FORM_PRESENTATION_NAMES.fieldCheckboxClass,
+};
 const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been sent.";
 
 /** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
@@ -62,7 +69,7 @@ export function renderWidgetContactForm(props: JsonObject): string {
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" },
-  }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true }) + rangeReadout;
+  }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true, ...FORM_FIELD_CLASSES }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths({ html: renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
@@ -74,9 +81,10 @@ export function renderWidgetContactForm(props: JsonObject): string {
     idPrefix,
     successMessage: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
+    ...FORM_FIELD_CLASSES,
   }), fields: fieldDescriptors, fieldMaxChars }) + rangeReadout;
   const escapedSlug = escapeHtml({ text: slug });
-  const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
+  const fieldOptions = { submitLabel: "Send", idPrefix, ...FORM_FIELD_CLASSES };
   const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors, fieldMaxChars });
   const successMessage = escapeHtml({ text: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE });
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;

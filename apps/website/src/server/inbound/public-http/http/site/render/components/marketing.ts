@@ -3,7 +3,8 @@ import { obj, str, arr } from "@jini-ai/cms/public-http/http/site/render/value-r
 import { escapeHtml } from "@jini-ai/core/text";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import type { SiteRenderContext } from "../../render-context.js";
-import { mediaPlaceholder } from "../media-placeholder.js";
+import { mediaPlaceholder } from "@jini-ai/cms/public-http/http/site/render/media-placeholder";
+import { TOVU_DOC_RENDER_CLASSES } from "../doc/doc-host.js";
 
 function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): string {
   const links = actions
@@ -23,7 +24,7 @@ export function hero(_ctx: SiteRenderContext, props: JsonObject): string {
   const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml({ text: str({ value: props.eyebrow }) })}</p>` : "";
   const subtitle = str({ value: props.subtitle }) ? `<p class="hero__sub">${escapeHtml({ text: str({ value: props.subtitle }) })}</p>` : "";
   const mediaProps = obj({ value: props.media });
-  const media = mediaProps ? `<div class="hero__media">${mediaPlaceholder(mediaProps)}</div>` : "";
+  const media = mediaProps ? `<div class="hero__media">${mediaPlaceholder({ props: mediaProps, classes: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder })}</div>` : "";
   return `<section class="hero"><div class="wrap hero__inner"><div class="hero__text">${badge}${eyebrow}<h1 class="hero__title">${escapeHtml({ text: str({ value: props.title }) })}</h1>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>${media}</div></section>`;
 }
 
@@ -63,7 +64,7 @@ export function section(_ctx: SiteRenderContext, props: JsonObject): string {
   const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml({ text: str({ value: props.title }) })}</h2>` : "";
   const lead = str({ value: props.lead }) ? `<p class="section__lead">${escapeHtml({ text: str({ value: props.lead }) })}</p>` : "";
   const text = `<div class="section__text">${eyebrow}${title}${lead}${paragraphsHtml({ items: arr({ value: props.body }) })}${bulletsHtml({ items: arr({ value: props.bullets }) })}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>`;
-  const media = mediaObj ? `<div class="section__media">${mediaPlaceholder(mediaObj)}</div>` : "";
+  const media = mediaObj ? `<div class="section__media">${mediaPlaceholder({ props: mediaObj, classes: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder })}</div>` : "";
   const layout = media ? side : "section--plain";
   return `<section class="section ${layout}"${id}><div class="wrap section__inner">${text}${media}</div></section>`;
 }

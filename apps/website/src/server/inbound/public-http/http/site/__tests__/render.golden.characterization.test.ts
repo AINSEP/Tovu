@@ -13,7 +13,7 @@ import type { SiteRenderContext } from "../render-context.js";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { COMPONENTS } from "../render/components/registry.js";
 import { renderDocBodyAsPageHtml, renderDocNode, renderWidgetIr } from "../render/content-html.js";
-import { DOC_NODE_HANDLERS } from "../render/doc/doc-nodes.js";
+import { DOC_NODE_HANDLERS } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
 import {
   MARK_RENDERERS,
 } from "@jini-ai/cms/html/document-marks";
