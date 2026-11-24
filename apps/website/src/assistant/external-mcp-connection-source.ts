@@ -3,7 +3,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 

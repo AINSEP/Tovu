@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { openExternalMcpOAuthPayload } from "../../../features/external-mcp/external-mcp-store.js";
 import { type ExternalMcpServerRepoPort } from "../../../features/external-mcp/contracts.js";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 /**
  * Binds the mail fallback to this workspace's plugin account rows. Each lookup reads the current

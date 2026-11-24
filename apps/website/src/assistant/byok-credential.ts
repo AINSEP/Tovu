@@ -9,7 +9,7 @@
 
 import { createStoredExecutionCredentialPort as createJiniStoredExecutionCredentialPort, type ExecutionCredentialPort } from "@jini-ai/agent-runtime/providers/credentials";
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 export interface StoredExecutionCredentialPortDeps {
   repo: AdminExecutionCredentialRepoPort;

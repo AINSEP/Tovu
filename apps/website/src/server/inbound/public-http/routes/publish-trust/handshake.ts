@@ -15,7 +15,7 @@ import { isGrantActive } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
 import { isNoSiteKeyError } from "#src/features/webhooks/index";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 
 /**
  * @file Zero-setup publishing auth — the destination's three unauthenticated handshake routes.
