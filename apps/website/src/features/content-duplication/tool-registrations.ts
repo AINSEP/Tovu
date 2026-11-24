@@ -170,7 +170,7 @@ export function buildContentDuplicationRegistrations<TDeps extends ContentDuplic
     // A resource's own copy can run a plugin save hook (post/page -> `createPost`), so a plugin
     // refusal becomes the same fixed `PLUGIN_HOOK_FAILED` message `content_post_create` gives
     // instead of a redacted 500 — see `withPluginHookRefusals`.
-    handlers: withPluginHookRefusals(handlers),
+    handlers: withPluginHookRefusals({ handlers }),
     derivedRisk: contentDuplicationDerivedRisk,
   });
 }

@@ -493,7 +493,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     // `reclassifyToolError` returns those untouched. The inner `withPluginHookRefusals` turns a
     // plugin save-hook refusal into a fixed `PLUGIN_HOOK_FAILED` message naming the plugin before
     // the ladder sees it — that message needs the plugin id, which a fixed-message rule can't carry.
-    handlers: withModelFacingErrors({ handlers: withPluginHookRefusals(handlers), rules: POST_MODEL_FACING_ERRORS }),
+    handlers: withModelFacingErrors({ handlers: withPluginHookRefusals({ handlers }), rules: POST_MODEL_FACING_ERRORS }),
     derivedRisk: postDerivedRisk,
   });
 }

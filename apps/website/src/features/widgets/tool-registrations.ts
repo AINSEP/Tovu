@@ -38,7 +38,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: WidgetsToolDeps }, _optional 
     widgetBindingRepo: routeDeps.widgetBindingRepo,
     composeWriteDeps: () => buildWidgetsDeps(routeDeps),
     composeRegionDeps: () => buildWidgetsRegionDeps(routeDeps),
-    wrapHookRefusals: withPluginHookRefusals,
+    wrapHookRefusals: (handlers) => withPluginHookRefusals({ handlers }),
   };
 }
 
