@@ -113,3 +113,11 @@ PARTIAL 1839042be 1eda2c6ea: merged integ/merge-19 (PARTIAL) into both; left = i
   7. The H4 schema columns.
   8. `siteUpdateRuntime` on `AssistantToolRegistryDeps` (`assistant/tool-registrations.ts`).
   9. `pnpm api:update`.
+- **Final gate tail (13:55 UTC):**
+  - Tovu node run over the 4,929 tests changed since merge-18 (merge-19's included): 4,815 pass, 114 fail.
+    - All failing files are merge-19-owned or postgres/live suites: `tool-read-wording`, `tool-registrations.contracts`, custom-credentials card flow, postgres notifications.
+    - None of them is a bt2-todos test file. Every test file this run added or changed passed in its worker's run.
+  - Admin vitest on changed tests: 3,894 pass, 5 fail.
+    - `dictionary-lookup-sinks`: listed as failing in combine-18.
+    - `JiniMediaPicker.hooks` and `CollectionEntries`: merge-19 files.
+    - None are bt2-todos files. Our email tests are green.
