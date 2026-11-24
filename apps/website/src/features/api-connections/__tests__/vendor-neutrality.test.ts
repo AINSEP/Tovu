@@ -38,7 +38,6 @@ const SEAMS = [
   "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
   "apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts",
   "apps/admin/src/features/plugins/hooks/use-agent-plugin-surfaces.hooks.ts",
-  "apps/admin/src/features/plugins/hooks/agent-plugin-surfaces-port.hooks.ts",
   "apps/admin/src/features/plugins/hooks/agent-plugin-surfaces-dependencies.hooks.ts",
   "apps/admin/src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx",
 ];
