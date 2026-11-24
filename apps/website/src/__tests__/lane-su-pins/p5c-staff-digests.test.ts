@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { createMfaStore } from "#src/features/identity/mfa.repo";
-import { createRecoveryCodeStore } from "#src/features/identity/recovery-codes.repo";
+import { createRecoveryCodeStore } from "#src/features/identity/sql-stores";
 import { SqlSessionRepo } from "#src/features/identity/repo.authentication";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
