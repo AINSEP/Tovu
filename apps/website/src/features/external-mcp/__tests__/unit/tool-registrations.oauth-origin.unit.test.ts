@@ -9,7 +9,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
-import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

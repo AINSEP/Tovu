@@ -1,6 +1,6 @@
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { NavItemNode, NavMenuDoc } from "./index.js";
-import { postPublicPath } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
 
 const REPAIR_SETTING_ID = "tovu.internal.boot_repair.footer_page_links";
 

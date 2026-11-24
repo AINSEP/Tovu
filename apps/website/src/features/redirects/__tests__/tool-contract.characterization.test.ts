@@ -22,7 +22,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { contributeRedirectsTools, type RedirectsToolDeps } from "../tool-registrations.js";
 import { removeVia, restoreVia } from "./remove-redirect-double.js";
 

@@ -8,7 +8,7 @@ import { markersOfType, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jin
 import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, readListingBatch, readListingPage, renderListingPageNav, type ListingSource } from "@jini-ai/cms/listing";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
-import { postPublicPath } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
 import { featuredImageView } from "../../../../http/site/render/template-render-data.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "./deps.js";

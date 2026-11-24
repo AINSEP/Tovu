@@ -12,11 +12,11 @@ import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-po
 import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";
 import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
-import type { JournalDatabase } from "../journal-kernel.js";
+import type { JournalDatabase } from "@jini-ai/db/recovery/journal-kernel";
 
 /**
  * @file ADR-041 §2/§4 — the adapters over the sidecar `ops/database-journal.db`: Kysely queries on
- * the journal's own kernel (`../journal-kernel.ts`), every one through `kernel.run` and awaited.
+ * the journal's own kernel (`@jini-ai/db/recovery/journal-kernel`), every one through `kernel.run` and awaited.
  *
  * Purpose:
  * Every class here is a thin, siteId-scoped implementation of an ALREADY-DEFINED port from

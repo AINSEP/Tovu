@@ -1,10 +1,10 @@
 import { sql } from "kysely";
 
-import type { JournalKernel } from "../journal-kernel.js";
+import type { JournalKernel } from "@jini-ai/db/recovery/journal-kernel";
 
 /**
  * @file DDL for the sidecar `ops/database-journal.db` (ADR-041 §2). SQLite by design: the journal
- * is a local SQLite file on every dialect (see `../journal-kernel.ts`, which types these tables).
+ * is a local SQLite file on every dialect (see `@jini-ai/db/recovery/journal-kernel`, which types these tables).
  *
  * Purpose:
  * `database_ledger`, `migration_runs`, and `restore_points` — the three tables ADR-041 §2/§4

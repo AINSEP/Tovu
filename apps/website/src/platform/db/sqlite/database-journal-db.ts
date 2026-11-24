@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 
-import { gateJournalKernel, type JournalDatabase, type JournalKernel } from "../journal-kernel.js";
+import { gateJournalKernel, type JournalDatabase, type JournalKernel } from "@jini-ai/db/recovery/journal-kernel";
 import { openSqliteFileKernel } from "../kernel/index.js";
 import { applyDatabaseJournalSchema } from "./database-journal-schema.js";
 

@@ -3,7 +3,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
-import { postPublicPath } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { isBarePageChoice, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";

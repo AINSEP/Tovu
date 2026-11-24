@@ -11,7 +11,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";

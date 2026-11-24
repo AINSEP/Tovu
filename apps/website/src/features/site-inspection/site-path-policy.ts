@@ -1,5 +1,5 @@
-import { checkSitePathname } from "#src/platform/routing/index";
-import type { SitePathCheck } from "#src/platform/routing/index";
+import { checkSitePathname } from "@jini-ai/cms/routing/site/reserved-paths";
+import type { SitePathCheck } from "@jini-ai/cms/routing/site/reserved-paths";
 import { resolveSameOriginPath, type PathnameVerdict } from "@jini-ai/diagnostics/web-evidence";
 
 /**

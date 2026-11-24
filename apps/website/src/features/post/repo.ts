@@ -1,4 +1,4 @@
-import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
+import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";

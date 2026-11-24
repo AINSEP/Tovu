@@ -1,4 +1,4 @@
-import { renameSiteFolder } from "../../platform/site-dir/moves.js";
+import { renameSiteFolder } from "../../platform/site-dir/move-sites-home.js";
 
 /** Rename a local folder through the shared stopped-site mover and report committed paths.
  * @throws Validation, running-site, collision and verified relocation errors from the owner.

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { JournalDatabase } from "../../journal-kernel.js";
+import type { JournalDatabase } from "@jini-ai/db/recovery/journal-kernel";
 import { applyDatabaseJournalSchema } from "../database-journal-schema.js";
 import { SqliteMigrationRunsRepo } from "../database-journal-repo.js";
 

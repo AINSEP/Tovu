@@ -13,7 +13,7 @@ import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mc
 import { applyExternalMcpAccess, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";

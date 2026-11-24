@@ -4,7 +4,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { OAuthError, type OAuthErrorCode } from "../errors.js";
+import { OAuthError, type OAuthErrorCode } from "@jini-ai/oauth";
 import type { OAuthClient, OAuthProviderDescriptor } from "../ports.js";
 
 /**

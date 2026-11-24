@@ -4,7 +4,7 @@ import { resolveRenderThemeId } from "../../../../middleware/render-theme-overri
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { checkSiteRelativeTarget } from "#src/platform/routing/index";
+import { checkSiteRelativeTarget } from "@jini-ai/cms/routing/site/reserved-paths";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../../../platform/express/async-route.js";
 import { resolveRequestedSlug, redirectLookupPath } from "../request-policy.js";

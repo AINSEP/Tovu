@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { OAuthError } from "#src/platform/oauth/index";
+import { OAuthError } from "@jini-ai/oauth";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createSqlDeviceAuthorizationStore } from "../oauth-pending-store.js";

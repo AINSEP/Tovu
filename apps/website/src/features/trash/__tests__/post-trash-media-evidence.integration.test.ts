@@ -9,7 +9,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { createPost } from "#src/features/post/index";
-import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
+import { getMediaAccessEvidenceCache } from "@jini-ai/cms/media/site/access-evidence";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";
 
 /**

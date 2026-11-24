@@ -50,7 +50,7 @@ function registerSiteCommands(program: Command): void {
     .command("move-home").argument("<dir>", "stopped site inside the former default sites/ folder")
     .option("--projects-path <file>", "also update this desktop profile's catalog")
     .action(async (dir: string, options: { projectsPath?: string }) => {
-      const { moveLegacySite } = await import("../platform/site-dir/moves.js");
+      const { moveLegacySite } = await import("../platform/site-dir/move-sites-home.js");
       const { createSitesWorkspace } = await import("../platform/site-dir/index.js");
       const workspace = createSitesWorkspace({});
       const to = await moveLegacySite({ dir }, { workspace,

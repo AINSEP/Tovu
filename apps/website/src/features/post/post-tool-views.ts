@@ -2,7 +2,7 @@ import type { PostRecord } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { ROOT_SLUG } from "./post.js";
 import type { PostStatus } from "@jini-ai/cms/core";
-import { entryPublicPath } from "#src/platform/routing/index";
+import { entryPublicPath } from "#src/platform/routing/adapter";
 import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import type { PostToolDeps } from "./post-tool-deps.js";

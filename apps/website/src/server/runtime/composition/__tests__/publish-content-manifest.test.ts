@@ -1,6 +1,6 @@
 import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — proves
  * `installFirstPartyPublishContentTypes()` (`../publish-content-manifest.ts`) actually registers the

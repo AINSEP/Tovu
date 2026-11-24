@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { agentHandle, agentHandleSegment } from '@jini-ai/core/agent-handles';
 import type { PagePublication, PublishedPageAction, PublishedPageElement } from '@jini-ai/agentic/core';
-import { checkSiteRelativeTarget } from '#src/platform/routing/index';
+import { checkSiteRelativeTarget } from '@jini-ai/cms/routing/site/reserved-paths';
 import { escapeHtml } from '@jini-ai/core/text';
 
 type Element = DefaultTreeAdapterMap['element'];

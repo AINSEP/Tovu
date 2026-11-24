@@ -17,7 +17,7 @@ import type { PeerSiteReads } from '#src/assistant/tool-registrations';
 export type { PeerSiteReads } from '#src/assistant/tool-registrations';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import type { ContentDatabase } from '#src/platform/db/content-database.generated';
-import type { JournalDatabase } from '#src/platform/db/journal-kernel';
+import type { JournalDatabase } from '@jini-ai/db/recovery/journal-kernel';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { SqliteDatabaseIntrospectionAdapter } from '#src/platform/db/sqlite/database-introspection-adapter.sqlite';
 import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '#src/platform/db/sqlite/database-journal-repo';
