@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
-import { BackstopRefusal } from "../backstop-policy.js";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

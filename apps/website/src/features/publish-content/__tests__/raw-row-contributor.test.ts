@@ -8,7 +8,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { contributeRawRowPublish, rawRowId, undoRawRow } from "../raw-row-contributor.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { BackstopRefusal } from "../backstop-policy.js";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
 
 function fixture(t: test.TestContext) {

@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { BackstopRefusal } from "#src/features/publish-content/backstop-policy";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";

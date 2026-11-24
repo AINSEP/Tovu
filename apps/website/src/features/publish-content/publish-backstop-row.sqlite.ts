@@ -2,7 +2,8 @@ import { sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import type { RawColumn, RawRowPort, RawValue } from "@jini-ai/cms/publish/transfer";
-import { BackstopRefusal, checkRawTable } from "#src/features/publish-content/backstop-policy";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
+import { checkRawTable } from "#src/features/publish-content/backstop-policy";
 
 function identifier({ name }: { name: string }, _optional = {}): string {
   if (!/^[A-Za-z_]\w*$/.test(name)) throw new BackstopRefusal({ message: "Invalid raw database identifier." });
