@@ -4248,6 +4248,10 @@
     {
       "id": "0b639a8c9eaf",
       "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoAnalysisDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:120-120."
+    },
+    {
+      "id": "d223545f9421",
+      "reason": "Moved verbatim with the media update route to Jini @jini-ai/cms/admin-http/routes/media/update.ts:17 (rt-l3-pubsite, combine-16); the host update.ts is deleted."
     }
   ]
 }
