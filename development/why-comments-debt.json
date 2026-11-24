@@ -4508,6 +4508,306 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "77bec9a1aad8",
+      "reason": "Kept in Tovu apps/website/src/cli/commands/import-local.ts (parseRequest now delegates to the Jini parseRequestObject, documented at Jini cli/src/request-fields.ts); reworded"
+    },
+    {
+      "id": "489dace95a07",
+      "reason": "Test moved with the class: the error class is owned by @jini-ai/plugins host (hook-refusals.ts) and its Tovu forwarder was deleted in w4-runtime"
+    },
+    {
+      "id": "e48beea148bb",
+      "reason": "Test moved to Jini infra/src/events/__tests__/domain-outbox.enqueue-only.test.ts (w4-runtime) with its own @file header"
+    },
+    {
+      "id": "16ca2ab46e1b",
+      "reason": "Moved to Jini infra/src/events/outbox/enqueue-only.ts and domain-outbox.ts (w4-runtime); reworded to drop product and daemon names"
+    },
+    {
+      "id": "d9cf486d038c",
+      "reason": "Moved to Jini infra/src/events/outbox/enqueue-only.ts and domain-outbox.ts (w4-runtime); reworded to drop product and daemon names"
+    },
+    {
+      "id": "341fb28157eb",
+      "reason": "Obsolete: events/index.ts was a barrel forwarder deleted in w4-runtime; importers use @jini-ai/infra/events"
+    },
+    {
+      "id": "ee503ebef991",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "03bcad33a1bc",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "0415e27ae2b8",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "0c6d85967785",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "a58b9857ae34",
+      "reason": "Moved to Jini infra/src/events/memory-bus.ts @file header (w4-runtime); reworded to drop the project name"
+    },
+    {
+      "id": "de97a5679e5e",
+      "reason": "Obsolete: the outbox-worker.ts compatibility facade note; policy now lives in @jini-ai/infra/events/outbox"
+    },
+    {
+      "id": "d20131090ab7",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (MAX_OUTBOX_ATTEMPTS, reworded, w4-runtime)"
+    },
+    {
+      "id": "c60ba67b1fad",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (DEFAULT_OUTBOX_CLAIM_LEASE_MS, reworded, w4-runtime)"
+    },
+    {
+      "id": "86c8db0ad112",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS, reworded, w4-runtime)"
+    },
+    {
+      "id": "4751cf6a77c6",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (computeOutboxBackoffMs, reworded, w4-runtime)"
+    },
+    {
+      "id": "1225c2db15f8",
+      "reason": "Obsolete: contracts/core/index.ts was a barrel forwarder deleted in w4-runtime; importers use the owning packages"
+    },
+    {
+      "id": "48ef1453b4b0",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "e41e5747a02d",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "930c54de9166",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "b4d7734b289c",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "3d9e0cd84e09",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "6e968332eeb4",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "8ac7241e9aea",
+      "reason": "Kept in Tovu apps/website/src/contracts/core/tool-failure-diagnostics.ts (reworded; diagnostic authority lives in the Jini daemon owner)"
+    },
+    {
+      "id": "e499fa7c8cce",
+      "reason": "Test moved to Jini devops/src/local-dev/__tests__/bind-host.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "894f75481c35",
+      "reason": "Test moved to Jini devops/src/local-dev/__tests__/boot-listener.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "e631abc423c0",
+      "reason": "Test moved to Jini sidecar/src/supervision/__tests__/parent-watchdog.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "3cc329378b86",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "ce30b315f2ce",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "4d40d23d8b3c",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "b9ef7d7cf160",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "daa535d170a0",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "e40bf0880238",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "bb5fe035bf62",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "372557c031ac",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "d8c4242bfac4",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "c1837f7cb8e1",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "72917d3a567e",
+      "reason": "Obsolete: boot compatibility entry deleted in w4-runtime; importers use the plugin-runtime owner directly"
+    },
+    {
+      "id": "66e5db1bcba3",
+      "reason": "Test moved to Jini devops/src/dns/__tests__/binding-sweeper.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "2ca0bd17a14a",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "33f337d6c24b",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "0a85b6455f32",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "90ace888bafa",
+      "reason": "Obsolete: jini-agents.ts was a forwarder deleted in w4-runtime; the ChatAgentFailurePort binding is exercised at Jini chat/src/core/__tests__/agents-port.typecheck.ts"
+    },
+    {
+      "id": "025582ccf064",
+      "reason": "Moved to Jini core/src/primitives/lazy-proxy.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "a705504cce74",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "fa9b72a45cd9",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts / ports.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "5eb4dad4c174",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts reportSafely (w4-runtime); reworded"
+    },
+    {
+      "id": "65d85b8a3761",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts reportSafely (w4-runtime); reworded"
+    },
+    {
+      "id": "fa42cbd6c3cc",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "5ef26f3844f8",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "0990271e3bd9",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "b1f78c999e9c",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "fb5587a2ba86",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "b8b36f777b76",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "8393dea279d6",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "21a23e2b5c5a",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "9b1b3de5adac",
+      "reason": "Test moved to Jini sidecar/src/__tests__/daemon-origin.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "7d3f74a25e9a",
+      "reason": "Test moved to Jini server/src/shutdown/__tests__/close-store-on-shutdown-boot-work.test.ts (w4-runtime)"
+    },
+    {
+      "id": "61beb62f3527",
+      "reason": "Test moved to Jini server/src/shutdown/__tests__/close-within-bound-defaults.test.ts (w4-runtime)"
+    },
+    {
+      "id": "4ad330bcd209",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "8e69c647a021",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "cb7f55621635",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "9d9b6d5df3a7",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "04989f825c55",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "db202306429e",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "c03a74e3127e",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "4e289f83d00e",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "8f8f010bbea7",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "ce1214a96f32",
+      "reason": "Kept in Tovu daemon-demand-fetch.ts (reworded) and at Jini sidecar/src/daemon-park-recovery.ts"
+    },
+    {
+      "id": "640b2cb15ebb",
+      "reason": "Kept in Tovu site-idle-park.ts (reworded) and at Jini server/src/shutdown/idle-park.ts"
+    },
+    {
+      "id": "958db828f2c2",
+      "reason": "Kept in Tovu run-in-worker.unit.test.ts (reworded); the per-call runner's own tests live in Jini sandbox"
+    },
+    {
+      "id": "805ec43a5be6",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "2a80508a718f",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "ea148657dd41",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "7a919d85ee5f",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
     }
   ]
 }
