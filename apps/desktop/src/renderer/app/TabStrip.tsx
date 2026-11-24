@@ -16,6 +16,11 @@ function CloseIcon() {
   );
 }
 
+/** The "All" tab is the active one only when no project tab and not the Import tab is selected. @complexity O(1). */
+function isSitesHomeSelected({ activeTab, importTab }: { activeTab: string | null; importTab: ImportTab | undefined }): boolean {
+  return activeTab === null && importTab?.selected !== true;
+}
+
 /** The Import tab itself; only it is focusable by Tab key while selected, like a site's. */
 function ImportTabItem({ importTab }: { importTab: ImportTab }) {
   const tabIndex = importTab.selected ? 0 : -1;
@@ -57,7 +62,7 @@ export function TabStrip({
   onCloseTab: (id: string) => void; useTabStripHook?: typeof useScrollableTabStrip;
 }) {
   const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStripHook({ activeTab, tabs: projects.map(({ id, displayName }) => ({ id, label: displayName })) }, { activeSelector: ".is-active" });
-  const allSelected = activeTab === null && importTab?.selected !== true;
+  const allSelected = isSitesHomeSelected({ activeTab, importTab });
   return (
     <div className="tabstrip-frame">
       {showArrows ? <button type="button" className="tabstrip-arrow" aria-label="Scroll tabs left" disabled={!overflow.left} onClick={scrollLeft}>‹</button> : null}

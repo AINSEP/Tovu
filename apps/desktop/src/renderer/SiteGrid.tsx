@@ -137,7 +137,7 @@ export function SiteGrid({
   return (
     <>
       <SiteListToolbar list={list} copy={siteListCopy(list)} />
-      {list.visible.length === 0 && <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p>}
+      {allHiddenNotice(list)}
       <div className="grid">
       {list.visible.map(({ project }) => (
         <SiteCard
@@ -145,7 +145,7 @@ export function SiteGrid({
           project={project}
           list={list}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={cardOverlay({ id: project.id, pendingDeleteId: pendingId, renamingId: rename.renamingId }, { confirmingStopId: power.confirmingStopId ?? null })}
+          overlay={gridCardOverlay({ id: project.id, pendingId, renamingId: rename.renamingId, confirmingStopId: power.confirmingStopId })}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -162,6 +162,16 @@ export function SiteGrid({
       </div>
     </>
   );
+}
+
+/** Shown when the list's filter leaves nothing visible. @complexity O(1). */
+function allHiddenNotice(list: Pick<SiteListController<unknown>, 'visible'>) {
+  return list.visible.length === 0 ? <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p> : null;
+}
+
+/** The overlay a grid card shows: a stop that is still unconfirmed reads as no id, not `undefined`. @complexity O(1). */
+function gridCardOverlay({ id, pendingId, renamingId, confirmingStopId }: { id: string; pendingId: string | null; renamingId: string | null; confirmingStopId: string | null | undefined }) {
+  return cardOverlay({ id, pendingDeleteId: pendingId, renamingId }, { confirmingStopId: confirmingStopId ?? null });
 }
 
 /** Every word on the list's toolbar. @complexity O(1). */
