@@ -62,7 +62,10 @@ const SEARCH_LIMIT_DEFAULT = 10;
  *  are therefore read from those defs rather than restated; only this registry's extra `clamp`
  *  repair declaration and the limit bounds above are local. */
 function mcpPropertyDescription({ tool, key }: { tool: typeof searchComponentsTool; key: string }, _optional = {}): string {
-  return (tool.inputSchema.properties as Record<string, { description: string }>)[key].description;
+  const property = (tool.inputSchema.properties as Record<string, { description: string } | undefined>)[key];
+  // A missing def is a drift between this registry and @jini-ai/mcp; fail at load, not with a blank description.
+  if (!property) throw new Error(`@jini-ai/mcp ${tool.name} has no "${key}" input property to describe.`);
+  return property.description;
 }
 
 export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
