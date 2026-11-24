@@ -4746,6 +4746,38 @@
     {
       "id": "b39d8a145860",
       "reason": "Refused-upstream 503 rationale: the lifecycle half moved to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (ECONNREFUSED bullet); the Tovu header keeps the 2026-10-05 marker-header rationale."
+    },
+    {
+      "id": "8f15da13aa40",
+      "reason": "Moved to Jini @jini-ai/admin sites/transfer/use-export-password.hooks.ts (Jini 6eb7ec36), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "a8047d2e191e",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "3d676371d82d",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "e60a575327c0",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "2b3d1d691582",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "5ef6a7c84708",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "07e215ecdc89",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "c1e29ad66827",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
     }
   ]
 }
