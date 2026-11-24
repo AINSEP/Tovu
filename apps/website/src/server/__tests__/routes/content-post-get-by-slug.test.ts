@@ -9,8 +9,8 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { PostRecord } from "../../../features/post/post.js";
-import type { MemberSessionRecord } from "../../../features/members/index.js";
-import { InMemoryMemberSessionRepo } from "../../../features/members/index.js";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { startTestServer, extractRouteHandler, createCapturingResponse } from "../helpers/http-test-server.js";
 
 /**

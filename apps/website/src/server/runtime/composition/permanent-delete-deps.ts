@@ -12,7 +12,7 @@ import { deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";
 import type { PermanentDeletePlan, PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";
-import type { PermanentDeleteToolId } from "#src/features/permanent-delete/agent-tools";
+import type { PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /** Host adapter only: the tools never import server or reach credential services directly. */

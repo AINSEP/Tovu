@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 
-import { resolveMemberSession } from "#src/features/members/access-resolver";
+import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";

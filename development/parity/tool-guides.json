@@ -1978,7 +1978,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/domain-dns/mail-dns-tools.ts",
+        "path": "packages/devops/src/dns/site/mail-dns-tools.ts",
         "ids": [
           "mail_dns_verify"
         ]
@@ -2288,7 +2288,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/permanent-delete/agent-tools.ts",
+        "path": "../Jini/packages/cms/src/trash/permanent/agent-tools.ts",
         "ids": [
           "trash_list_items",
           "trash_item",
@@ -2421,17 +2421,6 @@
           "publish_content_plan_pull",
           "publish_content_connect",
           "publish_content_execute_pull"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/recovery/agent-tools.ts",
-        "ids": [
-          "content_read.backup_restore_point",
-          "content_read.database_restore_point",
-          "source_control_get_capabilities",
-          "site_backup_plan",
-          "site_backup_push",
-          "backup_plan_restore"
         ]
       },
       {

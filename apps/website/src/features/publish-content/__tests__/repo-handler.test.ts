@@ -19,7 +19,9 @@ import {
 } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler } from "../repo-handler.js";
 import type { RepoPublishTypeConfig } from "../repo-handler.js";
-import type { PackedEntity, PublishContentDeps, PublishContentHandler } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Slice F1 tests — `ADS-memory/.local-artifacts/plan-publish-all-types-2026-09-25.md` §2.4.

@@ -6,7 +6,7 @@ import { type TrashKindMover, POST_ENTITY_TYPE, COMMENT_ENTITY_TYPE, MEDIA_ENTIT
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
 import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";
-import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
+import { createInMemoryRevocations } from "@jini-ai/cms/publish/trust/revocations";
 import { InMemoryPostSearchIndex } from "#src/features/post/index";
 import { getSlugChangeCapture } from "#src/platform/routing/adapter";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";

@@ -6,8 +6,8 @@ import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/owner-clients";
+import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
-  readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import { subscribeToSettingsChanges } from "./lib/settings-events";

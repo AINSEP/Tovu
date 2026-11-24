@@ -2,8 +2,8 @@ import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 import { buildChallengeMessage } from "./challenge.js";
-import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "./grant.js";
-import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
+import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
+import { deriveInstallationId, derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 
 /**
  * @file Zero-setup publishing auth — the SOURCE's half of the handshake.

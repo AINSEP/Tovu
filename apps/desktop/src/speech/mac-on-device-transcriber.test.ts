@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `mac-on-device-transcriber.ts` with injected dependencies, plus a
+ * @file Direct tests for `@jini-ai/desktop-host/shell/speech/mac-on-device-transcriber` (bound by `speech-host-config.ts`) with injected dependencies, plus a
  * darwin-only contract check against the compiled Swift helper.
  */
 import test, { after, before, describe } from "node:test";
@@ -10,7 +10,10 @@ import path from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
 import { ensureHelperCompiled, checkAvailability, transcribeWav, parseHelperJson } from "@jini-ai/desktop-host/speech/macos";
-import { createMacOnDeviceTranscriptionPort, speechHelperSourcePath, macTranscriberMessages, DEFAULT_BINARY_PATH } from "./mac-on-device-transcriber.ts";
+import { createNativeMacTranscriptionPort, speechHelperSourcePath } from "@jini-ai/desktop-host/shell/speech/mac-on-device-transcriber";
+import { SPEECH_HOST, macTranscriberMessages, DEFAULT_BINARY_PATH } from "./speech-host-config.ts";
+// Bound with Tovu's product values exactly as `main/index.ts` binds them (via SPEECH_HOST.mac).
+const createMacOnDeviceTranscriptionPort = (_required: Record<string, never>, overrides: Parameters<typeof createNativeMacTranscriptionPort>[1] = {}) => createNativeMacTranscriptionPort(SPEECH_HOST.mac, overrides);
 const policy = { compilerPath: "swiftc", locale: "en-US", messages: macTranscriberMessages };
 
 /** Exercise the same compiler result against installed 0.4.0 and the pending async release.

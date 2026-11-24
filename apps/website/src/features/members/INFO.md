@@ -81,3 +81,22 @@ session, and the fail-closed content-gating decision (ADR-030).
   in this library, by design.
 - Operator admin-gateway wiring for `members.*` permissions (ADR-018), including
   a rate-limiter for magic-link requests before public sign-up is enabled.
+
+## Wiring
+
+Sign-in and reset mail bodies render in Jini: `@jini-ai/user-management/members/auth-mail` `renderMemberAuthMail({ purpose, link, code?, renderEmailForSend })`. The challenge request (`@jini-ai/user-management/members/member-challenge-request`) and the grouped `membersWriteService` (`@jini-ai/user-management/members/write-service`) live in Jini too; they read the host mail transport from `MembersWriteServiceDeps.mailTransport`, and Jini never imports the renderer or host code. The feature's records, ports, in-memory repos, access resolver, consent service, admin writes, credentials, challenge store, sign-in, password auth, Trash bridge, agent tool catalog and capability card now live in `@jini-ai/user-management/members/<module>` (one leaf subpath each: `types`, `ports`, `repo.memory`, `access-resolver`, `consent-service`, `member-admin-writes`, `member-credentials`, `member-challenge`, `member-sign-in`, `member-validation`, `password-auth`, `trash-member`, `agent-tools`, `capability-card`). There is no barrel: import each leaf directly.
+
+What stays here, and what Tovu binds:
+- `repo.sqlite.ts`: the SQL binding. The one Kysely query body for every dialect (`SqlMemberRepo`, `SqlMemberTierRepo`, `SqlMemberSubscriptionRepo`, `SqlMemberSessionRepo`, `SqlMagicLinkTokenRepo`, `SqlMemberConsentRepo`, `SqlMemberExternalIdentityRepo`) lives in `@jini-ai/user-management/members/repo` (sessions and magic links in `@jini-ai/user-management/members/repo.sessions`) and takes `{ kernel, tables }` (plus `keepStoredRevocation` for sessions). This file binds `memberSqlDeps({ store })`: the schema-erased content kernel (`schemaErasedKernel`), `MEMBER_TABLES` (this site's table names; Jini has no default) and `platform/db/keep-stored-revocation.ts` (shared with the principal session table). The `Sqlite…Repo` subclasses keep the content-db-handle call sites; every other caller (composition `modules/members.ts`, dialect tests) constructs `new Sql…Repo(memberSqlDeps({ store: kernel }))`.
+- `mail-transport.ts`: `membersMailTransport`, the `MembersMailTransport` binding: `isMailDeliveryAvailable` and `mailSenderIdentityFor` from `platform/mail`, plus `renderEmailForSend` from `@jini-ai/platform/mail/email-template`. Bound as `mailTransport` by `server/inbound/admin-http/routes/members/deps.ts` (`toMembersWriteServiceDeps`), `server/inbound/public-http/routes/members/deps.ts` (`toPublicMembersWriteServiceDeps`, which also feeds the member-login link deps) and `tool-registrations.ts`'s sign-in-link tool. Without it the Jini challenge flow refuses sign-in and reset as "email is not set up".
+- `MembersSubscriberDirectory` (the newsletter `SubscriberDirectoryPort` over `MemberRepoPort`) now lives in `@jini-ai/user-management/members/subscriber-directory`; the memory and site compositions bind it with the members repo.
+- `tool-registrations.ts`: the assistant tool contributor. It binds `@jini-ai/cms/core` permission/error helpers and the tool metadata from `@jini-ai/core/tool-metadata/members`, and resolves the catalog's `{{read:member}}` placeholders with Tovu's `contentReadVocabulary` (so the model sees `content_read.member`). `server/runtime/composition/site-guide.ts` resolves the Members capability card's read pointer the same way; `__tests__/host-read-wording.test.ts` pins both.
+- Every composition passes `MembersWriteServiceDeps` (`buildMembersWriteServiceDeps`): repos, clock, ids, the positional mailer, optional `mailStatus`, `origin`, `senderIdentity`, `principals`, `credentialLifecycle` (the content kernel, typed as core `StorageKernel`'s `transaction`/`lockKey`), and `mailTransport` (`membersMailTransport`) wherever a challenge is issued.
+
+```ts
+import { renderMemberAuthMail } from "@jini-ai/user-management/members/auth-mail";
+import { renderEmailForSend } from "@jini-ai/platform/mail/email-template";
+const body = renderMemberAuthMail({ purpose: "signin", link, code: secrets.code, renderEmailForSend });
+```
+
+Why the split: Jini `docs/decisions/DR-005-portable-package-boundaries.md`.

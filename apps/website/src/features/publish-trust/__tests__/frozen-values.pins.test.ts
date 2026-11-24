@@ -7,10 +7,11 @@ import { fileURLToPath } from "node:url";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import { buildChallengeMessage } from "../challenge.js";
-import { PUBLISH_TRUST_ROUTES, isPublishTrustRoute } from "../grant.js";
+import { PUBLISH_TRUST_ROUTES, isPublishTrustRoute } from "@jini-ai/cms/publish/trust/grant";
 import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHandshakeError } from "../handshake-client.js";
-import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "../keys.js";
-import { PUBLISH_TRUST_CONFIG_PATH, PUBLISH_TRUST_ENV_VAR } from "../provisioning.js";
+import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
+import { PUBLISH_TRUST_CONFIG_PATH } from "@jini-ai/cms/publish/trust/provisioning";
+import { PUBLISH_TRUST_ENV_VAR } from "../host-settings.js";
 import { mintPublishSession } from "../session.js";
 import { createFixedKeyring } from "./support/fixed-keyring.js";
 

@@ -5,7 +5,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { resolveRegion } from '@jini-ai/cookie-consent/server';
 import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
-import { CONSENT_CONTRIBUTIONS_FILENAME, loadSiteRegionResolvers, loadSiteConsentBridges, loadSiteConsentScripts, parseConsentContributions, toRegionResolvers } from '../../region-plugins.js';
+import { CONSENT_CONTRIBUTIONS_FILENAME, loadSiteRegionResolvers, loadSiteConsentBridges, loadSiteConsentScripts, parseConsentContributions, toRegionResolvers } from '@jini-ai/cookie-consent/site/region-plugins';
+import { reportConsentPluginFailure as reportFailure } from '../../host-bindings.js';
 
 const request = (headers: Record<string, string>) => ({ header: (name: string) => headers[name] ?? null, ip: null });
 const file = (contributions: unknown[]) => JSON.stringify({ schemaVersion: 2, contributions });
@@ -46,7 +47,7 @@ function loader(calls: unknown[]) {
 
 test('only the configured ingress plugin is trusted, from active plugins only', async () => {
   const calls: Array<{ optional: unknown }> = [];
-  const resolvers = await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions: loader(calls) }, { ingress: 'vercel' });
+  const resolvers = await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions: loader(calls) }, { ingress: 'vercel' });
   assert.deepEqual(resolvers.map(item => item.id), ['vercel']);
   assert.deepEqual(calls[0]!.optional, { requireActive: true });
   // The other host's header is now just a visitor-supplied header: strict.
@@ -55,11 +56,11 @@ test('only the configured ingress plugin is trusted, from active plugins only', 
 
 test('no ingress (Fly, Electron) loads nothing and stays strict; a loader fault stays strict too', async () => {
   const calls: unknown[] = [];
-  assert.deepEqual(await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions: loader(calls) }), []);
+  assert.deepEqual(await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions: loader(calls) }), []);
   assert.equal(calls.length, 0);
   const failing = (async () => { throw new Error('disk'); }) as unknown as Parameters<typeof loadSiteRegionResolvers>[0]['loadContributions'];
   const error = console.error; console.error = () => {};
-  try { assert.deepEqual(await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions: failing }, { ingress: 'cloudflare' }), []); }
+  try { assert.deepEqual(await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions: failing }, { ingress: 'cloudflare' }), []); }
   finally { console.error = error; }
 });
 
@@ -67,8 +68,8 @@ test('region reader and bridge failures log redacted causes and preserve strict 
   const logs: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
   const failing = async () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); };
-  assert.deepEqual(await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions: failing }, { ingress: 'cloudflare' }), []);
-  assert.deepEqual(await loadSiteConsentBridges({ workspaceId: 'w', loadContributions: failing }), []);
+  assert.deepEqual(await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions: failing }, { ingress: 'cloudflare' }), []);
+  assert.deepEqual(await loadSiteConsentBridges({ reportFailure, workspaceId: 'w', loadContributions: failing }), []);
   assert.equal(logs.length, 2);
   assert.match(logs[0]?.join(' ') ?? '', /region readers could not be loaded; visitors get the strict banner/);
   assert.match(logs[1]?.join(' ') ?? '', /browser bridges could not be loaded/);
@@ -99,9 +100,9 @@ test('active browser bridges are loaded without trusting their region readers', 
       { pluginId: 'cmp', entry: { kind: 'consent-bridge', id: 'bad', src: 'javascript:alert(1)' } },
     ], refusals: [] };
   }) as unknown as Parameters<typeof loadSiteRegionResolvers>[0]['loadContributions'];
-  assert.deepEqual(await loadSiteConsentBridges({ workspaceId: 'w', loadContributions }), [{ kind: 'consent-bridge', id: 'cmp', src: '/plugins/cmp.js' }]);
+  assert.deepEqual(await loadSiteConsentBridges({ reportFailure, workspaceId: 'w', loadContributions }), [{ kind: 'consent-bridge', id: 'cmp', src: '/plugins/cmp.js' }]);
   assert.deepEqual(calls[0]!.optional, { requireActive: true });
-  const resolvers = await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions }, { ingress: 'cmp' });
+  const resolvers = await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions }, { ingress: 'cmp' });
   assert.deepEqual(resolvers.map(item => item.id), ['cmp-region']);
 });
 

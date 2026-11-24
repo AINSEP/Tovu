@@ -1,7 +1,7 @@
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
-import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/source-control';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -26,7 +26,7 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
-import { validateCommitTarget } from "./commit-target.js";
+import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
 import {
   buildSourceControlProvider,
   switchedOffPluginSentence,
@@ -34,8 +34,8 @@ import {
   type SourceControlProviderDescriptor,
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
-import type { RepositoryTargetValidator } from "./provider-module.js";
-import { sourceControlSavedApiKeyLabels } from "./saved-key-bindings.js";
+import type { RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
+import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/site/saved-key-bindings";
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EmailTemplateEditor } from "../EmailTemplateEditor";
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import { createEditorController } from "./email-controller.test-helpers";
 import { TEMPLATE } from "./email.test-helpers";
 import { installInternalLinkInterceptor } from "@jini-ai/admin/shell/lib/router";

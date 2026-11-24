@@ -8,7 +8,7 @@ import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "@jini-ai/
 import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { listCustomCredentials } from "../../custom-credentials/index.js";
 import { mailWebhookSecretLabels } from "../../mail/index.js";
-import { evaluateLaunchGate, type LaunchGateDeps } from "../../newsletter/launch-gate.js";
+import type { LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,

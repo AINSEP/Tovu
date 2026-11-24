@@ -5,7 +5,7 @@
  * never quite is.
  */
 import type { JSX } from 'react';
-import { IconFrame } from './icon-frame.js';
+import { IconFrame } from '@jini-ai/ui';
 import type { RunnerSectionId } from '../contracts/sections.js';
 
 const paths: Record<RunnerSectionId, JSX.Element> = {
@@ -101,7 +101,7 @@ const paths: Record<RunnerSectionId, JSX.Element> = {
 
 export function SectionIcon({ id }: { id: RunnerSectionId }) {
   return (
-    <IconFrame>
+    <IconFrame className="icon">
       {paths[id]}
     </IconFrame>
   );
@@ -115,7 +115,7 @@ const GEAR_TOOTH_ANGLES = [0, 60, 120, 180, 240, 300];
  *  icon made exactly that mistake). */
 export function GearIcon() {
   return (
-    <IconFrame>
+    <IconFrame className="icon">
       {/* Teeth first, so the stroked body circle paints over where they meet it — the seam
           between a filled tooth and a stroked arc is what makes a cog read as loose dots
           (a sun) instead of one solid part. Each tooth's inner edge sits INSIDE the body
@@ -169,7 +169,7 @@ const navPaths: Record<NavIconKind, JSX.Element> = {
  *  toolbar chrome (back, forward, reload), not a nav destination. */
 export function NavIcon({ kind }: { kind: NavIconKind }) {
   return (
-    <IconFrame>
+    <IconFrame className="icon">
       {navPaths[kind]}
     </IconFrame>
   );
@@ -212,7 +212,7 @@ const menuPaths: Record<MenuIconKind, JSX.Element> = {
 
 export function MenuIcon({ kind }: { kind: MenuIconKind }) {
   return (
-    <IconFrame>
+    <IconFrame className="icon">
       {menuPaths[kind]}
     </IconFrame>
   );

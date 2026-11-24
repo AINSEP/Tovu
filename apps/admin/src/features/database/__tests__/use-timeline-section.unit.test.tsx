@@ -1,11 +1,11 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
+import type { AdminLedgerRow } from "@jini-ai/admin/core";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { navigateToRecoveryWithDeepLink, useTimelineSection, useWiredTimelineSection } from "../hooks/use-timeline-section.hooks";
-import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
+import { navigateToRecoveryWithDeepLink, useTimelineSection } from "@jini-ai/admin/screens/database/hooks/use-timeline-section.hooks";
+import { TIMELINE_SECTION_HOST, createFakeTimelineSectionPort, useWiredTimelineSection } from "../hooks/timeline-section-dependencies.hooks";
 
 /**
  * @file `useTimelineSection` (the Database screen's ledger browser) and its sibling plain function
@@ -47,13 +47,13 @@ describe("navigateToRecoveryWithDeepLink", () => {
   });
 
   it("is a no-op — no sessionStorage write, no navigation — when the row carries no restorePointId", () => {
-    navigateToRecoveryWithDeepLink(ROW_WITHOUT_RESTORE_POINT);
+    navigateToRecoveryWithDeepLink({ row: ROW_WITHOUT_RESTORE_POINT, navigate });
     expect(sessionStorage.getItem("recovery-deep-link-envelope")).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
   });
 
   it("stashes a v1 envelope carrying the row's own id/restorePointId/kind, and navigates to /recovery", () => {
-    navigateToRecoveryWithDeepLink(ROW_WITH_RESTORE_POINT);
+    navigateToRecoveryWithDeepLink({ row: ROW_WITH_RESTORE_POINT, navigate });
 
     expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery" });
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
@@ -168,7 +168,7 @@ describe("loadMore", () => {
         return { items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" };
       },
     };
-    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port, host: TIMELINE_SECTION_HOST }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
     act(() => { void result.current.loadMore(); });
     expect(result.current.loadingMore).toBe(true);
@@ -186,7 +186,7 @@ describe("loadMore", () => {
 
   it("discards an old filter's page and releases its loading lock without unlocking a newer request", async () => {
     const getDatabaseTimeline = vi.fn().mockResolvedValueOnce({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
-    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline } }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline }, host: TIMELINE_SECTION_HOST }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
 
     let resolveOld!: (page: { items: AdminLedgerRow[]; nextCursor: string | null }) => void;
@@ -218,7 +218,7 @@ describe("loadMore", () => {
 
   it("sends only one page request for two same-tick loadMore calls", async () => {
     const getDatabaseTimeline = vi.fn().mockResolvedValueOnce({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
-    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline } }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline }, host: TIMELINE_SECTION_HOST }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
 
     let resolvePage!: (page: { items: AdminLedgerRow[]; nextCursor: string | null }) => void;
@@ -357,7 +357,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
    *  `fetch`, since `useAdminLocale()` is a separate, un-injected concern from this port. */
   it("loads rows from the fake port with no real fetch call for the timeline itself", async () => {
     const port = createFakeTimelineSectionPort({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
-    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port, host: TIMELINE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT]);
@@ -367,7 +367,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("passes the applied filters through to the port's own call log", async () => {
     const port = createFakeTimelineSectionPort({ items: [] });
-    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port, host: TIMELINE_SECTION_HOST }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
 
     act(() => {
@@ -383,7 +383,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("surfaces a load failure from the fake port's rejected getDatabaseTimeline", async () => {
     const port = createFakeTimelineSectionPort({ getDatabaseTimelineError: new Error("boom from fake") });
-    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    const { result } = renderHook(() => useTimelineSection({ port, host: TIMELINE_SECTION_HOST }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("boom from fake"));
     expect(result.current.rows).toBeNull();
   });

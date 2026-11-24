@@ -2,7 +2,7 @@
  * @file Public surface of the `sites` feature.
  *
  * `panels.tsx` imports from HERE, never from a file inside this folder — see
- * `features/redirects/index.ts` for why the feature boundary is worth the indirection.
+ * `@jini-ai/admin/screens/redirects` for why the feature boundary is worth the indirection.
  */
 export { Sites } from "./Sites";
 // Export and Import moved to Operations → Import & Export as tabs (owner, 2026-10-25), so that page

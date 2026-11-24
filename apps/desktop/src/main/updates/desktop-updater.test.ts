@@ -1,15 +1,15 @@
 /**
- * @file The updater lifecycle through fake ports: when a controller starts, what turning the
- * checkbox OFF/ON does to the controller and the native updater, how the final quit is decided,
- * and the manual check's loader. Replaces the `new Function`/source-text checks of these functions
- * in `main-updater-wiring.test.ts` and `main-desktop-easy-wins.test.ts`.
+ * @file Tovu's binding of Jini's updater lifecycle: the release skip gate, the `auto-update …` log
+ * wording, and the DT-desktop-1 controller bound to the host's controller inputs. The lifecycle rules
+ * (OFF/ON, the final quit, the manual check's loader) are tested in Jini's
+ * `packages/desktop-host/src/electron/updates/__tests__/desktop-updater.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createDesktopUpdater, createDesktopUpdaterState, desktopUpdaterSkipReason } from "./desktop-updater.ts";
+import { createDesktopUpdater, desktopUpdaterSkipReason } from "./desktop-updater.ts";
 import type { DesktopUpdaterPorts, NativeUpdater } from "./desktop-updater.ts";
 import type { AutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";
 
@@ -120,75 +120,6 @@ test("a skipped launch logs the policy reason and never loads electron-updater",
   assert.equal(h.updater.state.starting, false);
 });
 
-test("a persisted OFF choice skips lazy updater loading on launch", async () => {
-  const h = harness({ automatic: false });
-  await h.updater.start();
-  assert.deepEqual(h.calls, []);
-  assert.deepEqual(h.logs, []);
-});
-
-test("turning updates OFF while electron-updater is loading creates no controller", async () => {
-  let release!: (value: NativeUpdater) => void;
-  const h = harness({ load: () => new Promise(resolve => { release = resolve; }) });
-  const starting = h.updater.start();
-  h.automatic.value = false;
-  release(fakeNative());
-  await starting;
-  assert.deepEqual(h.calls, []);
-  assert.equal(h.updater.state.controller, null);
-  assert.equal(h.updater.state.starting, false);
-});
-
-test("a quit drain that began during the load creates no controller", async () => {
-  const h = harness({ idle: false });
-  await h.updater.start();
-  assert.deepEqual(h.calls, ["load"]);
-  assert.equal(h.updater.state.controller, null);
-});
-
-test("concurrent updater starts wait for one controller to be listening", async () => {
-  let release!: (value: NativeUpdater) => void;
-  const h = harness({ load: () => new Promise(resolve => { release = resolve; }) });
-  const first = h.updater.start();
-  let secondReady = false;
-  const second = h.updater.start().then(() => { secondReady = true; });
-  await settle();
-  assert.equal(secondReady, false);
-  release(fakeNative());
-  await Promise.all([first, second]);
-  await h.updater.start();
-  assert.deepEqual(h.calls, ["create", "start"]);
-});
-
-test("Check for updates waits for an in-flight automatic startup before returning the updater", async () => {
-  let release!: (value: NativeUpdater) => void;
-  const loading = new Promise<NativeUpdater>((resolve) => { release = resolve; });
-  let loads = 0;
-  const h = harness({ load: () => ++loads === 1 ? loading : Promise.resolve(fakeNative()) });
-  const starting = h.updater.start();
-  let ready = false;
-  const checking = h.updater.loadUpdaterForCheck().then(() => {
-    assert.notEqual(h.updater.state.controller, null);
-    ready = true;
-  });
-  await settle();
-  assert.equal(ready, false);
-  assert.equal(loads, 1, 'manual check cannot race the lazy import');
-  release(fakeNative());
-  await Promise.all([starting, checking]);
-  assert.equal(ready, true);
-});
-
-test("a failed load clears the starting flag, so a later start can retry", async () => {
-  let fail = true;
-  const h = harness({ load: async () => { if (fail) throw new Error("offline"); return fakeNative(); } });
-  await assert.rejects(h.updater.start(), /offline/);
-  assert.equal(h.updater.state.starting, false);
-  fail = false;
-  await h.updater.start();
-  assert.deepEqual(h.calls, ["create", "start"]);
-});
-
 test("a background start logs a rejection instead of failing the boot", async () => {
   const h = harness({ load: async () => { throw new Error("updater unavailable"); } });
   h.updater.startInBackground();
@@ -201,162 +132,6 @@ test("a non-Error rejection is still logged as text", async () => {
   h.updater.startInBackground();
   await settle();
   assert.deepEqual(h.errors, ["auto-update not started: gone"]);
-});
-
-test("the controller's download prompt records the ready version for Check for updates…", async () => {
-  const h = harness({ prompt: false });
-  await h.updater.start();
-  assert.equal(h.updater.readyVersion(), null);
-  assert.equal(await h.created[0]!.promptUpdateReady({ version: "3.1.0" }), false);
-  assert.equal(h.updater.readyVersion(), "3.1.0");
-  assert.ok(h.calls.includes("prompt:3.1.0"));
-});
-
-test("a ready version is not offered once the controller is gone", async () => {
-  const h = harness();
-  await h.updater.start();
-  await h.created[0]!.promptUpdateReady({ version: "3.1.0" });
-  h.updater.setAutomaticUpdates({ enabled: false });
-  assert.equal(h.updater.readyVersion(), null);
-});
-
-test("a restart starts the controller fresh: an old ready version is forgotten", async () => {
-  const state = createDesktopUpdaterState();
-  state.readyVersion = "0.9.0";
-  const calls: string[] = [];
-  const updater = createDesktopUpdater({ ports: {
-    automaticUpdates: () => true, saveAutomaticUpdates() {}, skipReason: () => null,
-    loadNativeUpdater: async () => fakeNative(), quitIdle: () => true,
-    controllerDeps: () => ({ platform: "win32", pid: 1, presenceDir: "/p", now: () => 0, explainOthersOpen() {}, quit() {}, log() {} }),
-    promptUpdateReady: async () => true, log() {}, logError() {},
-  } }, { state, createController: () => fakeController(calls) });
-  await updater.start();
-  assert.equal(updater.state, state);
-  assert.equal(state.readyVersion, null);
-});
-
-test("turning automatic updates OFF persists first, stops the coordinator, and disables native installs/downloads", async () => {
-  const h = harness();
-  await h.updater.start();
-  h.calls.length = 0;
-  h.updater.setAutomaticUpdates({ enabled: false });
-  assert.deepEqual(h.calls, ["save:false", "willQuit"]);
-  assert.equal(h.updater.state.controller, null);
-  assert.equal(h.native.autoDownload, false);
-  assert.equal(h.native.autoInstallOnAppQuit, false);
-});
-
-test("turning updates OFF before any native updater loaded only persists", () => {
-  const h = harness();
-  h.updater.setAutomaticUpdates({ enabled: false });
-  assert.deepEqual(h.calls, ["save:false"]);
-  assert.equal(h.updater.state.native, null);
-});
-
-test("a failed preference save does not shut down an enabled updater", async () => {
-  const h = harness({ saveFails: true });
-  await h.updater.start();
-  const controller = h.updater.state.controller;
-  h.calls.length = 0;
-  assert.throws(() => h.updater.setAutomaticUpdates({ enabled: false }), /disk full/);
-  assert.deepEqual(h.calls, []);
-  assert.equal(h.updater.state.controller, controller);
-  assert.equal(h.native.autoDownload, true);
-  assert.equal(h.native.autoInstallOnAppQuit, true);
-});
-
-test("a failed save of ON starts nothing", () => {
-  const h = harness({ automatic: false, saveFails: true });
-  assert.throws(() => h.updater.setAutomaticUpdates({ enabled: true }), /disk full/);
-  assert.deepEqual(h.calls, []);
-});
-
-test("turning automatic updates back ON starts the eligible updater after saving", async () => {
-  const h = harness({ automatic: false });
-  h.updater.setAutomaticUpdates({ enabled: true });
-  await settle();
-  assert.deepEqual(h.calls, ["save:true", "load", "create", "start"]);
-});
-
-test("the final quit asks the controller and is held exactly when it says so", async () => {
-  for (const held of [true, false]) {
-    const h = harness({ held });
-    await h.updater.start();
-    assert.equal(h.updater.finalQuitHeldForUpdate(), held);
-    assert.ok(h.calls.includes("beforeFinalQuit"));
-  }
-});
-
-test("with no controller the final quit is never held", () => {
-  assert.equal(harness().updater.finalQuitHeldForUpdate(), false);
-});
-
-test("a persisted OFF choice suppresses installation of an already downloaded update on final quit", async () => {
-  const h = harness();
-  await h.updater.start();
-  h.automatic.value = false;
-  h.calls.length = 0;
-  assert.equal(h.updater.finalQuitHeldForUpdate(), false);
-  assert.deepEqual(h.calls, [], "the controller must not be asked to install");
-  assert.equal(h.native.autoInstallOnAppQuit, false);
-});
-
-test("OFF at final quit with no native updater loaded is simply not held", () => {
-  const h = harness({ automatic: false });
-  assert.equal(h.updater.finalQuitHeldForUpdate(), false);
-  assert.equal(h.updater.state.native, null);
-});
-
-test("will-quit removes this instance's presence record only when a controller runs", async () => {
-  const h = harness();
-  h.updater.willQuit();
-  assert.deepEqual(h.calls, []);
-  await h.updater.start();
-  h.updater.willQuit();
-  assert.equal(h.calls.at(-1), "willQuit");
-});
-
-test("Check for updates… with updates ON starts the controller before handing back the native updater", async () => {
-  const h = harness();
-  const updater = await h.updater.loadUpdaterForCheck();
-  assert.equal(updater, h.native);
-  assert.deepEqual(h.calls, ["load", "create", "start", "load"]);
-});
-
-test("Check for updates… with updates OFF only loads the native updater and remembers it", async () => {
-  const h = harness({ automatic: false });
-  const updater = await h.updater.loadUpdaterForCheck();
-  assert.equal(updater, h.native);
-  assert.deepEqual(h.calls, ["load"]);
-  assert.equal(h.updater.state.native, h.native);
-  assert.equal(h.updater.state.controller, null);
-});
-
-test("a later check keeps the native updater the controller already listens to", async () => {
-  const first = fakeNative();
-  const other = fakeNative();
-  const natives = [first, other];
-  const h = harness({ load: async () => natives.shift()! });
-  await h.updater.start();
-  h.automatic.value = false;
-  assert.equal(await h.updater.loadUpdaterForCheck(), other);
-  assert.equal(h.updater.state.native, first);
-});
-
-test("the ready prompt restarts through the controller only when Restart is chosen", async () => {
-  for (const prompt of [true, false]) {
-    const h = harness({ prompt });
-    await h.updater.start();
-    await h.updater.showReadyPrompt({ version: "4.0.0" });
-    assert.equal(h.calls.includes("requestRestart"), prompt);
-    assert.ok(h.calls.includes("prompt:4.0.0"));
-  }
-});
-
-test("a Restart choice with no controller running does nothing further", async () => {
-  const h = harness({ prompt: true });
-  await h.updater.showReadyPrompt({ version: "4.0.0" });
-  assert.deepEqual(h.calls, ["prompt:4.0.0"]);
 });
 
 test("by default the real auto-update controller binds to the native updater's events", async (t) => {

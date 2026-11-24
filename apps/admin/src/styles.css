@@ -4026,6 +4026,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .agent-plugin-row-summary:hover { background: color-mix(in srgb, var(--jini-text) 3.5%, transparent); }
 .agent-plugin-row-summary:focus-visible,
 .agent-plugin-switch:focus-visible,
+.jini-settings-interface-switch:focus-visible,
 .agent-plugin-icon-btn:focus-visible {
   outline: 2px solid var(--jini-accent); outline-offset: 2px;
 }
@@ -4113,7 +4114,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint.
    The off track is a solid mid-grey, not `--jini-bg-subtle`: on that near-white fill the white knob
    disappeared (owner screenshot, 2026-10-06). */
-.agent-plugin-switch {
+.agent-plugin-switch,
+.jini-settings-interface-switch {
   flex: 0 0 auto; position: relative;
   width: 38px; height: 22px; padding: 0;
   border: 1px solid var(--jini-border-strong);
@@ -4122,22 +4124,27 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   cursor: pointer;
   transition: background-color 160ms var(--jini-ease-out), border-color 160ms var(--jini-ease-out);
 }
-.agent-plugin-switch-knob {
+.agent-plugin-switch-knob,
+.jini-settings-interface-switch-knob {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px;
   background: var(--jini-control-thumb-bg); border-radius: 50%;
   box-shadow: var(--jini-control-thumb-shadow-strong);
   transition: transform 160ms var(--jini-ease-out);
 }
-.agent-plugin-switch[aria-checked="true"] {
+.agent-plugin-switch[aria-checked="true"],
+.jini-settings-interface-switch[aria-checked="true"] {
   background: var(--primary); border-color: var(--primary);
 }
-.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob { transform: translateX(16px); }
-.agent-plugin-switch:hover:not(:disabled) { border-color: var(--primary); }
+.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob,
+.jini-settings-interface-switch[aria-checked="true"] .jini-settings-interface-switch-knob { transform: translateX(16px); }
+.agent-plugin-switch:hover:not(:disabled),
+.jini-settings-interface-switch:hover:not(:disabled) { border-color: var(--primary); }
 /* In flight. Dimmed and inert rather than mid-travel: the position it will land on is not known
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
-.agent-plugin-switch:disabled { cursor: progress; opacity: 0.55; }
+.agent-plugin-switch:disabled,
+.jini-settings-interface-switch:disabled { cursor: progress; opacity: 0.55; }
 /* A locked ("Soon") switch is not drawn: its padlock (`.agent-plugin-linked-lock`) takes the switch's
    column, as on a linked row, so every row's divider, word, eye and trash line up. The disabled switch
    stays in the DOM for its accessible name and state; hiding it visually leaves no white empty switch
@@ -4293,7 +4300,9 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   .agent-plugin-row-glyph,
   .jini-agent-plugin-chevron-glyph,
   .agent-plugin-switch,
+  .jini-settings-interface-switch,
   .agent-plugin-switch-knob,
+  .jini-settings-interface-switch-knob,
   .agent-plugin-icon-btn {
     transition: none;
   }
@@ -6890,7 +6899,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      measured from the padding box (36x20 inside the agent / AI Assistant switch's 1px border), so
      -12px -5px makes it 46x44 / 44x44; -10px -4px left both short of 44 tall. The AI Assistant
      switch is an `appearance: none` checkbox whose `::after` is the knob, so `::before` is free. */
-  :is(.agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before { content: ""; position: absolute; inset: -12px -5px; }
+  :is(.agent-plugin-switch, .jini-settings-interface-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before { content: ""; position: absolute; inset: -12px -5px; }
 
 }
 

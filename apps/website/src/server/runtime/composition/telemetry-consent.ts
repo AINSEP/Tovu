@@ -4,7 +4,7 @@ import type { ProductAnalyticsConsent, ProductAnalyticsConsentRevision } from "@
 /**
  * @file The operator's telemetry consent for product analytics: the EXISTING
  * `core.privacy.telemetry.metrics` setting (Jini core `settings/ui-tab-definitions.ts`, default off,
- * human-only), registered with "no adapter to gate" (`features/analytics/config.settings.ts`) until a
+ * human-only), registered with "no adapter to gate" (`@jini-ai/analytics/site/config.settings`) until a
  * product-analytics provider existed. Only an explicit `true` allows sending; unset, false, a
  * non-boolean or a read error all mean no. Read per event, so turning it off stops the next event.
  *

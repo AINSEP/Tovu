@@ -8,16 +8,42 @@ import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/memb
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
 import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
+/**
+ * @file Public surface (barrel) for the `members` Tier-2 core library (ADR-030).
+ *
+ * ADR-009 §1: a module's public contract is its `index.ts`; boundary lint
+ * forbids deep imports. This now ships the real in-memory repo adapters, the
+ * console mail adapter, the `MemberAccessResolver` implementation, and the
+ * `MembersWriteService` implementation (the ADR-030 follow-up build) in
+ * addition to the original interfaces/types.
+ *
+ * Placement note: this staging location is `src/members/` per the design brief;
+ * the module's production home is `src/features/membership/` (matching the admin
+ * sitemap's `features/membership`), and in the target monorepo layout a Tier-2
+ * lib at `packages/core/src/lib/members/` (tovu-v2-design §3.5). See ADR-030.
+ */
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
+// built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
+// composition root until now (`apps/website/src/server/runtime/composition/deps.ts`).
+// `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
+// Now: the `members` barrel is gone; each Members module is a leaf subpath of `@jini-ai/user-management/members/*`,
+// and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
-import { disableMember, MemberConflictError, MemberNotFoundError, MemberSignInUnavailableError, MemberValidationError, requestSignInLink, SqlMemberExternalIdentityRepo, trashMember } from "#src/features/members/index";
+import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { MemberConflictError, MemberNotFoundError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
+import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";
@@ -25,7 +51,10 @@ import { registerMemberOidcStartRoute } from "#src/server/inbound/public-http/ro
 import { registerMemberOidcCallbackRoute } from "#src/server/inbound/public-http/routes/members/oidc-callback";
 import { registerMemberOidcVerifyEmailRoute } from "#src/server/inbound/public-http/routes/members/oidc-verify-email";
 import { registerMemberUnlinkIdentityRoute } from "#src/server/inbound/public-http/routes/members/unlink-identity";
-import { MEMBER_OIDC_PATH, memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 import type { Express } from "express";
 
 /** The two port fields every admin members mount passes. `authorize` is read per request, as the
@@ -129,9 +158,13 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
       httpPorts: createTovuOAuthHttpPorts({ http: admin.mediaGenerationHttpClient }),
       sealer: admin.siteAssistantSecretSealer, keyring: admin.siteAssistantSecretKeyring, origin: members.origin,
       resolveProvider: async ({ workspaceId, providerId }) => (await listProviders({ workspaceId })).find(provider => provider.id === providerId) ?? null,
-      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }) },
-    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo({ kernel }),
-      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key) } };
+      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }),
+      appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+      beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
+    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })),
+      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key),
+      // The visitor gets only the fixed LOGIN_UNAVAILABLE code; the redacted cause goes to the server log.
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } } };
 }
 
 /** Register the public-only dependency bundle. No admin capability reaches an OIDC handler.

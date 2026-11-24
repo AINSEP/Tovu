@@ -2,8 +2,9 @@ import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
 /** Compose the CMS visitor policy over settings; no admin tool catalog, plugin loader or credentials. */
 import { SITE_ASSISTANT_TOOL_SCHEMAS } from "#src/assistant/site/tools";
 import { VISITOR_TOOL_PRESENTATION } from "#src/assistant/site/visitor-tool-presentation";
-import { createVisitorToolsManagement, type VisitorToolsServiceDeps } from "#src/features/settings/visitor-tools-service";
-import type { VisitorToolDescriptor } from "#src/contracts/site-assistant/visitor-tools-management";
+import { createVisitorToolsManagement, type VisitorToolsServiceDeps } from "@jini-ai/cms/settings/site/visitor-tools-service";
+import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
+import type { VisitorToolDescriptor } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 /** T1's six reviewed CMS tools plus site_guide. Later visitor-source declarations extend listCatalog,
  * never by enumerating the admin registry. Page actions affect only the visitor's current page.
@@ -18,8 +19,8 @@ export function builtinVisitorToolsCatalog(_required: Record<string, never>, _op
 /** Shared composition for memory and durable roots; future plugin/T4 sources use the service catalog port.
  * @complexity O(1). @example composeVisitorToolsManagement({workspaceId, settings, ready});
  */
-export function composeVisitorToolsManagement(required: Omit<VisitorToolsServiceDeps, "listCatalog">, _options = {}) {
-  return createVisitorToolsManagement({ deps: { ...required, listCatalog: async () => builtinVisitorToolsCatalog({}) } });
+export function composeVisitorToolsManagement(required: Omit<VisitorToolsServiceDeps, "listCatalog" | "visitorTools" | "writePolicies">, _options = {}) {
+  return createVisitorToolsManagement({ deps: { ...required, visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, listCatalog: async () => builtinVisitorToolsCatalog({}) } });
 }
 
 function visitorToolEffect({ toolId }: { toolId: string }): 'read' | 'write' {

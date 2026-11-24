@@ -92,9 +92,7 @@ export {
 
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
 // Not the package's `clear` either: neither may restore the comments provider's default behind its card.
-export { set, clear, resetNamespace, refuseDedicatedSettingClear, refuseDedicatedSettingReset, refuseCommentsProviderClear, refuseCommentsProviderReset, COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON } from "./site-title-write.js";
-// Renderers consume the title resolver through the settings public surface.
-export { resolveSiteTitle } from "./site-title.js";
+export { set, clear, resetNamespace, refuseDedicatedSettingClear, refuseDedicatedSettingReset, refuseCommentsProviderClear, refuseCommentsProviderReset } from "./settings-write-policies.js";
 
 export {
   type PurgeServiceDeps,
@@ -148,13 +146,7 @@ export {
 export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
-export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "./form-delivery.js";
-export { ensureMailSenderSettings, readMailSenderSetting, MAIL_SENDER_NAMESPACE, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY } from "./mail-sender.js";
-export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";
 
 
-export { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "./site-title.js";
-export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
-export { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 
 

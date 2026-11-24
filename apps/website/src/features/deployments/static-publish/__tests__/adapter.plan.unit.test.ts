@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "../../deploy-targets/types.js";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, unknownTargetMessage } from "../adapter.js";
-import type { StaticPublishConfig } from "../types.js";
+import type { StaticPublishConfig } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /** The pure planning helpers every publish path shares: field presence, module validation, base path and config reading. */
 function host(module: Partial<LoadedDeployTarget["module"]> = {}): LoadedDeployTarget {

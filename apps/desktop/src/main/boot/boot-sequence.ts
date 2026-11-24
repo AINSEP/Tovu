@@ -7,7 +7,8 @@
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
 import { workspaceMenuTemplate, viewMenu, historyMenu, type WorkspaceMenuEntry } from "@jini-ai/desktop-host/electron/usability";
 import { SITE_HISTORY_CHANNEL } from "../../contracts/project.ts";
-import { findMenu, type FindMenu } from "../../find-menu.ts";
+import { nativeFindMenu, type NativeFindMenu } from "@jini-ai/desktop-host/shell/find-menu";
+import { FIND_TOGGLE_CHANNEL } from "../../contracts/find-in-page.ts";
 import { zoomMenuItems, type ZoomMenuItem } from "../../zoom-menu.ts";
 import type { BootMode } from "./boot-steps.ts";
 import { shouldReopenOnActivate } from "./own-server-boot.ts";
@@ -100,12 +101,12 @@ export async function bootInMode({ mode, ports }: { mode: BootMode; ports: BootM
  * template always did.
  * @complexity O(1).
  */
-export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (WorkspaceMenuEntry<FindMenu, ZoomMenuItem> | Settings)[] {
+export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (WorkspaceMenuEntry<NativeFindMenu, ZoomMenuItem> | Settings)[] {
   return [...workspaceMenuTemplate({
     platform,
     view: viewMenu({ label: "View", zoomItems: zoomMenuItems({}) }),
     history: historyMenu({ channel: SITE_HISTORY_CHANNEL, labels: { menu: "History", back: "Back", forward: "Forward" } }),
-    find: findMenu({}),
+    find: nativeFindMenu({ channel: FIND_TOGGLE_CHANNEL, labels: { menu: "Find", item: "Find in Page…" } }),
   }), settings()];
 }
 

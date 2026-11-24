@@ -49,7 +49,7 @@ test("a real federation reload makes native and newly admitted tools searchable 
   const { FEDERATED_CONNECTION_DEFAULTS } = await import("@jini-ai/mcp/federation");
   const { createFederationRuntime } = await import("#src/assistant/external-mcp-federation-runtime");
   const { InMemoryMcpSession } = await import("#src/assistant/mcp-federation/adapter.memory");
-  const { createInMemoryToolAttemptAuditSink } = await import("#src/features/tool-audit/repo.memory");
+  const { createInMemoryToolAttemptAuditSink } = await import("@jini-ai/diagnostics/tool-audit/repo.memory");
   const { mountDaemonCatalog } = await import("./helpers/daemon-catalog.js");
   const registry = createToolRegistry({});
   registry.register({ descriptor: { id: "native_probe", description: "orbitarium lookup" }, handler: async () => "ok", policy: { authorize: () => "allow" } });

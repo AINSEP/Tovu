@@ -3,7 +3,7 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
-import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
+import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
 import { escapeHtml } from "@jini-ai/core/text";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";

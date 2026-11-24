@@ -20,7 +20,7 @@
  * would REPLACE React's types rather than extend them, which typechecks the whole renderer against
  * an empty React.
  *
- * The element methods merged below are the ones `use-site-workspace.hooks.ts` calls: history
+ * The element methods merged in below (via Jini's `WebviewTagMethods`) are the ones `use-site-workspace.hooks.ts` calls: history
  * (`canGoBack`/`goBack`/…), `reload()`, which keeps that history where a `key` remount would not,
  * and `loadURL()`. `findInPage`/`stopFindInPage`/`found-in-page` are the ones
  * `use-find-in-page.hooks.ts` calls — Electron's `WebviewTag` exposes these directly on the DOM
@@ -36,14 +36,22 @@
  * makes a `ref`-typed listener see the real event shape without a cast — see
  * `useWebviewLoadFailure` in `App.hooks.ts`, the one caller that needs it.
  *
- * `WebviewDidFailLoadEvent` below is declared locally rather than imported as Electron's own
- * `DidFailLoadEvent`: `renderer-no-electron` in `.dependency-cruiser.cjs` forbids importing the
- * `electron` package from anywhere under `src/renderer`, TYPE-ONLY imports included — that config
- * runs with `tsPreCompilationDeps: true` specifically so an `import type` does not slip past it.
- * The renderer has no `electron` module; this interface carries only the two fields the hook
- * actually reads, which is narrower than reaching for the real type but costs nothing it needed.
+ * `WebviewDidFailLoadEvent` below is built from Jini's structural `@jini-ai/desktop-host/electron/webview`
+ * types rather than imported as Electron's own `DidFailLoadEvent`: `renderer-no-electron` in
+ * `.dependency-cruiser.cjs` forbids importing the `electron` package from anywhere under
+ * `src/renderer`, TYPE-ONLY imports included — that config runs with `tsPreCompilationDeps: true`
+ * specifically so an `import type` does not slip past it. Jini's types are DOM-free, so the
+ * `Event`/`HTMLElement` combination, the globals and the JSX registration stay here.
  */
 import type { HTMLAttributes } from 'react';
+import type {
+  WebviewDidFailLoadDetail,
+  WebviewDidNavigateDetail,
+  WebviewDidNavigateInPageDetail,
+  WebviewFoundInPageDetail,
+  WebviewFoundInPageResult as JiniWebviewFoundInPageResult,
+  WebviewTagMethods,
+} from '@jini-ai/desktop-host/electron/webview';
 
 declare module 'react' {
   namespace JSX {
@@ -60,32 +68,21 @@ declare module 'react' {
 }
 
 declare global {
-  interface WebviewDidFailLoadEvent extends Event {
-    readonly isMainFrame: boolean;
-    readonly errorCode: number;
-  }
+  interface WebviewDidFailLoadEvent extends Event, WebviewDidFailLoadDetail {}
 
-  interface WebviewDidNavigateEvent extends Event {
-    readonly url: string;
-  }
+  interface WebviewDidNavigateEvent extends Event, WebviewDidNavigateDetail {}
 
-  interface WebviewDidNavigateInPageEvent extends Event {
-    readonly url: string;
-    readonly isMainFrame: boolean;
-  }
+  interface WebviewDidNavigateInPageEvent extends Event, WebviewDidNavigateInPageDetail {}
 
-  /** Narrowed to the two fields `use-find-in-page.hooks.ts` reads off Electron's own `Result` —
-   *  see `electron-webview.d.ts`'s own header on why this is declared locally rather than imported. */
-  interface WebviewFoundInPageResult {
-    readonly activeMatchOrdinal: number;
-    readonly matches: number;
-  }
+  /** Narrowed to the two fields `use-find-in-page.hooks.ts` reads off Electron's own `Result`. */
+  interface WebviewFoundInPageResult extends JiniWebviewFoundInPageResult {}
 
-  interface WebviewFoundInPageEvent extends Event {
-    readonly result: WebviewFoundInPageResult;
-  }
+  interface WebviewFoundInPageEvent extends Event, WebviewFoundInPageDetail {}
 
-  interface HTMLWebViewElement {
+  // The element methods (history, reload, find, zoom, executeJavaScript) come from Jini's
+  // `WebviewTagMethods`; the event-listener overloads stay here because they merge with
+  // `HTMLElement`'s own `addEventListener`, which a DOM-free package cannot see.
+  interface HTMLWebViewElement extends WebviewTagMethods {
     // Only what `useWebviewLoadFailure` and `use-site-workspace.hooks.ts` use. Electron's
     // `WebviewTag` types every event and method this tag has; widening just these keeps the merge
     // legible against what actually calls it, rather than declaring a whole surface nothing here uses.
@@ -111,28 +108,9 @@ declare global {
     removeEventListener(event: 'did-navigate-in-page', listener: (event: WebviewDidNavigateInPageEvent) => void): void;
     addEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void, useCapture?: boolean): void;
     removeEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void): void;
-    /** Fires once the guest is usable. Until it has, every method below throws — which is why
+    /** Fires once the guest is usable. Until it has, every `WebviewTagMethods` method throws — which is why
      *  `use-zoom.hooks.ts`'s `applyStoredZoom` waits on it before re-applying a remembered zoom. */
     addEventListener(event: 'dom-ready', listener: (event: Event) => void, useCapture?: boolean): void;
     removeEventListener(event: 'dom-ready', listener: (event: Event) => void): void;
-    // Every one of these throws until the guest is attached; callers catch that.
-    canGoBack(): boolean;
-    canGoForward(): boolean;
-    goBack(): void;
-    goForward(): void;
-    reload(): void;
-    reloadIgnoringCache(): void;
-    getURL(): string;
-    loadURL(url: string, options?: { extraHeaders?: string }): Promise<void>;
-    /** Begins (or steps through) a search; the result arrives on the `found-in-page` event above,
-     *  never as this call's return value in practice — see `use-find-in-page.hooks.ts`'s `runFind`. */
-    findInPage(text: string, options?: { forward?: boolean; findNext?: boolean; matchCase?: boolean }): number;
-    stopFindInPage(action: 'clearSelection' | 'keepSelection' | 'activateSelection'): void;
-    /** 0 is 100%; see `use-zoom.hooks.ts`'s own header. */
-    getZoomLevel(): number;
-    setZoomLevel(level: number): void;
-    /** Runs a script in the guest's main frame and resolves its value. `use-live-views.hooks.ts`
-     *  asks a hidden guest whether it may be released, and puts a restored guest's scroll back. */
-    executeJavaScript(code: string, userGesture?: boolean): Promise<unknown>;
   }
 }

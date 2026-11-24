@@ -7,7 +7,7 @@ import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.ho
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
 import { PAGES_RESOURCE } from "../rules";
-import { prettifyHtml } from "../lib/prettify-html";
+import { prettifyHtml } from "@jini-ai/admin/pages/lib/prettify-html";
 
 /**
  * @file `usePageEditor` — regression coverage for a real data-loss bug found by external audit

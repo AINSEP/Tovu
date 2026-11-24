@@ -5,7 +5,7 @@ import { sha256Hex } from "./import-verifier-inventory.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";
 import { applyShareProjection } from "./import-verifier-projection.js";
 import { readBundledPackageFiles } from "./package-file-inventory.js";
-import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";

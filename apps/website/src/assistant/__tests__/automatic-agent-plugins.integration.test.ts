@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { InMemorySettingsRepo } from '@jini-ai/core/settings';
+import { ensureSettingDefinitions, InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
@@ -19,7 +19,7 @@ import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type Du
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
 import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from '../ask-choice-tool.js';
-import { ensureAdminInterfaceSettingDefinitions } from '../../features/settings/admin-interface.js';
+import { ensureAdminInterfaceSettingDefinitions } from '@jini-ai/cms/settings/site/admin-interface';
 import { createSettingsPrincipalLookup, set } from '../../features/settings/index.js';
 import { pluginPreflightFixture } from "#src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.fixture";
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
@@ -51,7 +51,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const idGen = { newId: () => `id-${++counter}` };
   const principalRecords = new InMemoryPrincipalRepo({});
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
-  const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
+  const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, ensureSettingDefinitions, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const preferences = composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
     principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } });

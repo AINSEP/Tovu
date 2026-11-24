@@ -9,8 +9,8 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { trashMedia, uploadMedia } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
-import type { MemberSessionRecord } from "../../features/members/index.js";
-import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 
 /**
  * @file Route-level tests for the new public, unauthenticated `GET /m/{assetId}/original` route

@@ -1,5 +1,5 @@
 /** Personal assistant runtime preferences in `core.interface`; mirrors the website's
- *  `features/settings/admin-interface.ts` keys and defaults. Non-UI: a later toggle only renders. */
+ *  `@jini-ai/cms/settings/site/admin-interface` keys and defaults. Non-UI: a later toggle only renders. */
 import type { ChatDisplayLedgerPort } from './chat-display-preferences';
 import { CHAT_DISPLAY_NAMESPACE } from './chat-display-preferences';
 

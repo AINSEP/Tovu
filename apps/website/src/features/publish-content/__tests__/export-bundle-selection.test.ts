@@ -12,7 +12,7 @@ import {
 } from "../export-bundle.js";
 import { collectBodyReferences } from "../content-references.js";
 import { entityKey } from "../plan-rows.js";
-import type { PackedEntity } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file `selectBundleEntities` — the point at which an operator unchecking a row in the Publish

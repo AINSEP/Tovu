@@ -9,7 +9,8 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
-import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { MediaApplyBlockedError, MediaApplyConflictError, contributeMediaPublish } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

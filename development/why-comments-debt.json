@@ -6240,6 +6240,2918 @@
     {
       "id": "4d1179423d9f",
       "reason": "Moved with the code to Jini packages/admin/src/screens/skills/skills-i18n.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "08fa709d877e",
+      "reason": "Header rewritten to carry the deleted src/tree-quiet.ts reasoning (AX-103, ex7); nothing dropped."
+    },
+    {
+      "id": "29c7ab6f8b33",
+      "reason": "DTO moved to Jini @jini-ai/core/contracts/agents/inventory (AX-74, ex7); comment repointed to AgentInventorySummary."
+    },
+    {
+      "id": "9787c7571d7c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "ef1934bdf462",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "e68b624f2600",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "808819aa6328",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "1f1e06f00f07",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "0d20f6239d72",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "6b82b8d92733",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "474c68e41384",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "3c000ad98287",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "9a76e90e32af",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "800f009367ea",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "eb5dfa4dc36c",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "1b8e45597249",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "46125a944a2e",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "497aa41dd98d",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "26e6c6785a7a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (preference-file / persistedCheckbox, AX-93/118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "3c886546b886",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (preference-file / persistedCheckbox, AX-93/118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "416c53ae1a2e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "36ac68533296",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "a9eb2d29a64d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "973b90196a6d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "9eb809adf6be",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "384fc10867a5",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "877793959553",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "0b3dfe6befda",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "c716f897d1d8",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "966cd66658e2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "d7b4f544a320",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "4dc0a93d7ab1",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "29311ae24d88",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "33a461405c97",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "0b827281b073",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates native-notices.ts (AX-95, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "bce6efc12cac",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences menu.ts refreshCheckboxesByLabel (AX-118, ex7)."
+    },
+    {
+      "id": "7506d6ae994f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "2fb7c17d80b3",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "e6e4c03b03c2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "2d5c958f32cf",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "58dcc0c1e958",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "87744ff1d069",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "e02de6dc9aa0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "0dcc232ed146",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "0ddc38429bac",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "a8c600e26dd0",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "96c8e93cd8d2",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "37f7a26ec304",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "ebaf9913be3b",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "fd786a58eebb",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "215397a037da",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "8eb2d3f40be4",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "4577b319e493",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "71e26b2d387b",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "a6f6a4e66b6a",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "9445eaba7a8d",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "8b5e24ad7e83",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "c09e35497849",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "b0abc59a4c9c",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "4c1402618217",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "d7e3d04ce454",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "c3eb1d5f1df0",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "166ca8eba752",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "e9238a4571e0",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "a1fd8cc63d28",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "c7a947310f89",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "4f3e54d666c2",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "8fe0978577e3",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "e418776ac713",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "6a0ab137aaf6",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "9790728aa80a",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "d6220b62e1cb",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "05c9a214162b",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "d61cbca41d41",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "f3635e367b7c",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "f5f669d17975",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "962c424af43d",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "6e0c92d9caaf",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "004dbc840279",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "0e7fff9eec94",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell copyable-details.ts (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "79e150af4920",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "3a6e5b2c69a3",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "47b130804545",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "3efee6628791",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "2c5ec05506c2",
+      "reason": "Comment repointed to the Jini useDismissibleDropdown test that now renders the dismissal rule (AX-58, ex7)."
+    },
+    {
+      "id": "43e1afe1116d",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-delete-confirmation.hooks.ts (AX-60, ex7); the host file is now the binding of humanSiteError and the fallback copy."
+    },
+    {
+      "id": "72d029b01b71",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-delete-confirmation.hooks.ts (AX-60, ex7); the host file is now the binding of humanSiteError and the fallback copy."
+    },
+    {
+      "id": "5d0fe544da0a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "4170f646d238",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "91a83686e8a7",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "827a7bd0845a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "dd7f1ba4b23a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "46a1e1af724f",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "edebe98f6f38",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "0276bea1c1af",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "58b32d1183f0",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "a5eaf5e32f18",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "142490ada58d",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "3db64a9f299f",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "4b89bfd99bca",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "53b48c51a27b",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "7a9cdc10d74b",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "535815554cab",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "d6fc5c0b20c5",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "7e40712e9610",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "773173432b01",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper number-stepper.ts / use-optimistic-number-setting.hooks.ts (AX-62, ex7), reworded neutral; the host binding keeps bridge, bounds and copy."
+    },
+    {
+      "id": "b8c12266d39a",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper number-stepper.ts / use-optimistic-number-setting.hooks.ts (AX-62, ex7), reworded neutral; the host binding keeps bridge, bounds and copy."
+    },
+    {
+      "id": "68cc2bc28462",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-site-toast.hooks.ts / SiteToast.tsx (AX-107, ex7), reworded neutral; host keeps copy and classes."
+    },
+    {
+      "id": "ebad57ced20f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "29feb1f8d193",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "8c6f8e9e222c",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "de34b4f527a7",
+      "reason": "Tail retention moved to Jini @jini-ai/diagnostics console-tee createRedactedOutputSink retain/tailKeepChars (AX-116, ex7)."
+    },
+    {
+      "id": "2095e3dde653",
+      "reason": "DEDUPE onto Jini @jini-ai/devops/packaging/electron treeQuietProblems (AX-132, ex7); the host rationale moved into apps/desktop/scripts/check-tree-quiet.ts header, the predicate rationale into the Jini doc."
+    },
+    {
+      "id": "13ae8159e60b",
+      "reason": "DEDUPE onto Jini @jini-ai/devops/packaging/electron treeQuietProblems (AX-132, ex7); the host rationale moved into apps/desktop/scripts/check-tree-quiet.ts header, the predicate rationale into the Jini doc."
+    },
+    {
+      "id": "95a37abbf803",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "82478aeef614",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "c4a586ef831d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "e8fb3e345ad1",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "f6a551c068a0",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "453f8fca9735",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "1035b0607bb7",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "4f15d84f464d",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "7b1b3feaa0dc",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "fdc51a83a6bb",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "a2ddb59f84d2",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "a507555aa1aa",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/types (K5-deployments-1, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "be614b16bf79",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/types (K5-deployments-1, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "2317ea26b381",
+      "reason": "Moved to Jini @jini-ai/cms/publish/trust/keys (K5-publish-trust-1, ex7), reworded neutral (design-note path and table names dropped, reasoning kept); the Tovu file was deleted."
+    },
+    {
+      "id": "acef6d807516",
+      "reason": "Moved to Jini @jini-ai/cms/publish/trust/keys (K5-publish-trust-1, ex7), reworded neutral (design-note path and table names dropped, reasoning kept); the Tovu file was deleted."
+    },
+    {
+      "id": "ad878fbe09c5",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-availability.store.ts (A-adm-publish-content-1), verbatim (untracked in Jini at check time)."
+    },
+    {
+      "id": "a6e0b3a0a4b2",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-availability.store.ts (A-adm-publish-content-1), reworded neutral: now on PublishToLiveAvailabilityStore.isPublishToLiveAvailable as 'Non-React read, for the host's publish-request entry point'."
+    },
+    {
+      "id": "143f2264ff74",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/__tests__/use-recovery-navigation.unit.test.ts (A-adm-recovery-1), reworded neutral: 'development/todos.md' -> 'recorded in the host todo log'."
+    },
+    {
+      "id": "91455daf17b8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/__tests__/use-recovery-navigation.unit.test.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "ae4463d8eda3",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/database.ts AdminRestorePoint) (A-adm-recovery-1), reworded neutral there: 'A persisted restore point — the entity AdminDatabasePort and AdminRecoveryPort share'."
+    },
+    {
+      "id": "224c89afb8a0",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts CategoryCount/AdminDisclosureResult) (A-adm-recovery-1), reworded neutral: the disclosure rationale is documented on AdminDisclosureResult there."
+    },
+    {
+      "id": "85450751ab80",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts header '## The deep-link envelope carries display continuity only, never authority') (A-adm-recovery-1), reworded neutral."
+    },
+    {
+      "id": "6e54b6937799",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts RestoreExecuteResult.restartRequired doc) (A-adm-recovery-1), reworded neutral, same meaning (operator-triggered restart, pre-restore data served from an open file handle)."
+    },
+    {
+      "id": "534325fbabb0",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/recovery-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'apps/admin/INFO.md's Hooks section' -> 'the host admin app's Hooks guide'."
+    },
+    {
+      "id": "7ca5a03adac8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/recovery-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'development/todos.md' -> 'the host's todo log'."
+    },
+    {
+      "id": "ec1b6556e300",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/restore-flow-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'apps/admin/INFO.md's Hooks section' -> 'the host admin app's Hooks guide'."
+    },
+    {
+      "id": "1d8400d6196a",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "9dc640a9619f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "63a2aed61350",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "56c9406e9c92",
+      "reason": "Moved to Jini @jini-ai/db/src/tools/site-transfer-messages.ts (X-database-transfer-1), reworded neutral: 'Tovu's copy' -> 'Site wording', the descriptor-snapshot path -> 'the host's descriptor snapshot', \"('tovu', 'tovu_')\" -> 'its default schema and per-site prefix'."
+    },
+    {
+      "id": "59805d109232",
+      "reason": "Moved to Jini @jini-ai/db/src/tools/site-db-messages.ts (K5-database-1), reworded neutral ('Tovu' -> 'a host that serves one site'); the Tovu file keeps a rewritten @file explaining its two remaining host-cited fields."
+    },
+    {
+      "id": "3ed3953ea559",
+      "reason": "File deleted (K5-database-transfer-1); the rationale already lives in Jini @jini-ai/db/src/tools/plan-store.ts; the singleton's role is restated at DEFAULT_PLAN_STORE in features/database-transfer/tool-registrations.ts."
+    },
+    {
+      "id": "49fb513691be",
+      "reason": "File deleted (K5-database-transfer-1); the rationale already lives in Jini @jini-ai/db/src/transfer/postgres-target.ts; the application name moved to TRANSFER_APPLICATION_NAME in features/database-transfer/copy-engine.ts with its own doc comment."
+    },
+    {
+      "id": "5a587cdeb4d4",
+      "reason": "Moved to Jini @jini-ai/db/src/__tests__/tools/site-messages.test.ts (X-database-transfer-1), reworded neutral ('Tovu's' -> 'The')."
+    },
+    {
+      "id": "efd18a4941f3",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/__tests__/recovery-i18n.unit.test.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "0ba1e4027a96",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/__tests__/recovery-i18n.unit.test.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "249aeb541724",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), reworded neutral: the website agent-tools path now reads \"the host's database agent tools\", `useWiredRecovery` is named as the host binding, and a host-seam paragraph is added."
+    },
+    {
+      "id": "10545f3586fa",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "07b4ec77a9ca",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "b0bace4c00d8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "dac5d5e6ad98",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "e2542f021a61",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), reworded: the @param now also names the injected `RecoveryHost` collaborators."
+    },
+    {
+      "id": "2ff1f96715b3",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "89eeae23aaad",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "61b5af6496c2",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a237a5d3d247",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "192b74348232",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "77d44ade3273",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "62ca73629435",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "9116b6d3af0a",
+      "reason": "Moved into the host binding apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts (A-K2-recovery-1) with the zero-argument useWired* hook it documents, reworded: names the package hook it binds instead of \"below\"."
+    },
+    {
+      "id": "beefd762dfaa",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), reworded: the DI-seam paragraph now describes the single args object and the injected `host`; `useWiredRestoreFlow` named as the host binding."
+    },
+    {
+      "id": "b5989441b7df",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "fcf1a739a4ce",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "33ad764096c6",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), reworded: port/point are now named fields of one required args object with the injected `host`; the meaning (point = business input, port = external dependency) is kept."
+    },
+    {
+      "id": "c2ea780f1b68",
+      "reason": "Moved into the host binding apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts (A-K2-recovery-1) with the zero-argument useWired* hook it documents, reworded: names the package hook it binds instead of \"below\"."
+    },
+    {
+      "id": "95e7d71a1b7d",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "10697e7be322",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n/recovery-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "5d0d14946736",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n/recovery-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a46157186f16",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "4c093fd63c52",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "77b65faefc65",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), reworded neutral: `styles.css` / `.recovery-loss-qty` now name the host stylesheet and its injected `classNames.quantity` class."
+    },
+    {
+      "id": "af34a4dcae16",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a68f08ef65a9",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "dccd796a9219",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "b841c42ed500",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "3a0836a7bd91",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "d319ef852435",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), reworded neutral: the two host website agent-tools file paths now read \"the host's database/recovery agent tools\"."
+    },
+    {
+      "id": "e464c5c6e74d",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "ae6efb0d9b63",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "9f2a72e6160f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "61ffc851484e",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "f67dd9def91f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "0ba94757f7bb",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "2e1f8d6a5721",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "5aee2dca9f35",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "ff27ce41c664",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: file header now describes the per-instance runner; host paths/route names, dated history and the host process names dropped, the DI-instead-of-import cycle rationale and the DISCLOSED CROSS-PROCESS GAP kept; the host-specific half (why the ONE instance lives under features/deployments) moved to the new Tovu binding module features/deployments/export-run-binding.ts."
+    },
+    {
+      "id": "0afdb7e5e6f6",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: 'moved verbatim from export-site.ts' history dropped, the narrower-than-report rationale kept."
+    },
+    {
+      "id": "836d6ac8f4de",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "faacba0ad152",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "bea2cb10126b",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "b179523b73c1",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file paths replaced by 'the export engine's report' / 'the one place the host binds it'."
+    },
+    {
+      "id": "bdb36643d052",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "3b206cf19649",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file path replaced by 'the export engine' and 'the host's full route-deps object'."
+    },
+    {
+      "id": "c61f5cb9b4a0",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: the process-local module slot is now the runner instance's slot ('The instance's mutable slot — every operation below reads and writes this one value'); which callers share an instance is in the file header and the Tovu binding module header."
+    },
+    {
+      "id": "38db799056e6",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: 'moved verbatim from export-site.ts' history dropped."
+    },
+    {
+      "id": "c4f25285176f",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: 'in this process' -> 'on this runner'."
+    },
+    {
+      "id": "c9ba6d7f19bd",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file paths and TOVU_EXPORT_DIR env name replaced by 'the host's composition root (its env override, then the served site's export folder)'; caller contract kept verbatim."
+    },
+    {
+      "id": "7365501621ca",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "f0f90ebe264f",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: 'the process-local owner of export state' -> 'this runner's export state'."
+    },
+    {
+      "id": "7a5c9bbd9b0c",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "c1529bec4cba",
+      "reason": "Obsolete with the move (devops2): the deployments barrel no longer re-exports the export-run types/functions — importers take types from @jini-ai/devops/deploy/site/export-run and the functions from the host binding features/deployments/export-run-binding.ts, whose header documents which callers share the one instance."
+    },
+    {
+      "id": "2200b5080619",
+      "reason": "Reworded in place (DT-desktop-1): find-menu.ts no longer exists; the same doc now says the channel is bound by main/boot/boot-sequence.ts's Find menu and pinned by find-menu.test.ts."
+    },
+    {
+      "id": "80b3cdc8683a",
+      "reason": "Reworded in place (DT-desktop-1): find-menu.test.ts header now names the Jini shell/find-menu binding in boot-sequence.ts; same coverage rationale kept."
+    },
+    {
+      "id": "0578a73fb828",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: module header keeps the guest-focus accelerator and 'only opening the bar needs main' why; Tovu-specific file pointers and the channel-inlining note dropped (channel is now injected from contracts/find-in-page.ts in boot-sequence.ts)."
+    },
+    {
+      "id": "399ca4ac8844",
+      "reason": "Obsolete pointer (DT-desktop-1): the rationale it pointed at now sits in Jini @jini-ai/desktop-host/shell/find-menu.ts's own header, next to the code."
+    },
+    {
+      "id": "904203b70a6a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "da25bdaaf2ce",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: 'Send the host's find toggle to a native focused window.'"
+    },
+    {
+      "id": "dcaf590a07e4",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: 'Build native menu callbacks with the host's channel and wording.'"
+    },
+    {
+      "id": "a1a2855d34b2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: module header now says the host's banner and env names are injected into the node-native binding."
+    },
+    {
+      "id": "69eeb369b50d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: cross-process contract rationale (dir names + two env names, silent fallback to system tooling, not forwarded to MCP children) kept in the module header; the TOVU_* specifics also kept in Tovu main/index.ts beside bindNodeToolchain."
+    },
+    {
+      "id": "19f3bb1d3ab6",
+      "reason": "Superseded (DT-desktop-1): the per-function wrapper is gone; Jini @jini-ai/desktop-host/shell/node-toolchain.ts bindNodeToolchain documents that it binds the injected banner and native path joiner."
+    },
+    {
+      "id": "ed0caec934b0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: bindNodeToolchain doc keeps 'I/O failures from the writer propagate; returns null for a transient launch'."
+    },
+    {
+      "id": "9e0173b921f0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "5c32ae6281de",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: NodeToolchainNames field docs say the env names are what the host's stdio launch resolver reads."
+    },
+    {
+      "id": "23a3fee91c44",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: zero-model-download, no-silent-network-fallback, helper spike history and lazy swiftc cache rationale kept; product name -> 'a local-first host', Tovu file pointers dropped."
+    },
+    {
+      "id": "1818f7d1ce34",
+      "reason": "Obsolete pointer (DT-desktop-1): the binding now lives in Jini beside speech/macos; its header cites speech/macos/speech-helper.swift directly."
+    },
+    {
+      "id": "f7f15983275b",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "9eeaedba40fb",
+      "reason": "Kept in Tovu apps/desktop/src/speech/speech-host-config.ts above DEFAULT_BINARY_PATH (DT-desktop-1), verbatim plus one added line on where the cache is resolved from."
+    },
+    {
+      "id": "c2a90049266c",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded: same sentence plus a note that it resolves the file the speech-helper.swift export names."
+    },
+    {
+      "id": "ff8acdbd1160",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "8de462fb5321",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "0a58460f6da4",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: drops the 'since 0.4.1 (this app's floor)' host version note, keeps why there is no spawnSync adapter."
+    },
+    {
+      "id": "34e8ecbe2ae6",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: 'Construct on-device recognition with host policy...'; rest verbatim."
+    },
+    {
+      "id": "510957d1955d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), reworded neutral: 'the one module that knows IPC and the port', and the validate-before-cost / 8 GB structured-clone rationale kept; tovuVoice -> 'the host's voice bridge', main.ts wiring pointers dropped (Tovu main/index.ts keeps its own SPEECH_PRELOAD_PATH doc)."
+    },
+    {
+      "id": "9d9ff337ed5a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim (on buildDefaultTranscriptionPort)."
+    },
+    {
+      "id": "9307f9ab3b53",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim (on registerNativeSpeechIpc)."
+    },
+    {
+      "id": "fc36ccb04d30",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), reworded neutral: 'Which platform's default port to build...'."
+    },
+    {
+      "id": "2dec7e0e4444",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "1ecad95f1385",
+      "reason": "Obsolete pointer (DT-desktop-1): the binding now sits beside the Jini speech-ipc/pcm-wav-encoder modules whose own comments hold that rationale."
+    },
+    {
+      "id": "63c2a386ea59",
+      "reason": "Deduped (DT-desktop-1): the Tovu file only bound wording onto Jini @jini-ai/desktop-host/speech resolveTranscriptionPort; the swap-the-recognizer seam is that Jini module's own contract, and Tovu's wording now lives in speech/speech-host-config.ts."
+    },
+    {
+      "id": "bedae7e38212",
+      "reason": "Obsolete pointer (DT-desktop-1): file deduped onto Jini @jini-ai/desktop-host/speech transcription-port, which it pointed at."
+    },
+    {
+      "id": "505928c62268",
+      "reason": "Deduped (DT-desktop-1): wrapper removed; Tovu's unavailable wording is SPEECH_HOST.transcriptionMessages in speech/speech-host-config.ts, consumed by Jini unavailablePort."
+    },
+    {
+      "id": "f97bdf75284b",
+      "reason": "Deduped (DT-desktop-1): wrapper removed; Tovu's platform wording is SPEECH_HOST.transcriptionMessages and Jini buildDefaultTranscriptionPort keeps the lazy macOS factory."
+    },
+    {
+      "id": "da8e5aec7eda",
+      "reason": "Moved to Jini @jini-ai/cms/trash/permanent/agent-tools.ts (X-permanent-delete-1), verbatim on createPermanentDeleteSpecs, plus one added sentence: the host names its own credential read tool."
+    },
+    {
+      "id": "95cf1cf825ec",
+      "reason": "Moved to Jini @jini-ai/cms/trash/permanent/agent-tools.ts (X-permanent-delete-1), verbatim on createPermanentDeleteAgentToolCatalog."
+    },
+    {
+      "id": "fdae7b67f846",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "9e5d1921a187",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "8561cc75c888",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4c62d600ec7a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "d1f2c922292a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b3798bb2beb3",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "92bbb54bb04d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "cd34a7e8759f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "269e185cd913",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: @example now passes the injected `sql` tag; meaning kept."
+    },
+    {
+      "id": "705c1804d280",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "24abf11ceedc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), reworded neutral: `one Tovu workspace` became `one host workspace`; meaning kept."
+    },
+    {
+      "id": "678ff44e354e",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "81ea9c94b1a0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4d700bb96a39",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a59e05b92bbf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "86c1a8b687bd",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "cd67437d952d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "83420f383940",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "59e5ce0a99a0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "8534c8866da5",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d694091cdd5c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2347740f3237",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ab7cb84c61ff",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "f27ba9327fba",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1455673b6fec",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7abb2d98a821",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d2b4f693a6c1",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c8e13373df14",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0f0bb90203e8",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4baf903de5b6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "331c0093322e",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7809b8298a24",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "dafcad828cab",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7e16396031cf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "40e14e96f99d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "28841a07fdb6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "f20d25fc8073",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "24cdb3bc2421",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5d8a222b1eae",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b7245bb2ee03",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "78379a9abc34",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "3155e5371950",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "69a688550a51",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c836fd7abef0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "138956962ba9",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "9ca0fd61bd9b",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a611ce6b05ac",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0968fc0bf139",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b3a43168fda7",
+      "reason": "Forwarding barrel features/domain-dns/index.ts deleted (K5-domain-dns-1, no re-export files): importers now import the owner subpaths @jini-ai/devops/dns/site/* or features/domain-dns/{tools,dns-tools}; the per-subpath purpose is documented in Jini packages/devops/src/dns/site/README.md."
+    },
+    {
+      "id": "4abfcf1499a4",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "445b1df49396",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "93176dc291d1",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1c7dfd0daad2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "86c3cba500ac",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "23c22fdf3562",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c60df7605cf7",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e065eddc9a06",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7ba17f9752b9",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "269a2ec8433b",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "9029bf231059",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "586e2a5dcbd2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "229207a3e2f5",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1beba4513e89",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2a315fdddd91",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "23ec42d90951",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e6a696b5436f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "11ab96afde35",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5d8db871e034",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "770043f387f6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0986bcfc311c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ae68c79fd43f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e3d65f61bc51",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "469091abd9bf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2c990215d8fc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5846be4d1221",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ed4d0c619eaf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "363bfba2beb8",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "145cec25bc9f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "47ee712250ee",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "409ce4ab111f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d5748a54ebdb",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "be7714bd2ef2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d2538db81303",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), reworded neutral: `the Email page` became `a host email settings` section and the host route path `server/inbound/admin-http/routes/system/mail-dns.ts` became `the host admin route (which calls readMailDnsStatus / verifyMailDnsStatus directly)`; meaning kept."
+    },
+    {
+      "id": "069fb0ebc5bc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "51284285ab16",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "bfff4d6169b7",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7cd563a6172a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d49a112dcd68",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c99a411f2b6a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "6f5f3602e223",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b06075d0637c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a512b0ac11c4",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f1699645a1c2",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f07f35fa4f94",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), reworded neutral: locale membership now comes from the production common dictionary (ADMIN_COMMON_I18N) instead of the host language picker."
+    },
+    {
+      "id": "fb7e574231dc",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "1620c6f8ac35",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/schema-state-rules.unit.test.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "14fa67c94373",
+      "reason": "Type deleted as a duplicate (A-K2-database-1): AdminLedgerRow is owned by Jini @jini-ai/admin/core (src/core/ports/database.ts), which carries its own doc for it; importers repointed."
+    },
+    {
+      "id": "99166b691ec4",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "5cb3bcc9f466",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "d18e6df8b560",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "36166c4e9d6a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n.tsx (A-K2-database-1), reworded neutral: host file pointers (admin-nav-i18n.ts, SettingsUi.tsx, loadLanguage()) replaced by descriptions of the same lookups."
+    },
+    {
+      "id": "c9ed38b4b965",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n/ (per-locale split files, A-K2-database-1), verbatim."
+    },
+    {
+      "id": "55da410d1826",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n/ (per-locale split files, A-K2-database-1), verbatim."
+    },
+    {
+      "id": "91b86630bb99",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "c10c881a740d",
+      "reason": "Kept in place (A-K2-database-1); pointer reworded: useWiredMigrateForwardSection now lives in hooks/migrate-forward-section-dependencies.hooks.ts."
+    },
+    {
+      "id": "043374d1a1b3",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/migrate-forward-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "074f9e205aa4",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/schema-state-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "7df389a7988b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/schema-state-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "b1cab2cc623c",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/timeline-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "cb417eb20298",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "74e60ac83c65",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "63929fb952a9",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7e903ed25843",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "56f72a3cc5e2",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "88f57a21bbb1",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "48ec342e1e34",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7f048a3a999b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "e5a0f9ce1bd9",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7662ea1679d1",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f0c17f7bca44",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "ce3372f13a2b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "368b910b69c5",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "06570f492505",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "0429e0c5d45a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "e4514d90c62c",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "bfe87a42de8a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "87b06b6cec38",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "0e755eca3c8f",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "a1db03a87b3d",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "4e7b437d747b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "a3a270353afa",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "b5f016b47229",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "847a143fb7ab",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "ac0e91ed475e",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "30018be32b9d",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "83edb7922092",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), reworded neutral: host paths (lib/content-refresh-bus.ts, taxonomy/rules.ts, apps/website agent-tools.ts) -> the host's content-refresh bus / the taxonomy screen / the host's database agent tools."
+    },
+    {
+      "id": "c44bea426586",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "60074cdb43ae",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "9852c52bbb21",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "087288aa038a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "9adee76e0325",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "fc045f87f485",
+      "reason": "Reworded in place (dui, AX-50): the test now renders @jini-ai/ui/find-bar's FindBar with this app's FIND_BAR_LABELS instead of a local module; same coverage statement kept."
+    },
+    {
+      "id": "b3030040511c",
+      "reason": "Moved to Jini @jini-ai/ui/find-bar/FindBar.tsx (dui, AX-50), reworded neutral: `App`'s root -> the host's root, `useFindInPage`'s close -> the host's find hook's close, 'the Projects grid or a project tab's own bar' -> 'whichever surface is on screen'."
+    },
+    {
+      "id": "60c378db3632",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTableGroup (dui, AX-79), reworded neutral: 'the Tovu app or a running site' -> 'an owner (the host app itself, or one of the things it runs)'."
+    },
+    {
+      "id": "3914ccb7cd35",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTableGroup.stop (dui, AX-79), reworded neutral: 'the Tovu app has no Stop' -> '`null` (e.g. the host app itself) has none'."
+    },
+    {
+      "id": "f8977641ce9c",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx Unknown (dui, AX-79), verbatim."
+    },
+    {
+      "id": "43385c9b89d8",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx MetricCells (dui, AX-79), reworded neutral: CPU unit is the host's format.cpu; the 'percent of one core (the note under the table says so)' half stays in Tovu ResourcesPanel.tsx TABLE_FORMAT doc."
+    },
+    {
+      "id": "68d953912c99",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx (dui, AX-79): first sentence verbatim on ResourceGroupRows; 'Executable basenames only, never command arguments' moved onto ResourceProcessRow.name."
+    },
+    {
+      "id": "359c472e4c4c",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTable (dui, AX-79), extended: '; stateless, so the host owns polling and Stop' added."
+    },
+    {
+      "id": "d374ddea4c24",
+      "reason": "Moved to Jini @jini-ai/admin/src/core/ports/import-export.ts (A-K2-import-export-1), reworded neutral: the website route file path became \"the server export route\", meaning kept."
+    },
+    {
+      "id": "bb2e8ab6a638",
+      "reason": "Moved to Jini @jini-ai/admin/src/core/ports/import-export.ts (A-K2-import-export-1), reworded neutral: the website route file path became \"the server export route\", meaning kept."
+    },
+    {
+      "id": "fcee1fe44980",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "6868e531a17f",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "073175ac0dd8",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "9b67d0a9c815",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "7d5cb2685bf9",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "88d62cbcad7d",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), reworded neutral: `backup-service.ts`'s became \"the server backup service's\"."
+    },
+    {
+      "id": "609642317d74",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), reworded neutral: host route/file names became \"the host's site-backup routes\" and \"the site-transfer section\"; notes the live port stays in the host."
+    },
+    {
+      "id": "48ac1a99adfb",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), reworded neutral: `backup-service.ts` became \"the server backup service\"."
+    },
+    {
+      "id": "6ca81ae50d0e",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "9dfd903de406",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "b05ce9248c97",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "bf07d6e9829c",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "e58453ccacd2",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "55971ef0fa4d",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "3017c83b8dcd",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "1ed3cd10712a",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "f72ea8b0f1e3",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "9c062d2d04aa",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "8f3a1d00d768",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "fe494668b597",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "391b6333d7c4",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "08e614334143",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-import-export.hooks.ts (A-K2-import-export-1), reworded neutral: `useWiredSites` became \"the Sites screen's wired hook\"."
+    },
+    {
+      "id": "956881ce14cc",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-import-export.hooks.ts (A-K2-import-export-1), reworded neutral: host file/hook names became \"the host's site-section availability hook\" and \"the app root\"."
+    },
+    {
+      "id": "3fa47e44755f",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/import-export-i18n.ts (A-K2-import-export-1), reworded neutral: `site-transfer-i18n.ts` / `useSiteTransferTranslate` became \"the site-transfer dictionary\" / \"the host's site-transfer translator\"; adds the per-locale split note."
+    },
+    {
+      "id": "65f763f37ee5",
+      "reason": "Kept in Tovu apps/admin/src/features/import-export/hooks/import-export-dependencies.hooks.ts (useSiteTransferTranslate host binding, A-K2-import-export-1), verbatim; the new file is untracked so the checker does not see it yet."
+    },
+    {
+      "id": "35fb926dd3a8",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), reworded neutral: host-file names replaced by 'the host's commit binding' and 'that entry'."
+    },
+    {
+      "id": "a3226c56c39d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "697b5282b826",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d37733732880",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d3f4c5edfe76",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "956d0f7cee40",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6eff28bb7ee6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), reworded: @param tags renamed to required.host/optional.*; the observability note moved to SourceControlKitHost.observeFetch and the host binding provider-kit-host.ts."
+    },
+    {
+      "id": "939cdbb7b995",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d90bebc39487",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "9fffcc7e0b34",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "89f036a9b7d2",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "facb2f4b2d49",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "33b889394e9d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "2595c8c3b033",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "56785da5b536",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "4a8e9f013348",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "71bda1d47497",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "bc1a3c6b82b4",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "f4a04d97cb9c",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "c3d5937b3a80",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "c61590066d05",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "428658dc6380",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "e1002b0d831f",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "639f4317d7d1",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "3966716e0867",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "9d1e4cdada95",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "5e24171f69a6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6230e164e0cf",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "60bcf0f2b728",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "cc920fbf8082",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "fbfcb3eb7982",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "545a0d0f38d6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "ccad68fd31af",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "f1d84ef33ab1",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "7812a50603dc",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "47d81a94ddfb",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "72473442358a",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "38237835c9e8",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "a9425ddb8edc",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "5bb4b1ed0d81",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), reworded neutral: host file names replaced by 'the host's backup feature'; added a sentence on the generic report parameter R."
+    },
+    {
+      "id": "d6baf00404d2",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "991beece5331",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "739a7bfd527d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6caeab351224",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "a6004db0676b",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "02f52aa71d68",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "eaa137548a78",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "18fd8667d9cc",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "504185a8c349",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "063dd7c94bfc",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-audit.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "b8809d69a07f",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-audit.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "08293b511b58",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-candidate-gap.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "1b31520683a3",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-credential.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "d932b9eb415a",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "26bbf388e6b9",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "a3613b7368e0",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "090f552e33e0",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "8e6211545d5b",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "68f87cdd503d",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "d90cbb2cfcda",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "597c35cd57df",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "5ae1305fdd17",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "10c5ed417b0a",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "2065013626bb",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "8af2eff1610f",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "c9b5276a0129",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3247d1cb1661",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3733af9f5242",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3feb345f9e19",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/contract.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "4829953424c4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/contract.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "14ebb47750c3",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/criteria.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "3cccdb8a68c2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/index.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "24d916433f0e",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/phase.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "b82de0671a46",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "b353ab0a78cd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "639048e08d55",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "8ba488396f4a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "855a1dcd0f6f",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "fcfbcf0f7a6d",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "009fdfee3ccb",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "1ef200a805e2",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/source-control-i18n.ts (admin6 source-control-i18n), reworded neutral: `lib/credential-submit-error.ts` now cited as the host's own file."
+    },
+    {
+      "id": "513191333627",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/saved-keys-port (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "8547c258d054",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/saved-keys-port (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "5973282d53c1",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "8b112d320d55",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "936c300b6995",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "a99d0ae548bd",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "95a4a61fd9e2",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "e2e82d3f2e69",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "11e4ba09f2d1",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "367f9291ccae",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "eb85e56180a5",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "481eff0d6852",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "7c636e4a7f9e",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "ae9b5b494419",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), reworded: the @example now passes the injected sourceEdits editor; rationale unchanged."
+    },
+    {
+      "id": "822f6de1482e",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "ff7e9391a7de",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "f8feb344c019",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "2b079e310680",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "9611fa15d41b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "96504ef4ad20",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "34d6dc08dcf2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "0656aae9ec04",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d60bfa77e02b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3a614a6ec195",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "2382005cb937",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "09904657dc7d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3d44c7518296",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "eb6014c67311",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "1ded608b861b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "85a40a7319df",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "6174e14c4827",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "a2ff401a1f20",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "95bfd3c668bb",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "e96109076577",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "664285009b70",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "5711f460cadc",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3910184f149a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "af20e7ece2cd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "fbe2f75ad240",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "944e4cb88107",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "10e07c9debbb",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "c4df8f33f012",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "9833441cc57d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "63fa5bd06fe1",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "e58e0e770f69",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "75c67ffd58e4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b0e148feb022",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d36c2faf6faa",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "8c1409614ea2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "878dccdb04cf",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "6ff481a3a301",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "cc80ae4d43fd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b3335059c717",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b37cf8f3db73",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "aee0d321bf86",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "cca0ef70f90f",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d0b693e518ad",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "8fab020313e2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "7104f630187a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "96273eb87c36",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "d6f227f2cdb4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "b9a717a02892",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "003c219a076c",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "6198617e56e4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "b8a4830ba2a6",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "1f80855f477d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "7db0a2173e60",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "64ac50aa44f9",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "a3aecdae47c4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "9593be2ac714",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: file header kept (no confirm tool, unwired backup_create_restore_point id collision, read-only status/deep-link sections); spec/ADR ids and host file paths dropped, host-wording injection note added."
+    },
+    {
+      "id": "3b74be48ceb0",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: inputSchema rationale kept; host file path replaced by 'the host's registration pass'."
+    },
+    {
+      "id": "77756425d32a",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: deep-link envelope schema rationale kept; INV/ADR ids dropped, package path made relative."
+    },
+    {
+      "id": "890e4396459d",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: catalog doc kept (reads under backup.read, one token-gated execute, unwrapped create); REQ/INV/AC ids dropped."
+    },
+    {
+      "id": "29ee3bb67ea4",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: unwired backup_create_restore_point rationale kept; SPEC/ADR ids and host path dropped."
+    },
+    {
+      "id": "1633263b4eb5",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: recovery_get_status read-only admin-UI section note kept; host route path and spec ids dropped."
+    },
+    {
+      "id": "a67858add023",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: deep-link re-resolution never-trust note kept; host route path and ADR/INV ids dropped."
+    },
+    {
+      "id": "63d870eb4c31",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/__tests__/publish-request.store.unit.test.tsx (A-K2-publish-content-1), reworded neutral: 'module-level store `App.tsx` reads' -> 'app-level store the host\\'s app root reads'."
+    },
+    {
+      "id": "878556d3cfb8",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/__tests__/publish-request.store.unit.test.tsx (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "6c118ce5be52",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: plan path cited by name, `App.tsx`/`apps/admin/src/App.hooks.ts` -> the host's app root / root hooks; adds the instance-ownership + injected flag/results note."
+    },
+    {
+      "id": "9a2571651d43",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "e3da6d23b93e",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `App.tsx`'s -> the host's app root's."
+    },
+    {
+      "id": "c63c962a0b12",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `ui/contract.ts` -> the publish-content dialog contract."
+    },
+    {
+      "id": "ec8606e8d7bd",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "a56957f1f08f",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `router.ts`'s `getServerRouteSnapshot` -> the host router's server route snapshot."
+    },
+    {
+      "id": "6945d83f178b",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim, now on PublishRequestStore.requestPublish; @param plan path cited by name."
+    },
+    {
+      "id": "55f3e11ed488",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "e9939426c254",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "9647e0254118",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim, now on PublishRequestStore.closePublishRequest."
+    },
+    {
+      "id": "4d2cfc3684ed",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `App.tsx` mounts `PublishContentDialog` -> the host's app root mounts the Publish dialog."
+    },
+    {
+      "id": "cc709d8a1df7",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: product section-table package name -> the host's one section table (`host.sectionById`), `requestPublish` -> `host.requestPublish`; adds the host-seam note."
+    },
+    {
+      "id": "a1cdb01d67c6",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "694b12541099",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: `dashboard-i18n` dictionary -> the same dictionary."
+    },
+    {
+      "id": "02ed57765b1d",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "fd47d1c4b879",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: `PublishSectionId` -> the host's section id type."
+    },
+    {
+      "id": "f6ebacb1d5db",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), reworded neutral: host file names -> the host's Publish dialog component / confirm hook; product section-table package -> the host's one section table handed in as `sectionForEntityTypes`."
+    },
+    {
+      "id": "ac4d71fa47d6",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), reworded neutral: `ui/contract.ts` -> the publish-content dialog contract."
+    },
+    {
+      "id": "476e83e99bbb",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "3354f298e373",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "b642acdee52a",
+      "reason": "Moved with the code to Jini @jini-ai/desktop-host/shell/find-menu (DT-desktop-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "bf9c1279b6a6",
+      "reason": "Moved with the code to Jini @jini-ai/desktop-host/shell/find-menu (DT-desktop-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b5963ee99faa",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/deploy-ops (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "169a1337533a",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/deployments (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "39e7a828f458",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/domain-dns (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "e5e400eb9fac",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/site-backup (K5-site-backup-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "63160ba22ffc",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/source-control (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "10b943e749b5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/deploy-targets/types (the type-only forwarder was deleted; its one-line purpose is restated there) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "66b2a08257bd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/deploy-targets/types (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "05ceb57527f1",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/dockerfile (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "87b618b70a74",
+      "reason": "Moved with the code to Jini nothing: the barrel re-export block it annotated was removed and its consumers import @jini-ai/devops/deploy/site/* directly (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "cfd29dcb9763",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/__tests__/execution-mode.test.ts (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "8323784a45bd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/execution-mode (env var name now host-supplied) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "dfecad85f740",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/execution-mode (env var name now host-supplied) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "260c038ef1d4",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/static-publish/types (K5-deployments-2); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "5163a149b5d5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3797f043e79b",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "2fdfe048b574",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "e9e5d29daffe",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "6f8efbb9107b",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "31b7af1fa53e",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b6331d643997",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "35f56cfb81dd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "55436cd6eadb",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "24c34903f0a7",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "90153a1312c5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3be75a29f16c",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/grant (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "d97e1fd0af41",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/grant (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "99d1dcd16310",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning-status (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "28c87eb8a778",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning.node-io (repo-root resolution stays in the host publish-trust/host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "36e5359332f3",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b62f9fb790a1",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "fec7d3403f10",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "2690fa100329",
+      "reason": "Moved with the code to Jini @jini-ai/devops/source-control/site/provider-module (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3c39ec11d85f",
+      "reason": "Moved with the code to Jini @jini-ai/devops/source-control/site/provider-module (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "bb9820c2f2c3",
+      "reason": "Moved to Jini @jini-ai/admin screens/seo/__tests__/seo-i18n-parity.unit.test.ts (A-K2-seo-1, Jini 18b88b85); product name reworded to \"the host\"."
+    },
+    {
+      "id": "4169a8aeb530",
+      "reason": "Moved to Jini @jini-ai/analytics/site/ports (X-analytics-1, Jini 65febfe6); product name reworded to \"the host\"."
+    },
+    {
+      "id": "75a11b5d85df",
+      "reason": "Moved to Jini @jini-ai/analytics/site/ports (X-analytics-1, Jini 65febfe6); the plugin hooks file name reworded neutral."
+    },
+    {
+      "id": "b5fdee0c100a",
+      "reason": "Moved to Jini @jini-ai/cms/seo/site/page-head-contributor (X-seo-1, Jini 31c512b2); product name reworded to \"the host\"."
+    },
+    {
+      "id": "35104b28f367",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/admin-interface (X-settings-1, Jini 37902e97); product name reworded to \"the host\"."
+    },
+    {
+      "id": "89d99307fae5",
+      "reason": "Split between Jini packages/admin/src/screens/analytics/__tests__/use-analytics.hooks.unit.test.ts (injected-port half) and Tovu apps/admin/src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts (wired half) (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host'; why kept in both headers."
+    },
+    {
+      "id": "37e5babebf39",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/Analytics.tsx (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', deps.ts/app.ts/TOVU_DB citations -> 'the host's server dependencies / in-memory database mode'; why kept."
+    },
+    {
+      "id": "fefbf2c23942",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/analytics-module.hooks.ts @file (the host binding is the only place the request client meets the screen) and Jini packages/admin/src/screens/analytics/hooks/analytics-dependencies.hooks.ts @file (fake half) (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "06d19824323e",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/hooks/analytics-port.hooks.ts (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', host binds the real client; why kept."
+    },
+    {
+      "id": "2b3befa8a7f4",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/hooks/use-analytics.hooks.ts (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', the wired pair is now the host's; why kept."
+    },
+    {
+      "id": "1f15293c9a19",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/analytics-module.hooks.ts (useWiredAnalytics doc, ex7-settings-sec, A-K2-analytics-1); reworded to name the package screen and analyticsHostPort; why kept."
+    },
+    {
+      "id": "8ea383294621",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', now also names the host-supplied ConsentScreenUi and consent-settings.css; why kept."
+    },
+    {
+      "id": "c9cd275e4087",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (`port` prop doc) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', the prop is now REQUIRED and host-supplied so \"injected in tests; the admin API otherwise\" became \"the host's revisions port over its authenticated admin API\"; why kept."
+    },
+    {
+      "id": "660195d6eb81",
+      "reason": "Obsolete (ex7-settings-sec, A-K2-consent-1): the host feature barrel was deleted; panel-pages.ts now lazy-loads the mount in Tovu apps/admin/src/integrations/jini-admin/consent-screen.tsx, whose @file says so."
+    },
+    {
+      "id": "1c919737d5d4",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts @file (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host route/contract paths cited as \"the host's consent revisions routes\" and kept verbatim in Tovu apps/admin/src/integrations/jini-admin/consent-ports.ts; why kept."
+    },
+    {
+      "id": "00314f64785e",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts (ConsentRequest / createConsentRevisionsPort docs) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host supplies request + workspaceId; why kept."
+    },
+    {
+      "id": "a7f3439da1c3",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts (ConsentRequest / createConsentRevisionsPort docs) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host supplies request + workspaceId; why kept."
+    },
+    {
+      "id": "ede6d8af9b4e",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "047d588f98b9",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "1746b1e24309",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "4e1e93b4ac49",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "d3a9f6eb2a5c",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/__tests__/ (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', header reworded for required port/locale props and the host-owned port test; why kept."
+    },
+    {
+      "id": "97081a9ea1c9",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/__tests__/ (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', header reworded for required port/locale props and the host-owned port test; why kept."
+    },
+    {
+      "id": "0ea242909b81",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N, split note added; why kept."
+    },
+    {
+      "id": "4988269dad68",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-dependencies.hooks.ts @file (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', now the fake half; the live port is the host's; why kept."
+    },
+    {
+      "id": "2d71a8e8f757",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "9c9ce643f8b2",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "b5261b0b0e00",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "e9aa71ac24aa",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/content-analysis-ports.ts (live-port doc) and Jini packages/admin/src/screens/content-analysis/ContentAnalysisCard.tsx (required port/useAdminLocale props) (ex7-settings-sec, A-K2-content-analysis-1); the zero-argument useWiredContentAnalysis pair no longer exists; why kept."
+    },
+    {
+      "id": "d9d9f6fb1213",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/rules.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', untracked BRIEF.md path -> \"the host's plugin brief\", .status-* -> jini-status-*; why kept."
+    },
+    {
+      "id": "b83e01efdb96",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-settings-locale-sync.hooks.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', the wired half stays host-side; why kept."
+    },
+    {
+      "id": "1fed15346beb",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "fce8829e9eef",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-memory-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N; why kept."
+    },
+    {
+      "id": "9a520ee1d11a",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-memory-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N; why kept."
+    },
+    {
+      "id": "3b8f9129cc90",
+      "reason": "Moved to Jini packages/analytics/src/site/__tests__/jini-adapters.unit.test.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "4877163784c1",
+      "reason": "Moved to Jini packages/analytics/src/site/forwarding.ts @file (ex7-settings-sec, K5-analytics-1); product name -> 'the host', warn-reporter paragraph added; why kept."
+    },
+    {
+      "id": "4fc731b6adc9",
+      "reason": "Obsolete (ex7-settings-sec, K5-analytics-1): the host analytics barrel was deleted (callers import @jini-ai/analytics/site/jini-adapters directly); Tovu apps/website/src/features/analytics/INFO.md \"Type model and the removed barrel\" records the removal."
+    },
+    {
+      "id": "ed786f56a2fa",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "c7da88c75340",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "79b68bd1c9d8",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "469f428e32a2",
+      "reason": "Moved to Jini packages/analytics/src/site/salt.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', saltContext parameter documented; why kept."
+    },
+    {
+      "id": "921f3ef53c58",
+      "reason": "Moved to Jini packages/analytics/src/site/salt.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', saltContext parameter documented; why kept."
+    },
+    {
+      "id": "853d650c8fab",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/config.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "edd006eaf23c",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/cookie-consent.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "cca9ee0861fe",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/revisions.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "65bacfdcc9e8",
+      "reason": "Reworded in place in Tovu apps/website/src/features/redirects/__tests__/index.test.ts (ex7-settings-sec, X-redirects-1); the phase-handler registrar left the barrel, the header still states the surface and where the registrar lives."
+    },
+    {
+      "id": "c31f0561f223",
+      "reason": "Reworded in place in Tovu apps/website/src/features/redirects/index.ts (ex7-settings-sec, X-redirects-1); now says the routing-phase registration lives in Jini."
+    },
+    {
+      "id": "6ac181f90e5a",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/phase-handler.ts (ex7-settings-sec, X-redirects-1); product name -> 'the host', host registers via the injected registerResolvePhase; why kept."
+    },
+    {
+      "id": "7cdb13dba829",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/phase-handler.ts (ex7-settings-sec, X-redirects-1); product name -> 'the host', host registers via the injected registerResolvePhase; why kept."
+    },
+    {
+      "id": "eb24ae253a5b",
+      "reason": "Moved to Jini packages/cms/src/settings/site/ui-locales-tool.ts (ex7-settings-sec, K5-settings-1); product name -> 'the host', derivedRisk comment: ADMIN_LOCALES -> 'the host's offered locales'; why kept."
+    },
+    {
+      "id": "982fb6296220",
+      "reason": "Moved to Jini packages/cms/src/settings/site/ui-locales-tool.ts (ex7-settings-sec, K5-settings-1); product name -> 'the host', buildUiLocalesRegistrations doc: host tool metadata and offered locales are injected, noted in the doc; why kept."
+    },
+    {
+      "id": "0e350d5b5f8a",
+      "reason": "Moved to Tovu apps/website/src/features/analytics/INFO.md, section \"Type model and the removed barrel\" (ex7-settings-sec, K5-analytics-1); the host analytics types.ts header survived only as the barrel comment this run deleted, and INFO.md now carries its Purpose, project-relation and no-PII-at-rest notes; product name -> \"the host\"; why kept."
+    },
+    {
+      "id": "73760a47ae02",
+      "reason": "Earlier revision of the Cookie Consent screen @file; the screen moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (ex7-settings-sec, A-K2-consent-1), same comment as 8ea383294621 with the engine specifier now @jini-ai/cookie-consent/react and the host-supplied ConsentScreenUi noted; why kept."
+    },
+    {
+      "id": "5a5439d44e0b",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/external-mcp-i18n.ts (A-K2-settings-1); the @file header travelled with the dictionary, now also naming the {productName} token and the locales-a/-b/-c split; the product name -> 'the host's product name' (K3); why kept."
+    },
+    {
+      "id": "9870608a732b",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/external-mcp-i18n.ts (A-K2-settings-1), the bound-translator doc above `t`; only the common-dictionary identifier changed (COMMON_I18N -> ADMIN_COMMON_I18N); why kept."
+    },
+    {
+      "id": "bf76246c7aca",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts (A-K2-settings-1), the @file header of useExternalMcpOAuthConnect; the product-prefixed callback message type and route file are now 'the host's callback message type' / 'the host's routes/oauth/callback-page.ts' (K3); why kept."
+    },
+    {
+      "id": "8031cb712009",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts (A-K2-settings-1), the useExternalMcpOAuthConnect doc; same text plus @param input.port and @param input.callbackMessageType, which the host now supplies; why kept."
+    },
+    {
+      "id": "a19caff567a8",
+      "reason": "Moved to Jini packages/analytics/src/site/config.settings.ts (K5-analytics-1), the @file header of the core.analytics.* registrar; only 'Tovu has no outbound telemetry sink' -> 'the host has no outbound telemetry sink'; why kept."
+    },
+    {
+      "id": "8096f6fb7ff2",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/region-plugins.ts, the toRegionResolvers doc; the host's legacy TOVU_CONSENT_REGION_HEADER setting name -> 'the host's older consent-region-header setting'; why kept."
+    },
+    {
+      "id": "4e7e7dd7e006",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/tool-registrations.ts, the buildConsentRegistrations doc; same text, the @example now passes `{ siteConsent, host }` because the host's approval lifecycle and request contract are injected as `deps.host`; why kept."
+    },
+    {
+      "id": "c5de2dd24b44",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/publish-content.ts, the @file header of redirect's publish-content contribution; the natural-key and 'not a factory default' sections are verbatim, the opening now says the repo publish-handler factory is host-injected (createRepoPublishHandler) instead of citing the host's repo-handler.ts and type-registry.ts import-cycle note; why kept."
+    },
+    {
+      "id": "f4e47e588e5d",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the @file header of the redirects host binding; same first sentence, the host's tool metadata and read vocabulary are now injected through RedirectsToolHostPolicy instead of imported from the host's contracts; why kept."
+    },
+    {
+      "id": "44ac1ceac8f3",
+      "reason": "Moved to Jini packages/cms/src/redirects/tool-registrations.ts, the RedirectsPackageToolDeps doc (the structural route-deps slice, ex-RedirectsToolDeps); reworded host-neutral (no host server/routes/types RouteDeps reference), same no-back-edge rationale; why kept."
+    },
+    {
+      "id": "7fd104b948f9",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the buildRedirectsRegistrations doc; the old positional signature and default surface store were deleted (the builder now takes { deps, toolMetadata, hostReads }), so the 'pinned by existing callers' sentence went with them and the doc now says no handler reads the assistant surfaces; why kept."
+    },
+    {
+      "id": "b0f3b75f5d1a",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the contributeRedirectsTools doc; same Stage 2 (2026-08-17) rationale, the host's composition-root file path -> 'the host composition root's tool-catalog manifest', and the contributor now takes the injected metadata and read vocabulary; why kept."
+    },
+    {
+      "id": "0916718df2c3",
+      "reason": "Documented the host settings barrel's `export { resolveSiteTitle } from \"./site-title.js\"`; the resolver moved to Jini packages/cms/src/settings/site/site-title.ts and the host barrel no longer re-exports it (renderers import it from the package), so the line it sat above is gone."
+    },
+    {
+      "id": "35cc8bf63110",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-timezone.ts, the resolveSiteTimeZone doc; same text, the failure clause now says the failed read is reported with fixed text (no error message) after the redaction change; file is in the concurrent settings batch, so no verbatim edit was made there; why kept."
+    },
+    {
+      "id": "b7affb1838a7",
+      "reason": "Obsolete: it justified importing set from @jini-ai/core/settings instead of the host barrel (the barrel's `set` came from site-title-write.ts, which imported this file). Jini packages/cms/src/settings/site/site-title.ts has no value import of the ledger functions at all (they arrive through deps), and says so in its replacement comment above the import."
+    },
+    {
+      "id": "729aaf961d27",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the @file header (SPEC-050); same text, 'LEGACY_SITE_TITLE' -> the host-supplied `legacySiteTitle` arg, with a new paragraph saying the legacy title is host product copy; file is in the concurrent settings batch, so no verbatim edit was made there; why kept."
+    },
+    {
+      "id": "d610e7c11ba8",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the preserveLegacySiteTitles doc; same text, '{@link LEGACY_SITE_TITLE}' -> `input.legacySiteTitle` (the host now supplies the title); why kept."
+    },
+    {
+      "id": "bb3275078026",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the SiteDisplayNameSource.read doc; same text, '{@link LEGACY_SITE_TITLE}' -> 'the host's legacy title'; why kept."
+    },
+    {
+      "id": "ad4c8d6a6507",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the resolveSiteTitle doc; same text and tier list, every '{@link LEGACY_SITE_TITLE}' -> `deps.legacySiteTitle` (host-supplied through ResolveSiteTitleDeps); why kept."
+    },
+    {
+      "id": "749563fa88f8",
+      "reason": "Moved to Jini packages/search/src/site/access.ts, the SearchMemberContext comment; the host's `members` feature type reference -> 'the host's member context'; why kept."
+    },
+    {
+      "id": "4494a804603e",
+      "reason": "Moved to Jini packages/search/src/site/access.ts, the createCmsSearchAccessPort doc; same text plus the generic-over-DB note and the @example now passing `isLiveAt` and `resolveMemberAccess`, which the host injects; why kept."
+    },
+    {
+      "id": "e765877a789e",
+      "reason": "Moved to Jini packages/search/src/site/cms-document-source.ts, the createCmsSearchDocumentSources doc; same text plus the generic-over-DB note and the @example now passing the host-injected `isLiveAt`, `resolveMemberAccess`, `postPublicPath` and `toSearchText`; why kept."
+    },
+    {
+      "id": "987e437c8df5",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-execution-i18n.ts, the @file header of the Settings AI-agent-tab copy; same text, the AI Assistant dictionary and the unit test are now cited as the host's (`features/ai-assistant/ai-assistant-i18n.ts`, the host's `__tests__/settings-execution-i18n.unit.test.ts`) and a new paragraph says the Local CLI key carries a `{productName}` token the host fills through `interpolate()`; why kept."
+    },
+    {
+      "id": "2aac10e72b08",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/SettingsUi.hooks.ts (the `tCap` doc); same text, only \"Tovu's own dictionary\" -> \"the host's own dictionary\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "01b6390e0942",
+      "reason": "Reworded in place at Tovu apps/admin/src/lib/settings-tabs.ts (INTERFACE_NAMESPACE doc): the registrar moved to Jini packages/cms/src/settings/site/admin-interface.ts, so the cited path `features/settings/admin-interface.ts` became `@jini-ai/cms/settings/site/admin-interface`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "cc3efe00a5d8",
+      "reason": "Reworded in place at Tovu apps/website/src/features/publish-content/ui/report-rows.ts (the site-settings refusal group comment): `features/settings/publish-content.ts` moved to Jini packages/cms/src/settings/site/publish-content.ts, so the cited path became `@jini-ai/cms/settings/site/publish-content`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "dd31ee667965",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the @file header of SEO's host binding; same text, 'Tovu's' -> 'the host's', plus a sentence that the ledger collaborators and tool metadata are injected through `SeoToolHostPolicy`; why kept."
+    },
+    {
+      "id": "e1c6520dc5ce",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the `SeoToolDeps` doc (the structural route-deps slice); same no-back-edge rationale, the host's `server/routes/types` `RouteDeps` -> 'the host's `RouteDeps`', `Jini/packages/cms/src/seo/media.ts` -> `../media.ts`; why kept."
+    },
+    {
+      "id": "51e35f03abec",
+      "reason": "Obsolete: it documented the `mediaContentTypeStore` field of the host's SeoToolDeps. Jini packages/cms/src/seo/site/tool-registrations.ts `SeoToolDeps` no longer carries that field (it extends the package's `SeoPackageToolDeps` minus `seoSettings`; the media lookups travel through the injected `seoDeps`/settings-ledger bindings). The share-image content-type check (2026-10-05) is still documented where it runs: Jini packages/cms/src/seo/write-service.ts (`seoImageRefRefusal` call and its media-lookups port doc) and packages/cms/src/seo/site/settings.ts."
+    },
+    {
+      "id": "e59b3f391cd2",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the `contributeSeoTools` doc; same Stage 2 batch 2 rationale, the host's composition-root file path and `assistant/tool-registrations.ts` -> 'the host composition root's tool-catalog manifest' / 'the host's assistant tool registrations', the cross-domain import list reduced to `@jini-ai/core` and the package's own SEO modules, and an @example showing the injected `{ toolMetadata, hostReads, settingsLedger }`; why kept."
+    },
+    {
+      "id": "75a671b804d8",
+      "reason": "Moved to Jini packages/cms/src/settings/site/publish-content.ts, the @file header (`site-setting` on the publish factory); the allowlist, deliberately-left-out and addressing sections are verbatim, the opening now says the repo publish factory is host-injected (`createRepoPublishHandler`) and the allowlist is the host's injected `publishableSettings` (not the host's `PUBLISHABLE_SETTINGS` constant), plus a new Wiring section listing what the host binds; why kept."
+    },
+    {
+      "id": "92c3397f507e",
+      "reason": "Moved to Jini packages/cms/src/settings/site/publish-content.ts (the refusal-class doc); same text, 'rewritten for the owner by `ui/report-rows.ts`' -> 'by the host's publish report rows'; why kept."
+    },
+    {
+      "id": "cd0af81dc706",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title-write.ts (`dedicatedWriter` doc); same sentence, the @complexity claim changed from O(1) to O(w) because the writer now scans the host-injected `writePolicies.dedicatedWriters` (w entries) instead of a fixed in-module table; why kept."
+    },
+    {
+      "id": "c3be83971316",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-configure.ts (`parseVisitorToolsConfigure` doc); same text, the @throws now names the host's `visitorTools.ValidationError` (the error class is injected through `VisitorToolsHostContract`) and the @example passes `visitorTools`; why kept."
+    },
+    {
+      "id": "14f7dc1b0516",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-configure.ts (`visitorToolsNeedsApproval` doc); same text including the MOVE note, only the @example now passes the injected `visitorTools` (default limits come from the host contract); why kept."
+    },
+    {
+      "id": "fe17d471c14d",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-registrations.ts (`buildVisitorToolsRegistrations` doc); same text, only the @example now passes the injected `hostPolicy` (catalog, tool metadata, approval handler and visitor-tools contract are host-bound); why kept."
+    },
+    {
+      "id": "c860f8b993cb",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-registrations.ts (`contributeVisitorTools` doc); same sentence, extended with 'the host binds `hostPolicy` once' because the contributor now takes the injected policy; why kept."
+    },
+    {
+      "id": "502c584942f3",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-service.ts (module header); same text, only \"Tovu's site-policy management owner\" -> \"The host's site-policy management owner\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "c752de008384",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-service.ts (`createVisitorToolsManagement` doc); same text, the @throws names the host's `visitorTools.ValidationError` and the @example now passes the injected `visitorTools` and `writePolicies`; why kept."
+    },
+    {
+      "id": "c248244c2031",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (module header); same text, only \"The only Tovu management writer\" -> \"The only host management writer\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "dff2ebb048e3",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`readVisitorToolsRevision` doc); same text, only the @example now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "3c331d6f2643",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`readVisitorToolsSnapshot` doc); same text, only the @example now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "ee74dc47f67a",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`guardVisitorToolsRevision` doc: J1 swap point, F7-F9 notes); verbatim apart from the @example, which now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "fdeb86d1feb5",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`writeVisitorTools` doc); same text plus a line that the write goes through the package chokepoint `set` with the host's `writePolicies`, and the @example now passes `visitorTools` and `writePolicies`; why kept."
+    },
+    {
+      "id": "cabf3b6fb0ec",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts and memory-deps/slices/site-title-settings.ts (the `core.site.timezone` registration comment): the definition moved to Jini packages/cms/src/settings/site/site-timezone.ts, so the cited path `features/settings/site-timezone.ts` became `@jini-ai/cms/settings/site/site-timezone`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "6e1c490878ee",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts (the `core.mail.senderEmail`/`senderName` registration comment): the definition moved to Jini packages/cms/src/settings/site/mail-sender.ts, so the cited path became `@jini-ai/cms/settings/site/mail-sender`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "1e6ef7ce631f",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts (the `core.mail.provider`/`testMode` registration comment): the definition moved to Jini packages/cms/src/settings/site/mail-provider.ts, so the cited path became `@jini-ai/cms/settings/site/mail-provider`; the rest is verbatim; why kept."
     }
   ]
 }

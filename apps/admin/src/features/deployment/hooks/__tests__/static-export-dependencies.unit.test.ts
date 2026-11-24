@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 /**
  * @file Coverage for `static-export-dependencies.hooks.ts`. `defaultStaticExportPort

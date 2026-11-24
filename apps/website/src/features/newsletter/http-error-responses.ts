@@ -10,7 +10,7 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "./errors.js";
+} from "@jini-ai/user-management/newsletter/errors";
 
 /**
  * @file The newsletter typed-error -> HTTP table, owned here because the error classes are this

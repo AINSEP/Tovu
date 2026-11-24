@@ -10,6 +10,7 @@ import { InfoTip, Lightbox, Select as WidgetSelect, useInfoTip, usePanelPosition
   closeLightboxDialog } from '@jini-ai/ui/admin-widgets';
 import { TabBar, useTabBarKeyboard, resolveTabBarTabIndex } from '@jini-ai/ui/tab-strip';
 import { buildSandboxProxyDataUrl } from '@jini-ai/ui/mcp-ui/surfaces';
+import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog, useCopyToClipboard } from '@jini-ai/ui';
 import { PreviewModalShell } from '@jini-ai/ui/preview-modal-shell';
 import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
@@ -34,7 +35,7 @@ export const adminKit = {
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
   // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
   hooks: { useAdminLocale: useHostAdminLocale, useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
-    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown },
+    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
   mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
     isProviderBaseUrlInvalid, invalidBaseUrlProviderIds } },
@@ -43,7 +44,7 @@ export const adminKit = {
   // (`assistant-dock-i18n.ts`) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID,
     buildSandboxProxyDataUrl, openLightboxDialog, closeLightboxDialog, resolveTabBarTabIndex, hasPermission, standingDraftRecoveryMessage,
-    createStandingDraftLocalBackup, createFailureChannel },
+    createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab },
   // The chat library's own translator (its locale context, not ui's) and its run posters; callers keep
   // passing the host route, cookie fetch, tool id and redaction callback in the factories' two arg objects.
   chat: { useT: useChatT, createMidRunMessagePoster, createTypedAnswerPoster, createA2uiActionPoster,

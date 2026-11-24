@@ -26,7 +26,7 @@ import {
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialScope } from "#src/features/vendor-credentials/vault-adapter";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.

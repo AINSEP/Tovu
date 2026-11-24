@@ -9,7 +9,7 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/members/repo.memory";
 import {
   SqliteMagicLinkTokenRepo,
   SqliteMemberConsentRepo,
@@ -25,7 +25,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "../ports.js";
+} from "@jini-ai/user-management/members/ports";
 
 /**
  * @file T036/C-002 (ADR-PIPE-013 Decision §5, Article IV rule-of-two) —

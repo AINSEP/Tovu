@@ -5,7 +5,7 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createSiteImportBackend, type SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
-import type { SiteSavedKeysPort } from "#src/features/site-backup/saved-keys-port";
+import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { SITE_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";

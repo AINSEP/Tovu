@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useQueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Observability } from "../Observability";
-import { QueriesPanel } from "../queries-panel";
+import { Observability } from "..";
+import { QueriesPanel } from "@jini-ai/admin/screens/observability/queries-panel";
 
 describe("Observability Queries tab", () => {
   it("opens a permitted Queries deep link directly with the matching subtitle", () => {
@@ -49,7 +49,7 @@ describe("Observability Queries tab", () => {
     expect(container.querySelector('.page-description')).toHaveTextContent('The live data cache for this admin session.');
     const panelHost = container.querySelector('[aria-label="Queries"] > div');
     expect(panelHost?.hasAttribute("inert")).toBe(readOnly);
-    expect(panelHost).toHaveClass("observability-queries-scroll");
+    expect(panelHost).toHaveClass("jini-observability-queries-scroll");
     await userEvent.click(screen.getByRole("button", { name: "Overview" }));
     expect(screen.queryByText("Existing cache value")).not.toBeInTheDocument();
     expect(container.querySelector('.page-description')).toHaveTextContent("What OpenTelemetry is, and whether it's on right now.");

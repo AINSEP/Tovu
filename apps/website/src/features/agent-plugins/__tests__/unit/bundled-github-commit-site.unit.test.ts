@@ -4,8 +4,9 @@ import test from "node:test";
 
 import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
-import type { CommitFile, SourceControlProvider } from "#src/features/source-control/provider-module";
+import { createSourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-kit";
+import { sourceControlKitHost } from "#src/features/source-control/provider-kit-host";
+import type { CommitFile, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
@@ -17,7 +18,7 @@ const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "
 function createGitHubCommitAdapter(): { commit: SourceControlProvider["commitSite"] } {
   const loaded = registry.get({ providerId: "github" });
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
-  return { commit: loaded.module.create({ kit: createSourceControlProviderKit() }).commitSite };
+  return { commit: loaded.module.create({ kit: createSourceControlProviderKit({ host: sourceControlKitHost() }) }).commitSite };
 }
 
 /**

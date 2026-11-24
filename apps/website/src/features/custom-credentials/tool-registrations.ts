@@ -6,7 +6,7 @@ import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credent
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
-import type { DeployTargetRegistry } from "../deployments/contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "./credential-recovery.js";

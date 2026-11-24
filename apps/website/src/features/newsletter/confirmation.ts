@@ -13,13 +13,13 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { mailSenderIdentityFor } from "../../platform/mail/index.js";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
-import { NewsletterConfirmTokenInvalidError } from "./errors.js";
+import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
 import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "./ports.js";
-import type { ConfirmationTokenRecord, SubscriptionRow } from "./types.js";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { ConfirmationTokenRecord, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 /** behavior.spec.md §3 — confirmation-token TTL, fixed at 72 hours. */
 export const CONFIRMATION_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;

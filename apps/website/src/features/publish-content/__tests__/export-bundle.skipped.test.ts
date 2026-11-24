@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { collectSkippedEntities } from "../export-bundle.js";
-import type { PublishContentHandler } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 /**
  * @file `publish-files-plan-2026-09-24.md`'s follow-up ("Publish Content silently drops a whole theme

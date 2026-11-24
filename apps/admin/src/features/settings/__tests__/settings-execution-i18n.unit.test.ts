@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { AI_ASSISTANT_DICT } from "../../ai-assistant/ai-assistant-i18n";
 import { STORED_KEY_NO_ENDPOINT_COPY, STORED_KEY_OTHER_PROVIDER_COPY } from "@/lib/stored-credential-endpoint";
-import { t } from "../settings-execution-i18n";
+import { t } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
+import { localCliScopeCopy } from "../ai-agent-presentation";
+import { SETTINGS_EXECUTION_PRODUCT_VARS } from "@/integrations/jini-admin/settings-execution-copy";
+import { interpolate } from "@jini-ai/core/text";
 
 /**
  * @file Settings -> Execution mode and AI Assistant -> Admin AI Assistant render the same form over the same
@@ -22,5 +25,23 @@ describe("settings-execution-i18n — the stored-key asks", () => {
 
   it("keeps the English copy for English", () => {
     for (const key of STORED_KEY_ASKS) expect(t({ locale: "en", key: key })).toBe(key);
+  });
+});
+
+// K3 product copy: the server-scope label names the product. Screen output must not change when the
+// dictionary key carries `{productName}` and the host fills it at the render site. Mutation: drop
+// `vars` (or the token in a translation) and German renders "{productName}" instead of "Tovu".
+describe("settings-execution-i18n — the Local CLI scope label names the host product", () => {
+  const scopeLabel = (locale: string, desktop: boolean) =>
+    interpolate({ template: t({ locale, key: localCliScopeCopy({ desktop }) }), vars: SETTINGS_EXECUTION_PRODUCT_VARS });
+
+  it("renders the server-scope label in German with the product name", () => {
+    expect(scopeLabel("de", false)).toBe("Auf dem Tovu-Server erkannt, nicht auf Ihrem eigenen Computer.");
+    expect(scopeLabel("ja", false)).toBe("自分のコンピューターではなく、Tovuサーバー上で検出されました。");
+  });
+
+  it("renders the English server-scope label and the desktop label unchanged", () => {
+    expect(scopeLabel("en", false)).toBe("Detected on the Tovu server, not on your own computer.");
+    expect(scopeLabel("de", true)).toBe(t({ locale: "de", key: "Detected on this computer." }));
   });
 });

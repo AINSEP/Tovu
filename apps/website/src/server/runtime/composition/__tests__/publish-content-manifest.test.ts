@@ -52,12 +52,7 @@ import {
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { packThemeFilesEntities } from "#src/features/theme/publish-content";
 import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import {
-  buildPublishContentCatalog,
-  listPublishContentContributors,
-  resetPublishContentContributorsForTests,
-  type PublishContentDeps,
-} from "#src/features/publish-content/type-registry";
+import { buildPublishContentCatalog, listPublishContentContributors, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { installFirstPartyPublishContentTypes } from "../publish-content-manifest.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

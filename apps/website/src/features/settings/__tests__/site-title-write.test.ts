@@ -7,7 +7,8 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { ensureSettingDefinitions, SettingsRevisionConflictError, ForbiddenError, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { set, ValueValidationFailedError } from "../index.js";
-import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../site-title.js";
+import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
+import { LEGACY_SITE_TITLE } from "../site-title-legacy.js";
 
 /**
  * @file SPEC-050 REQ-08 (AC-14) at Tovu's settings write chokepoint: the `set` this directory's
@@ -30,7 +31,7 @@ const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
 
 async function makeLedger() {
   const ledger = { settingsRepo: new InMemorySettingsRepo(), clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }) };
-  await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  await ensureSiteTitleSettingDefinition({ ...ledger, ensureSettingDefinitions }, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE });
   return ledger;
 }
 

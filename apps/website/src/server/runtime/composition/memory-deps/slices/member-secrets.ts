@@ -1,7 +1,7 @@
-import { InMemoryMemberRepo } from "#src/features/members/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { MembersSubscriberDirectory } from "#src/features/members/index";
-import { createHookRegistry } from "#src/features/newsletter/send-pipeline";
+import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
+import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/subscriber-directory";
+import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemorySiteAssistantCredentialRepo } from "../../../../../assistant/index.js";
 import { InMemoryExternalMcpServerRepo } from "../../../../../features/external-mcp/external-mcp-store.memory.js";

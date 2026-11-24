@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
+import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
 import { createPublishTrustRevocationReader } from "../publish-trust-revocations.js";
 

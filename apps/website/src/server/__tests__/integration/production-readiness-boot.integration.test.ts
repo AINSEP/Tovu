@@ -14,7 +14,7 @@ import { CAPABILITY_INVENTORY } from "../../runtime/configuration/capability-inv
 import { runProductionReadinessGate } from "../../runtime/boot/production-readiness-gate.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
-import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
+import { processUnsubscribe } from "@jini-ai/user-management/newsletter/unsubscribe";
 import { toPublicUnsubscribeDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
 
 async function withComposedSite(

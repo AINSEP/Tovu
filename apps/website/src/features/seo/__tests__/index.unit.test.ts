@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getEffective, set, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, set, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { createSettingsPrincipalLookup, InMemorySettingsRepo } from "../../settings/index.js";
-import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../../settings/site-title.js";
+import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
+import { LEGACY_SITE_TITLE } from "../../settings/site-title-legacy.js";
 import { createSeoDeps, createSeoPostPort } from "../index.js";
 
 /**
@@ -42,7 +43,7 @@ function makeDeps() {
 test("createSeoDeps: siteTitle counts only an explicit workspace title, never the registered default", async () => {
   const { deps, settingsRepo } = makeDeps();
   const ledger = { settingsRepo, clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }) };
-  await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: "system-seo-index" });
+  await ensureSiteTitleSettingDefinition({ ...ledger, ensureSettingDefinitions }, { systemPrincipalId: "system-seo-index", legacySiteTitle: LEGACY_SITE_TITLE });
   const seo = createSeoDeps({ deps } as never, {});
 
   assert.equal((await getEffective({ deps: { repo: settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: WORKSPACE } }))?.sourceLayer !== "workspace", true);

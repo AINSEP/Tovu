@@ -16,11 +16,15 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
-import { PERMANENT_DELETE_SPECS, permanentDeleteAgentToolCatalog, type PermanentDeleteToolId } from "./agent-tools.js";
+import { createPermanentDeleteAgentToolCatalog, createPermanentDeleteSpecs, type PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
 import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
+
+/** Host binding (K3): the custom-credential guidance names this host's own read tool, which the engine catalog cannot know. */
+export const PERMANENT_DELETE_SPECS = createPermanentDeleteSpecs({ customCredentialIdSource: "content_read.custom_credential" });
+export const permanentDeleteAgentToolCatalog = createPermanentDeleteAgentToolCatalog({ specs: PERMANENT_DELETE_SPECS });
 
 /** Extra host ports read by the injected adapter, beyond the existing domains' deps slices. */
 export interface PermanentDeleteHostDeps {
@@ -97,7 +101,7 @@ export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps,
       return plan.execute();
     } }, { flag: "removed", batch: spec.key !== null });
   }
-  return buildDomainRegistrations({ metadata: toolMetadata, domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "permanent-delete", catalogModule: "@jini-ai/cms/trash/permanent/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
 }
 
 /** Compose with host adapters without importing server/assistant implementations into the feature. */

@@ -32,8 +32,8 @@ import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/owner-clients";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
+import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
-  readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import {
@@ -41,7 +41,7 @@ import {
   PUBLISH_CONTENT_CAPABILITY,
   type PublishCriteria,
   type PublishRequestResult,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

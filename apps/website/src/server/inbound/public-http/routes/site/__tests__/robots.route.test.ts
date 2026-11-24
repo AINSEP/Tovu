@@ -28,7 +28,7 @@ import {
  * reach:
  *  - a rule that carries only `allow` (no `disallow`) and one that carries only `disallow` (no
  *    `allow`) — `RobotsRule.allow`/`.disallow` are both genuinely optional
- *    (`Jini/packages/cms/src/seo/types.ts`), and `validateRobotsRule` (`features/seo/settings.ts`) explicitly
+ *    (`Jini/packages/cms/src/seo/types.ts`), and `validateRobotsRule` (`@jini-ai/cms/seo/site/settings`) explicitly
  *    permits omitting either, so `rule.allow ?? []` / `rule.disallow ?? []` are real, reachable
  *    fallbacks, not defensive dead code.
  *  - the fully-empty body (`policy.rules` AND `policy.sitemapUrls` both empty) — reachable by an

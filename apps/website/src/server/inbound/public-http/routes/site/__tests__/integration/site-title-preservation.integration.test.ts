@@ -19,7 +19,7 @@ import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
-import type { SiteTitlePreservationStorePort } from "#src/features/settings/site-title";
+import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";

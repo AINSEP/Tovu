@@ -1,6 +1,7 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
-import { resolveSiteTitle } from "#src/features/settings/site-title";
+import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
+import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -35,6 +36,7 @@ export async function resolveSiteTitleForRender(
       preservationStore: deps.siteTitlePreservationStore,
       workspaceRepo: deps.workspaceRepo,
       siteDisplayName: deps.siteDisplayName,
+      ...siteTitleHostBindings,
     },
     { workspaceId: deps.workspaceId }
   );

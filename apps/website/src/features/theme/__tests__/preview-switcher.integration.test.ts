@@ -76,7 +76,7 @@ test("workspace setting defaults disabled; generic writes validate installed ros
 
 test("the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it", async t => {
   const f = await fixture(t);
-  const { set } = await import("#src/features/settings/site-title-write");
+  const { set } = await import("#src/features/settings/settings-write-policies");
   const before = await f.deps.settingsRepo.maxRevisionSeq();
   const { ValueValidationFailedError } = await import("@jini-ai/core/settings");
   await assert.rejects(set({ deps: f.writeDeps, input: f.input }), (error: unknown) =>

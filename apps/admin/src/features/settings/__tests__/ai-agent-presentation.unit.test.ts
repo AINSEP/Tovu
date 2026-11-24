@@ -18,7 +18,7 @@ describe('D-21 AI agent presentation', () => {
       const port = fakePort([claude]);
       const { result } = renderHook(() => useAiAgentPresentation({ port, config: null, locale: 'en' }));
       await act(async () => { await result.current.port.detectLocalAgents(); });
-      expect(result.current.scopeCopy).toBe('Detected on the Tovu server, not on your own computer.');
+      expect(result.current.scopeCopy).toBe('Detected on the {productName} server, not on your own computer.');
       expect(result.current.warning).toBeNull();
     } finally {
       bridges.forEach((name, index) => {
@@ -75,7 +75,7 @@ describe('D-21 AI agent presentation', () => {
 
   it('words desktop and server scope exactly, reusing host bridge presence', () => {
     expect(localCliScopeCopy({ desktop: true })).toBe('Detected on this computer.');
-    expect(localCliScopeCopy({ desktop: false })).toBe('Detected on the Tovu server, not on your own computer.');
+    expect(localCliScopeCopy({ desktop: false })).toBe('Detected on the {productName} server, not on your own computer.');
     expect(isDesktopAdmin({}, { targetWindow: {} as Window })).toBe(false);
     expect(isDesktopAdmin({}, { targetWindow: { tovuFiles: { getPathForFile: () => '' } } as unknown as Window })).toBe(true);
   });

@@ -2,6 +2,7 @@ import { createResourceStop } from './ResourcesPanel.hooks.js';
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';
+import { ResourceTable, type ResourceTableFormat, type ResourceTableGroup, type ResourceTableLabels } from '@jini-ai/ui/resource-monitor';
 import type { MemoryMetric, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from '../contracts/resources.js';
 import type { SiteRecord } from '../contracts/project.js';
 import { useResources } from './use-resources.hooks.js';
@@ -38,16 +39,6 @@ function metricsText({ metrics }: { metrics?: ResourceMetrics }, _options = {}) 
   return [memoryText({ bytes: metrics?.rssBytes, memoryMetric: metrics?.memoryMetric }), cpu, resourceWarnings({ metrics })].filter(Boolean).join(' · ');
 }
 
-/** One table section: the Tovu app or a running site, its subtotal and its processes. */
-export interface ResourceTableGroup {
-  id: string;
-  title: string;
-  metrics?: ResourceMetrics;
-  processes: readonly ResourceProcess[];
-  /** Only owned site trees can Stop; the Tovu app has no Stop. */
-  stop: { label: string; disabled: boolean } | null;
-}
-
 /** Tovu app first, then each running owned site. Project identity joins readings, never display names or PIDs.
  * @complexity O(s+p) time/space for s sites and p displayed processes; no per-row IPC.
  */
@@ -55,7 +46,7 @@ export function resourceGroups({ projects, snapshot, statusOf }: {
   projects: readonly SiteRecord[];
   snapshot: ResourcesSnapshot | null;
   statusOf: ReturnType<typeof useSitePower>['statusOf'];
-}, _options = {}): ResourceTableGroup[] {
+}, _options = {}): ResourceTableGroup<ResourceMetrics, ResourceProcess>[] {
   const available = snapshot?.status === 'available' ? snapshot : null;
   const groups = new Map(available?.sites.map((group) => [group.siteId, group]));
   const sites = projects.filter((site) => !site.externalUrl && ['running', 'stopping'].includes(site.status)).map((site) => {
@@ -70,51 +61,19 @@ export function resourceGroups({ projects, snapshot, statusOf }: {
 /** Tree roles come from main's safe contract; a plain child needs no label. */
 const ROLE_LABELS: Record<ResourceProcess['role'], string> = { 'site-server': 'Site server', daemon: 'Daemon', app: 'Main process', process: '' };
 
-/** A dash for an unknown reading, spoken as "unavailable", never a zero. O(1). */
-function Unknown() {
-  return <><span aria-hidden="true">—</span><span className="visually-hidden">unavailable</span></>;
-}
+/** This app's words for `@jini-ai/ui/resource-monitor`'s table; "unavailable" is what a dash is spoken as. */
+const TABLE_LABELS: ResourceTableLabels = { caption: 'Memory and CPU by process', process: 'Process', pid: 'PID', memory: 'Memory', cpu: 'CPU', actions: 'Actions', unavailable: 'unavailable' };
 
-/** Memory and CPU cells; CPU is a percent of one core (the note under the table says so). O(1). */
-function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number | null; cpuPercent?: number | null; memoryMetric?: MemoryMetric }) {
-  return <>
-    <td className="num">{rssBytes == null ? <Unknown /> : memoryText({ bytes: rssBytes, memoryMetric })}</td>
-    <td className="num">{cpuPercent == null ? <Unknown /> : `${cpuPercent.toFixed(0)}%`}</td>
-  </>;
-}
+/** Figures and warnings for the table; CPU is a percent of one core (the note under the table says so). */
+const TABLE_FORMAT: ResourceTableFormat<ResourceMetrics, ResourceProcess> = {
+  memory: ({ bytes, reading }) => memoryText({ bytes, memoryMetric: reading.memoryMetric }),
+  cpu: ({ percent }) => `${percent.toFixed(0)}%`,
+  warning: ({ metrics }) => resourceWarnings({ metrics }),
+  role: ({ role }) => ROLE_LABELS[role],
+};
 
-/** One `<tbody>` per group: a heading row with the subtotal (and Stop), then its processes.
- * Executable basenames only, never command arguments. O(p) for the group's p processes. */
-function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onStop: (required: { id: string }, options?: {}) => void }) {
-  const warning = resourceWarnings({ metrics: group.metrics });
-  return <tbody>
-    <tr className="resources-table__group">
-      <th scope="rowgroup" colSpan={2}>{group.title}{warning && <span className="resources-table__warning"> · {warning}</span>}</th>
-      <MetricCells rssBytes={group.metrics?.rssBytes} memoryMetric={group.metrics?.memoryMetric} cpuPercent={group.metrics?.cpuPercent} />
-      <td className="resources-table__action">{group.stop && <button type="button" disabled={group.stop.disabled}
-        onClick={() => onStop({ id: group.id })}>{group.stop.label}</button>}</td>
-    </tr>
-    {group.processes.map((row) => <tr key={row.pid}>
-      <td className="resources-table__process">{row.name}{ROLE_LABELS[row.role] && <span className="resources-table__role">{ROLE_LABELS[row.role]}</span>}</td>
-      <td className="num">{row.pid}</td>
-      <MetricCells rssBytes={row.rssBytes} memoryMetric={row.memoryMetric} cpuPercent={row.cpuPercent} />
-      <td />
-    </tr>)}
-  </tbody>;
-}
-
-/** Process | PID | Memory | CPU, grouped by owner. O(s+p). */
-function ResourcesTable({ groups, onStop }: { groups: readonly ResourceTableGroup[]; onStop: (required: { id: string }, options?: {}) => void }) {
-  return <table className="resources-table">
-    <caption className="visually-hidden">Memory and CPU by process</caption>
-    <thead><tr>
-      <th scope="col">Process</th><th scope="col" className="num">PID</th>
-      <th scope="col" className="num">Memory</th><th scope="col" className="num">CPU</th>
-      <th scope="col"><span className="visually-hidden">Actions</span></th>
-    </tr></thead>
-    {groups.map((group) => <ResourceGroupRows key={group.id} group={group} onStop={onStop} />)}
-  </table>;
-}
+/** `app.css`'s `.visually-hidden` keeps the caption and the "unavailable" words for screen readers only. */
+const TABLE_CLASSES = { visuallyHidden: 'visually-hidden' };
 
 /** One poller for the chip, cards and panel. Reuses React context instead of polling each card.
  * @example <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>{children}</ResourcesMonitor>
@@ -200,7 +159,7 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
     dialogAriaLabelledBy="desktop-resources-title" tabs={[{ id: 'resources', label: 'Resources', title: 'Resources', panel: <>
       <p className="resources-total">Total: {metricsText({ metrics: snapshot?.status === 'available' ? snapshot.total : undefined })}</p>
       {errors && <p className="resources-error" role="alert">{errors}</p>}
-      <ResourcesTable groups={groups} onStop={onStop} />
+      <ResourceTable groups={groups} onStop={onStop} labels={TABLE_LABELS} format={TABLE_FORMAT} classNames={TABLE_CLASSES} />
       <p className="resources-note">Memory totals are estimates and can include not-yet-freed memory. CPU uses one core as 100%.</p></>
     }]} /></div>;
 }

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { readDockerfileSource, writeDockerfileSource } from "#src/features/deployments/index";
+import { readDockerfileSource, writeDockerfileSource } from "@jini-ai/devops/deploy/site/dockerfile";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 

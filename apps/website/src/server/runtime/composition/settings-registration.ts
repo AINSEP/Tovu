@@ -4,12 +4,13 @@
  */
 
 import { ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
-import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
+import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
 import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
 import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
 import { ensureCommentsSettingDefinitions } from "#src/features/comments/index";
-import { ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { ensureAnalyticsSettingDefinitions } from "@jini-ai/analytics/site/config.settings";
 
 /** Tovu's shared boot order; feature modules retain ownership of their definitions.
  * Both roots expose the intermediate promises while keeping their later registrations separate.
@@ -17,7 +18,7 @@ import { ensureAnalyticsSettingDefinitions } from "#src/features/analytics/confi
  * @complexity O(1) registrations and readiness promises; no parallel settings writers.
  */
 export function startSettingsRegistration(required: {
-  deps: EnsureSeoSettingDefinitionsDeps & EnsureSettingDefinitionsDeps;
+  deps: Omit<EnsureSeoSettingDefinitionsDeps, keyof SeoSettingsLedgerBindings> & EnsureSettingDefinitionsDeps;
   settingsReady: Promise<void>;
   workspaceId: string;
   systemPrincipalId: string;
@@ -30,7 +31,7 @@ export function startSettingsRegistration(required: {
   // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
   // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
   const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(deps, { workspaceId, systemPrincipalId }).then(() => undefined)
+    ensureSeoSettingDefinitions({ ...deps, ...seoSettingsHostBindings }, { workspaceId, systemPrincipalId }).then(() => undefined)
   );
 
   // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6

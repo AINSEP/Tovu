@@ -6,7 +6,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/sh
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
 import { DEPLOYMENT_EXPORT_RESOURCE } from "../../rules";
-import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 /**
  * @file `useStaticExport` — the Static Site tab's build action: an initial status read, a trigger,

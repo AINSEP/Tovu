@@ -14,8 +14,8 @@ import { openSiteDbClient, type SiteDbClient, type ImportSiteDbDriver, type Reso
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
-import { SqlToolAttemptAuditSink } from "#src/features/tool-audit/repo";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { createInMemoryAgentSessionStore, createSqliteAgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { createInMemoryConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-adapters";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
@@ -110,7 +110,7 @@ function retainedRepositories({ client }: { client?: SiteDbClient }, _options = 
   if (!client) return { settingsRepo: new InMemorySettingsRepo(), agentSessions: createInMemoryAgentSessionStore(),
     conversationToolApprovals: createInMemoryConversationToolApprovalStore(), toolAttemptAuditSink: createInMemoryToolAttemptAuditSink({}) };
   return { settingsRepo: new SqliteSettingsRepo({ store: client.content }), agentSessions: createSqliteAgentSessionStore({ store: client.chat, clock: createSystemClock() }),
-    conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: client.chat }), toolAttemptAuditSink: new SqlToolAttemptAuditSink(client.content) };
+    conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: client.chat }), toolAttemptAuditSink: new SqliteToolAttemptAuditSink({ store: client.content }) };
 }
 
 /** Open the selected driver only for a persistent site. This leaf never owns server boot work.

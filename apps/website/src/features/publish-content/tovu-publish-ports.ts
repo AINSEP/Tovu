@@ -77,7 +77,7 @@ export interface TovuPublishPorts {
      *  video as `<video>` rather than an image. */
     readonly contentTypeStore: MediaContentTypeStorePort;
   };
-  /** `features/redirects/publish-content.ts`'s one real dependency: the same write-chokepoint deps
+  /** `@jini-ai/cms/redirects/site/publish-content`'s one real dependency: the same write-chokepoint deps
    *  bag `createRedirect`/`updateRedirect` themselves take. */
   readonly redirect: RedirectsWriteDeps;
   readonly menu: {

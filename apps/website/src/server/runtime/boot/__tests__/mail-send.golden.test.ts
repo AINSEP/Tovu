@@ -7,7 +7,7 @@ import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
 import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import type { MailCapturePort, MailSendLedgerPort } from '@jini-ai/core/contracts/mail';
 import { createSettingsPrincipalLookup, set } from '#src/features/settings/index';
-import { ensureMailProviderSettings, readMailProviderSetting } from '#src/features/settings/mail-provider';
+import { ensureMailProviderSettings, readMailProviderSetting } from "@jini-ai/cms/settings/site/mail-provider";
 import { createCustomCredential, updateCustomCredential, InMemoryCustomCredentialSetRepo } from '#src/features/custom-credentials/index';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { MailAdapterRegistry } from '@jini-ai/agent-plugins/lifecycle/mail';

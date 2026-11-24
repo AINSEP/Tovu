@@ -1,4 +1,4 @@
-import type { PublishReportRow } from "@tovu/publish-content-ui";
+import type { PublishReportRow } from "@jini-ai/cms/publish/content/dialog";
 
 import { overwriteTooltipFor, reportRowNote, reportRowPillClass, type PublishContentConfirmView } from "./hooks/use-publish-content-confirm.hooks";
 

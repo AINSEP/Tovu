@@ -35,11 +35,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/content-analysis/hooks/use-content-analysis.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -111,11 +106,6 @@
   },
   {
     "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/pages/hooks/use-editor-html-jump.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -520,16 +510,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/consent/service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/consent/settings.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/custom-credentials/credential-recovery.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -680,19 +660,9 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/member-login/link-service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/member-login/oidc-login.ts",
     "rule": "catch-reads-error",
     "value": 4
-  },
-  {
-    "file": "apps/website/src/features/members/member-challenge-request.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/members/member-sign-in.ts",
@@ -815,12 +785,12 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },

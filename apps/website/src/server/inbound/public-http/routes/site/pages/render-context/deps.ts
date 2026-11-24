@@ -1,4 +1,5 @@
-import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
+import type { MemberContext } from "@jini-ai/user-management/members/types";
+import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 import type { ListingBatchRequest } from "@jini-ai/cms/listing";
 import type { RouteDeps } from "#src/server/routes/types";
 

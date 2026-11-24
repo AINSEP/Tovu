@@ -5,6 +5,8 @@
  */
 import path from "node:path";
 import type { MenuItemConstructorOptions } from "electron";
+import { refreshCheckboxesByLabel } from "@jini-ai/desktop-host/electron/preferences";
+import type { ApplicationMenuPort } from "@jini-ai/desktop-host/electron/preferences";
 import { automaticUpdatesMenu, readAutomaticUpdates } from "../../desktop-update-preference.ts";
 import { maximumLiveSiteViewsMenu, readMaximumLiveSiteViews, writeMaximumLiveSiteViews } from "../../site-view-preference.ts";
 import { desktopCopy } from "../../desktop-i18n.ts";
@@ -74,26 +76,12 @@ export function desktopSettingsMenu({ locale, preferencePath, product, setAutoma
   return { label: settings.label, submenu };
 }
 
-/** The slice of an installed Electron `Menu` the refresh walks. */
-export interface CheckableMenu {
-  items: { submenu?: { items: { label: string; checked: boolean }[] } | null }[];
-}
-
-/** Electron's `Menu` statics: the installed application menu, if any. */
-export interface ApplicationMenuPort {
-  getApplicationMenu(): CheckableMenu | null;
-}
-
 /** Refresh checkbox state after the dialog without rebuilding other menus. O(n) menu items. */
 export function refreshProductMenu({ menu, preferencePath }: { menu: ApplicationMenuPort; preferencePath: string }, {
   readSharing = readProductTelemetryPreference,
 }: { readSharing?: typeof readProductTelemetryPreference } = {}): void {
   const preference = readSharing({ preferencePath });
-  const items = menu.getApplicationMenu()?.items.flatMap(item => item.submenu?.items ?? []) ?? [];
-  for (const item of items) {
-    if (item.label === CRASHES_LABEL) item.checked = preference.crashes;
-    if (item.label === USAGE_LABEL) item.checked = preference.usage;
-  }
+  refreshCheckboxesByLabel({ menu, checked: { [CRASHES_LABEL]: preference.crashes, [USAGE_LABEL]: preference.usage } });
 }
 
 /**
