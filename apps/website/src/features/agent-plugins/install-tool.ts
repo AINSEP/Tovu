@@ -9,12 +9,13 @@ import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallSourcePort } from "../../contracts/headless/index.js";
-import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
+import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { agentPluginActivations } from "./activation-effects.js";
 import { listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
-import { CUSTOMIZE_AGENT_PLUGIN_TOOL, customizeAgentPluginCatalog, prepareCustomizedAgentPluginArchive } from './customize-tool.js';
+import { CUSTOMIZE_AGENT_PLUGIN_TOOL, customizeAgentPluginCatalog } from './customize-tool.js';
+import { prepareCustomizedAgentPluginArchive } from '@jini-ai/agent-plugins/site/customize-tool';
 
 /** The assistant uses the same uploaded-package service as the Agent Plugins admin add tab.
  * Customization prepares a new package and enters this same install flow, without replacement.
@@ -84,7 +85,7 @@ export function buildRegistrations(deps: AgentPluginsInstallToolDeps, _optional:
 async function runInstallTool({ deps, ctx, operation }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext; operation: "install" | "update" | 'customize' }, _optional = {}) {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
   const input = requireInputRecord({ input: ctx.input });
-  if (operation === 'customize') return installArchivePlugin({ deps, ctx }, { archive: await prepareCustomizedAgentPluginArchive({ deps, ctx }) });
+  if (operation === 'customize') return installArchivePlugin({ deps, ctx }, { archive: await prepareCustomizedAgentPluginArchive({ deps, ctx, lifecycle: { listInstalledPlugins, readBundledAgentPluginDigests, preferBundledAgentPluginDigests, maxAgentPluginInstallArchiveBytes } }) });
   if (operation === "update") return updateArchivePlugin({ deps, ctx, update: readUpdateTarget({ input }) });
   const source = input.source as Record<string, unknown> | undefined;
   if (source?.kind === "bundled") return installBundledPlugin({ input, deps });

@@ -8,7 +8,7 @@ import { buildAdminSurfaceActionTools } from '@jini-ai/agent-plugins/admin-surfa
 import type { AgentPluginExecutableRuntimeHost, AgentPluginArtifactWriter, AgentPluginConnectionAccess, FrozenConnectionAccounts, AgentPluginRateLimiter, AgentPluginStateReaderFor, AgentPluginApiOriginsFor } from '@jini-ai/agent-plugins/connect/executable';
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSurfaceSource } from '../admin-surfaces/surfaces.js';
-import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
+import type { AgentPluginAdminSurfaceHandlers } from '@jini-ai/agent-plugins/site/admin-surfaces/handlers';
 import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../../contracts/headless/index.js';
 import type { ApplyExtensionApprovalPolicy } from '#src/contracts/headless/assistant-tool-approval-policy';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';

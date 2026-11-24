@@ -34,7 +34,7 @@ import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
-import { contentDuplicationAgentToolCatalog } from "@jini-ai/cms/content-duplication/agent-tools";
+import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/tool-registrations.js";
 import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/agent-tools";
 import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";

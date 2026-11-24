@@ -182,5 +182,5 @@ function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}
   // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
   // for a request from this machine — see that route file's own header.
   registerAdminFsFilesFolderPickerRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
-    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({}) } });
+    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({ env: process.env }) } });
 }

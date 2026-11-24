@@ -14,7 +14,6 @@ names no provider.
 |---|---|
 | `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts); attempt row ids also use the full SHA-256 state digest. |
 | `contribution.ts` | Loads `jini-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
-| `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
 | `byo-client.ts` | Bring-your-own OAuth client: `byoClientLabel({ pluginId, connectionId })` (the custom-credential label an admin saves it under) and `resolveByoClient({ credentials, workspaceId, connection })` (the saved client, an actionable refusal, or none). |
 | `hook-http.ts` | `createConnectionHookHttp({ http, connection })`: the HTTP a connection's hooks get, limited to its declared `apiOrigins` plus its token endpoint's origin (exact origin match; anything else is refused before it is sent). |
@@ -130,6 +129,10 @@ Separately, the `limiter` capability (`AGENT_PLUGIN_OUTBOUND_BUDGET`) is a plugi
 whatever it checks there, the declared budgets above still apply.
 
 ## Wiring (done in G6b)
+
+Budgets: the parser, clamp, enforcer and `ConnectionBudgetExceededError` are imported directly from
+`@jini-ai/integrations/api-connections` (the old `budgets.ts` forwarder is gone); `host-bindings.ts`
+injects the host http-kit limiter as `createLimiter` (`contracts/core/rate-limit/rate-limit.ts`).
 
 `server/runtime/composition/agent-plugin-connections.ts`'s `composeAgentPluginConnections` builds the
 host once per site in both roots (`deps.ts` with the SQLite vault, `app.ts` with an in-memory one)

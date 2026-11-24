@@ -20,7 +20,8 @@ import { createPaymentsService, createPaymentsOperator, createKernelProviderRegi
 import { migrateCommercePayments, sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { runMigrations } from '@jini-ai/db/migrate';
 import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
-import { createAgentPluginEnabledReader } from '#src/features/agent-plugins/activation-effects';
+import { createAgentPluginEnabledReader } from '@jini-ai/agent-plugins/site/activation-effects';
+import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import type { ProviderPluginPorts } from './provider-plugins.js';
 import type { ProviderConfigSource } from './provider-config-source.js';
 import { readCommerceConfiguration, type CommerceConfiguration } from './commerce-settings.js';
@@ -111,7 +112,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
 }
 
 function createCommerceActivation(required: ComposeCommerceRequired, warn: (message: string) => void) {
-  const enabled = createAgentPluginEnabledReader({ workspaceRoot: required.workspaceRoot });
+  const enabled = createAgentPluginEnabledReader({ workspaceRoot: required.workspaceRoot, resolveAgentPluginActivation: agentPluginActivations.resolveAgentPluginActivation });
   let activationUnreadable = false;
   async function isActive(): Promise<boolean> {
     try { const active = await enabled('commerce'); activationUnreadable = false; return active; }

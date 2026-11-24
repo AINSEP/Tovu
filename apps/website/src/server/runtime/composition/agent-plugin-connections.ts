@@ -23,7 +23,7 @@ export { resolveApiConnectionRuntime };
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/host-bindings";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "@jini-ai/agent-plugins/connect/executable";
-import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "#src/features/agent-plugins/admin-surfaces/handlers";
+import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "@jini-ai/agent-plugins/site/admin-surfaces/handlers";
 import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
@@ -195,7 +195,8 @@ export function composeAgentPluginConnections(
       forms: delivery.forms, authorize: delivery.settings.authorize,
     }),
   } : {});
-  const adminSurfaceHost = createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities, issuedTokens, hostKind: runtime }, { signIns });
+  const adminSurfaceHost = createAgentPluginAdminSurfaceHandlers({ workspaceId, filename: ADMIN_SURFACES_FILENAME, loadContributions, capabilities, issuedTokens, hostKind: runtime,
+    log: (line) => console.warn(`[admin-surfaces] ${line}`) }, { signIns });
   const surfaceDefinition = defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME });
   return {
     apiConnections: { host },
