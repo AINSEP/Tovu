@@ -65,8 +65,12 @@ route; `features/newsletter/http-error-responses.ts` is the injected error-class
 Members (`runtime/composition/modules/members.ts`) mount `@jini-ai/cms/admin-http/routes/members/{list,get-by-id,disable,delete}`
 and inject the disable write service (bound to `toMembersWriteServiceDeps(deps)` per request), the `trashMember` move
 (bound to `memberRepo`, `removeMember`, `clock`) and `classifyMemberError` (the `features/members` error classes); list and
-get-by-id mount `"direct"`, disable and delete `"guarded"`, as before. `request-magic-link` (and `routes/members/deps.ts`)
-stays hand-written: its 429 carries a `Retry-After` header a Jini route refusal cannot carry yet.
+get-by-id mount `"direct"`, disable and delete `"guarded"`, as before. `request-magic-link` (w3 C2d,
+`registerAdminMemberRequestMagicLinkRoute`) mounts `@jini-ai/cms/admin-http/routes/members/request-magic-link` (`"direct"`,
+operation `routes/members/request-magic-link`) and injects the app's shared `magicLinkPerEmailLimiter` (consulted only after
+`authorize()`, INV-NEW-03), `requestSignInLink` bound to `toMembersWriteServiceDeps(deps)`, `classifyMemberError` (now also
+naming `MemberSignInUnavailableError`/`SenderIdentityNotConfiguredError`) and `MEMBER_SENDER_NOT_CONFIGURED_MESSAGE`; its 429
+carries `Retry-After` through `routeReply`. `routes/members/deps.ts` stays.
 Trash (`runtime/composition/modules/trash.ts`, which now holds `TrashRouteDeps`/`TrashRouteRegistrar`) mounts
 `@jini-ai/cms/admin-http/routes/trash/{list,restore,purge,items}` (all `"direct"`, operations `routes/trash/<file>`) and binds
 `TRASH_READ_PERMISSION` + `deps.authorize` as the injected entry gate (`authorizeEntry`, so the port call keeps its exact
@@ -77,7 +81,8 @@ Skills (`runtime/composition/modules/skills.ts`, which now holds `SkillsRouteDep
 `routes/skills/files`, the four management routes `routes/skills/manage` with "Could not change skills. Try again.". It binds
 the booted `skillLayout`/`siteBinding` per call, `readPluginPackageFiles` + `PLUGIN_PACKAGE_FILE_LIMITS`, `SKILL_STATE_FILE`, the
 install-service functions, `buildSkillToolRegistrations` with `withExtensionApprovalPolicy`, and `instanceof SkillInputError`.
-`routes/skills/list.ts` stays hand-written: it answers `ETag`/`304` with `Cache-Control`.
+The list mounts `@jini-ai/cms/admin-http/routes/skills/list` (`"guarded"`, operation `routes/skills/list`), binding
+`listManagedSkills` over the same per-call `skillLayout`/`siteBinding`; the spec answers `ETag`/`304`/`Cache-Control`/`Vary`.
 Integrations (`runtime/composition/modules/integrations-admin.ts`, which keeps `IntegrationsRouteDeps`,
 `IntegrationsRouteRegistrar` and the egress-deps builder `toWebhookSubscriptionDeps`) mounts
 `@jini-ai/cms/admin-http/routes/integrations/{list,create,pause,delete,deliveries}`; create and pause `"guarded"`, list,
@@ -166,7 +171,7 @@ delete,get-providers,put-providers}` (delete `"guarded"`, the rest `"direct"`) a
 DTO lookups (recorded content type, public URL, blob size), the transactional `removeMedia` trash flip,
 the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
 `MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
-`@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
+`@jini-ai/cms/admin-http/http/media`. list and original
 remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).
 Assistant settings, credentials and visitor tools (`runtime/composition/modules/assistant-settings.ts`)
 mount `@jini-ai/cms/admin-http/routes/assistant/*` `"direct"` and inject `ADMIN_ASSISTANT_PERMISSION`, the
@@ -194,6 +199,23 @@ probe, OAuth connect/sign-in/device-poll and the session-credential routes stay 
 Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
 (`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
 id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
+Agent plugins memory GET/PUT (`modules/agent-plugin-memory-routes.ts`, own module so the error test's partial
+mocks load) mount `@jini-ai/cms/admin-http/routes/agent-plugins/memory` (`"guarded"`) with the installed check,
+`pluginMemory` and the default caps bound; PUT's `failureFor` claims only errors its bound `writeNote` threw
+(`agent-plugins:write-note`, "The note could not be saved."), so a failing list read keeps the route's copy.
+Media where-used (`modules/media.ts`) mounts `@jini-ai/cms/admin-http/routes/media/where-used` (`"direct"`) with
+`findMediaWhereUsed` bound and `forbidden` answering `{ error: "media.read is required", code: "FORBIDDEN" }` (no details).
+Media import-url (`modules/media.ts`, `registerAdminMediaImportUrlRoute`) mounts `@jini-ai/cms/admin-http/routes/media/import-url`
+(`"direct"`, `routes/media/import-url` 500) with `fetchImage` (the `mediaImportHttpClient` egress client), `uploadMedia`
+(Tovu cap), `mediaContentTypeStore.set`, the public-URL resolver and `egressRefusalMessage` (`EgressRefusedError` →
+`logEgressRefusal`, default `console.warn`, then its `callerSafeMessage`) bound; `forbidden` answers
+`{ error: "not authorized for media.upload", code: "FORBIDDEN", details: { permission: "media.upload", reason } }`.
+Media text/replace/upload (`modules/media.ts`, w3 C4c) mount `@jini-ai/cms/admin-http/routes/media/{text,replace,upload}`
+(all `"direct"`): text binds `readDocumentText` (`readText`; `forbidden` answers `{ error: "media.read is required", code: "FORBIDDEN" }`,
+no `failure` so the 500 keeps the route-derived copy); replace binds `replaceMediaFile` (`replaceFile`, Tovu 50 MiB cap) and
+`toStoredMediaResponse` (`describeStored`); upload binds `uploadMedia` + `createDocumentArchiveReader` (`storeUpload`),
+`mediaContentTypeStore.set`, `captureMediaUploaded` (`onUploaded`, kind refined by `uploadedMediaKind`) and `describeStored`,
+with `deferMissingPrincipal` (its body 400s precede the session). replace/upload 500s use `MEDIA_WRITE_FAILURE` (`routes/media/route-guards`).
 
 Recovery/database (`modules/database-recovery.ts`, `modules/recovery-restore.ts`,
 `modules/database-migrate-forward.ts`): status binds the operation-lock peek and the db banner
@@ -217,3 +239,26 @@ Plugins provider-settings (w3 C3) is now `@jini-ai/cms/admin-http/routes/plugins
 mounted `"guarded"` by `registerPluginProviderSettingsRoutes` in `modules/plugins.ts`, which binds
 `declaredProviderSettingFields`, `saveProviderSettings` (+ `reapplyProvider`) and the owner-only copy;
 project-key use mounts `sessionCredentialOnly` (the owner-session 403) instead of reading the kind itself.
+
+Publish-content bundle-create (w3 C3b) is `@jini-ai/cms/admin-http/routes/publish-content/bundle-create`,
+mounted `"guarded"` by `modules/publish-content-ingest.ts` through `cappedApp` (its own 413 body, same
+route row) with `requestFacts: true`; it binds the content-type registry, the grant rules, the manual-send
+reader/audit probe and `adminRequestFactsFor`'s `publishTrust` per request.
+Publish-content capabilities (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/capabilities`,
+mounted `"guarded"` by `modules/publish-content-ingest.ts`; it binds the content-type registry, the backstop
+grant rules and `adminPublishTrustFor` (grant-only: the route never reads the credential kind) per request.
+Publish-content import (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/import`, mounted `"guarded"`
+with `failureCopy: "operation"` (`IMPORT_FAILURE`) by `modules/publish-content-import.ts`; it binds the gateway
+calls, `withGrantAuthorize`/`withGrantContentAuthorize` over `adminPublishTrustFor`, `adminRequestFactsFor`'s
+credential kind and `knownImportErrorResponse` (the typed arms of `import-errors.ts`) per request.
+Publish-content send by hand (w3 C3d) is `@jini-ai/cms/admin-http/routes/publish-content/backstop`, mounted
+`"direct"` by `modules/publish-content-backstop.ts` (`registerPublishBackstopRoutes`): status/run/send/undo with
+`sessionCredentialOnly` (`BACKSTOP_FORBIDDEN`, `publish.backstop`), gaps with `forbidden` (its own 403 copy); it binds
+the owner/admin-role rule, the audit storage, the raw row/file contributors, the backstop-scoped peer transport, the
+undo transaction and `backstopRefusal` (`BackstopRefusal` 409, else `peer-transport.ts`'s `knownPeerActionRefusal`).
+
+- Posts/pages create, update, delete (w3 C1b): `runtime/composition/modules/{posts,pages}.ts` mount the `@jini-ai/cms/admin-http/routes/{posts,pages}/*` specs with `readHeaders: ["idempotency-key"]` behind the host `cappedApp` body cap (create/update); `modules/content-write-bindings.ts` binds the post services, body-to-input mapping, rollback inverses, error classes, `processOutbox` drain and the plugin-hook envelope.- Publish-trust handshake (w3 C2c): `runtime/composition/modules/publish-trust.ts` (`registerPublishTrustHandshakeRoutes`, called by `modules/core.ts`) mounts the `@jini-ai/cms/public-http/routes/publish-trust/handshake` specs with `mountPublicJsonRoute`; it binds the per-IP limiter (one instance for challenge + session), the refusal copy, the redacting `[publish-trust] handshake …` log, the once-per-registration `targetInstallationId` (keyless ⇒ `null`, other failures logged once) and the `features/publish-trust/*` trust decisions.
+
+- Public members sign-out (w3 C5): `runtime/composition/modules/public-members.ts` (`registerPublicMemberSignOutRoute`, called by `modules/members.ts`) mounts `@jini-ai/cms/public-http/routes/members/sign-out` with `mountPublicRawRoute` on `memberPostApp`, an app view whose `post` runs `checkMemberPost` (workspace 404, comments same-origin 403, 4 KiB post-parse 413) on the Express request before the spec; it binds the member cookie reader, `clearedMemberSessionCookie`, `NodeSessionTokens` hashing, `memberAuthRefusal` and `MEMBER_AUTH_FAILURE` (all in `inbound/public-http/routes/members/complete-sign-in.ts`).
+- publish-content peer pull (w3 C3e): `POST .../peers/:peerId/pull` is the Jini spec `@jini-ai/cms/admin-http/routes/publish-content/peer-transport`, mounted last by `modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes` (injected: `pullAndStageFromPeer`, `knownPeerActionRefusal`). The three push routes stay hand-written in `routes/publish-content/peer-transport.ts` (`registerPublishContentPeerPushRoutes`): their live-site 403 precedes the workspace 404.
+- Public members password/me/login-providers (w3 C5b): `runtime/composition/modules/public-members.ts` also holds `registerPublicMemberResetPasswordRoute`, `registerPublicMemberSetPasswordRoute`, `registerPublicMemberForgotPasswordRoute` (each `mountPublicJsonRoute` on `memberPostApp`), `registerPublicMemberMeRoute` and `registerMemberLoginProvidersRoute` (plain `mountPublicJsonRoute`; workspace 404 from the public ports), mounting `@jini-ai/cms/public-http/routes/members/{reset-password,set-password,forgot-password,me,login-providers}`. It binds the shared limiters through `liveLimiter` (read per request), the members service calls, `readRequestCookie` / `uniqueMemberCookie`, `publicMemberIdentities`, `memberAuthRefusal` (`complete-sign-in.ts`), `memberSignInRefusal` + `MEMBER_SIGN_IN_FAILURE` (`sign-in.ts`), `memberOidcRefusal` (`oidc-deps.ts`), and the `setImmediate` delivery reporting through `reportMemberDeliveryFailure`.

@@ -21,11 +21,7 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "../
 import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
 import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerPublicMemberPasswordSignInRoute } from "../../inbound/public-http/routes/members/password-sign-in.js";
-import { registerPublicMemberForgotPasswordRoute } from "../../inbound/public-http/routes/members/forgot-password.js";
-import { registerPublicMemberResetPasswordRoute } from "../../inbound/public-http/routes/members/reset-password.js";
-import { registerPublicMemberSetPasswordRoute } from "../../inbound/public-http/routes/members/set-password.js";
-import { registerPublicMemberMeRoute } from "../../inbound/public-http/routes/members/me.js";
-import { registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
+import { registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
