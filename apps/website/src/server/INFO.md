@@ -36,8 +36,16 @@ that branches on the credential kind or the publish-trust grant gets `adminReque
 admin and public mount binds http-kit's `requestFacts` port to `routeRequestFactsFor` (client address via
 `captureRequestFacts`, `User-Agent`, `Host`), read only by a spec that opts in; a public mount given `workspaceId`
 answers the shared workspace 404. Non-JSON specs mount through `admin-raw-route-ports.ts`
-(`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration). An `authorize` call without
+(`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration); a spec with `requireSameOrigin`
+needs the host's `origin` (`OriginContext`) on the mount, refused at registration without it. An admin mount
+cannot set both `deferMissingPrincipal` and `sessionCredentialOnly` (refused at registration). An `authorize` call without
 `entityType` reaches `deps.authorize` without the key. Template: `plans/K1-route-template.md` §9.
+Public Express middleware stays host adapters over Jini decisions (w4-routes): `inbound/public-http/middleware/`
+`canonical-site-host.ts` resolves the origin with `@jini-ai/cms/seo` and asks
+`@jini-ai/cms/public-http/middleware/canonical-site-host` for the 308 target (passes `Host` only, and `toAbsoluteUrl`); `theme-content-security-headers.ts` writes
+`themeAssetSecurityHeaderSet` (keeps the `themeAssetSecurityHeaders` name the route-table snapshot pins);
+`theme-static-assets.ts` injects `themeIdCandidates` (`contracts/core/theme-ids`) and `@jini-ai/platform/fs`'s
+`resolvePathWithin` into `resolveThemeDirs`, and uses the Jini preview-CSS / inherited-template decisions.
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
@@ -254,6 +262,12 @@ reader/audit probe and `adminRequestFactsFor`'s `publishTrust` per request.
 Publish-content capabilities (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/capabilities`,
 mounted `"guarded"` by `modules/publish-content-ingest.ts`; it binds the content-type registry, the backstop
 grant rules and `adminPublishTrustFor` (grant-only: the route never reads the credential kind) per request.
+Publish-content export and blobs GET/PUT (w4-routes) are `@jini-ai/cms/admin-http/routes/publish-content/{export,blob-get,blob-put}`,
+mounted `"guarded"` by `modules/publish-content-blobs.ts`: export through `mountAdminRawRoute` (streamed body) binding
+`workspaceRepo`, `adminPublishTrustFor` and `packAuthorizedEntities` over `toPublishContentDeps`; the blob routes through
+`mountAdminJsonRoute` with `deferMissingPrincipal: true` (the `:sha` 400 precedes the session), binding `mediaRepo`/`assetBlobRepo`,
+`createCompositePeerBlobSource` per request (GET) and `blobStore.putIfAbsent` (PUT). `routes/publish-content/route-helpers.ts`
+stays host-side: it is the Express-response preamble of the hand-written peer push relay.
 Publish-content import (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/import`, mounted `"guarded"`
 with `failureCopy: "operation"` (`IMPORT_FAILURE`) by `modules/publish-content-import.ts`; it binds the gateway
 calls, `withGrantAuthorize`/`withGrantContentAuthorize` over `adminPublishTrustFor`, `adminRequestFactsFor`'s
