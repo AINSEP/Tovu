@@ -76,7 +76,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "The Trash is empty.",
     "Load more",
     "Loading…",
-    "Deleted items are kept for 30 days.",
+    "Each item shows how many days it has left.",
     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     "Post",
     "Page",
@@ -109,6 +109,14 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "failed to restore",
     "failed to delete permanently",
   ];
+
+  it("never promises one fixed retention length in the header, in any locale", () => {
+    // Rows deleted under an older retention keep their own purge stamp, so only the per-row 'Days left' column is true.
+    for (const locale of locales) {
+      expect(TRASH_DICT[locale]["Each item shows how many days it has left."], `locale ${locale}`).not.toMatch(/\p{Nd}/u);
+      expect(Object.keys(TRASH_DICT[locale]).filter((key) => /kept for \d+ days/i.test(key)), `locale ${locale}`).toEqual([]);
+    }
+  });
 
   it("covers every copy string Trash.tsx/rules.ts/use-trash.hooks.ts call t() with, in every locale", () => {
     for (const locale of locales) {

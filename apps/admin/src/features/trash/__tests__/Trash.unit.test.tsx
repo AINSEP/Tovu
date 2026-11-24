@@ -135,7 +135,9 @@ describe("Trash screen", () => {
 
     const descriptions = container.querySelectorAll(".page-header .page-description");
     expect(descriptions).toHaveLength(1);
-    expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 30 days.");
+    // Rows deleted under an older retention keep their own stamp, so the header must not promise one fixed length.
+    expect(descriptions[0]).toHaveTextContent("Each item shows how many days it has left.");
+    expect(descriptions[0].textContent).not.toMatch(/\d/);
     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
       "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     );
@@ -169,7 +171,7 @@ describe("Trash screen", () => {
     const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ locale: "es", items: [] })} />);
 
-    expect(screen.getByText("Los elementos eliminados se conservan durante 30 días.")).toBeInTheDocument();
+    expect(screen.getByText("Cada elemento muestra cuántos días le quedan.")).toBeInTheDocument();
     await user.click(screen.getByLabelText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure."));
     expect(screen.getByText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.")).toBeInTheDocument();
   });
