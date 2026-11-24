@@ -18,6 +18,8 @@ function servingHost({ req }: { req: Request }, _options = {}): string | undefin
 export function servingOriginFor({ req }: { req: Request }, _options = {}): string | undefined {
   if (typeof req.get !== "function") return undefined;
   const host = servingHost({ req });
+  // Direct handler tests can have no HTTP authority. Normal requests always supply Host.
+  // A malformed Host (bad port, spaces) cannot form a URL: keep the stored-origin fallback, never fail the render.
   const base = `${req.protocol}://${host}`;
   if (!host || !URL.canParse(base)) return undefined;
   return new URL(base).origin;

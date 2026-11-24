@@ -16,8 +16,9 @@ import type { SeoRouteDeps, SeoRouteRegistrar } from "#src/server/runtime/compos
  * copy the hand-written routes used. `modules/seo.ts` registers them ahead of the site's `/:slug` catch-all.
  */
 
-/** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2): the response uses the
- *  serving origin, so a cache must retain the request authority in its key. Same header as `pages.ts`. */
+/** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
+ *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route
+ *  uses the serving origin, so a cache must retain the request authority in its key. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
 /** The text/plain 500 these routes always answered: the visitor sentence plus the incident's error ID.
@@ -52,25 +53,54 @@ function siteTitleFor({ deps }: { deps: SeoRouteDeps }, _optional: Record<string
   );
 }
 
-/** `GET /sitemap.xml` (SPEC-008 `SEO_GET_SITEMAP`, REQ-08). */
+/**
+ * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,
+ * tasks.md T046). Registered ahead of the `/:slug` catch-all in `pages.ts`'s registration order.
+ */
 export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: SitemapRouteDeps = documentDeps({ deps, extra: { buildSitemap: (input: { workspaceId: string }, optional: { renderBaseUrl?: string | undefined }) => deps.sitemapService.buildSitemap(input, optional) } });
   mountPublicRawRoute({ app, spec: sitemapRoute, deps: specDeps, failure: textFailure({ operation: "public:sitemap", subject: "the sitemap" }) });
 };
 
-/** `GET /robots.txt` (SPEC-008 `SEO_GET_ROBOTS`, REQ-09). */
+/**
+ * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
+ * tasks.md T046).
+ */
 export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: RobotsRouteDeps = documentDeps({ deps, extra: {} });
   mountPublicRawRoute({ app, spec: robotsRoute, deps: specDeps, failure: textFailure({ operation: "public:robots", subject: "the crawler rules" }) });
 };
 
-/** `GET /llms.txt` (owner decision TM-TOVU-2026-08-31, `development/docs/ai-first-docs-checklist.md`). */
+/**
+ * @file `GET /llms.txt` — public, unauthenticated (owner decision TM-TOVU-2026-08-31, per
+ * `development/docs/ai-first-docs-checklist.md` "Do now" item 1). Follows the llmstxt.org
+ * convention: an H1 title, a one-line blockquote summary, then H2-labeled sections of
+ * `- [title](url): description` links — a machine-readable index a coding-agent tool (Cursor,
+ * Claude Code, Windsurf, Copilot, Cline, Aider) can fetch in one request to learn the shape of the
+ * whole site before reading further. Registered ahead of the site's `/:slug` catch-all, same as
+ * `registerSeoRobotsRoute`/`registerSeoSitemapRoute` (`robots.ts`/`sitemap.ts` in this
+ * directory) — see `modules/seo.ts`'s file header for the ordering requirement.
+ *
+ * 2026-09-04 rewrite: the checklist originally scoped this to a hand-curated `CURATED_DOCS` list
+ * (Phase 2 note: "needs an explicit 'which pages count as docs' tag or convention — not built
+ * yet"). That list drifted the moment a page was published, renamed, or unpublished outside it, so
+ * this now derives the index from `computeIndexableEntries` (`Jini/packages/cms/src/seo/sitemap.ts`) — the same
+ * publish/visibility/`noindex` filter `sitemap.xml` is built from (INV-04/05) — instead of
+ * maintaining a second, hand-authored notion of "which pages count." Every published, publicly
+ * visible, non-`noindex` post/page is listed; a members/paid/tiers-gated or draft page can never
+ * leak here, same guarantee `sitemap.xml` gives. This is a deliberate, disclosed behavior change,
+ * not silent drift — see `__tests__/llms.route.test.ts`'s file header for what it replaces.
+ */
 export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+  // Share sitemap/feed's serving origin; the exporter rewrites it for its destination.
   const specDeps: LlmsTxtRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
   mountPublicRawRoute({ app, spec: llmsTxtRoute, deps: specDeps, failure: textFailure({ operation: "public:llms", subject: "the site index" }) });
 };
 
-/** `GET /feed.xml`, the public RSS 2.0 feed. */
+/**
+ * GET /feed.xml — the public RSS 2.0 feed (`Jini/packages/cms/src/seo/feed.ts`). Public and unauthenticated like
+ * `sitemap.xml`, and registered with it by `modules/seo.ts`, ahead of the `/:slug` catch-all.
+ */
 export const registerFeedRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: FeedRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
   mountPublicRawRoute({ app, spec: feedRoute, deps: specDeps, failure: textFailure({ operation: "public:feed", subject: "the feed" }) });

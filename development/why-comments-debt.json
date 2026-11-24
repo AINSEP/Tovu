@@ -13768,6 +13768,150 @@
     {
       "id": "5394a49e018f",
       "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "8617de439912",
+      "reason": "moved to Jini packages/cms/src/public-http/middleware/public-page-security-headers.ts:14 with the code (reworded: the product name in 'format Tovu's report-only policy' became 'the host's'; the rest is verbatim)."
+    },
+    {
+      "id": "673785bff25c",
+      "reason": "moved to Jini packages/core/src/tool-metadata/agent-plugins.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "eeebe4643f84",
+      "reason": "moved to Jini packages/core/src/tool-metadata/agent-plugins.ts:41-42 with the code (reworded: the product-specific '.tovu-plugin above' now reads 'the host plugin system above'; the search-vocabulary rationale is verbatim)."
+    },
+    {
+      "id": "b16b64801b7d",
+      "reason": "moved to Jini packages/chat/src/core/assistant-tool-metadata.ts:5 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host's tool-metadata aggregator', since the aggregator is not a Jini file)."
+    },
+    {
+      "id": "d3192c685f11",
+      "reason": "moved to Jini packages/core/src/tool-metadata/comments.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "67a53ab53aba",
+      "reason": "moved to Jini packages/core/src/tool-metadata/frontend-control.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "3391681039c2",
+      "reason": "moved to Jini packages/core/src/tool-metadata/fs-files.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "3691da463218",
+      "reason": "moved to Jini packages/core/src/tool-metadata/media-generation.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "3a6c6f7f0acc",
+      "reason": "moved to Jini packages/core/src/tool-metadata/permanent-delete.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "5ab2eb4ee7d1",
+      "reason": "moved to Jini packages/core/src/tool-metadata/plugin-runtime.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "b8d23b972c5e",
+      "reason": "moved to Jini packages/core/src/tool-metadata/recovery.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "df8a407a82e0",
+      "reason": "moved to Jini packages/core/src/tool-metadata/redirects.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "3358fbb543d3",
+      "reason": "moved to Jini packages/core/src/tool-metadata/search.ts:4-8 with the code (reworded: only the first sentence's './index.ts' pointer became 'the host aggregator'; the plan/publish approval rationale is verbatim)."
+    },
+    {
+      "id": "f1f433a46b52",
+      "reason": "moved to Jini packages/core/src/tool-metadata/seo.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "815122071ec2",
+      "reason": "moved to Jini packages/core/src/tool-metadata/settings.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "1f188ae1bc4e",
+      "reason": "moved to Jini packages/core/src/tool-metadata/site-evidence.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "d2ee985e07b8",
+      "reason": "moved to Jini packages/core/src/tool-metadata/site-guide.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "f7b1f681945a",
+      "reason": "moved to Jini packages/core/src/tool-metadata/site-inspection.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "831b6c9f9037",
+      "reason": "moved to Jini packages/core/src/tool-metadata/sites.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "ec13065c50db",
+      "reason": "moved to Jini packages/core/src/tool-metadata/trash.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "75d0c95fe20c",
+      "reason": "moved to Jini packages/core/src/tool-metadata/web-screenshot.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "42d2b23f4702",
+      "reason": "moved to Jini packages/core/src/tool-metadata/web.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "d29012cffe70",
+      "reason": "moved to Jini packages/core/src/tool-metadata/webhooks.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "465df9bf6f08",
+      "reason": "moved to Jini packages/core/src/tool-metadata/widgets.ts:4 with the code (reworded: 'shared placement rationale is in ./index.ts' now points at 'the host aggregator', since the host's aggregator is not a Jini file)."
+    },
+    {
+      "id": "329f048dcb3b",
+      "reason": "moved to Jini packages/cms/src/publish/content/apply-failure.ts:48 with the code (reworded: the Tovu-owned PluginHookFailedError class name became 'the host owns the concrete class', injected)."
+    },
+    {
+      "id": "4b1c1f765e08",
+      "reason": "moved to Jini packages/cms/src/publish/content/publish-backstop-file.ts:117 with the code (reworded: only the wording around the adapter name changed; the lstat/stage/undo rationale is kept)."
+    },
+    {
+      "id": "0ca89d2be5a6",
+      "reason": "moved to Jini packages/devops/src/backup/site/saved-keys.ts:17 with the code (reworded: the product CLI name '`tovu import-local`' became 'a local-import CLI')."
+    },
+    {
+      "id": "d006ddbaac8a",
+      "reason": "Reworded in place (same test file): the Express-only mapFormsWriteError writer this comment described is deleted; the comment now says what the test pins (the wire answer of a mounted forms route for a recognised and an unknown error), and the per-error cases live in Jini @jini-ai/cms admin-http/routes/forms write-error tests."
+    },
+    {
+      "id": "2ccb31862b68",
+      "reason": "moved to Jini packages/cms/src/admin-http/routes/forms/authoring.ts:42 with the route spec (reworded: Express registration is now host-side forms-admin.ts; the 'shared-tree CRUD route' and write-service rationale is kept)."
+    },
+    {
+      "id": "f98bc2909dd5",
+      "reason": "moved to Jini packages/cms/src/admin-http/routes/forms/create.ts:52 with the route spec (reworded: 'write-service.ts's createFormDefinition' became 'the host's create write', since the write service stays in Tovu)."
+    },
+    {
+      "id": "b037e5dd587e",
+      "reason": "moved to Jini packages/cms/src/admin-http/routes/forms/delete-submission.ts:32 with the route spec (inline slug-first rationale kept next to the resolve call)."
+    },
+    {
+      "id": "2735799b50c8",
+      "reason": "Header of the deleted Express adapter forms-write-error.ts (mapFormsWriteError); the status/body mapping it pointed at and its errors.spec.md §2/§6 rationale are the header of Jini packages/cms/src/admin-http/routes/forms/write-error.ts:15, and the mounted route spec writes the response now."
+    },
+    {
+      "id": "1b9034f61b92",
+      "reason": "Doc of the deleted Express adapter's mapFormsWriteError true/false contract; the equivalent contract is formsWriteErrorAnswer in Jini packages/cms/src/admin-http/routes/forms/write-error.ts (undefined for an unrecognized error, so the caller falls through to its generic 500)."
+    },
+    {
+      "id": "cd4874a7c0ab",
+      "reason": "moved to Jini packages/cms/src/admin-http/routes/taxonomy/merge-shared.ts:6 and merge-plan/confirm/execute.ts with the three merge specs (reworded: the 3-endpoint ceremony, flat admin.taxonomy.manage gate and 'merge stays a hard delete (trash plan, owner decision 5)' note are on those specs; merge-execute.ts:20-21 holds the hard-delete rationale)."
+    },
+    {
+      "id": "8f1239d4f703",
+      "reason": "Folded into the CACHE_CONTROL_PUBLIC_PAGE doc in apps/website/src/server/inbound/public-http/routes/site/seo-documents.ts: the four per-route cache constants became one shared constant carrying the same owner-decision rationale (same header, response uses the request authority)."
+    },
+    {
+      "id": "854ecb2dca9d",
+      "reason": "Reworded in place (same file): the 'stays inline in app.ts' paragraph described a layout that no longer exists; the header now states the current wiring (merge routes are registered from mount-admin-data.ts alongside the other gated-mutation ceremonies, per SPEC-016) and keeps the SPEC-034 rationale for keeping the ceremony apart from the nine plain routes."
     }
   ]
 }
