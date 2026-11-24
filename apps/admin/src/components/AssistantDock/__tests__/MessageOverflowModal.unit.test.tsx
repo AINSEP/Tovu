@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal";
 import { useMessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 import { useT } from "@jini-ai/chat/react";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { MessageOverflowModalController } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 
 /**
@@ -47,7 +48,7 @@ describe("agentHandle", () => {
 
   it("publishes the close button as agent-addressable when agentHandle is passed", () => {
     render(
-      <MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()} agentHandle="overflow-modal-close">
+      <MessageOverflowModal useTHook={useT} useModal={useMessageOverflowModal} open={true} title="Full view" onClose={vi.fn()} agentHandle={{ handle: "overflow-modal-close", agentHandle }}>
         content
       </MessageOverflowModal>,
     );

@@ -5,6 +5,7 @@ import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkin
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createBrowserWorkingDirectoryAccess } from "@jini-ai/admin/shell/lib/browser-working-directory-access";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
@@ -133,7 +134,7 @@ const RECENT_DIRECTORY_NAMES_STORAGE_KEY = "tovu.assistant.recentWorkingDirector
  * const workingDirectoryAccess = useWorkingDirectoryAccess();
  */
 export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
-  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY }), []);
+  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync }), []);
 }
 
 export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}

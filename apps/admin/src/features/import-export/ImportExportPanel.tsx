@@ -1,4 +1,5 @@
 import { ImportExport, type ImportExportProps } from "@jini-ai/admin/screens/import-export/ImportExport";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { SiteExportTab, SiteImportTab } from "../sites";
@@ -30,6 +31,7 @@ export function ImportExportPanel(overrides: Partial<ImportExportProps> = {}) {
       SiteImportTab={SiteImportTab}
       handleLabels={IMPORT_EXPORT_HANDLE_LABELS}
       navigate={navigate}
+      agentHandle={agentHandle}
       {...overrides}
     />
   );

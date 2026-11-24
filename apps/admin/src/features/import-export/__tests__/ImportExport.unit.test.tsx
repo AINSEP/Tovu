@@ -2,12 +2,12 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportExport } from "@jini-ai/admin/screens/import-export/ImportExport";
 import { IMPORT_EXPORT_DICT, t } from "@jini-ai/admin/screens/import-export/import-export-i18n";
-import { resolveImportExportTabId, resolveImportExportTabs } from "@jini-ai/admin/screens/import-export/import-export-tabs";
 import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import { GIT_BACKUP_HOST } from "../hooks/git-backup-dependencies.hooks";
 import { useWiredSitesSectionAvailable } from "../hooks/import-export-dependencies.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "@/features/sites";
 import { IMPORT_EXPORT_HANDLE_LABELS, ImportExportPanel } from "../ImportExportPanel";
@@ -32,7 +32,7 @@ function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAv
   return render(
     <ImportExport
       tabId={tabId} useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={() => sitesAvailable}
-      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS} navigate={navigate}
+      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS} navigate={navigate} agentHandle={agentHandle}
     />,
   );
 }
