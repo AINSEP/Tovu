@@ -3,9 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
 import { WEBMCP_PREFERENCE_KEY, browserAgentSettingsPort, useAdminBrowserAgentSettings, webMcpT } from "../browser-agent-settings.hooks";
-import { renderToString } from "react-dom/server";
-import { vi } from "vitest";
-import { useBrowserAgentSettings, setBrowserAgentEnabled, type BrowserAgentSettingsPort } from "../browser-agent-settings.hooks";
 import { WEBMCP_DICT, WEBMCP_KEYS } from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
 import { ADMIN_LOCALES } from "../../../lib/settings-tabs";
 

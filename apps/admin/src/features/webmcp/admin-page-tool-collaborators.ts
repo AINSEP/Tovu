@@ -1,8 +1,8 @@
 import { directPageAction } from "@tovu/headless";
 import { PAGE_CAPABILITIES, executePageCapability, toWebMcpTool, type PageDriver } from "@jini-ai/agentic";
 import { getAgentModelContext } from "@jini-ai/agentic/dom";
-import type { AdminPageToolCollaborators } from "@jini-ai/admin/screens/webmcp/admin-page-tools";
-import { getBrowserAgentEnabled } from "./browser-agent-settings.hooks";
+import type { AdminPageToolCollaborators } from "@jini-ai/agentic/dom/admin-page-tools";
+import { browserAgentSettingsPort } from "./browser-agent-settings.hooks";
 
 /**
  * @file What this admin injects into `@jini-ai/admin`'s `registerAdminPageWebMcpTools`:
@@ -17,6 +17,6 @@ export const adminPageToolCollaborators: AdminPageToolCollaborators<PageDriver> 
   toWebMcpTool,
   getAgentModelContext,
   directPageAction,
-  isBrowserAgentEnabled: () => getBrowserAgentEnabled({}),
+  isBrowserAgentEnabled: () => browserAgentSettingsPort.getEnabled({}),
   reportRegistrationError: ({ name, error }) => console.warn(`[admin] WebMCP registration failed: ${name}`, error),
 };

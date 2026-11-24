@@ -12,7 +12,6 @@ import { registerAdminPageWebMcpTools } from "@jini-ai/agentic/dom/admin-page-to
 import { directPageAction } from "@tovu/headless";
 import { browserAgentSettingsPort, useAdminBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminPageToolCollaborators } from "./features/webmcp/admin-page-tool-collaborators";
-import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
