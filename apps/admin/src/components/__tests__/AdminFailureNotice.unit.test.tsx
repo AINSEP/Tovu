@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@/__tests__/render-with
 import { afterEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { AdminFailureNotice } from "@jini-ai/admin/shell/components/AdminFailureNotice/AdminFailureNotice";
+import { HostAdminFailureNotice } from "@/components/AdminFailureNotice/HostAdminFailureNotice";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
 
 afterEach(() => { adminFailureChannel.reset(); vi.restoreAllMocks(); document.documentElement.lang = ""; });
@@ -10,7 +11,7 @@ it("dismisses an incident through the translated German action", () => {
   document.documentElement.lang = "de";
   const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try loading them again.", step: "Loading pages", cause: "offline" }, { errorId: "translated-incident" });
   adminFailureChannel.publish({ failure });
-  render(<AdminFailureNotice channel={adminFailureChannel} />);
+  render(<HostAdminFailureNotice />);
   fireEvent.click(screen.getByRole("button", { name: "Fehlermeldung schließen" }));
   expect(screen.queryByText(failure.message)).toBeNull();
   expect(adminFailureChannel.getSnapshot()).toBeNull();
@@ -18,7 +19,7 @@ it("dismisses an incident through the translated German action", () => {
 
 it("retains a polite failure with copyable details until dismissed", async () => {
   const writeText = vi.fn().mockRejectedValue(new Error("clipboard denied"));
-  render(<AdminFailureNotice channel={adminFailureChannel} clipboard={{ writeText }} />);
+  render(<AdminFailureNotice channel={adminFailureChannel} dismissLabel="Dismiss error" clipboard={{ writeText }} />);
   expect(screen.queryByRole("status")).toBeNull();
   const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try loading them again.", step: "Loading pages", cause: "The error ID identifies the server report." }, { errorId: "incident-ui" });
   act(() => adminFailureChannel.publish({ failure }));
@@ -36,7 +37,7 @@ it("retains a polite failure with copyable details until dismissed", async () =>
 it("floats over the page and keeps Dismiss inside the notice card", () => {
   const failure = formatUserFacingError({ message: "The page save could not be completed.", action: "Check.", step: "Save page", cause: "x" }, { errorId: "incident-card" });
   adminFailureChannel.publish({ failure });
-  const { container } = render(<AdminFailureNotice channel={adminFailureChannel} />);
+  const { container } = render(<HostAdminFailureNotice />);
   const card = container.querySelector(".jini-admin-failure-notice");
   expect(card).not.toBeNull();
   expect(card?.contains(screen.getByRole("button", { name: "Dismiss error" }))).toBe(true);
