@@ -11,7 +11,7 @@ import { createRawFileSitePort } from "#src/features/publish-content/publish-bac
 import { BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
-import { registerPublishBackstopRoutes } from "../backstop.js";
+import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";

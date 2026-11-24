@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerPublishContentPeerTransportRoutes } from "../../admin-http/routes/publish-content/peer-transport.js";
-import { registerPublishBackstopRoutes } from "../../admin-http/routes/publish-content/backstop.js";
+import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 const cases = [

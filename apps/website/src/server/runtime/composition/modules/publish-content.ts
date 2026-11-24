@@ -11,7 +11,7 @@ import { registerPublishContentBundleCreateRoute, registerPublishContentCapabili
 import { registerPublishContentImportRoutes } from "./publish-content-import.js";
 import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes } from "./publish-content-transport.js";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
-import { registerPublishBackstopRoutes } from "#src/server/inbound/admin-http/routes/publish-content/backstop";
+import { registerPublishBackstopRoutes } from "./publish-content-backstop.js";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import {
   COMMITTED_JSON_CODEC,

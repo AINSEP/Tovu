@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerPublishBackstopRoutes } from "../backstop.js";
+import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerAdminPolicyWritePermissionRoute } from "#src/server/runtime/composition/modules/users-access";
 import type { UsersRouteDeps } from "../../users/deps.js";
