@@ -195,7 +195,7 @@ test("unsafe archive paths, aliases and file/directory collisions are refused be
 test("credential-shaped bytes stay included with a warning without changing the source file", { timeout: 120000 }, async () => {
   const secret = "ghp_" + "x".repeat(36);
   const content = Buffer.from(`const token = "${secret}";`);
-  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
   const archive = await buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", bufferedFiles: [...common(Buffer.alloc(0)).bufferedFiles, { path: "themes/site/script.js", content }] }, zip: zipFolderFiles }, { credentialWarnings });
   assert.ok(credentialWarnings.some(warning => warning.path === "themes/site/script.js"));
   assert.equal(JSON.stringify(credentialWarnings).includes(secret), false);

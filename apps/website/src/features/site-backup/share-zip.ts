@@ -11,7 +11,7 @@ import type { StaticSiteCopy } from "./static-copy.js";
 import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
-import type { CredentialWarning } from "./credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { createBundledExportFilePolicy, type BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };

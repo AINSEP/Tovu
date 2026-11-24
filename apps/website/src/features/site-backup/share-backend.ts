@@ -1,4 +1,4 @@
-import type { CredentialWarning } from "./credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { randomUUID } from "node:crypto";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";

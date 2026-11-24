@@ -23,7 +23,7 @@ export interface SiteImportRecord {
   expiresAt: number;
   adminUrl?: string | null;
   warnings?: readonly string[];
-  credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  credentialWarnings?: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   hasEncryptedKeys?: boolean;
   error?: string;
 }

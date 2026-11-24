@@ -1,4 +1,4 @@
-import { warnCredentialContent, type CredentialWarning } from "../credential-warnings.js";
+import { warnCredentialContent, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import type { ArchiveMediaSource, ArchiveMediaCopy } from "#src/features/site-backup/archive-media";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
@@ -256,7 +256,7 @@ async function documentReferences(required: { target: Kernel }, _options: Record
 function warnPortableRow(required: { row: Row; table: string; credentialWarnings: CredentialWarning[] }, _options = {}): void {
   for (const [column, value] of Object.entries(required.row)) {
     const text = value instanceof Uint8Array ? Buffer.from(value).toString("latin1") : value;
-    if (typeof text === "string") warnCredentialContent({ path: `content.db:${required.table}.${column}`, text, credentialWarnings: required.credentialWarnings });
+    if (typeof text === "string") warnCredentialContent({ path: `content.db:${required.table}.${column}`, text, credentialWarnings: required.credentialWarnings, redactSecretShapes });
   }
 }
 

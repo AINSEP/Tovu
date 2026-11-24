@@ -67,7 +67,7 @@ test("credential-looking files and edited bundled labels stay included", { timeo
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   const labels = Buffer.from('{"API token":"Token de API","edited":true}');
   const key = "ghp_" + "a1".repeat(18);
-  const credentialWarnings: import("../../credential-warnings.js").CredentialWarning[] = [];
+  const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
   const plugin = { kind: "agent" as const, id: "core", version: "1", digest: "a".repeat(64), enabled: true, shipped: true };
   const archive = await buildShareZip({ plan: { ...plan(safe.bytes), plugins: [plugin], bufferedFiles: [
     ...plan(safe.bytes).bufferedFiles!, { path: "agent-plugins/core/package/plugin.json", content: labels },
@@ -131,7 +131,7 @@ test("production preparation retains credential-looking media", { timeout: 12000
     }, restoreFromArtifact: async () => assert.fail("source is never restored") },
   });
   assert.equal(prepared.media!.length, 1);
-  const credentialWarnings: import("../../credential-warnings.js").CredentialWarning[] = [];
+  const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
   const archive = await buildShareZip({ plan: prepared, zip: zipFolderFiles }, { credentialWarnings });
   assert.ok(credentialWarnings.some(warning => warning.path === "media/image.bin"));
   await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });

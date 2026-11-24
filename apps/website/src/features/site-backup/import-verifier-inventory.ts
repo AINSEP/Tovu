@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import type { CredentialWarning } from "./credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
