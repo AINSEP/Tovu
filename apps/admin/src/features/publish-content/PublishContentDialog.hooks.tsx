@@ -1,4 +1,4 @@
-import type { PublishReportRow } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishReportRow } from "@jini-ai/cms/publish/content/ui";
 
 import { overwriteTooltipFor, reportRowNote, reportRowPillClass, type PublishContentConfirmView } from "./hooks/use-publish-content-confirm.hooks";
 

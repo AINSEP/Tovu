@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 
-import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/dialog";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/ui";
 
 import { takePublishCriteriaFromQuery } from "../publish-criteria-deep-link";
 

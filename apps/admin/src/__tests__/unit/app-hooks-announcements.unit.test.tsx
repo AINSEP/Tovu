@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { StrictMode, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/dialog";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/ui";
 
 import { useAdminAssistantAvailability, useAdminSession, usePublishCriteriaDeepLink, useScreenshotAnnouncement } from "../../App.hooks";
 import { closePublishRequest, usePublishRequest } from "../../features/publish-content/hooks/publish-request.store";

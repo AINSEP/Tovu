@@ -1,4 +1,4 @@
-import type { PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 import { createPublishRequestStore } from "@jini-ai/admin/publish-content/screen/hooks/publish-request.store";
 
 import { isPublishToLiveAvailable } from "./publish-availability.store";

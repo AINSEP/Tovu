@@ -1,7 +1,8 @@
-import { publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { applyPublishCriteria, overwriteReplanIsConsistent, preparePublishConfirmation, PublishPlanDriftError, canConfirmPlan, canRequestPlan, confirmationTokenFor, countSelectedPublishing, planOnScreen, reportOnScreen, publishOrderComparator, rowPublishesWithSelection, selectableRowKeys, sortPublishReportRows, summarizePublishReport, toPublishReportRows, type CriteriaSelection, type PublishContentNotSupportedByLive, type PublishContentExecuteResult, type PublishContentOutcomeRow, type PublishContentPeerSummary, type PublishContentPhase, type PublishContentPlanResult, type PublishContentReport, type PublishCriteria, type PublishReportRow, type PublishReportSummary, type PublishRequestResult, type PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import { overwriteReplanIsConsistent, PublishPlanDriftError, canConfirmPlan, canRequestPlan, confirmationTokenFor, countSelectedPublishing, planOnScreen, reportOnScreen, publishOrderComparator, rowPublishesWithSelection, selectableRowKeys, sortPublishReportRows, summarizePublishReport, type CriteriaSelection, type PublishContentNotSupportedByLive, type PublishContentExecuteResult, type PublishContentOutcomeRow, type PublishContentPhase, type PublishContentPlanResult, type PublishContentReport, type PublishCriteria, type PublishReportRow, type PublishReportSummary, type PublishRequestResult, type PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 /**
  * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
@@ -71,7 +72,7 @@ export interface PublishContentConnectOffer {
  *  component gets finished strings and booleans, not state to interpret. */
 export interface PublishContentConfirmView {
   readonly phase: PublishContentPhase;
-  readonly peers: readonly PublishContentPeerSummary[];
+  readonly peers: readonly PublishContentPeerView[];
   readonly selectedPeerId: string | null;
   /** Choosing a different site discards any plan on screen — a plan belongs to the site that made
    *  it — and is ignored while {@link peerSelectionEnabled} is `false`. */
@@ -441,7 +442,7 @@ function canConfirmSelection(
 }
 
 /** A sole target is unambiguous; multiple targets still require the operator's selection. */
-function singlePublishPeerId(peers: readonly PublishContentPeerSummary[]): string | null {
+function singlePublishPeerId(peers: readonly PublishContentPeerView[]): string | null {
   return peers.length === 1 ? peers[0].id : null;
 }
 
@@ -480,7 +481,7 @@ export function usePublishContentConfirm(props: {
 
   const [phase, setPhase] = useState<PublishContentPhase>({ kind: "idle" });
   // Load the target list before offering destination discovery for an empty install.
-  const [peers, setPeers] = useState<readonly PublishContentPeerSummary[]>([]);
+  const [peers, setPeers] = useState<readonly PublishContentPeerView[]>([]);
   const [peersLoaded, setPeersLoaded] = useState(false);
   const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
   const [peersError, setPeersError] = useState<string | null>(null);
@@ -1262,7 +1263,7 @@ function publishPrimaryDisabled(
  *  from the loaded list, or a generic "the live site" when that list does not name `peerId`
  *  (`onSelectPeer` accepts any id). @complexity O(peers). */
 export function publishMismatchMessage(
-  { peers, peerId, t }: { peers: readonly PublishContentPeerSummary[]; peerId: string; t: Translate },
+  { peers, peerId, t }: { peers: readonly PublishContentPeerView[]; peerId: string; t: Translate },
   _options: Record<string, never> = {}
 ): string {
   const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
@@ -1273,7 +1274,7 @@ export function publishMismatchMessage(
 function publishConnectOffer(
   { peersLoaded, peers, peersError, destinationLoaded, destination }: {
     peersLoaded: boolean;
-    peers: readonly PublishContentPeerSummary[];
+    peers: readonly PublishContentPeerView[];
     peersError: string | null;
     destinationLoaded: boolean;
     destination: AdminPublishDestinationView | null;

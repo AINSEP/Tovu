@@ -1,4 +1,4 @@
-import type { PublishContentPeerSummary } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
 
 /** Mirrors `PublishDestinationView` in `src/server/inbound/admin-http/routes/publish-content/
  *  destination.ts` — the zero-setup connect action's own response shape. Defined here rather than
@@ -8,7 +8,7 @@ export interface AdminPublishDestinationView {
   /** `true` once this computer's grant has been written for a site. */
   connected: boolean;
   /** The connected site, as the publish list already models it. `null` when there is none. */
-  site: PublishContentPeerSummary | null;
+  site: PublishContentPeerView | null;
   /** Read out of the repo's deploy config — what to offer when nothing is connected yet. */
   candidateUrl: string | null;
   /** One sentence describing where things stand. */

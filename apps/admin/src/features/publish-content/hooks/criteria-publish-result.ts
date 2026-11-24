@@ -1,4 +1,4 @@
-import { rowPublishesWithSelection, selectableRowKeys, type CriteriaSelection, type PublishReportRow, type PublishRequestResult } from "@jini-ai/cms/publish/content/dialog";
+import { rowPublishesWithSelection, selectableRowKeys, type CriteriaSelection, type PublishReportRow, type PublishRequestResult } from "@jini-ai/cms/publish/content/ui";
 
 /**
  * A `skipped` row, named with its reason; `null` for any other row. `toPublishReportRows` gives every
