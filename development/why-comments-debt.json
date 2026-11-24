@@ -2,6 +2,26 @@
   "version": 1,
   "allow": [
     {
+      "id": "578675067e73",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle capability-projection.ts (w5-webfeat F, classifyAgentPluginMcpServerTrust stdio/local-execution rationale), reworded host-neutral; Tovu capability-projection.ts deleted"
+    },
+    {
+      "id": "a01271b9a90f",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle capability-projection.ts (w5-webfeat F, readInstalledSkillMarkdown containment rationale), reworded host-neutral; Tovu capability-projection.ts deleted"
+    },
+    {
+      "id": "4bb6b6a2c306",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle capability-projection.ts (w5-webfeat F, readInstalledMcpConfig fail-open/optional mcp.json rationale), reworded host-neutral; Tovu capability-projection.ts deleted"
+    },
+    {
+      "id": "75d69a736427",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle capability-projection.ts (w5-webfeat F, readInstalledMcpServerIds ids-only split), reworded host-neutral; Tovu capability-projection.ts deleted"
+    },
+    {
+      "id": "95f3276d14b6",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle capability-projection.ts (w5-webfeat F, readInstalledMcpServers launch-config contract), reworded host-neutral; Tovu capability-projection.ts deleted"
+    },
+    {
       "id": "010687fc2a46",
       "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
     },
