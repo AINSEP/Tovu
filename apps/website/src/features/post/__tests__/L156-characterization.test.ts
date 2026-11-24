@@ -46,11 +46,11 @@ test("L156 row mappings preserve null defaults, body exclusivity, tri-state and 
   [null, null, null, null, null, null, null, null, null, null, false, "{}"]);
   const read = toRecord({ ...row, autosave_json: null });
   assert.deepEqual(read, { ...record, seoExtJson: null, deletedAt: null, templateChoice: null,
-    overridesThemePage: null, memberAccessJson: null, createdByPrincipalId: null, createdAt: null,
+    overridesThemePage: null, memberAccessJson: null, createdByPrincipalId: null, createdByKind: "person", createdAt: null,
     author: null, showAuthor: false });
   const filled = buildPostRecord({ bodyFormat: "html", bodyHtml: "<p>body</p>", seoExtJson: "seo",
     deletedAt: "deleted", templateChoice: "template", overridesThemePage: false, memberAccessJson: "members",
-    createdByPrincipalId: "creator", createdAt: "created", publishAt: "later", featuredMediaId: "media",
+    createdByPrincipalId: "creator", createdByKind: "agent", createdAt: "created", publishAt: "later", featuredMediaId: "media",
     author: "Writer", showAuthor: true, ext: { plugin: { flag: true } } });
   const filledRow = toRow(filled);
   assert.equal(filledRow.body_json, null);

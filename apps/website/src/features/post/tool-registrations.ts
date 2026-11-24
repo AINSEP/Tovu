@@ -88,6 +88,8 @@ function executePostToolCreate({ routeDeps, ctx, kind, title, slug, bodyJson, st
       showAuthor,
       actorId: ctx.principal.id,
       analyticsSource: "assistant",
+      // Recorded at write time so the agent-pause hold can tell this post from an owner-made one.
+      creatorKind: "agent",
       // Every `tool-registrations.ts` handler is, by definition, reached only via
       // `@jini-ai/daemon`'s agent-run path (see `AGENT_TOOL_PRINCIPAL_KIND`'s own doc
       // in `@jini-ai/cms/core` — `ctx.principal.id` is already the real human's id here,

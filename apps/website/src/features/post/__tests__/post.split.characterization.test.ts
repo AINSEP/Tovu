@@ -116,10 +116,10 @@ test("retirement saves and revises the rename before removal at the renamed vers
 
 // Mutation: build the hook draft from the destination, or force doc format on import.
 test("HTML replication filters incoming fields and records the imported body with destination authorship", async () => {
-  const existing = buildPostRecord({ kind: "page", version: 4, createdByPrincipalId: "destination", createdAt: "2026-01-01T00:00:00.000Z" });
+  const existing = buildPostRecord({ kind: "page", version: 4, createdByPrincipalId: "destination", createdByKind: "agent", createdAt: "2026-01-01T00:00:00.000Z" });
   const incoming = buildPostRecord({ kind: "page", title: "Incoming", slug: "incoming", status: "draft",
     bodyFormat: "html", bodyHtml: "<main>Incoming</main>", bodyJson: { incoming: true },
-    ext: { source: { value: true } }, createdByPrincipalId: "source", createdAt: NOW });
+    ext: { source: { value: true } }, createdByPrincipalId: "source", createdByKind: "person", createdAt: NOW });
   const repo = new InMemoryPostRepo({}, { initialRows: [existing] });
   let hookCalls = 0;
   const result = await importPostEntity({ deps: { repo, clock, outbox: { ...noopOutbox }, beforeSaveHook: async (draft) => {
@@ -129,7 +129,7 @@ test("HTML replication filters incoming fields and records the imported body wit
     return { destination: { filtered: true } };
   } }, input: { workspaceId: WS, record: incoming, expectedVersion: 4, actorId: "operator" } });
   const expected = { ...incoming, version: 5, updatedAt: NOW, createdByPrincipalId: existing.createdByPrincipalId,
-    createdAt: existing.createdAt, ext: { ...incoming.ext, destination: { filtered: true } } };
+    createdByKind: existing.createdByKind, createdAt: existing.createdAt, ext: { ...incoming.ext, destination: { filtered: true } } };
   assert.equal(hookCalls, 1);
   assert.deepEqual(result.post, expected);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: existing.id });

@@ -153,6 +153,7 @@ test("post.pack() yields only kind:'post' rows, each hashed with contentHash({ e
       "bodyHtml",
       "bodyJson",
       "createdAt",
+      "createdByKind",
       "createdByPrincipalId",
       "kind",
       "memberAccessJson",

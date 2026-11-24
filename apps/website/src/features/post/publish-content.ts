@@ -1,5 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { nowIso as clockNowIso, resolveCreatorKind } from "@jini-ai/core/primitives";
 import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
@@ -111,6 +111,7 @@ const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provena
   // `EXCLUDED_KEYS` (which is why they can safely ride along in `state`): two instances that merely
   // disagree on a row's author or creation time must not read as a content edit.
   createdByPrincipalId: "provenance",
+  createdByKind: "provenance",
   createdAt: "provenance",
 
   // Identity and per-database write bookkeeping. Two instances holding the same logical content
@@ -231,6 +232,7 @@ function importedProvenanceFields(
   return {
     createdByPrincipalId: existing ? existing.createdByPrincipalId : (wire.createdByPrincipalId as string | null) ?? null,
     createdAt: existing ? existing.createdAt : (wire.createdAt as string | null) ?? null,
+    createdByKind: existing ? existing.createdByKind : resolveCreatorKind({ value: wire.createdByKind }),
   };
 }
 

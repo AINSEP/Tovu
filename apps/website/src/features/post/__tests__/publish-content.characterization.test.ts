@@ -100,6 +100,7 @@ test("pack(): pinned contentHash per post and page (untagged, tagged), schemaVer
     "overridesThemePage",
     "memberAccessJson",
     "createdByPrincipalId",
+    "createdByKind",
     "createdAt",
     "termIds",
   ]);
