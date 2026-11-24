@@ -2,7 +2,9 @@ import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/co
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ProjectStore } from "../project-store.js";
 import type { RouteDeps } from "../../../routes/types.js";
-import { describeSiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding, describeSiteBindingForDir } from "#src/platform/site-dir/index";
+import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteStore, SiteStoreRole } from "../open-site-store.js";
 import { bootProviderPlugins } from "../provider-plugins.js";
@@ -137,13 +139,18 @@ export function resolveThemesDirOverride(siteBinding: SiteBinding, overrides?: P
 }
 
 /**
- * `overrides.siteBinding ?? describeSiteBinding()`, hoisted for the same reason
+ * `overrides.siteBinding ?? <binding of dbPath's folder>`, hoisted for the same reason
  * {@link resolveThemesDirOverride} is: one `??` counted once here, not inline in the composition
  * root. See `CreateSiteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
  * path (`cli/commands/serve.ts`) must supply an explicit value rather than let this default apply.
  */
-export function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): SiteBinding {
-  return overrides?.siteBinding ?? describeSiteBinding();
+export function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>, { dbPath }: { dbPath?: string } = {}): SiteBinding {
+  if (overrides?.siteBinding) return overrides.siteBinding;
+  // A composition handed only a database path serves that database's own folder. Falling back to the
+  // process's site made a disposable test composition write themes, plugins and uploads into the
+  // real `sites/<name>` (A312). The process's own site still resolves to `describeSiteBinding()`.
+  if (dbPath === undefined || isInMemoryDbPath({ dbPath })) return describeSiteBinding();
+  return describeSiteBindingForDir({ dir: resolveSiteDirForDatabase({ dbPath }) });
 }
 
 /**

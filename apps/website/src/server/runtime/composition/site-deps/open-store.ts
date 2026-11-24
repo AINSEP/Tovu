@@ -26,7 +26,7 @@ function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage
   if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
   // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
   // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
-  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath({ siteName: resolveSiteBindingOverride(overrides).name }), dbPath });
+  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath({ siteName: resolveSiteBindingOverride(overrides, { dbPath }).name }), dbPath });
 }
 
 function prepareCompositionStorage({ dbPath, overrides }: {

@@ -16,6 +16,7 @@ import { type CreateSiteRouteDepsOverrides, resolveSiteBindingOverride, resolveT
 import type { StoreCloseRegistration } from "./open-store.js";
 
 interface ComposeAgentPluginBootstrapRequired {
+  dbPath: string;
   onStoreClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void;
   overrides: Partial<CreateSiteRouteDepsOverrides>;
   lifecycleTracker: () => Pick<RouteDeps['tracker'], 'capture'>;
@@ -23,7 +24,7 @@ interface ComposeAgentPluginBootstrapRequired {
 }
 
 export function composeAgentPluginBootstrap(required: ComposeAgentPluginBootstrapRequired, _optional = {}) {
-  const { onStoreClose, overrides, lifecycleTracker, routeDeps } = required;
+  const { dbPath, onStoreClose, overrides, lifecycleTracker, routeDeps } = required;
   const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
   onStoreClose({ registration: () => assistantAgentInventory.dispose({}) });
 
@@ -36,7 +37,7 @@ export function composeAgentPluginBootstrap(required: ComposeAgentPluginBootstra
   // The served site. Every `<site>/...` default below is rooted at its `dir`, never at `siteDir()`
   // (`TOVU_SITE_DIR` or `<cwd>/sites/<name>`), which only `tovu serve` pins to the same place — see
   // `resolveExportOutputRootDir`'s doc.
-  const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
+  const resolvedSiteBinding = resolveSiteBindingOverride(overrides, { dbPath });
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     bundledSourceRoot: bundledAgentPluginsDir(),
