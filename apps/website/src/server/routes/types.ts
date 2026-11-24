@@ -47,15 +47,9 @@ import type { SettingsRepoPort, getEffective, set } from "../../features/setting
 import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
-import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
-import type {
-  MagicLinkTokenRepoPort,
-  MemberRepoPort,
-  MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
-} from "../../features/members/index.js";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";

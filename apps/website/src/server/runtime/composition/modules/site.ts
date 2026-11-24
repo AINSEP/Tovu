@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
-import { buildSiteProfile, MAX_PAGE_ITEMS, SITE_PROFILE_SECTION_NAMES, toSiteProfileDeps, type SiteProfileSectionName } from "#src/features/site-inspection/index";
+import { toSiteProfileDeps, type SiteProfileSectionName } from "#src/features/site-inspection/index";
+import { buildSiteProfile, MAX_PAGE_ITEMS, SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { siteProfileRoute } from "@jini-ai/cms/admin-http/routes/site/profile";

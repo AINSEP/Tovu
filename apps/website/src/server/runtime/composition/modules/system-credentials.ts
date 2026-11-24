@@ -33,22 +33,9 @@ import {
   deleteCustomCredential,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
-import {
-  createAccountLabelHealScheduler,
-  createPublishCredential,
-  invalidatePublishCredentialCompatibility,
-  deletePublishCredential,
-  describeCredential as describePublishCredential,
-  healAccountLabel,
-  idsNeedingAccountLabelHeal,
-  PublishCredentialDuplicateLabelError,
-  PublishCredentialNotFoundError,
-  PublishCredentialSecretStoreUnconfiguredError,
-  PublishCredentialValidationError,
-  updatePublishCredential,
-  type PublishCredentialSummary,
-  type UpdatePublishCredentialInput,
-} from "#src/features/deployments/publish-credentials/index";
+import { createPublishCredential, invalidatePublishCredentialCompatibility, deletePublishCredential, describeCredential as describePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError, updatePublishCredential, type UpdatePublishCredentialInput } from "#src/features/deployments/publish-credentials/index";
+import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
+import { type PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import {
   canYieldAccountLabel,
   verifyPublishCredentialById,

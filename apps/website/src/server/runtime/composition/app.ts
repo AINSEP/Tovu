@@ -51,7 +51,7 @@ import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/ind
 import { InMemorySettingsRepo, set } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
-import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 /**
  * @file In-memory {@link ToolAttemptAuditSink} — the test double for the SQLite adapter, and the

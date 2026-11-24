@@ -4,8 +4,8 @@ import {
   consentDryRunRoute, consentPreviewRoute, consentPublishRoute, consentReadinessRoute, consentSettingsGetRoute,
   consentSettingsPutRoute, type ConsentRouteDeps,
 } from "@jini-ai/cms/admin-http/routes/consent/routes";
-import type { SiteConsentService } from "#src/features/consent/service";
-import { SiteConsentConflict } from "#src/features/consent/revisions";
+import type { SiteConsentService } from "@jini-ai/cookie-consent/site/service";
+import { SiteConsentConflict } from "@jini-ai/cookie-consent/site/revisions";
 import { consentRevisionToken, readConsentRequest } from "#src/features/consent/request";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";

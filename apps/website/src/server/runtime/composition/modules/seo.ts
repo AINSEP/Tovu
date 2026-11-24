@@ -8,7 +8,8 @@ import { seoGetSettingsRoute } from "@jini-ai/cms/admin-http/routes/seo/get-sett
 import { seoPostSitemapRegenerateRoute } from "@jini-ai/cms/admin-http/routes/seo/post-sitemap-regenerate";
 import { seoPutEntryRoute } from "@jini-ai/cms/admin-http/routes/seo/put-entry";
 import { seoPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/seo/put-settings";
-import { getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "#src/features/seo/index";
+import { getSeoSettings } from "#src/features/seo/index";
+import { setSeoSettings, type SeoSettingsPatch } from "@jini-ai/cms/seo/site/settings";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/sitemap";
 import { registerSeoRobotsRoute } from "#src/server/inbound/public-http/routes/site/robots";

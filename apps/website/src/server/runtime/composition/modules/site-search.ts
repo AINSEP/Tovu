@@ -11,7 +11,7 @@ import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
-import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";

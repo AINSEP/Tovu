@@ -1,7 +1,7 @@
 import { executeCommand } from "@jini-ai/cms/core";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
-import { evaluateLaunchGate } from "#src/features/newsletter/index";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";

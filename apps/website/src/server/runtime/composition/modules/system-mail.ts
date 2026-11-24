@@ -13,14 +13,16 @@ import {
   getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError,
   planMailSuppressionRemoval, readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
 } from "@jini-ai/platform/mail";
-import { mailDnsPorts, readMailDnsStatus, verifyMailDnsStatus, type DnsChangeToolDeps } from "#src/features/domain-dns/index";
+import { mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
+import { readMailDnsStatus, verifyMailDnsStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
+import { type DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-tool-registrations";
-import { mailDomainDepsFrom } from "#src/features/mail-status/domain-deps";
-import { readMailFeedbackSetup } from "#src/features/mail-status/feedback-setup";
-import { MAIL_STATUS_PERMISSION } from "#src/features/mail-status/permissions";
+import { mailDomainDepsFrom } from "@jini-ai/user-management/mail/status/domain-deps";
+import { readMailFeedbackSetup } from "@jini-ai/platform/mail/feedback-setup";
+import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 import { activateMailProvider, planMailProviderCredential, readMailProviderConfigurations } from "#src/features/mail-status/provider-operations";
-import { mailUseReadinessDepsFrom, readMailUseReadiness } from "#src/features/mail-status/use-readiness";
-import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "#src/features/mail-status/test-send";
+import { mailUseReadinessDepsFrom, readMailUseReadiness } from "@jini-ai/platform/mail/use-readiness";
+import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { isMailDeliveryAvailable } from "#src/platform/mail/index";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import {

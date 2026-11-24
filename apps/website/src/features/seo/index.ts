@@ -18,7 +18,7 @@ import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
-import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/index.js";
+import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
 import { createSettingsPrincipalLookup, ensureSettingDefinitions, set } from "../settings/index.js";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";

@@ -12,7 +12,7 @@ import { roleDeleteRoute } from "@jini-ai/user-management/admin-http/routes/user
 import { policyUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-policy";
 import { roleUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-role";
 import { policyPermissionWriteRoute } from "@jini-ai/user-management/admin-http/routes/users/write-policy-permission";
-import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
+import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "@jini-ai/user-management/identity/delete-user-service";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "#src/server/inbound/admin-http/routes/users/deps";
 

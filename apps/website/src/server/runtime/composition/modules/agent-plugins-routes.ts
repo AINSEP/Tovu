@@ -7,12 +7,13 @@ import {
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
+import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";

@@ -2,11 +2,11 @@ import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";
-import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
-import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
-  redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
+import { memberOidcContext, memberOidcCookie, memberOidcHeaders, redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 
 /** Plain-link entry point. Independent browser proof stays out of the authorization URL. A
  * refusal (cross-site, provider unavailable) sends the person back to /signin with its code.

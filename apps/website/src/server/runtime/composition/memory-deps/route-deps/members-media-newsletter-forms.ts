@@ -13,7 +13,7 @@ import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
-import { evaluateLaunchGate } from "#src/features/newsletter/index";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
