@@ -66,9 +66,9 @@ function FolderWindowNote({
   useTHook?: typeof useT; } = {}) {
   const t = useTHook();
   return (
-    <div className="tovu-folder-drop-notice tovu-folder-window-note" role="status">
-      <span className="tovu-folder-drop-notice__icon" aria-hidden="true"><Icon name="folder" size={14} /></span>
-      <span className="tovu-folder-drop-notice__label">{t("Folder window opened on the computer running Tovu")}</span>
+    <div className="jini-folder-drop-notice tovu-folder-window-note" role="status">
+      <span className="jini-folder-drop-notice__icon" aria-hidden="true"><Icon name="folder" size={14} /></span>
+      <span className="jini-folder-drop-notice__label">{t("Folder window opened on the computer running Tovu")}</span>
     </div>
   );
 }

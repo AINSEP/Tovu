@@ -1,6 +1,7 @@
-import { FolderDropConfirmation } from "./FolderDropConfirmation";
-import { FolderDropError } from "./FolderDropError";
-import { FolderDropPathHint } from "./FolderDropPathHint";
+import { useT } from "@jini-ai/chat/react";
+import { FolderDropConfirmation } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropConfirmation";
+import { FolderDropError } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropError";
+import { FolderDropPathHint } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint";
 import type { FolderDropNotice as FolderDropNoticeState } from "../../features/fs-files/hooks/use-folder-drop.hooks";
 
 /**
@@ -23,7 +24,7 @@ export interface FolderDropNoticeProps {
 
 export function FolderDropNotice({ notice, onDismiss, onRetry, canPickFolder = false }: FolderDropNoticeProps) {
   if (notice === null) return null;
-  if (notice.kind === "path-unavailable") return <FolderDropPathHint onDismiss={onDismiss} canPickFolder={canPickFolder} />;
+  if (notice.kind === "path-unavailable") return <FolderDropPathHint onDismiss={onDismiss} canPickFolder={canPickFolder} useTHook={useT} />;
   if (notice.kind === "confirmation") {
     return (
       <FolderDropConfirmation
@@ -31,8 +32,9 @@ export function FolderDropNotice({ notice, onDismiss, onRetry, canPickFolder = f
         paths={notice.paths}
         replacedPreviousPath={notice.replacedPreviousPath}
         onDismiss={onDismiss}
+        useTHook={useT}
       />
     );
   }
-  return <FolderDropError path={notice.path} reason={notice.reason} onRetry={onRetry} onDismiss={onDismiss} />;
+  return <FolderDropError path={notice.path} reason={notice.reason} onRetry={onRetry} onDismiss={onDismiss} useTHook={useT} />;
 }

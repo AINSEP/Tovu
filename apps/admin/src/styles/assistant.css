@@ -989,7 +989,7 @@ button.jini-composer-leading,
   padding: 0;
 }
 
-.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-composer-folder-path {
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .jini-composer-folder-path {
   margin-left: -2px;
 }
 
@@ -1171,7 +1171,7 @@ button.jini-composer-leading,
  * the fragment that keeps the host flex selector reaching ChatPane's root. Keep a consistent
  * row/pill/token shape for the folder controls in the composer.
  */
-.tovu-folder-drop-notice {
+.jini-folder-drop-notice {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1184,32 +1184,32 @@ button.jini-composer-leading,
 /* "Folder window opened on the computer running Tovu" (DockLeadingAccessory, browser tab only): a
    one-line status, so no padding or seam of its own — the composer's leading zone already draws both
    (checked in Chrome 11-01: the notice's own 6px 16px 10px + border read as a doubled rule). */
-.tovu-folder-drop-notice.tovu-folder-window-note {
+.jini-folder-drop-notice.tovu-folder-window-note {
   padding: 0;
   border-bottom: 0;
   color: var(--jini-chat-muted);
 }
 
-.tovu-folder-drop-notice--error {
+.jini-folder-drop-notice--error {
   color: var(--danger);
 }
 
-.tovu-folder-drop-notice__icon {
+.jini-folder-drop-notice__icon {
   display: inline-flex;
   color: var(--faint);
 }
 
-.tovu-folder-drop-notice--error .tovu-folder-drop-notice__icon {
+.jini-folder-drop-notice--error .jini-folder-drop-notice__icon {
   color: var(--danger);
 }
 
-.tovu-folder-drop-notice__label {
+.jini-folder-drop-notice__label {
   flex: 1;
   min-width: 140px;
   overflow-wrap: anywhere;
 }
 
-.tovu-folder-drop-notice__action {
+.jini-folder-drop-notice__action {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1222,7 +1222,7 @@ button.jini-composer-leading,
   cursor: pointer;
 }
 
-.tovu-folder-drop-notice__dismiss {
+.jini-folder-drop-notice__dismiss {
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;

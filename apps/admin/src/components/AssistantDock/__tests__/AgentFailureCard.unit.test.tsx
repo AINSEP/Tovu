@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
+import { JiniChatProvider, MessageRow, registerExtEventRenderer, useT, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "../AgentFailureCard";
@@ -9,9 +9,10 @@ import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useA
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "../agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
-import { FolderDropConfirmation } from "../FolderDropConfirmation";
-import { FolderDropError } from "../FolderDropError";
-import { FolderDropPathHint } from "../FolderDropPathHint";
+import { FolderDropConfirmation } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropConfirmation";
+import { FolderDropError } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropError";
+import { FolderDropPathHint } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint";
+import { render as renderWithKits } from "@/__tests__/render-with-jini-kits";
 import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
@@ -222,10 +223,10 @@ it.each([
   const onDismiss = vi.fn();
   const onRetry = vi.fn();
   const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-  render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
-    <FolderDropConfirmation path="/work" onDismiss={onDismiss} />
-    <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} />
-    <FolderDropPathHint onDismiss={onDismiss} />
+  renderWithKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+    <FolderDropConfirmation path="/work" onDismiss={onDismiss} useTHook={useT} />
+    <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} useTHook={useT} />
+    <FolderDropPathHint onDismiss={onDismiss} useTHook={useT} />
     <SlowRunNoticeCard name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
   </JiniChatProvider>);
   expect(screen.getByText(copy.confirmation)).toBeInTheDocument();
