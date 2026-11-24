@@ -2411,17 +2411,6 @@
         ]
       },
       {
-        "path": "apps/website/src/features/recovery/agent-tools.ts",
-        "ids": [
-          "content_read.backup_restore_point",
-          "content_read.database_restore_point",
-          "source_control_get_capabilities",
-          "site_backup_plan",
-          "site_backup_push",
-          "backup_plan_restore"
-        ]
-      },
-      {
         "path": "apps/website/src/features/recovery/capability-card.ts",
         "ids": [
           "source_control_get_capabilities",
