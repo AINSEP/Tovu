@@ -17,7 +17,7 @@ import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeRe
 import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
-import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
 /**

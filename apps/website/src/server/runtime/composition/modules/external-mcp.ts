@@ -14,7 +14,7 @@ import {
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { describeExternalMcpOwnership, isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
-import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import { ExternalMcpReauthRequiredError } from "#src/features/external-mcp/external-mcp-oauth";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { deleteExternalMcpServer, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";

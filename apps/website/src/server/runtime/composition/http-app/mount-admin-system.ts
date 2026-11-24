@@ -35,7 +35,8 @@ import { registerAdminDeploymentOverviewRoute, registerAdminExportSiteRoutes, re
 import { registerAdminSitesRoutes } from "../modules/sites.js";
 import { registerAdminSiteProfileRoute } from "../modules/site.js";
 import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
-import { registerAdminCustomCredentialsRoutes, registerAdminPublishCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
+import { registerAdminCustomCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
+import { registerAdminPublishCredentialsRoutes } from "../../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminCredentialCopyRoutes } from "../../../inbound/admin-http/routes/system/credential-copy.js";
 import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/system/site-key.js";
 import { siteKeyRecovery } from "../site-key-recovery.js";
