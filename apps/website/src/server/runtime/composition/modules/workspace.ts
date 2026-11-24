@@ -3,7 +3,7 @@ import { workspaceDeleteRoute } from "@jini-ai/cms/admin-http/routes/workspace/d
 import { workspaceGetRoute } from "@jini-ai/cms/admin-http/routes/workspace/get";
 import { workspaceListRoute } from "@jini-ai/cms/admin-http/routes/workspace/list";
 import { workspaceUpdateRoute } from "@jini-ai/cms/admin-http/routes/workspace/update";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { Express } from "express";
 
 import type { RouteDeps } from "#src/server/routes/types";

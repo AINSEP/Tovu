@@ -1,3 +1,4 @@
+import type { ExportReport } from "@tovu/contracts/export-report";
 import { createExportPreflight } from "./export-preflight.js";
 import type { SiteCookieConsentDeps } from "@jini-ai/core/contracts/headless/site-cookie-consent";
 import type { RequestListener } from "node:http";

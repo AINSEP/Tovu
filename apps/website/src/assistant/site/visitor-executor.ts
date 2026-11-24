@@ -9,7 +9,8 @@ import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-t
 import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS_PER_TURN } from "../../contracts/site-assistant/visitor-tools.js";
 import type { VisitorToolPolicy, VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
-import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
+import type { VisitorConfirmations } from "./visitor-confirmations.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 
 
 import type { ClientDirective } from "@jini-ai/core/contracts/site/client-directives";

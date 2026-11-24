@@ -20,7 +20,7 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
  */
 const envelope = createPluginHookErrorEnvelope<PluginHookFailedError>({
   isPluginHookFailure: (err): err is PluginHookFailedError => err instanceof PluginHookFailedError,
-  refusalText: pluginHookRefusalText,
+  refusalText: (err) => pluginHookRefusalText({ err }),
   redact: (text) => redactSecretShapes({ text }).text,
   warn: (message) => consoleLogger.warn({ message }),
 });

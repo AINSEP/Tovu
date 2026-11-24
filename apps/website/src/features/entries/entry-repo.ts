@@ -1,6 +1,6 @@
 import { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
-import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import { ENTRY_TABLES } from "../../platform/db/content-tables.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -21,6 +21,6 @@ export function entryRepoFor({ store }: { store: ContentKernel | ContentDb }, _o
       scalarEquals: ({ column, path, value }) => jsonScalarEquals({ dialect: kernel.dialect, column, path, value }),
       sortKey: ({ column, path }) => jsonSortKey({ dialect: kernel.dialect, column, path }),
     },
-    onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo }),
+    onWriteSettled: ({ repo }) => mediaAccessEvidence.invalidate({ owner: repo }),
   }, {});
 }

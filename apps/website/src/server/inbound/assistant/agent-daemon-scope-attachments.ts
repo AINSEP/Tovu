@@ -5,7 +5,7 @@ import type { Principal } from "@jini-ai/core";
 import { prepareMessageAttachments as realPrepareMessageAttachments, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, stageAttachmentClaim as realStageAttachmentClaim, attachmentUploadRoutes, attachmentCleanupRoutes, type AttachmentsHttpDeps, type RunMessageRequest, type RunStartHandler, type StoredAttachment } from "@jini-ai/daemon/http";
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
-import { sniffContentType as realSniffContentType } from "@jini-ai/cms/media";
+import { sniffContentType as realSniffContentType, MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 import { registerDaemonAttachmentLookup, RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { mountJiniRoutes, type daemonRouteHost } from "../../runtime/composition/jini-routes.js";

@@ -3,7 +3,7 @@ import type { ConfirmationDeps } from "./confirmation.js";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
-import { processOutbox } from "../../contracts/core/events/index.js";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import type { SubscriptionsDeps } from "./subscriptions.js";
 import type { NewsletterToolDeps } from "./tool-registrations.js";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
