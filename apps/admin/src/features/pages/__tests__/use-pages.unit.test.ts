@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { settingsApi } from "@/lib/admin-http/settings-api";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
-import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
+import { usePages } from "@jini-ai/admin/pages/hooks/use-pages.hooks";
+import { pagesEvents, useWiredPages } from "../hooks/use-pages.hooks";
 import { PAGES_RESOURCE, pageAdminPath } from "../rules";
 
 /**
@@ -343,7 +344,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
   it("an unrelated publish toggle settling does not unlock a different row's in-flight Delete confirm", async () => {
     const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
     const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     let resolveToggle!: (v: { post: typeof PAGE }) => void;
@@ -388,7 +389,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
   it("a Delete settling first does not unlock a different row's in-flight publish toggle", async () => {
     const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
     const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     let resolveDelete!: (v: { post: typeof PAGE }) => void;
@@ -429,7 +430,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const reads: Array<(value: { posts: Array<{ post: typeof PAGE }> }) => void> = [];
     port.listPages = () => new Promise(resolve => { reads.push(resolve); });
-    const { result, unmount } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    const { result, unmount } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en", events: pagesEvents, pageAdminPath }));
     expect(result.current.pages).toBeNull();
     if (action === "toggle") {
       await act(async () => result.current.togglePagePublish(PAGE));
@@ -451,7 +452,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("retains unrelated pages when deleting a row", async () => {
     const other = { ...PAGE, id: "other", title: "Keep" };
     const port = createFakePagesPort({ pages: [PAGE, other] });
-    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE, other]));
     act(() => result.current.setPendingDelete(PAGE));
     await act(async () => result.current.removePage());
@@ -461,7 +462,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("reports an Error from deletion and retains the row", async () => {
     const port = createFakePagesPort({ pages: [PAGE], deleteError: new Error("Deletion denied") });
-    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
     act(() => result.current.setPendingDelete(PAGE));
     await act(async () => result.current.removePage());
@@ -476,7 +477,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     try {
       const port = createFakePagesPort({ pages: [PAGE] });
       const navigate = vi.fn();
-      const { result } = renderHook(() => usePages({ port, navigate, t: (k) => k, locale: "en" }));
+      const { result } = renderHook(() => usePages({ port, navigate, t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
       await waitFor(() => expect(result.current.pages).not.toBeNull());
       expect(result.current.pages).toEqual([PAGE]);
 
@@ -496,7 +497,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("togglePagePublish patches the page through the injected port", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     await act(async () => {
@@ -511,7 +512,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
    *  `use-posts.unit.test.ts`'s identical test. */
   it("togglePagePublish rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     port.simulateConcurrentSave({ id: PAGE.id }, { title: "Their edit" });
@@ -527,7 +528,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("removePage deletes the pending page through the injected port", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     act(() => result.current.setPendingDelete(PAGE));
@@ -541,7 +542,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("sets the fallback error when the injected port's create call rejects", async () => {
     const port = createFakePagesPort({ pages: [], createError: new Error("quota exceeded") });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     await act(async () => {
@@ -570,7 +571,7 @@ describe("usePages — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-written page appears without a reload", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
 
     // The assistant's tool call landing server-side. The screen has no way to know it happened.
@@ -585,7 +586,7 @@ describe("usePages — content refresh bus", () => {
   it("refreshes on a notification that names pages, and ignores one that names only other resources", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const listSpy = vi.spyOn(port, "listPages");
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
 
     port.pages.push(NEW_PAGE);
@@ -604,7 +605,7 @@ describe("usePages — content refresh bus", () => {
 
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
 
     // Two assistant writes land back to back, each publishing its own content-refresh
@@ -639,7 +640,7 @@ describe("usePages — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const listSpy = vi.spyOn(port, "listPages");
-    const { result, unmount } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    const { result, unmount } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en", events: pagesEvents, pageAdminPath }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
 
     const callsWhileMounted = listSpy.mock.calls.length;

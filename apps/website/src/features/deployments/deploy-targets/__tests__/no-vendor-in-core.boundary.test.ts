@@ -195,7 +195,7 @@ test("outside-scan release infrastructure is documented and never treated as a s
 });
 
 test("tool search metadata has no hosting product names; plugin manifests own vendor search words", async () => {
-  const { toolMetadata } = await import("#src/contracts/core/tool-metadata/deployments");
+  const { toolMetadata } = await import("@jini-ai/core/tool-metadata/deployments");
   const text = JSON.stringify(Object.values(toolMetadata).map(entry => entry.search ?? {}));
   assert.deepEqual(count(text), {});
   assert.doesNotMatch(text, /\bworkers\b/i);

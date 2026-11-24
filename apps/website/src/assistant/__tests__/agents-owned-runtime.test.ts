@@ -1,7 +1,8 @@
 /** Tovu's host projection composes real Jini state with fake detection effects. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AGENT_DEFS, createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { modelReasoningOptions } from "@jini-ai/agent-runtime/model-selection";
 import { createAssistantAgentInventory, type AssistantAgentDefs } from "../agents.js";
 

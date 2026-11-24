@@ -2,7 +2,8 @@ import { useState } from "react";
 import { McpUiSurfaceCard, useT, type McpUiSurfaceCardProps } from "@jini-ai/chat/react";
 
 import { useOverflowDetection } from "@jini-ai/admin/shell/components/AssistantDock/hooks/useOverflowDetection.hooks";
-import { MessageOverflowModal } from "./MessageOverflowModal";
+import { MessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal";
+import { useMessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 
 /**
  * @file The "Show in modal" affordance for MCP-UI surfaces (owner request, chat-overflow fix
@@ -65,7 +66,7 @@ export function OverflowAwareMcpUiSurfaceCard({
           {t("Show in modal")}
         </button>
       ) : null}
-      <MessageOverflowModal open={expanded} title={t("Show in modal")} onClose={() => setExpanded(false)}>
+      <MessageOverflowModal useModal={useMessageOverflowModal} useTHook={useTHook} open={expanded} title={t("Show in modal")} onClose={() => setExpanded(false)}>
         {expanded ? <McpUiSurfaceCard {...surfaceProps} /> : null}
       </MessageOverflowModal>
     </div>

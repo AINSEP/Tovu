@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyDeleteRoute } from "../delete-policy.js";
+import { registerAdminPolicyDeleteRoute } from "#src/server/runtime/composition/modules/users-access";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { attachPolicy, createPolicy, createUser } from "@jini-ai/user-management/server";
 

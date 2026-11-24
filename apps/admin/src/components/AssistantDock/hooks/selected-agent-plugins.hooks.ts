@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { type ComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
-import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
+import { type ComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
+import type { SelectedAgentPluginChip } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 
 export interface UseSelectedAgentPlugins {
   /** Every currently-pinned Agent Plugin ref, in pin order — see {@link addPluginRef}. */

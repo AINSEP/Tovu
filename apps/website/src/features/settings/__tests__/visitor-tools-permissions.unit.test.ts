@@ -6,7 +6,7 @@ import {
   InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo,
   authorize, createTransactionalInMemoryIdentityRepos, seedIdentity,
 } from "@jini-ai/user-management/server";
-import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { registerVisitorToolsPermissionGrants } from "../visitor-tools-permissions.js";
 

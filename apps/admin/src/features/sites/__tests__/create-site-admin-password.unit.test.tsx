@@ -3,13 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
-import { AllSitesTab } from "../AllSitesTab";
+import { AllSitesTab } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
-import type { SitesPort } from "../hooks/sites-port.hooks";
+import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 
 const DEFAULT_LOGIN = "Admin login: admin / the default password — change it later under Users";
 const CUSTOM_LOGIN = "Admin login: admin / the one you set — change it later under Users";

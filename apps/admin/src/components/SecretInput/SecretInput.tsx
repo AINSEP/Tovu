@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 import { SecretInput as JiniSecretInput } from "@jini-ai/ui";
 import type { SecretInputProps as JiniSecretInputProps } from "@jini-ai/ui";
 
-import { t } from "../shared-components-i18n";
+import { t } from "@jini-ai/admin/shell/components/shared-components-i18n";
 
 import { interpolate } from '@jini-ai/core/text';
 /**

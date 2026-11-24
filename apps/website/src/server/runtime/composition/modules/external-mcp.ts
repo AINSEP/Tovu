@@ -14,11 +14,10 @@ import {
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { describeExternalMcpOwnership, isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
-import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import { ExternalMcpReauthRequiredError } from "#src/features/external-mcp/external-mcp-oauth";
-import {
-  deleteExternalMcpServer, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, listExternalMcpServerViews, saveExternalMcpServer,
-} from "#src/features/external-mcp/external-mcp-store";
+import { deleteExternalMcpServer, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
+import { listExternalMcpServerViews, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ExternalMcpRouteDeps, ExternalMcpRouteRegistrar } from "#src/server/inbound/admin-http/routes/external-mcp/deps";
 import {

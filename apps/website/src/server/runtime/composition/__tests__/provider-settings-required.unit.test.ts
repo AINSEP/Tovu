@@ -3,7 +3,7 @@ import test from "node:test";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
-import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
+import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { providerInputOf } from "../provider-plugins.js";
 import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
 

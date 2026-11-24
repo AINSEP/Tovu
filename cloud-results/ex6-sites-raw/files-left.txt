@@ -1,0 +1,4 @@
+base 009dda7d1:
+moving 2401 ready 489 blocked 1912 keep 372 steps 89 batches 35 unbatched 0
+tip:
+moving 2379 ready 489 blocked 1890 keep 369 steps 90 batches 35 unbatched 0

@@ -1,10 +1,10 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSchemaState } from "@/features/database/api/database-api.types";
-import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
-import { createFakeSchemaStateSectionPort, defaultSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
+import type { AdminSchemaState } from "@jini-ai/admin/core";
+import { useSchemaStateSection } from "@jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks";
+import { SCHEMA_STATE_SECTION_HOST, createFakeSchemaStateSectionPort, defaultSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 
 /**
  * @file `useSchemaStateSection` — the Database screen's drift check.
@@ -42,7 +42,7 @@ describe("useSchemaStateSection", () => {
 
   it("stays silent once a clean in-sync read lands", async () => {
     const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.settled).toBe(true));
     expect(result.current.warning).toBeNull();
@@ -52,7 +52,7 @@ describe("useSchemaStateSection", () => {
     const port = createFakeSchemaStateSectionPort({
       state: { status: "diverged", siteMeta: { version: 7, tag: "site" }, runtime: { version: 7, tag: "runtime" } },
     });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.warning).not.toBeNull());
     expect(result.current.warning?.tone).toBe("error");
@@ -61,7 +61,7 @@ describe("useSchemaStateSection", () => {
 
   it("claims nothing while the first read is still in flight", () => {
     const port = createFakeSchemaStateSectionPort({ state: { status: "diverged", siteMeta: null, runtime: null } });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     expect(result.current.warning).toBeNull();
     expect(result.current.settled).toBe(false);
@@ -69,7 +69,7 @@ describe("useSchemaStateSection", () => {
 
   it("warns that the check could not be completed when the port rejects, rather than rendering nothing", async () => {
     const port = createFakeSchemaStateSectionPort({ error: new Error("connection refused") });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.warning).not.toBeNull());
     expect(result.current.warning?.title).toBe("We could not check your database");
@@ -80,7 +80,7 @@ describe("useSchemaStateSection", () => {
 
   it("exposes a bound translator so the component never resolves a locale itself", async () => {
     const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.settled).toBe(true));
     expect(result.current.t("Database")).toBe("Database");
@@ -95,7 +95,7 @@ describe("useSchemaStateSection", () => {
       return Promise.reject(new Error(`Unexpected test request: ${url}`));
     }));
     const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
-    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+    const { result } = renderHook(() => useSchemaStateSection({ port, host: SCHEMA_STATE_SECTION_HOST }), { wrapper });
 
     await waitFor(() => expect(result.current.t("Your database is out of date")).toBe("Tu base de datos está desactualizada"));
     expect(result.current.settled).toBe(true);

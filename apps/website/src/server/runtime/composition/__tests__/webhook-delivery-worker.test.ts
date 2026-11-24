@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { RecordingHttpClient } from "#src/features/webhooks/http.memory";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
@@ -237,7 +238,7 @@ test("webhookEnvelopeStoreFor: a co-persisting repo is its own store; any other 
 async function servingRig() {
   const nowIso = "2026-10-21T00:00:00.000Z";
   const clock = { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso };
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   await webhookSubscriptionRepo.save({
     id: "sub-1", workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: "Endpoint",

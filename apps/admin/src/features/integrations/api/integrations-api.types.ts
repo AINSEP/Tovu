@@ -1,5 +1,5 @@
 import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
-import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { AdminPluginFiles } from "../../plugins/api/plugins-api.types";
 
 /**

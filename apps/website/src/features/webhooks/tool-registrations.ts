@@ -23,7 +23,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/webhooks.js";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * The exact slice of the route-deps bag Integrations' tool handlers read. Declared structurally

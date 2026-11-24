@@ -5,12 +5,12 @@ import { test } from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { resolveMemberSession } from "#src/features/members/access-resolver";
-import type { MagicLinkTokenRepoPort, MemberSessionRepoPort, MembersWriteServiceDeps } from "#src/features/members/ports";
-import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
-import { MemberAuthError, type MemberSessionRecord } from "#src/features/members/types";
-import { consumeMemberChallenge } from "#src/features/members/member-challenge";
-import { issueMemberSession } from "#src/features/members/member-credentials";
+import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
+import type { MagicLinkTokenRepoPort, MemberSessionRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { MemberAuthError, type MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { consumeMemberChallenge } from "@jini-ai/user-management/members/member-challenge";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 
 /**
  * @file P5a + P5b (S0): the member bearer digest has two producers that must agree byte for byte: the

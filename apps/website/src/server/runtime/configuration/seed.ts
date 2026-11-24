@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { DEFAULT_THEME_ID } from "#src/features/theme/index";
-import type { WorkspaceRecord } from "#src/features/workspace/index";
+import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 
 /**
  * @file First-run seed content.

@@ -13,14 +13,14 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "./errors.js";
+} from "@jini-ai/user-management/newsletter/errors";
 import type {
   MembersConsentCapability,
   NewsletterListRepoPort,
   NewsletterSubscriptionRepoPort,
   SubscriberDirectoryPort,
-} from "./ports.js";
-import type { SubscriptionRow } from "./types.js";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const IMPORT_BATCH_MAX = 500;
 

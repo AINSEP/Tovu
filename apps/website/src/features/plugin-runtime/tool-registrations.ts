@@ -8,13 +8,12 @@ import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from '@jini-ai/core/c
 import type { RememberedApprovalPort, ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/core/contracts/site/plugins-host';
-import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugins/host/node';
+import type { PluginDiscoveryRecord, PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginProviderFacesPort } from './service-ports.js';
 import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';
 import { bindPluginApprovalIdentity, bindPluginManagementTools } from './host-tool-binding.js';
-import type { PluginFamily } from './agent-tools.js';
+import type { PluginFamily } from '@jini-ai/plugins/runtime/agent-tools';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
-export { describeEnableApproval, type EnableConfirmationSubject } from './enable-confirmation-ui.js';
 
 
 /** Host dependency slice kept structural so tool wiring does not import the server RouteDeps composition root. */

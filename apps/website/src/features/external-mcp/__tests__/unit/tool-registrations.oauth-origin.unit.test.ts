@@ -6,7 +6,8 @@ import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";

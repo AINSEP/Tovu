@@ -1,6 +1,5 @@
-import type { ExternalMcpRevocationReason } from "./contracts.js";
+import type { ExternalMcpRevocationReason } from "@jini-ai/core/contracts/hosted-mcp";
 import { ExternalMcpConnectionRevokedError as HostedExternalMcpConnectionRevokedError, type ExternalMcpRevocationMessageInput } from "@jini-ai/mcp/federation/hosted";
-export { rosterRefusalFor } from "@jini-ai/mcp/federation/hosted";
 
 // The revocation decision and error class moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1b, source
 // blob 8b806a7b). The model-facing text below is Tovu's host input and stays here, bound once.

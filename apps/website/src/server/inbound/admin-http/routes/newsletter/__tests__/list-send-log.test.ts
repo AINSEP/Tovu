@@ -11,9 +11,9 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminNewsletterListSendLogRoute } from "../list-send-log.js";
+import { registerAdminNewsletterListSendLogRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { CampaignRecord } from "#src/features/newsletter/types";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 /**
  * @file `LIST_SEND_LOG` (api.spec.md §1) branch coverage. `newsletter-routes.test.ts` only

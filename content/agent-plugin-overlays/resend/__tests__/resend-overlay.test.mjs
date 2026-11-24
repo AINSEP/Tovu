@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-import { mailWebhookSecretLabels } from '../../../../apps/website/src/features/mail/feedback-sources.ts';
+import { mailWebhookSecretLabels } from '../../../../apps/website/src/features/mail/index.ts';
 import { MAIL_FEEDBACK_PATH } from '../../../../apps/website/src/server/inbound/public-http/routes/mail-feedback.ts';
 
 /**

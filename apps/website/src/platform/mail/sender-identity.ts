@@ -1,10 +1,6 @@
-import {
-  createMailSenderIdentityResolver as createJiniMailSenderIdentityResolver,
-  SenderIdentityNotConfiguredError as JiniSenderIdentityNotConfiguredError,
-  type CreateMailSenderIdentityResolverOptional as JiniResolverOptional,
-  type MailSenderIdentityPort,
-} from "@jini-ai/platform/mail";
-import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import { createMailSenderIdentityResolver as createJiniMailSenderIdentityResolver, SenderIdentityNotConfiguredError as JiniSenderIdentityNotConfiguredError, type CreateMailSenderIdentityResolverOptional as JiniResolverOptional } from "@jini-ai/platform/mail";
+import type { MailSenderIdentityPort } from "@jini-ai/core/contracts/site/platform-mail";
+import type { PositionalMailer as MailerPort } from "@jini-ai/core/contracts/mail";
 
 /**
  * @file Tovu's binding of the one place a system email's `From` is decided (members sign-in links,
@@ -12,8 +8,6 @@ import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
  * rationale: Jini/packages/platform/src/mail/sender-identity.ts. Tovu supplies the active mailer's
  * driver, the `core.mail.*` settings read, the boot-time settle and the refusal copy below.
  */
-
-export type { ConfiguredMailSender, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 
 /** Thrown when a delivering mailer is active but the site has no sender address configured. */
 export class SenderIdentityNotConfiguredError extends JiniSenderIdentityNotConfiguredError {

@@ -8,8 +8,9 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 
-import { createSourceControlProviderKit } from "../provider-kit.js";
-import type { SourceControlProviderKit, SourceControlProviderOperations } from "../provider-module.js";
+import { createSourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-kit";
+import { sourceControlKitHost } from "../provider-kit-host.js";
+import type { SourceControlProviderKit, SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import { buildSourceControlProvider, buildSourceControlProviderForApi, type SourceControlProviderRegistry } from "../provider-registry.js";
 
 /**
@@ -25,7 +26,7 @@ test("the provider kit retains the guarded host HTTP request contract", async ()
   const request = { method: "GET" as const, url: "https://api.github.com/user", headers: {}, idleTimeoutMs: 1000 };
   const response = { status: 200, headers: {}, bodyText: "{}" };
   const client: HttpClientPort = { send: async actual => { assert.equal(actual, request); return response; } };
-  const kit = createSourceControlProviderKit({ httpClient: client });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() }, { httpClient: client });
   assert.equal(kit.httpClient, client);
   assert.equal(await kit.httpClient.send(request), response);
 });
@@ -44,7 +45,7 @@ function capturingRegistry(): { registry: SourceControlProviderRegistry; kit: ()
 
 test("kit.fetch is one CLIENT span with the status and no path, query or token", async () => {
   const { exporter, port } = createInMemoryOtel();
-  const kit = createSourceControlProviderKit({ observability: port, fetchFn: async () => new Response("{}", { status: 200 }) });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost({ observability: port }) }, { fetchFn: async () => new Response("{}", { status: 200 }) });
   await kit.fetch(`https://api.github.com/repos/acme/site/git/refs?access_token=${TOKEN}`, { method: "GET", headers: { authorization: `token ${TOKEN}` } });
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.name, "GET api.github.com");
@@ -55,7 +56,7 @@ test("kit.fetch is one CLIENT span with the status and no path, query or token",
 
 test("a rejected kit.fetch is an ERROR span with the error type only", async () => {
   const { exporter, port } = createInMemoryOtel();
-  const kit = createSourceControlProviderKit({ observability: port, fetchFn: async () => { throw Object.assign(new Error(`getaddrinfo failed ${TOKEN}`), { code: "ENOTFOUND" }); } });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost({ observability: port }) }, { fetchFn: async () => { throw Object.assign(new Error(`getaddrinfo failed ${TOKEN}`), { code: "ENOTFOUND" }); } });
   await assert.rejects(kit.fetch("https://api.github.com/user", { method: "GET" }), /getaddrinfo/);
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.status.code, SpanStatusCode.ERROR);
@@ -86,19 +87,19 @@ test("buildSourceControlProvider and buildSourceControlProviderForApi hand the p
 
 test("without a port the kit sends through fetchFn unwrapped", async () => {
   const { exporter } = createInMemoryOtel();
-  const kit = createSourceControlProviderKit({ fetchFn: async () => new Response(null, { status: 204 }) });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() }, { fetchFn: async () => new Response(null, { status: 204 }) });
   assert.equal((await kit.fetch("https://api.github.com/", {})).status, 204);
   assert.equal(exporter.getFinishedSpans().length, 0);
 });
 
 test("a kit built with no options refuses outbound HTTP-client calls instead of sending them", async () => {
-  const kit = createSourceControlProviderKit();
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() });
   const request = { method: "GET" as const, url: "https://api.github.com/user", headers: {}, idleTimeoutMs: 1000 };
   await assert.rejects(() => kit.httpClient.send(request), { message: "no outbound HTTP client is wired for this call" });
 });
 
 test("describeTransportError relays an egress refusal's caller-safe message and keeps the resolved address for the log only", () => {
-  const kit = createSourceControlProviderKit({ httpClient });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() }, { httpClient });
   const refusal = new EgressRefusedError(
     { message: "host 'meta.internal' resolved to 169.254.169.254 (link-local)" },
     { callerSafeMessage: "host 'meta.internal' resolves to a non-public address" },
@@ -113,7 +114,7 @@ test("describeTransportError relays an egress refusal's caller-safe message and 
 });
 
 test("the default sleep waits on the real timer", async () => {
-  const kit = createSourceControlProviderKit();
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() });
   assert.ok(kit.sleep, "the kit always provides a sleep");
   const started = Date.now();
   await kit.sleep(5);
@@ -122,7 +123,7 @@ test("the default sleep waits on the real timer", async () => {
 
 test("an injected sleep is used as-is", async () => {
   const waits: number[] = [];
-  const kit = createSourceControlProviderKit({ sleep: async ms => { waits.push(ms); } });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() }, { sleep: async ms => { waits.push(ms); } });
   assert.ok(kit.sleep, "the kit always provides a sleep");
   await kit.sleep(250);
   assert.deepEqual(waits, [250]);

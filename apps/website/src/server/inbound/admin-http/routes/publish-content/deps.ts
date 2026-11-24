@@ -10,7 +10,7 @@ import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publi
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.1/§4 task 4.
  *
  * Narrow `RouteDeps` slice for the `publish-content` server module, mirroring
- * `routes/content/deps.ts`'s `ContentRouteDeps` (SPEC-038's established pattern): a genuine
+ * `runtime/composition/modules/content.ts`'s `ContentRouteDeps` (SPEC-038's established pattern): a genuine
  * narrowing to the fields the export route actually reads, not a widening of `RouteDeps`.
  *
  * - `workspaceId`/`authorize`/`clock`/`idGen`: the mount-path 404 guard, the `publish_content.read`

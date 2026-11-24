@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import type { PermissionGrantRegistry } from "../permission-grants.js";
-import { registerUserManagePermissionGrants } from "../user-manage-permission.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
+import { registerUserManagePermissionGrants } from "@jini-ai/user-management/identity/user-manage-permission";
 
 /**
  * @file Owner decision 2026-10-07: built-in admins get `user.manage` (L7 Stryker: removing the grant

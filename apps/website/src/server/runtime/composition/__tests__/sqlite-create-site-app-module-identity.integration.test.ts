@@ -20,7 +20,7 @@ import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 

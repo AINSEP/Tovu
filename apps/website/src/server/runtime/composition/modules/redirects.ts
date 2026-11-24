@@ -1,12 +1,12 @@
 import type { Express } from "express";
 
+import { redirectCreateRoute } from "@jini-ai/cms/admin-http/routes/redirects/create";
 import { redirectGetRoute } from "@jini-ai/cms/admin-http/routes/redirects/get-by-id";
 import { redirectHitsRoute } from "@jini-ai/cms/admin-http/routes/redirects/hits";
 import { redirectImportRoute } from "@jini-ai/cms/admin-http/routes/redirects/import";
 import { redirectListRoute } from "@jini-ai/cms/admin-http/routes/redirects/list";
 import { redirectTombstoneRoute } from "@jini-ai/cms/admin-http/routes/redirects/tombstone";
 import { redirectUpdateRoute } from "@jini-ai/cms/admin-http/routes/redirects/update";
-import { registerAdminRedirectCreateRoute } from "#src/server/inbound/admin-http/routes/redirects/create";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -17,8 +17,8 @@ import type { ServerModuleHandle } from "./types.js";
  *
  * Owns all 7 registrations (list, get-by-id, create, update, tombstone, import, hits) — moved
  * here verbatim from `app.ts`'s `createApp()`, same registrar function bodies, no behavior
- * change, same relative order. Six of them are Jini route specs (`@jini-ai/cms/admin-http/routes/
- * redirects/*`) mounted behind the admin ports; `create` is still a hand-written Express route.
+ * change, same relative order. All seven are Jini route specs (`@jini-ai/cms/admin-http/routes/
+ * redirects/*`) mounted behind the admin ports.
  */
 
 /**
@@ -42,7 +42,7 @@ function redirectPortDeps({ deps }: { deps: RedirectRouteDeps }, _options: Recor
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** These six routes never consulted the publishing-credential override (`authorizeDirectOrRespond`). */
+/** These six routes never consulted the publishing-credential override (`authorizeDirectOrRespond`); `create` did (`authorizeOrRespond`), see its registrar. */
 const directMountOptions = (operation: string) => ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } });
 
 export const registerAdminRedirectListRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -51,6 +51,11 @@ export const registerAdminRedirectListRoute: RedirectRouteRegistrar = ({ app, de
 
 export const registerAdminRedirectGetRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: redirectGetRoute, deps: { ...redirectPortDeps({ deps }), redirectRepo: deps.redirectRepo } }, directMountOptions("routes/redirects/get-by-id"));
+};
+
+/** `create` is the one redirects route that called `authorizeOrRespond`, so it mounts `"guarded"`: a publishing credential answers from its grant. Unmapped failures keep the shared write-error helper's operation. */
+export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: redirectCreateRoute, deps: { ...redirectPortDeps({ deps }), redirectsWriteDeps: deps.redirectsWriteDeps } }, { authorization: "guarded", failure: { operation: "routes/redirects/shared", code: "INTERNAL_ERROR" } });
 };
 
 /** Unmapped update failures keep the shared write-error helper's operation (`routes/redirects/shared`). */

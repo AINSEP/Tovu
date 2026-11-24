@@ -2,7 +2,8 @@
 import type { Request } from 'express';
 import type { RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
-import { loadSiteConsentBridges, loadSiteConsentScripts, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
+import { loadSiteConsentBridges, loadSiteConsentScripts, loadSiteRegionResolvers } from '@jini-ai/cookie-consent/site/region-plugins';
+import { reportConsentPluginFailure } from '#src/features/consent/host-bindings';
 import type { RouteDeps } from '#src/server/routes/types';
 import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
@@ -34,12 +35,12 @@ export function createSiteCookieConsentDeps(
     },
     browserPlugins: () => {
       if (bridges && nowMs() - bridges.at < REGION_TTL_MS) return bridges.value;
-      bridges = { at: nowMs(), value: loadSiteConsentBridges({ workspaceId, loadContributions }) };
+      bridges = { at: nowMs(), value: loadSiteConsentBridges({ workspaceId, loadContributions, reportFailure: reportConsentPluginFailure }) };
       return bridges.value;
     },
     regionResolvers: () => {
       if (cached && nowMs() - cached.at < REGION_TTL_MS) return cached.value;
-      cached = { at: nowMs(), value: loadSiteRegionResolvers({ workspaceId, loadContributions }, { ingress, legacyHeader }) };
+      cached = { at: nowMs(), value: loadSiteRegionResolvers({ workspaceId, loadContributions, reportFailure: reportConsentPluginFailure }, { ingress, legacyHeader }) };
       return cached.value;
     },
   };

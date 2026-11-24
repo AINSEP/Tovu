@@ -91,3 +91,10 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
   capability. Plugin-declared request budgets (per connection / per instance, `budgets` in
   `jini-connections.json`) are charged by the host on every token read
   (`../../api-connections/budgets.ts`).
+
+## Wiring
+
+`approval.ts` binds the host's approval copy (`approval-bindings.ts`) into Jini's
+`createAgentPluginDisclosure` and keeps the old host signature. It forwards nothing: callers take
+`APPROVAL_FAMILY_BY_EFFECT` from `@jini-ai/agent-plugins/connect/executable` and
+`TOOL_WITHDRAWN_MESSAGE` / `NOT_CONNECTED_MESSAGE` from `./approval-bindings.js`.

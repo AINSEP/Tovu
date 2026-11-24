@@ -4,7 +4,6 @@ import { createRequire } from "node:module";
 // escape hatch when the default hosted provider does not fit (ADR-037).
 import type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 import { createNodemailerSmtpTransport as createJiniSmtpTransport } from "@jini-ai/platform/mail/smtp";
-export type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 
 /** Existing Tovu vendor seam; the Jini adapter receives an object-shaped wrapper. */
 export interface SmtpTransport {

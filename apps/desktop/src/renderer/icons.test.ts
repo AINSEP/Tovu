@@ -17,7 +17,7 @@ import { RUNNER_SECTIONS, type RunnerSectionId } from '../contracts/sections.js'
 (globalThis as { React?: typeof React }).React = React;
 const { GearIcon, NavIcon, SectionIcon } = await import('./icons.js');
 
-const SVG_OPEN = '<svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const SVG_OPEN = '<svg class="jini-icon-frame icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
 
 function inner(markup: string): string {
   assert.ok(markup.startsWith(SVG_OPEN), `unexpected svg frame: ${markup.slice(0, 120)}`);

@@ -8,7 +8,7 @@ import { sql } from 'kysely';
 import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { composeCommerce } from '../commerce.js';
-import type { ProviderConfigSource } from '../provider-config-source.js';
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { ensureCommerceSetting } from '../commerce-settings.js';
 import { runMigrations } from '@jini-ai/db/migrate';
 

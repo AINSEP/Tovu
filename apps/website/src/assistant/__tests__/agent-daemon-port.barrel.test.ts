@@ -15,6 +15,7 @@ import * as navigateErrors from "../rewrap-page-navigate-error.js";
 import * as activeContexts from "../run-active-context.js";
 
 import * as mcpFederation from "@jini-ai/mcp/federation";
+import * as hostedMcp from "@jini-ai/mcp/federation/hosted";
 
 import * as a2uiActionsRoute from "../a2ui-actions-route.js";
 import * as port from "../agent-daemon-port.js";
@@ -61,8 +62,7 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   buildFederatedRefusalPrefix: mcpFederation,
   withFederatedRefusalDiagnosis: serverFederationDiagnosis,
   readEnabledExternalMcpConfigs: externalMcpStore,
-  toResolvedFederatedConnections: externalMcpStore,
-  createDeviceAuthorizationStore: externalMcpOAuth,
+  toResolvedFederatedConnections: hostedMcp,
   createExternalMcpConnectionGate: externalMcpOAuth,
   createExternalMcpOAuthService: externalMcpOAuth,
   registerA2uiActionsRoute: a2uiActionsRoute,

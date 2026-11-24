@@ -7,7 +7,8 @@ import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { contributeMediaPublish } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

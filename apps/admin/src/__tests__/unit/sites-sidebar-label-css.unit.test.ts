@@ -25,11 +25,11 @@ describe("Sites sidebar split label", () => {
 
   it("no rule depends on a class the React-rendered row cannot keep", () => {
     expect(stylesheet).not.toMatch(/cms-sites-item/);
-    expect(stylesheet).not.toMatch(/:has\([^)]*cms-sites-label/);
+    expect(stylesheet).not.toMatch(/:has\([^)]*jini-sites-label/);
   });
 
   it("lays the split label out at a specificity the collapsed rail's clip rule still beats", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ".cms-item > span.cms-sites-label")).toBe(
+    expect(effectiveDeclarationsFor(stylesheet, ".cms-item > span.jini-sites-label")).toBe(
       "display: flex; flex: 1 1 0; min-width: 0; white-space: nowrap;",
     );
     expect(effectiveDeclarationsFor(stylesheet, ".cms-nav.is-rail .cms-item > span")).toMatch(/clip: rect\(0, 0, 0, 0\);/);

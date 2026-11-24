@@ -2,7 +2,7 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { outboxEventValues } from "@jini-ai/db/events";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
-import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-types.js";
+import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "@jini-ai/user-management/identity/user-purge-types";
 
 /**
  * @file `UserPurgePort`'s real adapter (delete-user plan decision 2/7) — the only one that can

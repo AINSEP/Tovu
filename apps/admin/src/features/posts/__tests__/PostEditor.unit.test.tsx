@@ -8,7 +8,7 @@ import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hook
 import { usePostEditor, useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -20,7 +20,7 @@ vi.mock("../../taxonomy/TermPicker", () => ({
 }));
 // The Content analysis card reads the plugin list itself; its own branches live in
 // `features/content-analysis/__tests__/`. Stubbed for the same fetch-queue reason as TermPicker.
-vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
+vi.mock("@jini-ai/admin/screens/content-analysis/ContentAnalysisCard", () => ({
   ContentAnalysisCard: (props: { post: { id: string; version: number }; title: string; bodyJson: unknown }) => (
     <div data-testid="content-analysis">{`${props.post.id}@${props.post.version}:${props.title}:${JSON.stringify(props.bodyJson)}`}</div>
   ),

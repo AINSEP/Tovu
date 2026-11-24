@@ -7,9 +7,11 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
 import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";
-import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
+import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
+import { analyticsSaltContext } from "#src/features/analytics/salt-context";
+import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
 
 /**
  * @file Unit-tier coverage for `POST /_analytics/e` (`registerAnalyticsIngestRoute`) — a PUBLIC,
@@ -29,6 +31,8 @@ function buildApp(sink: ReturnType<typeof createLocalAnalyticsSink> = createLoca
     config: base.analyticsConfig,
     resolveWorkspaceForHost: async () => base.workspaceId,
     analyticsSeed: "test-seed",
+    saltContext: analyticsSaltContext,
+    reportForwardFailure: reportAnalyticsForwardFailure,
     ...overrides,
   };
   const app = express();
@@ -356,6 +360,8 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
       return base.workspaceId;
     },
     analyticsSeed: "test-seed",
+    saltContext: analyticsSaltContext,
+    reportForwardFailure: reportAnalyticsForwardFailure,
   };
   const app = express();
   app.use(express.json());

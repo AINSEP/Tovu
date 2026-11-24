@@ -204,7 +204,7 @@ test('generic approval input uses the shared structured renderer and escapes unt
 });
 
 test('deployment approval shows catalog title and summary with technical input only behind Details', async () => {
-  const { toolMetadata } = await import('../../contracts/core/tool-metadata/deployments.js');
+  const { toolMetadata } = await import('@jini-ai/core/tool-metadata/deployments');
   const toolId = 'deployment_execute_static_publish';
   // Test the generic renderer separately from the domain-owned preparation/approval path.
   const f = fixture(toolId, {}, { metadata: { ...toolMetadata[toolId], approval: { class: 'publish', confirmation: 'policy' } } });

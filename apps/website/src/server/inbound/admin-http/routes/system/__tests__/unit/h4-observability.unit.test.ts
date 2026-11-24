@@ -6,7 +6,7 @@ import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observabi
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
-import { registerAdminObservabilityStatusRoute, type AdminObservabilityStatusDeps } from '../../observability-status.js';
+import { registerAdminObservabilityStatusRoute, type AdminObservabilityStatusDeps } from '#src/server/runtime/composition/http-app/mount-admin-system';
 import { registerAdminBrowserTelemetryRoute } from '../../browser-telemetry.js';
 
 const ROOT = '/api/admin/v1/workspaces/:workspaceId/system';

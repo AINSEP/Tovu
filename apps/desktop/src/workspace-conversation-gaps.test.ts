@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createConversationStore, type ConversationStorePorts } from './workspace-conversation-store.ts';
-import type { ToolGapEntry } from '@jini-ai/daemon/tool-audit';
+import type { ToolGapEntry } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 test('desktop gap revisions persist with conversations and survive later message saves', () => {
   let file: unknown = null;

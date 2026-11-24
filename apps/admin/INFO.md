@@ -285,3 +285,34 @@ Their labels render `jini-field-label`; `src/styles.css` gives
 `.jini-post-publishing__field > .jini-field-label` the shared `.field-label` face, and the post
 layout rules (`styles.css`, `styles/editor.css`) target the `jini-*` class. Pinned by
 `src/__tests__/unit/post-field-label-css.unit.test.ts`.
+
+`@jini-ai/admin/shell/lib/{version-conflict,stored-credential-endpoint,visitor-tools,assistant-permanent-deletes}`
+own the stale-version classifiers, stored-key probe rules and the two assistant settings ports.
+`src/lib/shell-collaborators.ts` binds them once to this app's session client: `isVersionConflict`,
+`readVersionConflict`, `describeProbeError`, `createProbeErrorDescriber` (via the `ApiError` guard),
+`visitorToolsPort` and `assistantPermanentDeletesPort` (via `authenticatedAdminRequest` + `WORKSPACE_ID`).
+Import those bound values from there; constants and types come from the Jini modules, and the
+permanent-delete tool list/dangers/namespace from `@tovu/headless`.
+`@jini-ai/admin/shell/lib/{credential-submit-error,local-owner-signin,assistant-subagents,owner-mfa-api,owner-passkey-api,owner-recovery-api}`
+are bound the same way: `classifyCredentialSubmitError` and `readInitialAdminSession` (via the
+`ApiError` guard, the latter also with `@jini-ai/user-management`'s `readInitialSession`),
+`assistantSubagentsPort` (via `authenticatedAdminRequest` + `WORKSPACE_ID`), and `ownerMfaPort`,
+`ownerPasskeySettingsPort`, `ownerPasskeySignInPort`, `ownerRecoveryPort` (via `requestOnce`) plus
+`ownerRecoveryFailure` (via `describeApiError` + `TOVU_ERROR_REDACTION_OPTIONS`). Types and
+`SUBAGENT_DANGERS` come from the Jini modules.
+
+**Failure reporter, standing-draft backup and chat posters (w3-fnd-lib23).** `src/lib/admin-failure-channel.ts`
+is now only Tovu's composition of `@jini-ai/admin/shell/lib/admin-failure-reporter`'s
+`createAdminFailureReporter`: it injects the panel-kit failure channel, `ADMIN_FAILURE_VOCABULARY`,
+`TOVU_ERROR_REDACTION_OPTIONS`, the `Tovu Admin <version>` label, `decodeApiError` and the
+`AGENT_DAEMON_PARKED`/`AGENT_DAEMON_UNAVAILABLE` codes, and exports the bound values under their
+existing names (`isClipboardRefusal` is imported from Jini directly). Its request-stack integration
+tests stay here; the rule tests live in Jini. `lib/shell-collaborators.ts` now also binds
+`standingDraftLocalBackup` (Jini's `createStandingDraftLocalBackup` with the retained
+`tovu.admin.standing-draft-backup.` prefix), `createAdminTypedAnswerPoster` (Tovu's question tool +
+MCP-UI route) and `createA2uiActionPoster` (Tovu's A2UI action route); the former single-binding
+files and the `sse-frames.ts` re-export (importers now read `@tovu/assistant-run-events`) are gone.
+`assistant-transport-ag-ui.ts` stays a host module: it only binds Jini chat's `createAgUiRunClient`
+to Tovu's AG-UI route, `tovu.*` event names and toggle key, and needs `@ag-ui/client`. `durable-run-subscription.ts`
+stays because its engine half (`followDurableRun`) lives in `@jini-ai/chat/transports/http`, which
+`@jini-ai/admin` does not depend on; the residual run-route ports belong beside it in chat.

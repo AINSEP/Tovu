@@ -10,7 +10,7 @@ import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
   SURFACE_DISMISSED_PARAM,
@@ -20,18 +20,18 @@ import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confi
 import { countPartialExclusions } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
-import { databaseTransferPlanStore as DEFAULT_PLAN_STORE } from "./plan-store.js";
-import type { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
-import { createPsqlPostgresTarget } from "./postgres-target.js";
-import { InvalidConnectionStringError, type PostgresTargetPort } from "@jini-ai/db/transfer";
+import { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
+import { createPsqlPostgresTarget, InvalidConnectionStringError, type PostgresTargetPort } from "@jini-ai/db/transfer";
 
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import type { contentKernel } from "../../platform/db/content-kernel.js";
 import { createDatabaseTransferTools, getDatabaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
-import { TRANSFER_NAMING } from "./copy-engine.js";
-import { TOVU_TRANSFER_MESSAGES } from "./transfer-messages.js";
+import { TRANSFER_APPLICATION_NAME, TRANSFER_NAMING } from "./copy-engine.js";
+import { SITE_TRANSFER_MESSAGES } from "@jini-ai/db/tools";
+/** Module-level default (formerly `plan-store.ts`'s singleton); a host may inject its own via `deps.databaseTransferPlanStore`. */
+const DEFAULT_PLAN_STORE = new DatabaseTransferPlanStore();
 /** Tovu's copy and real schema names ('tovu', 'tovu_'), not Jini's neutral defaults ('the source', 'app'). */
-export const databaseTransferAgentToolCatalog = getDatabaseTransferAgentToolCatalog({}, { naming: TRANSFER_NAMING, messages: TOVU_TRANSFER_MESSAGES });
+export const databaseTransferAgentToolCatalog = getDatabaseTransferAgentToolCatalog({}, { naming: TRANSFER_NAMING, messages: SITE_TRANSFER_MESSAGES });
 /** Composition adapter; all moved transfer/tool rationale now lives in @jini-ai/db/{transfer,tools}. */
 const DOMAIN = "database-transfer";
 const PLAN_TOOL_ID = "database_transfer_plan";
@@ -95,7 +95,7 @@ export function buildDatabaseTransferRegistrations({ deps, ...surfaces }: { deps
     target: connectionString => {
       try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
       catch (err) { if (err instanceof CredentialInputError) { throw new InvalidConnectionStringError(err.message); } throw err; }
-      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)({ connectionString });
+      return deps.databaseTransferTarget ? deps.databaseTransferTarget({ connectionString }) : createPsqlPostgresTarget({ connectionString }, { applicationName: TRANSFER_APPLICATION_NAME });
     },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
     openSource: deps.databaseTransferAdapters.openSource,
@@ -117,7 +117,7 @@ export function buildDatabaseTransferRegistrations({ deps, ...surfaces }: { deps
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,
     },
-  }, { messages: TOVU_TRANSFER_MESSAGES });
+  }, { messages: SITE_TRANSFER_MESSAGES });
   return buildDomainRegistrations({ metadata: toolMetadata, domain: DOMAIN, catalogModule: "features/database-transfer/tool-registrations.ts", catalog: CATALOG_BY_ID,
     handlers: withModelFacingErrors({ handlers: Object.fromEntries(tools.map(tool => [tool.descriptor.id, tool.handler])), rules: DATABASE_TRANSFER_MODEL_FACING_ERRORS }), derivedRisk: databaseTransferDerivedRisk });
 }

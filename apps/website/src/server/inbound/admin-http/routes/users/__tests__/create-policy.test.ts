@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyCreateRoute } from "../create-policy.js";
+import { registerAdminPolicyCreateRoute } from "#src/server/runtime/composition/modules/users-access";
 import type { UsersRouteDeps } from "../deps.js";
 
 const WORKSPACE_ID = "workspace-local";

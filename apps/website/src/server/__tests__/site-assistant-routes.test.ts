@@ -15,8 +15,9 @@ import { createToolNameMap } from "@jini-ai/core";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
-import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
-import type { InMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { writeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-write";
+import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
+import type { InMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch
@@ -44,7 +45,7 @@ for (const scoped of [false, true]) for (const allow of [true, false]) test(`Ask
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
   { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
-  await writeVisitorTools({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+  await writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
     workspaceId: deps.workspaceId, callerPrincipalId: "test-caller", value: { version: 1, tools: { list_categories: { mode: "ask" } } } });
   let siteOrigin!: URL;
   deps.originRegistry.canonicalOrigin = async () => ({ scheme: "http", host: siteOrigin.hostname, port: Number(siteOrigin.port),
@@ -202,7 +203,7 @@ for (const policyFlag of [undefined, "off"] as const) {
     await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
       clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
-    await writeVisitorTools({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    await writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
       workspaceId: deps.workspaceId, callerPrincipalId: "test-caller", value: { version: 1, tools: { list_categories: { mode: "off" } } } });
     const requests: Record<string, unknown>[] = [];
     const baseUrl = await bootGeminiStub(t, deps, (count, body) => {

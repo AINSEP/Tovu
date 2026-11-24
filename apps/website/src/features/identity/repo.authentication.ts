@@ -3,7 +3,7 @@ import type { Insertable, Selectable } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ApiKeysTable, SessionsTable } from "../../platform/db/content-database.generated.js";
 
-import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
+import type { ApiKeyRecord, ApiKeyRepoPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { SessionRepoPort, SessionRecord } from "@jini-ai/user-management";
 import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 import { createIdentityTransactions } from "./repo.js";

@@ -159,7 +159,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
 
     // Admin tab — execution mode
     "Loading execution settings…": "Cargando la configuración de ejecución…",
-    "Detected on the Tovu server, not on your own computer.": "Detectado en el servidor de Tovu, no en tu propio equipo.",
+    "Detected on the {productName} server, not on your own computer.": "Detectado en el servidor de {productName}, no en tu propio equipo.",
     "Saved.": "Guardado.",
 
     // Admin tab — daemon restart
@@ -313,7 +313,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Selalu tersedia untuk administrator yang sudah masuk, jadi ini hanya menampilkan atau menyembunyikan panel. Gunakan jika tombol mengambang berada di luar layar atau sulit ditemukan.",
     "Loading execution settings…": "Memuat pengaturan eksekusi…",
-    "Detected on the Tovu server, not on your own computer.": "Terdeteksi di server Tovu, bukan di komputer Anda sendiri.",
+    "Detected on the {productName} server, not on your own computer.": "Terdeteksi di server {productName}, bukan di komputer Anda sendiri.",
     "Saved.": "Tersimpan.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Kontrol operator ini direncanakan tetapi belum diterapkan. Tidak ada yang di bawah ini aktif — mengaktifkan asisten hari ini berarti menjalankannya tanpa batas biaya, tanpa pembatasan laju per pengunjung, dan tanpa tampilan aktivitas langsung.",
@@ -451,7 +451,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Für angemeldete Administratoren immer verfügbar, daher zeigt oder verbirgt dies nur das Panel. Verwenden Sie es, wenn die schwebende Schaltfläche außerhalb des Bildschirms oder schwer zu finden ist.",
     "Loading execution settings…": "Ausführungseinstellungen werden geladen…",
-    "Detected on the Tovu server, not on your own computer.": "Auf dem Tovu-Server erkannt, nicht auf Ihrem eigenen Computer.",
+    "Detected on the {productName} server, not on your own computer.": "Auf dem {productName}-Server erkannt, nicht auf Ihrem eigenen Computer.",
     "Saved.": "Gespeichert.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Diese Bedienerkontrollen sind geplant, aber nicht implementiert. Nichts davon ist derzeit aktiv — den Assistenten heute zu aktivieren bedeutet, ihn ohne Kostenobergrenze, ohne besucherbezogene Ratenbegrenzung und ohne Live-Aktivitätsansicht zu betreiben.",
@@ -584,7 +584,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "已登录的管理员始终可以使用助手，因此这里只是显示或隐藏面板。如果悬浮按钮超出屏幕或难以找到，可使用此选项。",
     "Loading execution settings…": "正在加载执行设置…",
-    "Detected on the Tovu server, not on your own computer.": "在 Tovu 服务器上检测到，而非您自己的计算机。",
+    "Detected on the {productName} server, not on your own computer.": "在 {productName} 服务器上检测到，而非您自己的计算机。",
     "Saved.": "已保存。",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "这些操作员控制项已规划但尚未实现。以下内容均未生效——如今开启助手意味着在没有费用上限、没有按访客限流、也没有实时活动视图的情况下运行它。",
@@ -717,7 +717,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "已登入的管理員隨時可以使用助理，因此這裡只是顯示或隱藏面板。如果浮動按鈕超出畫面或難以找到，可使用此選項。",
     "Loading execution settings…": "正在載入執行設定…",
-    "Detected on the Tovu server, not on your own computer.": "在 Tovu 伺服器上偵測到，而非您自己的電腦。",
+    "Detected on the {productName} server, not on your own computer.": "在 {productName} 伺服器上偵測到，而非您自己的電腦。",
     "Saved.": "已儲存。",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "這些操作員控制項已規劃但尚未實作。以下內容均未生效——現在開啟助理意味著在沒有費用上限、沒有按訪客限流、也沒有即時活動檢視的情況下執行它。",
@@ -855,7 +855,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Sempre disponível para administradores com sessão iniciada, então isso apenas mostra ou oculta o painel. Use-o se o botão flutuante ficar fora da tela ou for difícil de encontrar.",
     "Loading execution settings…": "Carregando as configurações de execução…",
-    "Detected on the Tovu server, not on your own computer.": "Detectado no servidor da Tovu, não no seu próprio computador.",
+    "Detected on the {productName} server, not on your own computer.": "Detectado no servidor da {productName}, não no seu próprio computador.",
     "Saved.": "Salvo.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Esses controles do operador estão planejados, mas não implementados. Nada abaixo está ativo — ativar o assistente hoje significa executá-lo sem limite de custo, sem limitação de taxa por visitante e sem uma visão de atividade ao vivo.",
@@ -993,7 +993,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Всегда доступно авторизованным администраторам, поэтому это только показывает или скрывает панель. Используйте, если плавающая кнопка оказывается за пределами экрана или её трудно найти.",
     "Loading execution settings…": "Загрузка настроек выполнения…",
-    "Detected on the Tovu server, not on your own computer.": "Обнаружено на сервере Tovu, а не на вашем компьютере.",
+    "Detected on the {productName} server, not on your own computer.": "Обнаружено на сервере {productName}, а не на вашем компьютере.",
     "Saved.": "Сохранено.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Эти элементы управления оператора запланированы, но не реализованы. Ничто из перечисленного ниже сейчас не действует — включение ассистента сегодня означает его работу без потолка расходов, без ограничения частоты запросов по посетителям и без просмотра активности в реальном времени.",
@@ -1130,7 +1130,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "همیشه برای مدیرانی که وارد شده‌اند در دسترس است، بنابراین این گزینه فقط پنل را نمایش یا پنهان می‌کند. اگر دکمه‌ی شناور خارج از صفحه باشد یا پیدا کردنش سخت باشد، از آن استفاده کنید.",
     "Loading execution settings…": "در حال بارگذاری تنظیمات اجرا…",
-    "Detected on the Tovu server, not on your own computer.": "روی سرور Tovu شناسایی شد، نه روی رایانه‌ی خودتان.",
+    "Detected on the {productName} server, not on your own computer.": "روی سرور {productName} شناسایی شد، نه روی رایانه‌ی خودتان.",
     "Saved.": "ذخیره شد.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "این کنترل‌های اپراتوری برنامه‌ریزی شده‌اند اما پیاده‌سازی نشده‌اند. هیچ‌کدام از موارد زیر در حال حاضر فعال نیست — روشن کردن دستیار امروز به این معناست که آن را بدون سقف هزینه، بدون محدودیت نرخ به‌ازای هر بازدیدکننده و بدون نمای فعالیت زنده اجرا کنید.",
@@ -1266,7 +1266,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "متاح دائمًا للمسؤولين المسجَّلين الدخول، لذا فإن هذا يقتصر على إظهار اللوحة أو إخفائها. استخدمه إذا كان الزر العائم خارج الشاشة أو يصعب العثور عليه.",
     "Loading execution settings…": "جارٍ تحميل إعدادات التنفيذ…",
-    "Detected on the Tovu server, not on your own computer.": "اكتُشف على خادم Tovu، وليس على جهاز الكمبيوتر الخاص بك.",
+    "Detected on the {productName} server, not on your own computer.": "اكتُشف على خادم {productName}، وليس على جهاز الكمبيوتر الخاص بك.",
     "Saved.": "تم الحفظ.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "عناصر تحكم المُشغِّل هذه مخطَّط لها لكنها غير منفَّذة. لا شيء مما يلي فعّال حاليًا — تفعيل المساعد اليوم يعني تشغيله دون سقف للتكلفة، ودون تحديد لمعدل الطلبات لكل زائر، ودون عرض للنشاط المباشر.",
@@ -1401,7 +1401,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "サインイン済みの管理者は常に利用できるため、これはパネルの表示・非表示を切り替えるだけです。フローティングボタンが画面外にあったり見つけにくい場合に使用してください。",
     "Loading execution settings…": "実行設定を読み込み中…",
-    "Detected on the Tovu server, not on your own computer.": "自分のコンピューターではなく、Tovuサーバー上で検出されました。",
+    "Detected on the {productName} server, not on your own computer.": "自分のコンピューターではなく、{productName}サーバー上で検出されました。",
     "Saved.": "保存しました。",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "これらのオペレーター向け設定は計画中ですが未実装です。以下の項目は現在何も有効になっていません — 今日アシスタントをオンにすると、コスト上限なし、訪問者ごとのレート制限なし、リアルタイムのアクティビティ表示なしで実行することになります。",
@@ -1536,7 +1536,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "로그인한 관리자는 언제나 어시스턴트를 사용할 수 있으므로, 이는 패널을 표시하거나 숨기기만 합니다. 플로팅 버튼이 화면 밖에 있거나 찾기 어려울 때 사용하세요.",
     "Loading execution settings…": "실행 설정을 불러오는 중…",
-    "Detected on the Tovu server, not on your own computer.": "사용자님의 컴퓨터가 아니라 Tovu 서버에서 감지되었습니다.",
+    "Detected on the {productName} server, not on your own computer.": "사용자님의 컴퓨터가 아니라 {productName} 서버에서 감지되었습니다.",
     "Saved.": "저장됨.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "이 운영자 제어 항목들은 계획되었지만 아직 구현되지 않았습니다. 아래 항목 중 현재 활성화된 것은 없습니다 — 오늘 어시스턴트를 켠다는 것은 비용 상한 없이, 방문자별 속도 제한 없이, 실시간 활동 보기 없이 실행한다는 의미입니다.",
@@ -1672,7 +1672,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Zawsze dostępny dla zalogowanych administratorów, więc to tylko pokazuje lub ukrywa panel. Użyj tego, jeśli pływający przycisk znajdzie się poza ekranem lub trudno go znaleźć.",
     "Loading execution settings…": "Wczytywanie ustawień wykonania…",
-    "Detected on the Tovu server, not on your own computer.": "Wykryto na serwerze Tovu, a nie na Twoim komputerze.",
+    "Detected on the {productName} server, not on your own computer.": "Wykryto na serwerze {productName}, a nie na Twoim komputerze.",
     "Saved.": "Zapisano.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Te elementy sterujące operatora są zaplanowane, ale niewdrożone. Nic poniżej nie jest obecnie aktywne — włączenie asystenta dzisiaj oznacza uruchomienie go bez limitu kosztów, bez ograniczania liczby żądań na odwiedzającego i bez podglądu aktywności na żywo.",
@@ -1808,7 +1808,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Bejelentkezett adminisztrátorok számára mindig elérhető, így ez csak megjeleníti vagy elrejti a panelt. Használja, ha a lebegő gomb kívül esik a képernyőn, vagy nehezen található.",
     "Loading execution settings…": "Végrehajtási beállítások betöltése…",
-    "Detected on the Tovu server, not on your own computer.": "A Tovu szerveren észlelve, nem a saját számítógépén.",
+    "Detected on the {productName} server, not on your own computer.": "A {productName} szerveren észlelve, nem a saját számítógépén.",
     "Saved.": "Mentve.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Ezek a kezelői vezérlők tervezettek, de nincsenek megvalósítva. Az alábbiak közül jelenleg semmi sem aktív — az asszisztens mai bekapcsolása azt jelenti, hogy költségplafon, látogatónkénti sebességkorlátozás és élő tevékenységnézet nélkül fut.",
@@ -1944,7 +1944,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Toujours disponible pour les administrateurs connectés, cette option ne fait donc qu'afficher ou masquer le panneau. Utilisez-la si le bouton flottant sort de l'écran ou devient difficile à trouver.",
     "Loading execution settings…": "Chargement des paramètres d'exécution…",
-    "Detected on the Tovu server, not on your own computer.": "Détecté sur le serveur Tovu, pas sur votre propre ordinateur.",
+    "Detected on the {productName} server, not on your own computer.": "Détecté sur le serveur {productName}, pas sur votre propre ordinateur.",
     "Saved.": "Enregistré.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Ces contrôles opérateur sont prévus mais non implémentés. Rien ci-dessous n'est actif actuellement — activer l'assistant aujourd'hui signifie l'exécuter sans plafond de coût, sans limitation de débit par visiteur et sans vue d'activité en direct.",
@@ -2079,7 +2079,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Завжди доступно авторизованим адміністраторам, тому це лише показує або приховує панель. Використовуйте, якщо плаваюча кнопка опиняється за межами екрана або її важко знайти.",
     "Loading execution settings…": "Завантаження налаштувань виконання…",
-    "Detected on the Tovu server, not on your own computer.": "Виявлено на сервері Tovu, а не на вашому комп'ютері.",
+    "Detected on the {productName} server, not on your own computer.": "Виявлено на сервері {productName}, а не на вашому комп'ютері.",
     "Saved.": "Збережено.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Ці елементи керування оператора заплановані, але не реалізовані. Ніщо з переліченого нижче наразі не діє — увімкнення асистента сьогодні означає його роботу без стелі витрат, без обмеження частоти запитів на відвідувача і без перегляду активності в реальному часі.",
@@ -2215,7 +2215,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Oturum açmış yöneticiler için her zaman kullanılabilir olduğundan, bu yalnızca paneli gösterir veya gizler. Kayan düğme ekran dışında kalırsa veya bulması zorsa kullanın.",
     "Loading execution settings…": "Yürütme ayarları yükleniyor…",
-    "Detected on the Tovu server, not on your own computer.": "Kendi bilgisayarınızda değil, Tovu sunucusunda algılandı.",
+    "Detected on the {productName} server, not on your own computer.": "Kendi bilgisayarınızda değil, {productName} sunucusunda algılandı.",
     "Saved.": "Kaydedildi.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Bu operatör kontrolleri planlanmış ancak uygulanmamıştır. Aşağıdakilerin hiçbiri şu anda etkin değil — asistanı bugün açmak, onu maliyet tavanı olmadan, ziyaretçi başına hız sınırlaması olmadan ve canlı etkinlik görünümü olmadan çalıştırmak anlamına gelir.",
@@ -2350,7 +2350,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "พร้อมใช้งานเสมอสำหรับผู้ดูแลระบบที่เข้าสู่ระบบแล้ว ดังนั้นตัวเลือกนี้จะแสดงหรือซ่อนแผงเท่านั้น ใช้ตัวเลือกนี้หากปุ่มลอยอยู่นอกหน้าจอหรือหายาก",
     "Loading execution settings…": "กำลังโหลดการตั้งค่าการทำงาน…",
-    "Detected on the Tovu server, not on your own computer.": "ตรวจพบบนเซิร์ฟเวอร์ Tovu ไม่ใช่บนคอมพิวเตอร์ของคุณเอง",
+    "Detected on the {productName} server, not on your own computer.": "ตรวจพบบนเซิร์ฟเวอร์ {productName} ไม่ใช่บนคอมพิวเตอร์ของคุณเอง",
     "Saved.": "บันทึกแล้ว",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "การควบคุมของผู้ดำเนินการเหล่านี้วางแผนไว้แต่ยังไม่ได้ใช้งาน ยังไม่มีรายการใดด้านล่างนี้ทำงานอยู่ — การเปิดใช้งานผู้ช่วยวันนี้หมายถึงการรันโดยไม่มีเพดานค่าใช้จ่าย ไม่มีการจำกัดอัตราต่อผู้เยี่ยมชม และไม่มีมุมมองกิจกรรมแบบสด",
@@ -2486,7 +2486,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "Sempre disponibile per gli amministratori con accesso effettuato, quindi questo mostra o nasconde solo il pannello. Usalo se il pulsante flottante è fuori schermo o difficile da trovare.",
     "Loading execution settings…": "Caricamento delle impostazioni di esecuzione…",
-    "Detected on the Tovu server, not on your own computer.": "Rilevato sul server Tovu, non sul tuo computer.",
+    "Detected on the {productName} server, not on your own computer.": "Rilevato sul server {productName}, non sul tuo computer.",
     "Saved.": "Salvato.",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Questi controlli dell'operatore sono pianificati ma non implementati. Nessuno degli elementi seguenti è attivo — attivare oggi l'assistente significa eseguirlo senza un tetto di costo, senza limitazione della frequenza per visitatore e senza una vista dell'attività in tempo reale.",
@@ -2624,7 +2624,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "साइन-इन प्रशासकों के लिए हमेशा उपलब्ध, इसलिए यह केवल पैनल को दिखाता या छुपाता है। यदि फ़्लोटिंग बटन कभी स्क्रीन से बाहर हो या ढूंढना मुश्किल हो तो इसका उपयोग करें।",
     "Loading execution settings…": "निष्पादन सेटिंग्स लोड हो रही हैं…",
-    "Detected on the Tovu server, not on your own computer.": "Tovu सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
+    "Detected on the {productName} server, not on your own computer.": "{productName} सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
     "Saved.": "सहेजा गया।",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "ये ऑपरेटर नियंत्रण योजनाबद्ध हैं लेकिन अभी लागू नहीं हुए हैं। नीचे दिया गया कुछ भी सक्रिय नहीं है — आज सहायक को चालू करने का मतलब है इसे बिना किसी लागत सीमा के, बिना प्रति-विज़िटर दर सीमा के, और बिना लाइव गतिविधि दृश्य के चलाना।",
@@ -2762,7 +2762,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "سائن اِن ایڈمنسٹریٹرز کے لیے ہمیشہ دستیاب، اس لیے یہ صرف پینل کو دکھاتا یا چھپاتا ہے۔ اگر فلوٹنگ بٹن کبھی اسکرین سے باہر ہو جائے یا ڈھونڈنا مشکل ہو تو اسے استعمال کریں۔",
     "Loading execution settings…": "ایگزیکیوشن کی ترتیبات لوڈ ہو رہی ہیں…",
-    "Detected on the Tovu server, not on your own computer.": "Tovu سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
+    "Detected on the {productName} server, not on your own computer.": "{productName} سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
     "Saved.": "محفوظ ہو گیا۔",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "یہ آپریٹر کنٹرولز کا منصوبہ ہے مگر یہ نافذ نہیں کیے گئے۔ نیچے دی گئی کوئی بھی چیز فعال نہیں ہے — آج اسسٹنٹ کو آن کرنے کا مطلب ہے اسے بغیر کسی لاگت کی حد کے، بغیر فی وزیٹر ریٹ لیمیٹنگ کے، اور بغیر لائیو سرگرمی کے منظر کے چلانا۔",
@@ -2900,7 +2900,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
       "সাইন-ইন করা প্রশাসকদের জন্য সবসময় উপলব্ধ, তাই এটি শুধু প্যানেলটি দেখায় বা লুকায়। ফ্লোটিং বোতাম কখনো স্ক্রিনের বাইরে চলে গেলে বা খুঁজে পেতে কঠিন হলে এটি ব্যবহার করুন।",
     "Loading execution settings…": "এক্সিকিউশন সেটিংস লোড হচ্ছে…",
-    "Detected on the Tovu server, not on your own computer.": "Tovu সার্ভারে শনাক্ত হয়েছে, আপনার নিজের কম্পিউটারে নয়।",
+    "Detected on the {productName} server, not on your own computer.": "{productName} সার্ভারে শনাক্ত হয়েছে, আপনার নিজের কম্পিউটারে নয়।",
     "Saved.": "সংরক্ষিত হয়েছে।",
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "এই অপারেটর নিয়ন্ত্রণগুলো পরিকল্পিত কিন্তু বাস্তবায়িত হয়নি। নিচের কোনোটিই সক্রিয় নয় — আজ সহকারী চালু করার অর্থ হলো এটিকে কোনো খরচের সীমা ছাড়া, প্রতি-ভিজিটর রেট লিমিটিং ছাড়া, এবং লাইভ কার্যকলাপ ভিউ ছাড়া চালানো।",

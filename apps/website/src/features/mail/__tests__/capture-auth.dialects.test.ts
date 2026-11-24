@@ -8,8 +8,8 @@ import {
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
-import { createMailSendLedgerRepo } from "../ledger.repo.js";
-import { createMailCaptureRepo } from "../capture.repo.js";
+import { createMailSendLedgerRepo } from "@jini-ai/platform/mail/sql";
+import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
 
 const SECRET = "raw-signin-secret-123456";
 const AT = "2026-10-24T12:00:00.000Z";

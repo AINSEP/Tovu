@@ -11,14 +11,9 @@ import {
 } from "../lib/execution-settings";
 
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import {
-  STORED_KEY_OTHER_PROVIDER_COPY,
-  hasUsableKey,
-  storedKeyBlocksProbe,
-  storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
-} from "../lib/stored-credential-endpoint";
+import { STORED_KEY_OTHER_PROVIDER_COPY, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
-import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
+import type { AdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 import { storedCredentialHint } from "../lib/credential-copy";
 import { useAdminLocale } from "./use-admin-locale.hooks";
 

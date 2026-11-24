@@ -1,14 +1,14 @@
 import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
-import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/newsletter';
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
  * Delivery operations are contributed separately from delivery/tool-registrations.ts; bulk import is absent.
  *
- * Authorization shape: `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s file header records that "none of Newsletter's
- * domain functions call authorize() ... every admin route therefore calls
- * requireNewsletterPermissionOrRespond as its own first line". Every handler here does the same via
+ * Authorization shape: `features/newsletter/http-error-responses.ts`'s consumers (the admin route specs in Jini's
+ * `@jini-ai/cms/admin-http/routes/newsletter/*`) record that "none of Newsletter's domain functions call authorize() ...
+ * every admin route therefore asks for its own permission as its first step". Every handler here does the same via
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
@@ -19,7 +19,7 @@ import {
   type EventBusPort,
   type OutboxPort,
 } from "@jini-ai/core/contracts/events";
-import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
@@ -34,7 +34,7 @@ import {
   cancelCampaign,
   saveCampaign,
   type CampaignWriteServiceDeps,
-} from "./campaign-write-service.js";
+} from "@jini-ai/user-management/newsletter/campaign-write-service";
 import { issueConfirmationToken } from "./confirmation.js";
 import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
 import {
@@ -47,9 +47,9 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "./errors.js";
-import type { HookRegistry } from "./hooks.js";
-import { archiveList, saveList, type ListsDeps } from "./lists.js";
+} from "@jini-ai/user-management/newsletter/errors";
+import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import { archiveList, saveList, type ListsDeps } from "@jini-ai/user-management/newsletter/lists";
 import type {
   MembersConsentCapability,
   NewsletterAudienceSnapshotRepoPort,
@@ -59,15 +59,15 @@ import type {
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
   SubscriberDirectoryPort,
-} from "./ports.js";
-import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
-import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
+} from "@jini-ai/user-management/newsletter/ports";
+import { pauseCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
+import { DEFAULT_LIST_LIMIT } from "@jini-ai/user-management/newsletter/repo-subscribers";
 import {
   saveSubscription,
   unsubscribeSubscription,
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
-import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
+import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 

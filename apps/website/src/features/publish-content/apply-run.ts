@@ -7,7 +7,9 @@ import { entityKey } from "./plan-rows.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./plan-rows.js";
 import type { PublishContentRunItemState, PublishContentRunRepoPort, PublishContentRunRecord } from "./run-repo.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
-import type { PackedEntity, PublishContentDeps, PublishContentHandler } from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 export interface CreatePublishContentApplyPortInput {
   readonly workspaceId: string;

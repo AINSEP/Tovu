@@ -3,7 +3,8 @@ import test, { mock } from "node:test";
 
 import type { HttpResponse } from "@jini-ai/core/primitives";
 import type { ProviderResult } from "@jini-ai/core/provider-registry";
-import type { SearchDocument, SearchDocumentKey, SearchProvider, SearchProviderContext } from "@jini-ai/search";
+import type { SearchDocument, SearchDocumentKey, SearchProviderContext } from "@jini-ai/search";
+import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { createFakeHttpClient, type FakeHttpClient } from "@jini-ai/search/testkit";
 
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";

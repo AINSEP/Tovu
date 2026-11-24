@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
-import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 
 /** The banner line (English; also the `app-i18n.ts` key). */
 export const MAIL_UNCONFIGURED_TEXT =

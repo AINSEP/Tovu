@@ -280,6 +280,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   });
   const readinessFailure = new Error("identity seeding failed");
   const { runServeCommand } = await import("../../commands/serve.js");
+  // The boot-session route's default redeem: serve's emitted token must be redeemable through it.
+  const { redeemBootSessionToken } = await import("../../../features/identity/boot-session-token-binding.js");
   try {
     for (const scenario of [
       { env: undefined, host: undefined, expected: "127.0.0.1", daemonWanted: true },
@@ -329,6 +331,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
         assert.equal(stdout.length, 1);
         assert.match(stdout[0], /^tovu serve: bootToken=\S+\n$/);
         assert.ok(stdoutSequence[0] < loggedSequence[startupIndex], "the boot token is written before the startup line");
+        const emitted = stdout[0].slice("tovu serve: bootToken=".length, -1);
+        assert.equal(redeemBootSessionToken({ rawToken: emitted }), true, "serve mints into the same store the boot-session route redeems from");
       } else assert.deepEqual(stdout, []);
       const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);

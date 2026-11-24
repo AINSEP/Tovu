@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
-import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorCapabilityContract, type VisitorExecutionPorts } from "../visitor-executor.js";
 import { VisitorPlanRefused } from "../visitor-confirmation-gate.js";
-import { EMPTY_VISITOR_TOOL_POLICY, parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
+import { EMPTY_VISITOR_TOOL_POLICY, parseVisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolPolicy } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 function fixture(options: { policy?: VisitorToolPolicy | null; failBudget?: boolean; rejectBudget?: boolean; failPolicy?: boolean; failSink?: boolean; failHandler?: boolean } = {}) {
   let policy = options.policy === undefined ? EMPTY_VISITOR_TOOL_POLICY : options.policy;

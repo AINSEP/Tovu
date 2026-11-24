@@ -6,7 +6,7 @@ import { saveExternalMcpServer } from "../../../../features/external-mcp/externa
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createPluginAccountTokenResolver } from "../mail-plugin-account-token.js";
 import { resolveMailDomainReadCredential } from "../mail-provider-catalog.js";

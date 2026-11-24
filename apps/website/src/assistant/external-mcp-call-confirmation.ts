@@ -35,7 +35,8 @@ import {
   createFederatedCallConfirmer as createJiniConfirmer,
   type FederatedCardOffers,
 } from "@jini-ai/mcp/federation/approvals";
-import { notConfirmedResult, approvalToolHandler, type HumanConfirmSpec } from "../contracts/core/human-confirm.js";
+import { notConfirmedResult, approvalToolHandler } from "../contracts/core/human-confirm.js";
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";

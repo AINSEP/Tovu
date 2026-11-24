@@ -10,7 +10,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 
 import { createAnalyticsForwarderRegistry, type AnalyticsForwarderModule } from "@jini-ai/analytics";
 
-import type { AnalyticsProviderSet } from "#src/features/analytics/forwarding";
+import type { AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
 import { createRouteDeps } from "../app.js";
 import { analyticsProviderRouteDeps, buildAnalyticsProviders } from "../analytics-providers.js";
 

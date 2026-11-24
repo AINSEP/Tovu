@@ -8,7 +8,6 @@ import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 
-export { WRITE_PLUGIN_NOTE, pluginNoteRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 export const pluginNoteCatalog: AgentToolDefinition[] = pluginNoteToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.enable });
 /**
  * The note-saving handler. Notes are context, never a permission grant.

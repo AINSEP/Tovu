@@ -23,13 +23,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createNoopObservabilityPort, type OperationTrackingInput, type OperationTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import type { ByokToolResultBlock } from "../byok-provider-turn.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
@@ -44,7 +44,7 @@ import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/exter
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
 const contributions = {

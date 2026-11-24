@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import { downloadForms } from '#src/features/site-backup/static-download-html';
+import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
+import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
 
 test('download forms cannot submit answers through native GET, implicit submit or external controls', () => {
   const html = '<form id="contact" action="/forms/contact/submit" method="post"><input name="secret"><button formaction="/leak">Send</button></form><input form="contact" name="outside"><button form="contact">Send</button>';
-  const result = downloadForms({ html, page: '/contact/' });
+  const result = downloadForms({ html, page: '/contact/', sourceEdits });
   const document = new JSDOM(result.html).window.document;
   assert.equal(document.forms.length, 1);
   assert.equal(document.forms[0]!.method, 'dialog');
@@ -16,7 +17,7 @@ test('download forms cannot submit answers through native GET, implicit submit o
 });
 
 test('explicit empty actions require a server; external receivers remain usable', () => {
-  const result = downloadForms({ html: '<form action=""><input name="secret"></form><form action="https://receiver.example/send"><button>Send</button></form>', page: '/' });
+  const result = downloadForms({ html: '<form action=""><input name="secret"></form><form action="https://receiver.example/send"><button>Send</button></form>', page: '/', sourceEdits });
   const document = new JSDOM(result.html).window.document;
   assert.equal(document.forms.length, 2);
   assert.equal(document.forms[0]!.method, 'dialog');
@@ -25,10 +26,10 @@ test('explicit empty actions require a server; external receivers remain usable'
 
 test('dialog forms and JS-only forms keep their authored markup in downloaded pages', () => {
   const html = '<form method="dialog"><button>Close</button></form><form id="search" onsubmit="return false"><input></form>';
-  assert.equal(downloadForms({ html, page: '/' }).html, html);
+  assert.equal(downloadForms({ html, page: '/', sourceEdits }).html, html);
 });
 test('downloaded backend forms retain form selectors and cannot override dialog submission', () => {
-  const result = downloadForms({ html: '<form id="f" action="/forms/contact/submit" method="post"><button formmethod="post" formaction="/leak">Send</button></form><button form="f" formmethod="get">Outside</button>', page: '/' });
+  const result = downloadForms({ html: '<form id="f" action="/forms/contact/submit" method="post"><button formmethod="post" formaction="/leak">Send</button></form><button form="f" formmethod="get">Outside</button>', page: '/', sourceEdits });
   const document = new JSDOM(result.html).window.document;
   assert.equal(document.querySelectorAll('form').length, 1);
   for (const control of document.querySelectorAll('[formmethod]')) assert.equal(control.getAttribute('formmethod'), 'dialog');

@@ -1,17 +1,18 @@
 import { createHostMailer } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
-import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
-import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
+import { createMailPurposeGateProbe } from "@jini-ai/platform/mail";
+import { createMailTestSendLimiter, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { SettingsRevisionConflictError, type AuthorizeFn, type SettingsRepoPort, type SetValueRequired } from "@jini-ai/core/settings";
-import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/core/contracts/mail";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 
-import { readMailProviderSetting, readMailProviderSelection, readMailTestMode, writeMailProviderSetting } from "#src/features/settings/mail-provider";
+import { readMailProviderSetting, readMailProviderSelection, readMailTestMode, writeMailProviderSetting } from "@jini-ai/cms/settings/site/mail-provider";
 import { createMailPolicyWrapper } from "../boot/mail-delivery-policy.js";
 import { createResolvedMailer, type ResolvedMailer, type ResolveMailerDeps } from "../boot/resolve-mailer.js";
 import { loadMailProviderCatalog } from "../boot/mail-provider-catalog.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Composition glue for the site mailer: the explicit `core.mail.provider` setting port, the
@@ -35,10 +36,10 @@ export interface SiteMailerRequired {
 
 export interface SiteMailer extends ResolvedMailer {
   setAgentPluginEnabled: typeof setAgentPluginEnabled;
-  operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity"> & {
+  operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity" | "mailTestFallbackSender"> & {
     mailLaneReady: ResolvedMailer["laneReady"];
     mailSenderDomainVerification: ResolvedMailer["senderDomainVerification"];
-    mailPurposeGate: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+    mailPurposeGate: import("@jini-ai/platform/mail").MailPurposeGateProbe;
   };
   /** Sets both lanes to `id` as `principalId`, then drops cached mailers and status; the caller already
    *  checked `checkProvider` and got approval. A failed write throws and changes nothing. */
@@ -74,7 +75,7 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
       read: async () => { await ready(); return readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }); },
       write: async ({ value }) => {
         await ready();
-        await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: allowSystemMailMigration }, workspaceId, callerPrincipalId: settings.systemPrincipalId, value });
+        await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...settings.deps, repo: settings.repo, authorize: allowSystemMailMigration }, workspaceId, callerPrincipalId: settings.systemPrincipalId, value });
       },
     },
     wrapProviderMailer: createMailPolicyWrapper(
@@ -94,6 +95,8 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     mailTestRequests: new Map(),
     // One bucket per site, so the Email page's button and the assistant's tool share it.
     mailTestSendLimiter: createMailTestSendLimiter(),
+    // Product copy for the test send's placeholder From (also the name a configured sender without one gets).
+    mailTestFallbackSender: { email: "no-reply@mail.local", name: "Tovu" },
     mailLaneReady: resolved.laneReady, mailSenderDomainVerification: resolved.senderDomainVerification,
     mailSenderIdentity: createMailSenderIdentityResolver({ mailer: resolved.mailer }, {
       readConfiguredSender: required.readConfiguredSender ?? (async () => ({ email: await required.readSenderEmail() })), settle: resolved.settle,
@@ -103,7 +106,7 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   return { ...createHostMailer({ resolved, operations, selection: {
     ready, loadCatalog: () => loadMailProviderCatalog(resolve),
     readSelection: () => readMailProviderSelection({ settingsRepo: settings.repo, workspaceId }),
-    writeSelection: ({ value, principalId, expectedRevisionSeq }) => writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value }, { expectedRevisionSeq }),
+    writeSelection: ({ value, principalId, expectedRevisionSeq }) => writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value }, { expectedRevisionSeq }),
     installedProviderIds: installedMailProviderIds, toggle: options.setAgentPluginEnabled ?? setAgentPluginEnabled,
     isRevisionConflict: (error) => error instanceof SettingsRevisionConflictError,
   } }), readProviderSelection };

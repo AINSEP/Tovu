@@ -4,7 +4,7 @@
  *
  * Not part of `npm test`: it launches a real Electron app, so it is opt-in and slow. Run it after
  * touching anything in `src/renderer/use-find-in-page.hooks.ts`, `src/find-in-page-ipc.ts`,
- * `src/find-menu.ts` or `src/contracts/find-in-page.ts`:
+ * `src/main/boot/boot-sequence.ts`'s Find menu or `src/contracts/find-in-page.ts`:
  *
  *   cd apps/desktop
  *   npm run build:renderer            # the window loads dist/, never src/
@@ -72,7 +72,7 @@ async function shot({ win, name }: { win: Page; name: string }, _options = {}): 
 }
 
 const countText = ({ win }: { win: Page }, _options = {}): Promise<string> =>
-  win.evaluate(() => document.querySelector('.findbar__count')?.textContent ?? '');
+  win.evaluate(() => document.querySelector('.jini-findbar__count')?.textContent ?? '');
 
 /** The counter arrives asynchronously (`found-in-page` -> relay -> renderer), so the first read
  *  after typing has to wait for it rather than assume it has landed. */
@@ -84,14 +84,14 @@ async function waitForCount({ win }: { win: Page }, { timeoutMs = 6000 }: { time
     await win.waitForTimeout(250);
   }
 }
-const barOpen = ({ win }: { win: Page }, _options = {}): Promise<boolean> => win.evaluate(() => !!document.querySelector('.findbar'));
+const barOpen = ({ win }: { win: Page }, _options = {}): Promise<boolean> => win.evaluate(() => !!document.querySelector('.jini-findbar'));
 const inputState = ({ win }: { win: Page }, _options = {}): Promise<{ active: string; value: string | null }> =>
   win.evaluate(() => ({
     active: document.activeElement?.className || document.activeElement?.tagName || 'none',
-    value: document.querySelector<HTMLInputElement>('.findbar__input')?.value ?? null,
+    value: document.querySelector<HTMLInputElement>('.jini-findbar__input')?.value ?? null,
   }));
 
-/** Opens the bar the way the app menu does — `find-menu.ts` just sends this channel. A real
+/** Opens the bar the way the app menu does — the Find menu (`main/boot/boot-sequence.ts`) just sends this channel. A real
  *  `Meta+F` only reaches a menu accelerator when the app owns the OS focus, which a headed test
  *  run cannot assume. Targets `homeWindowId` — see this file's header — not `getAllWindows()[0]`. */
 async function openBar({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {
@@ -153,7 +153,7 @@ async function rawFindFromInput(
   },
   _options = {},
 ): Promise<{ before: Count | null; after: Count | null }> {
-  await win.evaluate(() => document.querySelector<HTMLInputElement>('.findbar__input')?.focus());
+  await win.evaluate(() => document.querySelector<HTMLInputElement>('.jini-findbar__input')?.focus());
   await win.waitForTimeout(250);
   const before = parseCount({ text: await countText({ win }) });
   if (clearSelection) await win.evaluate(() => document.getSelection()?.removeAllRanges());
@@ -266,7 +266,7 @@ async function verifyTopLevel({ app, win, homeWindowId }: { app: ElectronApplica
   const query = 'e';
   await typeQuery({ win, text: query });
   const afterTyping = await inputState({ win });
-  check({ name: 'INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
+  check({ name: 'INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'jini-findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
   check({ name: 'EVERY_KEYSTROKE_LANDS', ok: afterTyping.value === query, detail: `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)}` });
 
   const start = await waitForCount({ win });
@@ -346,7 +346,7 @@ async function verifyColdGuest({ app, win, homeWindowId }: { app: ElectronApplic
   await typeQuery({ win, text: query }, { msPerKey: 80 });
   const afterTyping = await inputState({ win });
   const hasFocus = await win.evaluate(() => document.hasFocus());
-  check({ name: 'COLD_GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
+  check({ name: 'COLD_GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'jini-findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
   check(
     { name: 'COLD_GUEST_EVERY_KEYSTROKE_LANDS',
     ok: afterTyping.value === query,
@@ -419,7 +419,7 @@ async function verifyGuest({ app, win, homeWindowId }: { app: ElectronApplicatio
   const query = 'e';
   await typeQuery({ win, text: query });
   const afterTyping = await inputState({ win });
-  check({ name: 'GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
+  check({ name: 'GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'jini-findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
   check({ name: 'GUEST_EVERY_KEYSTROKE_LANDS', ok: afterTyping.value === query, detail: `input value = ${JSON.stringify(afterTyping.value)}` });
 
   const start = await waitForCount({ win });

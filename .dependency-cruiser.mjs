@@ -342,7 +342,9 @@ const HAND_WRITTEN_RULES = [
           "^apps/website/src/features/agent-plugins/federate-mcp\\.ts$",
           // Moved here from server/runtime/services (2026-11 moves/r2-b): the probe binds Tovu's HTTP MCP
           // session (`connectMcpHttpSession`), a connection helper rather than a tool registration.
-          "^apps/website/src/features/external-mcp/external-mcp-probe\\.ts$",
+          // The probe body moved to `@jini-ai/mcp/external/external-mcp-probe` (w3-U); that binding now
+          // lives in the feature's host-copy module, so the exemption follows it.
+          "^apps/website/src/features/external-mcp/external-mcp-host-copy\\.ts$",
         ],
       },
       to: {

@@ -36,3 +36,6 @@ Keep stable identity, ownership, routing, workflow, and high-frequency query fie
 ## Wiring
 
 - `RuntimeMode` (the type) is imported from `@jini-ai/core/contracts/site/core-runtime-mode`; `resolveRuntimeMode` (the value) still comes from `#src/contracts/core/runtime-mode`, which the composition root calls and passes down.
+- `slug.ts` derives post slugs from `toSlug`, imported directly from `@jini-ai/cms/html/site/slug`
+  (P12 cut #7). The host copy under `platform/html/` is gone. Collision suffixes and the
+  `untitled` fallback stay here in `slug.ts`.

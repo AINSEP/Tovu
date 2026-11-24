@@ -1,4 +1,4 @@
-import { readVersionConflict } from "../../../lib/version-conflict";
+import { readVersionConflict } from "../../../lib/shell-collaborators";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";

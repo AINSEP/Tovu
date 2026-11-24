@@ -2,14 +2,14 @@ import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 import { buildChallengeMessage } from "./challenge.js";
-import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "./grant.js";
-import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
+import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
+import { deriveInstallationId, derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 
 /**
  * @file Zero-setup publishing auth — the SOURCE's half of the handshake.
  * Design note: `ADS-memory/reports/2026-09-19-publish-zero-setup-auth-design.md`.
  *
- * The mirror of `server/inbound/public-http/routes/publish-trust/handshake.ts`: that file is what a
+ * The mirror of `@jini-ai/cms/public-http/routes/publish-trust/handshake` (registered by `server/runtime/composition/modules/publish-trust.ts`): that file is what a
  * destination answers, this one is what a source asks. Three calls, no stored credential:
  *
  * 1. `GET /identity` — learn who the destination is. This is what removes "type your workspace id"

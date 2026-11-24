@@ -9,12 +9,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPublishContentSeedHash, NO_PUBLISH_CONTENT_SEED_HASH } from "../seed-hash.js";
-import {
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-  type PublishContentDeps,
-  type PublishContentHandler,
-} from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 function registerInspect(entityType: string, inspect: PublishContentHandler["inspect"]): void {
   registerPublishContentContributor({

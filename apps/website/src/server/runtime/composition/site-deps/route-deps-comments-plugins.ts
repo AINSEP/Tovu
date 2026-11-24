@@ -22,14 +22,13 @@ import { RECHARTS_DEFAULT_PROVIDER } from "../charts-recharts-source.js";
 import { RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
-import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { SqliteToolAttemptAuditSink, createSqliteToolGapReader } from "#src/features/tool-audit/repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createDomainBindingSweep } from "../dns-change-deps.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { readAdminChartProviderSnapshot } from "../chart-providers.js";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
@@ -151,7 +150,7 @@ export function routeDepsTaxonomyComments(required: RouteDepsTaxonomyCommentsReq
     toolAttemptAuditSink: withToolUseEvents({ tracker, sink: new SqliteToolAttemptAuditSink({ store: kernel }, {
       onError: ({ error }) => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
     }) }),
-    toolGaps: createToolGapReader({ kernel }, {}),
+    toolGaps: createSqliteToolGapReader({ store: kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     contentKernel: kernel,

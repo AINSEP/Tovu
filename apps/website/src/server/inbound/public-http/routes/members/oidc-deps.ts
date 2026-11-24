@@ -2,9 +2,12 @@
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { parse } from "cookie";
-import { type OidcLoginDeps, type LoginContext, type MemberLoginLinkDeps } from "#src/features/member-login/index";
-import { MemberLoginError, type LoginProvider, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
-import { resolveMemberSession, type MemberSessionRecord, type MemberRecord } from "#src/features/members/index";
+import type { MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
+import type { OidcLoginDeps, LoginContext } from "@jini-ai/user-management/member-login/oidc-login";
+import { MemberLoginError, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
+import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
+import { type MemberSessionRecord, type MemberRecord } from "@jini-ai/user-management/members/types";
 import type { MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
 
@@ -16,7 +19,6 @@ export interface MemberOidcRouteDeps {
   listProviders: (input: { workspaceId: string }) => Promise<readonly LoginProvider[]>;
 }
 
-export { MEMBER_OIDC_PATH } from "#src/features/member-login/public-path";
 export const MEMBER_OIDC_BINDING_COOKIE = "__Secure-tovu_member_login_binding";
 export const MEMBER_OIDC_PROOF_COOKIE = "__Secure-tovu_member_login_proof";
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: "lax" as const };
@@ -51,10 +53,18 @@ export function memberOidcHeaders({ res }: { res: Response }, _options = {}): vo
   res.setHeader("Referrer-Policy", "no-referrer");
 }
 
-/** Fail closed with a fixed outcome; upstream errors may contain OAuth credentials. O(1). */
-export function sendMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+/** Fail closed with a fixed outcome; upstream errors may contain OAuth credentials. O(1).
+ * @returns The fixed refusal (status + flat body) for any error; nothing upstream is echoed.
+ */
+export function memberOidcRefusal({ error }: { error: unknown }, _options = {}): { status: number; body: { error: string; code: string } } {
   const code = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
-  res.status(code === "LOGIN_UNAVAILABLE" ? 503 : 401).json({ error: "member login failed", code });
+  return { status: code === "LOGIN_UNAVAILABLE" ? 503 : 401, body: { error: "member login failed", code } };
+}
+
+/** Write `memberOidcRefusal`'s answer. O(1). */
+export function sendMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+  const refusal = memberOidcRefusal({ error });
+  res.status(refusal.status).json(refusal.body);
 }
 
 /** The person pressed Cancel at the provider (`error=access_denied`): its own page message. */

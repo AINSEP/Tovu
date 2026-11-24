@@ -30,7 +30,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import type { PostRecord } from "../post.js";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";
-import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const IMPORTING_OPERATOR = "operator-running-the-import";

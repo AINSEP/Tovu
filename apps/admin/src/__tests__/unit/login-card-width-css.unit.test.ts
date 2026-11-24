@@ -11,7 +11,8 @@ const css = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
 describe("login card width", () => {
   it("never exceeds its container", () => {
-    const rule = /^\.login-card \{([^}]*)\}/m.exec(css);
+    // The Login markup moved to `@jini-ai/admin/screens/auth` and renders `jini-login-card` (w3-users-sec).
+    const rule = /^\.jini-login-card \{([^}]*)\}/m.exec(css);
     expect(rule).not.toBeNull();
     expect(rule![1]).not.toMatch(/(^|[;\s])width:\s*22rem/);
     expect(rule![1]).toMatch(/width:\s*min\(22rem,\s*100%\)/);

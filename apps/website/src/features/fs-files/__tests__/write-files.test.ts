@@ -9,7 +9,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { FS_WRITE_FILES_TOOL_ID, getFsFilesAgentToolCatalog } from "../agent-tools.js";
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../custom-root-permission.js";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { buildFsFilesRegistrations, fsFilesDerivedRisk } from "../tool-registrations.js";
 import { FS_WRITE_LIMITS, FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles } from "../write-files.js";
 

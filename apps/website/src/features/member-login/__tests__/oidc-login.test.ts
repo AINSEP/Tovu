@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
-import { beginOidcLogin, completeOidcLogin, memberLoginCallbackUrl, openLoginEmailContinuation, sealLoginEmailContinuation, type OidcLoginDeps } from "../oidc-login.js";
+import { beginOidcLogin, completeOidcLogin, memberLoginCallbackUrl, openLoginEmailContinuation, sealLoginEmailContinuation, type OidcLoginDeps } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError } from "@jini-ai/user-management/server";
-import { cryptoFixture, originFixture, provider } from "./fixtures.js";
+import { cryptoFixture, oidcOperationsFixture, originFixture, provider } from "./fixtures.js";
 
 const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const wrongPair = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -19,7 +19,7 @@ function fixture(overrides: Record<string, unknown> = {}, invalidSignature = fal
   let enabled = true;
   let version = "preset-v1";
   let secret = "test-client-secret";
-  const deps: OidcLoginDeps = { ...crypto, origin: originFixture(),
+  const deps: OidcLoginDeps = { ...crypto, ...oidcOperationsFixture, origin: originFixture(),
     resolveProvider: async () => enabled ? { ...provider, configurationVersion: version } : null,
     resolveClient: async () => ({ clientId: "test-client", clientSecret: secret, authMethod: "client_secret_post" }),
     httpPorts: {

@@ -36,7 +36,7 @@ mock.module("#src/features/publish-content/raw-row-contributor", { namedExports:
 mock.module("#src/features/publish-content/raw-file-contributor", { namedExports: { ...rawFileContributor, undoRawFile } });
 // Imported after the mocks: the fixture's composition deps load `backstop.ts` too, and a module
 // linked before `mock.module` keeps the real bindings.
-const { registerPublishBackstopRoutes } = await import("../backstop.js");
+const { registerPublishBackstopRoutes } = await import("#src/server/runtime/composition/modules/publish-content-backstop");
 const { BASE, routeApp, routeDeps } = await import("./route-fixture.js");
 
 const AUDIT_TABLE = `CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, direction TEXT NOT NULL,

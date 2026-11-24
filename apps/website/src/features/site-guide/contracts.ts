@@ -2,7 +2,8 @@
  * a new package export until its build exists, without taking the owner's dev server down.
  * Topic and fact shapes are Jini's; the service result stays opaque so contract tests can fake
  * the engine. */
-import type { GuideFact, GuideTopic } from "@jini-ai/agentic/core";
+import type { GuideFact } from "@jini-ai/agentic/core";
+import type { GuideTopic } from "@jini-ai/core/contracts/site/agentic-core";
 
 export interface SiteGuideService {
   run(input: { caller: { principalId: string }; operation: "overview" | "explain"; topic?: string }, options?: Record<string, never>): Promise<unknown>;

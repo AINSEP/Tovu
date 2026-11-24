@@ -4,12 +4,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
+import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
-import { NewsletterConfirmTokenInvalidError } from "../errors.js";
-import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
-import type { MembersConsentCapability } from "../ports.js";
-import type { SubscriptionRow } from "../types.js";
+import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
+import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+import type { MembersConsentCapability } from "@jini-ai/user-management/newsletter/ports";
+import type { SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-1";
 const now = "2026-07-13T00:00:00.000Z";
