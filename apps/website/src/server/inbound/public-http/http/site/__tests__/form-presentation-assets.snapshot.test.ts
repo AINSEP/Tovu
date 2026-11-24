@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { formBaselineStyle, formRangeReadoutJs, formRangeReadoutScript } from "@jini-ai/cms/public-http/http/site/form-presentation-assets";
@@ -31,4 +32,19 @@ test("FORM_RANGE_READOUT_JS is byte-identical to the shipped script body", () =>
 test("FORM_RANGE_READOUT_SCRIPT is byte-identical to the shipped inline script", () => {
   assert.equal(FORM_RANGE_READOUT_SCRIPT.length, 498);
   assert.equal(sha256(FORM_RANGE_READOUT_SCRIPT), "90c54bb129c7c4f88002d604917604bf8564ba7614217d4673ce4b4b6c6877b5");
+});
+
+/**
+ * The tovu-theme stylesheet targets the Builder field classes (`.tovu-form .widget-form-field…`); the
+ * host-bound field names must keep matching what the theme selects and what the baseline CSS styles.
+ */
+test("the field class names tovu-theme selects are the ones bound into the baseline CSS", () => {
+  const themeCss = readFileSync(new URL("../../../../../../../../../content/themes/static/tovu-theme/css/theme.css", import.meta.url), "utf8");
+  const themeClasses = new Set([...themeCss.matchAll(/\.(widget-form-field[a-z-]*)/g)].map((m) => m[1]));
+  assert.deepEqual([...themeClasses].sort(), ["widget-form-field", "widget-form-field-checkbox", "widget-form-field-help"]);
+  const bound = new Set<string>([names.fieldClass, names.fieldCheckboxClass, names.fieldHelpClass]);
+  for (const cls of themeClasses) assert.ok(bound.has(cls), `${cls} is bound`);
+  for (const cls of [names.fieldClass, names.fieldHelpClass, names.fieldCheckboxClass, names.fieldErrorClass]) {
+    assert.ok(FORM_BASELINE_STYLE.includes(`.${cls}`), `${cls} appears in the baseline CSS`);
+  }
 });

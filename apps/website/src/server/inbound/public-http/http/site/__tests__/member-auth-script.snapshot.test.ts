@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { MEMBER_AUTH_SCRIPT, MEMBER_AUTH_STYLE } from "@jini-ai/cms/public-http/http/site/member-auth-script";
+import { memberAuthScript, memberAuthStyle } from "@jini-ai/cms/public-http/http/site/member-auth-script";
+
+import { MEMBER_AUTH_NAMES } from "../form-wire-policy.js";
+
+const MEMBER_AUTH_STYLE = memberAuthStyle({ names: MEMBER_AUTH_NAMES });
+const MEMBER_AUTH_SCRIPT = memberAuthScript({ names: MEMBER_AUTH_NAMES });
 
 /**
  * Byte-exact guard for the member sign-in style and script. Tovu themes and `MEMBER_PAGES`

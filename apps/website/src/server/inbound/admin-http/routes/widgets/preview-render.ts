@@ -1,5 +1,5 @@
-import { findWidgetTypeRegistration, validateWidgetConfig, WidgetConfigValidationError, WidgetTypeUnregisteredError } from '@jini-ai/cms/widgets';
-import { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
+import { resolveWidgetPreviewIr } from '@jini-ai/cms/widgets/site/preview-render';
+import type { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/index';
@@ -11,28 +11,17 @@ import type { WidgetPreviewInput } from '@jini-ai/cms/admin-http/routes/widgets/
 
 export type WidgetPreviewDeps = Pick<RouteDeps, 'workspaceId' | 'presentationRepo' | 'themes'>;
 
-/** Never persists a widget. The registry dispatcher, sanitizer and public HTML renderer own
- * every widget treatment; this adapter only supplies the unsaved instance and theme document.
+/** The host binding over Jini's `resolveWidgetPreviewIr`: registry lookup, validation, resolution
+ * and the fallback IR are Jini's; this supplies the workspace, the public HTML renderer, the active
+ * theme and the preview document.
  * @throws The existing widget validation/type errors for invalid configs.
  * @complexity One bounded widget resolution plus the existing theme document render.
  */
 export async function renderWidgetPreview(
   { deps, input }: { deps: WidgetPreviewDeps; input: WidgetPreviewInput },
-  { resolve = resolveWidgetType }: { resolve?: typeof resolveWidgetType } = {},
+  { resolve }: { resolve?: typeof resolveWidgetType } = {},
 ): Promise<{ html: string; document: string }> {
-  const registration = findWidgetTypeRegistration({ raw: input.widgetType });
-  if (!registration) throw new WidgetTypeUnregisteredError({ message: 'widget type is unregistered', widgetType: input.widgetType });
-  const validation = validateWidgetConfig({ schema: registration.configSchema, config: input.content });
-  if (!validation.valid) throw new WidgetConfigValidationError({ message: 'widget config is invalid', fieldErrors: validation.fieldErrors });
-  const id = 'unsaved-widget-preview';
-  const resolved = await resolve({
-    typeKey: registration.typeKey,
-    instances: [{ id, widgetType: registration.typeKey, config: input.content }],
-    // Match public resolver semantics. Authentication lives at the HTTP boundary.
-    context: { workspaceId: deps.workspaceId, preview: false },
-  });
-  const result = resolved.get(id);
-  const html = renderWidgetIr(result?.ok ? result.ir : { componentId: 'widget-placeholder', props: {} });
+  const html = renderWidgetIr(await resolveWidgetPreviewIr({ input, workspaceId: deps.workspaceId }, { resolve }));
   const activeThemeId = await resolveActiveThemeId(deps);
   const active = resolveActiveTheme({ deps, activeThemeId });
   const theme = active === NO_THEME_ID ? null : active;

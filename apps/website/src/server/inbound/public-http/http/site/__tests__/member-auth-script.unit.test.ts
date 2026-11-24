@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM, VirtualConsole } from "jsdom";
 
-import { injectMemberAuthScript, MEMBER_AUTH_SCRIPT, MEMBER_AUTH_STYLE } from "@jini-ai/cms/public-http/http/site/member-auth-script";
-import { MEMBER_AUTH_SCRIPT_MARKER as marker } from "../form-wire-policy.js";
+import { injectMemberAuthScript, memberAuthScript, memberAuthStyle } from "@jini-ai/cms/public-http/http/site/member-auth-script";
+import { MEMBER_AUTH_NAMES as names, MEMBER_AUTH_SCRIPT_MARKER as marker } from "../form-wire-policy.js";
 import { MEMBER_PAGES } from "../../../routes/site/member-pages.js";
 
 /**
@@ -12,30 +12,32 @@ import { MEMBER_PAGES } from "../../../routes/site/member-pages.js";
  * (`MEMBER_PAGES`) with a fake `fetch`. Contract: `SHARD-E-CONTRACT.md` (2026-10-24).
  */
 
+const MEMBER_AUTH_SCRIPT = memberAuthScript({ names });
+const MEMBER_AUTH_STYLE = memberAuthStyle({ names });
 const BASE = "/api/members/v1/workspaces/ws-1";
 
 test("injects the style + script once, right before </body>", () => {
   const html = '<html><body><a href="/signin" data-member-nav>Sign in</a></body></html>';
-  const out = injectMemberAuthScript({ html, workspaceId: "ws-1", marker });
+  const out = injectMemberAuthScript({ html, workspaceId: "ws-1", marker, names });
   assert.equal(out.match(/data-tovu-member-auth/g)?.length, 2, "one <style> and one <script>");
   assert.ok(out.endsWith("</script></body></html>"), "the markup lands before the closing body tag");
   assert.ok(out.includes(`(${JSON.stringify(BASE)});</script>`), "the script is called with this workspace's API base");
-  assert.equal(injectMemberAuthScript({ html: out, workspaceId: "ws-1", marker }), out, "a second pass must not inject again");
+  assert.equal(injectMemberAuthScript({ html: out, workspaceId: "ws-1", marker, names }), out, "a second pass must not inject again");
 });
 
 test("leaves pages without a member hook untouched", () => {
   const html = '<html><body><a href="/signin">Sign in</a><p>data-member-nav in text only</p></body></html>';
-  assert.equal(injectMemberAuthScript({ html, workspaceId: "ws-1", marker }), html);
+  assert.equal(injectMemberAuthScript({ html, workspaceId: "ws-1", marker, names }), html);
 });
 
 test("appends when the document has no </body>, for a member page body", () => {
   const html = '<div data-member-page="signin"></div>';
-  const out = injectMemberAuthScript({ html, workspaceId: "ws-1", marker });
+  const out = injectMemberAuthScript({ html, workspaceId: "ws-1", marker, names });
   assert.ok(out.startsWith(html) && out.endsWith("</script>"));
 });
 
 test("a hostile workspace id cannot close the script tag", () => {
-  const out = injectMemberAuthScript({ html: "<body data-member-page=x></body>", workspaceId: "</script><script>alert(1)", marker });
+  const out = injectMemberAuthScript({ html: "<body data-member-page=x></body>", workspaceId: "</script><script>alert(1)", marker, names });
   assert.equal(out.match(/<\/script>/g)?.length, 1, "only the script's own closing tag");
   assert.ok(out.includes("%3C%2Fscript%3E"), "the id is URL-encoded into the base");
 });

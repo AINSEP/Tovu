@@ -123,6 +123,8 @@ test('static theme CSS and tokens use the existing partial preview path; other t
 test('resolver failure keeps the public placeholder and unknown server failures keep the short error envelope', async () => {
   const output = await renderWidgetPreview({ deps: previewDeps(), input: { widgetType: 'text', content: { body: 'Draft' } } }, { resolve: async () => new Map() });
   assert.equal(output.html, renderWidgetIr({ componentId: 'widget-placeholder', props: {} }));
+  const failed = await renderWidgetPreview({ deps: previewDeps(), input: { widgetType: 'text', content: { body: 'Draft' } } }, { resolve: async () => new Map([['unsaved-widget-preview', { ok: false, reason: 'timeout' }]]) });
+  assert.equal(failed.html, renderWidgetIr({ componentId: 'widget-placeholder', props: {} }), 'a failed resolution (not just a missing one) also selects the placeholder IR');
   const h = harness({ render: async () => { throw new Error('private detail'); } });
   assertAdminResponse({ actual: await h.invoke(), expected: { statusCode: 500, jsonBody: { error: 'internal error' } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
 });
