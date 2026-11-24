@@ -693,6 +693,8 @@ interface EditMediaModalProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useEditMediaModalHook?: typeof useEditMediaModal;
+  /** Host kit values hook (injected so tests can supply the native-dialog helpers). */
+  useAdminKitValuesHook?: typeof useAdminKitValues;
   /** Translator closure — see `Media()`'s own `t`; forwarded to the `EditMediaPanel` this wraps. */
   t: (key: string) => string;
 }
@@ -712,9 +714,9 @@ interface EditMediaModalProps {
  * the new item, preserving the 2026-08-12 audit fix (`MediaLibraryPanel`'s own comment on this same
  * `key` has the full incident writeup).
  */
-function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEditMediaModal, t }: EditMediaModalProps) {
+function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEditMediaModal, useAdminKitValuesHook = useAdminKitValues, t }: EditMediaModalProps) {
   // The Jini hook takes the native-dialog helpers as required args; bind them from the host kit here.
-  const { openLightboxDialog, closeLightboxDialog } = useAdminKitValues();
+  const { openLightboxDialog, closeLightboxDialog } = useAdminKitValuesHook();
   const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook({
     open: item !== null, onClose: onCancel, openLightboxDialog, closeLightboxDialog,
   });
