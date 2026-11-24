@@ -9,6 +9,7 @@
  */
 import type { Request } from "express";
 import { CONFIG_ID, CONSENT_COOKIE } from "@jini-ai/cookie-consent";
+import { parseStored } from "@jini-ai/cookie-consent/policy";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 
 export const CACHE_CONTROL_PRE_CONSENT_TRACKING = "private, no-store";
@@ -32,17 +33,35 @@ export function hasConsentGatedScripts({ html }: { html: string }, _optional = {
   }
 }
 
+/** Parses the stored consent cookie value; the library's own trust-boundary parser, so anything it
+ *  rejects (wrong shape, wrong version, oversize, not JSON) is "no choice". */
+export type ParseConsentCookie = (input: { raw: string }, options?: Record<string, never>) => unknown;
+
+/**
+ * True when the request carries a consent cookie that PARSES as a stored choice. A cookie that merely
+ * exists under the consent name (empty, truncated, hand-edited) is not a choice: the banner would
+ * still be shown, so the page is still a pre-consent page.
+ * @complexity O(cookie header).
+ */
+export function hasParsedConsentChoice(
+  { request }: { request: Pick<Request, "headers"> },
+  { parseConsentCookie = parseStored as ParseConsentCookie }: { parseConsentCookie?: ParseConsentCookie } = {},
+): boolean {
+  const raw = readRequestCookie({ request, name: CONSENT_COOKIE });
+  return raw !== undefined && Boolean(parseConsentCookie({ raw }));
+}
+
 /**
  * The `Cache-Control` to send: the route's own directive, tightened to
- * {@link CACHE_CONTROL_PRE_CONSENT_TRACKING} for a pre-consent request (no consent cookie yet) whose
- * page carries consent-gated scripts. Never loosens an already-private directive.
+ * {@link CACHE_CONTROL_PRE_CONSENT_TRACKING} for a pre-consent request (no parsed consent choice yet)
+ * whose page carries consent-gated scripts. Never loosens an already-private directive.
  * @complexity O(html length).
  */
 export function preConsentCacheControl(
   { html, request, cacheControl }: { html: string; request: Pick<Request, "headers">; cacheControl: string },
-  _optional = {},
+  options: { parseConsentCookie?: ParseConsentCookie } = {},
 ): string {
   if (/\b(private|no-store)\b/.test(cacheControl)) return cacheControl;
-  if (readRequestCookie({ request, name: CONSENT_COOKIE })) return cacheControl;
+  if (hasParsedConsentChoice({ request }, options)) return cacheControl;
   return hasConsentGatedScripts({ html }) ? CACHE_CONTROL_PRE_CONSENT_TRACKING : cacheControl;
 }

@@ -8,6 +8,7 @@ const config = (client: unknown) => `<script type="application/json" id="${CONFI
 const TRACKED_PAGE = `<html><head>${config({ contract: 1, banner: "jini", scripts: [{ src: "https://analytics.example/t.js", consent: "analytics" }] })}</head><body>hi</body></html>`;
 const NO_GATED_PAGE = `<html><head>${config({ contract: 1, banner: "jini", scripts: [] })}</head><body>hi</body></html>`;
 const NO_BANNER_PAGE = `<html><head><script data-jini-declared-script src="/a.js" defer></script></head><body>hi</body></html>`;
+const CHOICE = encodeURIComponent(JSON.stringify({ v: 1, p: "policy-1", t: 1_700_000_000_000, a: "accept", c: { functional: true, analytics: true, marketing: true } }));
 const request = (cookie?: string) => ({ headers: cookie === undefined ? {} : { cookie } });
 
 test("preConsentCacheControl: a page rendered before consent that carries consent-gated tracking scripts is private, no-store", () => {
@@ -17,7 +18,7 @@ test("preConsentCacheControl: a page rendered before consent that carries consen
 });
 
 test("preConsentCacheControl: after a consent decision, or with no gated scripts, the route's directive stands", () => {
-  assert.equal(preConsentCacheControl({ html: TRACKED_PAGE, request: request(`${CONSENT_COOKIE}=v1.abc`), cacheControl: PUBLIC }), PUBLIC);
+  assert.equal(preConsentCacheControl({ html: TRACKED_PAGE, request: request(`${CONSENT_COOKIE}=${CHOICE}`), cacheControl: PUBLIC }), PUBLIC);
   assert.equal(preConsentCacheControl({ html: NO_GATED_PAGE, request: request(), cacheControl: PUBLIC }), PUBLIC);
   assert.equal(preConsentCacheControl({ html: NO_BANNER_PAGE, request: request(), cacheControl: PUBLIC }), PUBLIC);
 });
