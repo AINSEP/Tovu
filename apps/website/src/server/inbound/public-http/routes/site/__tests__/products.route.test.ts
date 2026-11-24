@@ -358,7 +358,8 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
     set() { return res; }, type() { return res; },
     send(body: string) { html = body; return res; },
   };
-  await extractHandler(createApp(deps), "/products")({ header: () => undefined, hostname: "localhost" }, res);
+  // `query`/`headers`: the shared public-page finalizer reads them, and Express always supplies both.
+  await extractHandler(createApp(deps), "/products")({ header: () => undefined, hostname: "localhost", query: {}, headers: {} }, res);
   assert.equal(status, 200);
   assert.match(html, /No products available yet\./);
   assert.match(html, /class="entry-list entry-list--products"/);
