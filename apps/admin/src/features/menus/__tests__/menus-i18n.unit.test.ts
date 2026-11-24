@@ -212,10 +212,15 @@ describe("MENUS_DICT: copy the menus screens actually render", () => {
   // Presence, not `t(locale, key) !== key`: fr "Description" is legitimately the same word.
   it.each(LOCALES)("carries every rendered key in %s", (locale) => {
     const screenKeys = ["Menus.tsx", "MenuEditor.tsx"].flatMap((name) => {
-      // `Menus.tsx` moved to `@jini-ai/admin/screens/menus/Menus`; its shipped build still calls
-      // `t("…")` with the same literal keys, so the scanner reads that module.
-      const file = name === "Menus.tsx" ? createRequire(import.meta.url).resolve("@jini-ai/admin/screens/menus/Menus") : path.resolve(__dirname, "..", name);
-      const keys = translationKeys(readFileSync(file, "utf8"));
+      // Both screens moved to `@jini-ai/admin/screens/menus`; their shipped builds still call
+      // `t("…")` with the same literal keys, so the scanner reads those modules. The editor's markup
+      // is split across sibling modules (header, item row, item fields, mode tabs), all scanned.
+      const require = createRequire(import.meta.url);
+      const menusDir = path.dirname(require.resolve("@jini-ai/admin/screens/menus/Menus"));
+      const files = name === "Menus.tsx"
+        ? ["Menus.js"]
+        : ["MenuEditor.js", "MenuEditorHeader.js", "MenuItemRow.js", "MenuItemFields.js", "MenuModeTabs.js"];
+      const keys = files.flatMap((file) => translationKeys(readFileSync(path.join(menusDir, file), "utf8")));
       expect(keys, `${name}: scanner must see the loading branch`).toContain(name === "Menus.tsx" ? "Loading menus…" : "Loading menu…");
       return keys;
     });

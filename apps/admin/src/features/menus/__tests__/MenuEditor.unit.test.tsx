@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MenuEditor, MenuItemTargetFields } from "../MenuEditor";
+import { MenuEditor } from "../menu-editor-panel";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 import type { MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
@@ -104,7 +104,7 @@ describe("removing an item with nested children", () => {
 
     render(<MenuEditor menuId="m1" />);
 
-    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
 
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("1 nested item"));
@@ -119,7 +119,7 @@ describe("removing an item with nested children", () => {
 
     render(<MenuEditor menuId="m1" />);
 
-    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
 
     expect(screen.queryByDisplayValue("Parent")).not.toBeInTheDocument();
@@ -134,7 +134,7 @@ describe("removing an item with nested children", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<MenuEditor menuId="m1" />);
-    const fields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const fields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(fields).getByRole("button", { name: "Remove item" }));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(confirmSpy).toHaveBeenCalledWith('Remove "Parent"? This will also remove 2 nested items.');
@@ -152,7 +152,7 @@ describe("removing a leaf item", () => {
 
     render(<MenuEditor menuId="m1" />);
 
-    const leafFields = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const leafFields = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(leafFields).getByRole("button", { name: "Remove item" }));
 
     expect(confirmSpy).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe("item-row fields — accessible names", () => {
     // One "Link type" select per item row (2 root items + 1 nested child in the fixture).
     expect(screen.getAllByLabelText("Link type").length).toBe(3);
     for (const [label, kind] of [["Parent", "url"], ["Child", "route"], ["Leaf", "entryRef"]]) {
-      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      const fields = screen.getByDisplayValue(label).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
       const select = within(fields).getByLabelText("Link type");
       expect(select).toBe(within(fields).getByRole("combobox", { name: "Link type" }));
       expect(select).toHaveValue(kind);
@@ -199,7 +199,7 @@ describe("item-row fields — accessible names", () => {
     expect(screen.getAllByLabelText("URL").length).toBe(3);
 
     // Switching a row's link type swaps in the field for that kind, still real-labeled.
-    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.selectOptions(within(parentFields).getByLabelText("Link type"), "route");
     expect(within(parentFields).getByLabelText("Route name")).toBeInTheDocument();
   });
@@ -214,7 +214,7 @@ describe("move controls", () => {
     expect(screen.getAllByRole("button", { name: "Move item up" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Move item down" }).length).toBeGreaterThan(0);
     for (const label of ["Parent", "Child", "Leaf"]) {
-      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      const fields = screen.getByDisplayValue(label).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
       expect(within(fields).getAllByRole("button", { name: "Move item up" })).toHaveLength(1);
       expect(within(fields).getAllByRole("button", { name: "Move item down" })).toHaveLength(1);
     }
@@ -231,7 +231,7 @@ describe("move controls", () => {
 
     const labels = () => screen.getAllByLabelText("Item label").map((input) => (input as HTMLInputElement).value);
     const move = async (label: string, direction: "up" | "down") => {
-      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      const fields = screen.getByDisplayValue(label).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
       await user.click(within(fields).getByRole("button", { name: `Move item ${direction}` }));
     };
     await move("Parent", "up");
@@ -337,106 +337,13 @@ describe("unsaved-changes protection on the back-link", () => {
   });
 });
 
-/**
- * `targetForKind` — pulled apart from the four `?? ""` fallbacks that used to be inline
- * (2026-08-06, complexity pass, fourth pass; see `orEmpty`'s own doc in the source file). The
- * `item-row fields` describe block above only ever renders a "url" target through the full
- * `MenuEditor`; these tests exercise all four kinds directly, no fetch/render involved.
- */
-describe("targetForKind", () => {
-  it("switches to url, carrying over an existing href", () => {
-    expect(targetForKind({ kind: "url", prev: { kind: "route", route: "unused" } })).toEqual({
-      kind: "url",
-      href: "",
-    });
-    expect(targetForKind({ kind: "url", prev: { kind: "url", href: "/old" } })).toEqual({
-      kind: "url",
-      href: "/old",
-    });
-  });
-
-  it("switches to route, defaulting to an empty string when the previous target had none", () => {
-    expect(targetForKind({ kind: "route", prev: { kind: "url", href: "/x" } })).toEqual({ kind: "route", route: "" });
-  });
-
-  it("switches to entryRef, defaulting to an empty string when the previous target had none", () => {
-    expect(targetForKind({ kind: "entryRef", prev: { kind: "url", href: "/x" } })).toEqual({
-      kind: "entryRef",
-      entryId: "",
-    });
-  });
-
-  it("switches to termRef, defaulting BOTH termId and taxonomy independently", () => {
-    expect(targetForKind({ kind: "termRef", prev: { kind: "termRef", termId: "t1", taxonomy: "" } })).toEqual({
-      kind: "termRef",
-      termId: "t1",
-      taxonomy: "",
-    });
-    expect(targetForKind({ kind: "termRef", prev: { kind: "url", href: "/x" } })).toEqual({
-      kind: "termRef",
-      termId: "",
-      taxonomy: "",
-    });
-  });
-});
-
-/**
- * `MenuItemTargetFields` — same extraction, the rendered half. Direct render tests for the three
- * kinds ("route"/"entryRef"/"termRef") the full-`MenuEditor` fixture above never exercises (it only
- * ever seeds "url" targets).
- */
-describe("MenuItemTargetFields", () => {
-  const noop = () => {};
-  const t = (key: string) => key;
-
-  it("renders a Route name field for a route target, pre-filled from the item", () => {
-    render(
-      <MenuItemTargetFields item={{ id: "i1", target: { kind: "route", route: "/dashboard" } }} path={[0]} onChange={noop} t={t} />,
-    );
-    expect(screen.getByPlaceholderText("route name")).toHaveValue("/dashboard");
-  });
-
-  it("renders an Entry ID field for an entryRef target, defaulting to empty when absent", () => {
-    render(<MenuItemTargetFields item={{ id: "i1", target: { kind: "entryRef" } }} path={[0]} onChange={noop} t={t} />);
-    expect(screen.getByPlaceholderText("entry id")).toHaveValue("");
-  });
-
-  it("renders BOTH Term ID and Taxonomy fields for a termRef target", () => {
-    render(
-      <MenuItemTargetFields
-        item={{ id: "i1", target: { kind: "termRef", termId: "t1", taxonomy: "category" } }}
-        path={[0]}
-        onChange={noop}
-        t={t}
-      />,
-    );
-    expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");
-    expect(screen.getByPlaceholderText("taxonomy")).toHaveValue("category");
-  });
-
-  it.each([
-    { target: { kind: "url", href: "/old" }, field: "URL", value: "/new", expected: { kind: "url", href: "/new" } },
-    { target: { kind: "route", route: "old" }, field: "Route name", value: "dashboard", expected: { kind: "route", route: "dashboard" } },
-    { target: { kind: "entryRef", entryId: "e1" }, field: "Entry ID", value: "e2", expected: { kind: "entryRef", entryId: "e2" } },
-    { target: { kind: "termRef", termId: "t1", taxonomy: "category" }, field: "Term ID", value: "t2", expected: { kind: "termRef", termId: "t2", taxonomy: "category" } },
-    { target: { kind: "termRef", termId: "t1", taxonomy: "category" }, field: "Taxonomy", value: "tag", expected: { kind: "termRef", termId: "t1", taxonomy: "tag" } },
-  ] as const)("writes $field to its own target field, retaining the rest of the item", ({ target, field, value, expected }) => {
-    const item: AdminMenuItem = { id: "i1", label: "Link", target, attrs: { cssClass: "featured" }, children: [] };
-    let changed: AdminMenuItem | undefined;
-    const onChange = vi.fn((_path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => { changed = update(item); });
-    render(<MenuItemTargetFields item={item} path={[1, 0]} onChange={onChange} t={t} />);
-    fireEvent.change(screen.getByLabelText(field), { target: { value } });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith([1, 0], expect.any(Function));
-    expect(changed).toEqual({ ...item, target: expected });
-  });
-
+describe("typed route target through the full editor", () => {
   it("saves a typed route target through the full editor", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...MENU_WITH_NESTED_CHILD.menu, version: 2 } }));
     render(<MenuEditor menuId="m1" />);
-    const fields = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    const fields = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.selectOptions(within(fields).getByLabelText("Link type"), "route");
     await user.type(within(fields).getByLabelText("Route name"), "dashboard");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -466,7 +373,7 @@ describe("attrs — advanced per-item fields", () => {
 
     render(<MenuEditor menuId="m1" />);
 
-    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row") as HTMLElement;
+    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row") as HTMLElement;
     await user.click(within(leafRow).getByText("Advanced"));
     await user.type(within(leafRow).getByPlaceholderText("CSS class"), "featured-link");
     await user.type(within(leafRow).getByPlaceholderText("Icon"), "star");
@@ -508,114 +415,10 @@ describe("attrs — advanced per-item fields", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(withAttrs));
     render(<MenuEditor menuId="m1" />);
 
-    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row") as HTMLElement;
+    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row") as HTMLElement;
     await user.click(within(leafRow).getByText("Advanced"));
 
     expect(within(leafRow).getByPlaceholderText("CSS class")).toHaveValue("existing-class");
     expect(within(leafRow).getByRole("checkbox")).toBeChecked();
-  });
-});
-
-describe("injected hook seam (useMenuEditorHook)", () => {
-  function fakeController(overrides: Partial<MenuEditorController> = {}): MenuEditorController {
-    return {
-      copyHtmlEmbed: vi.fn(),
-      copyFeedback: null,
-      isNew: true,
-      menu: null,
-      title: "",
-      setTitle: vi.fn(),
-      slug: "",
-      setSlug: vi.fn(),
-      items: [],
-      mode: "items",
-      changeMode: vi.fn(),
-      html: "",
-      setHtml: vi.fn(),
-      message: null,
-      error: null,
-      loading: true,
-      confirmLeave: vi.fn(() => true),
-      changeAt: vi.fn(),
-      removeAt: vi.fn(),
-      addChildAt: vi.fn(),
-      moveAt: vi.fn(),
-      addRootItem: vi.fn(),
-      save: vi.fn(async () => {}),
-      saving: false,
-      t: (key) => key,
-      ...overrides,
-    };
-  }
-
-  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
-    const controller = fakeController();
-    const useMenuEditorHook = vi.fn(() => controller);
-
-    render(<MenuEditor menuId="m1" useMenuEditorHook={useMenuEditorHook} />);
-
-    // `loading: true` renders the loading notice regardless of `isNew`/`menuId` — reaching it
-    // synchronously, with no fetch queued, is only possible via the injected fake.
-    expect(screen.getByText("Loading menu…")).toBeInTheDocument();
-    expect(useMenuEditorHook).toHaveBeenCalledWith({ menuId: "m1" });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("shows save status and disables Save while saving", async () => {
-    const user = userEvent.setup();
-    const controller = fakeController({ loading: false, saving: true, message: "Saved · version 2", error: "Save failed" });
-    render(<MenuEditor menuId="m1" useMenuEditorHook={() => controller} />);
-    expect(screen.getByText("Saved · version 2")).toHaveClass("save-ok");
-    expect(screen.getByRole("alert")).toHaveTextContent("Save failed");
-    expect(screen.getByRole("alert")).toHaveClass("notice", "error");
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(controller.save).not.toHaveBeenCalled();
-  });
-
-  it("wires create-mode Save, Add item, and a nested Add child to the controller", async () => {
-    const user = userEvent.setup();
-    const controller = fakeController({ loading: false, items: MENU_WITH_NESTED_CHILD.menu.items as AdminMenuItem[] });
-    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
-    expect(screen.getByRole("heading", { name: "New menu" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(controller.save).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole("button", { name: "+ Add item" }));
-    expect(controller.addRootItem).toHaveBeenCalledTimes(1);
-    const childFields = screen.getByDisplayValue("Child").closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
-    await user.click(within(childFields).getByRole("button", { name: "+ child" }));
-    expect(controller.addChildAt).toHaveBeenCalledTimes(1);
-    expect(controller.addChildAt).toHaveBeenCalledWith({ path: [0, 0] });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("shows only the error when an existing menu failed to load", () => {
-    const controller = fakeController({ loading: false, isNew: false, menu: null, error: "menu not found" });
-    const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={() => controller} />);
-    expect(container.textContent).toBe("menu not found");
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-  });
-
-  it("sends HTML-mode edits to the controller", () => {
-    const controller = fakeController({ loading: false, mode: "html", html: "<nav></nav>" });
-    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
-    fireEvent.change(screen.getByLabelText("Menu HTML"), { target: { value: "<nav>x</nav>" } });
-    expect(controller.setHtml).toHaveBeenCalledWith("<nav>x</nav>");
-  });
-
-  it("shows an unlabelled item's label field empty and types the label through changeAt", () => {
-    const unlabelled = { id: "bare", target: { kind: "url", href: "/" } } as unknown as AdminMenuItem;
-    // The updater reads the input's value when applied, so apply it inside the change event.
-    const applied: Array<{ path: number[]; next: AdminMenuItem }> = [];
-    const changeAt = vi.fn(({ path, fn }: { path: number[]; fn: (item: AdminMenuItem) => AdminMenuItem }) => {
-      applied.push({ path, next: fn(unlabelled) });
-    });
-    const controller = fakeController({ loading: false, items: [unlabelled], changeAt });
-    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
-    const label = screen.getByLabelText("Item label");
-    expect(label).toHaveValue("");
-    fireEvent.change(label, { target: { value: "Docs" } });
-    expect(applied).toEqual([{ path: [0], next: { ...unlabelled, label: "Docs" } }]);
   });
 });

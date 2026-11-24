@@ -7,4 +7,4 @@
  * it is exported from this line.
  */
 export { Menus } from "./menus-panel";
-export { MenuEditor } from "./MenuEditor";
+export { MenuEditor } from "./menu-editor-panel";

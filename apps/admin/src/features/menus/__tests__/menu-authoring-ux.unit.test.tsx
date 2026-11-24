@@ -1,7 +1,7 @@
 import { act, fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from 'vitest';
 import { menusHostKit } from "@/features/menus/menus-host-ports";
-import { MenuEditor } from '../MenuEditor';
+import { MenuEditor } from '../menu-editor-panel';
 import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
@@ -61,9 +61,9 @@ describe('menu authoring UX', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })); });
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toBe('slug must use lowercase letters, numbers, and dashes');
-    expect(alert).toHaveClass('notice', 'error');
-    expect(alert.closest('.page-header')).toBeNull();
-    expect(alert.parentElement).toHaveClass('page');
+    expect(alert).toHaveClass('jini-notice', 'jini-notice-error');
+    expect(alert.closest('.jini-page-header')).toBeNull();
+    expect(alert.parentElement).toHaveClass('jini-page');
     expect(screen.getAllByText('slug must use lowercase letters, numbers, and dashes')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     expect(navigate).not.toHaveBeenCalled();

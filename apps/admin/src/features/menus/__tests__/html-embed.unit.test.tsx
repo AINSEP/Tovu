@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { menusHostKit } from "@/features/menus/menus-host-ports";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { MenuEditor } from "../MenuEditor";
+import { MenuEditor } from "../menu-editor-panel";
 import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { menuHtmlEmbed } from "@jini-ai/admin/screens/menus/html-rules";

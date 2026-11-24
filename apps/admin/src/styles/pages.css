@@ -7,7 +7,7 @@
  * definition, shared, rather than two that drift.
  */
 
-.page-editor-toolbar {
+.page-editor-toolbar,.jini-page-editor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -20,7 +20,7 @@
    The Jini post settings tab strip (`.jini-post-settings-tabs`, active = `aria-selected`) twins it. */
 .segmented,
 .jini-post-settings-tabs,
-.agent-plugin-source-modal [data-preview-modal-tabs] {
+.agent-plugin-source-modal [data-preview-modal-tabs],.jini-segmented {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -32,7 +32,7 @@
 
 .segmented button,
 .jini-post-settings-tabs button,
-.agent-plugin-source-modal [data-preview-modal-tabs] button {
+.agent-plugin-source-modal [data-preview-modal-tabs] button,.jini-segmented button {
   border: 0;
   background: transparent;
   padding: 0.35rem 0.75rem;
@@ -44,7 +44,7 @@
 
 .segmented button.is-active,
 .jini-post-settings-tabs button[aria-selected="true"],
-.agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"] {
+.agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"],.jini-segmented button.is-active,.jini-segmented button.jini-is-active {
   background: var(--surface);
   color: var(--fg);
   box-shadow: var(--jini-control-shadow-segment);
@@ -113,7 +113,8 @@
  */
 .page > .page-preview-frame,
 .page > .page-html-source,
-.page > .interactive-html-editor {
+.page > .interactive-html-editor,
+.jini-page > .jini-page-html-source {
   margin-top: calc(-1 * var(--space-6));
 }
 /* The preview surface is deliberately NOT in the negative-pull rule above (owner, 2026-09-16):
@@ -277,7 +278,7 @@
    is exactly what an over-wide, scaled-down preview wants. */
 .page-preview-expanded .page-preview-scaler { margin-inline: auto; }
 
-.page-html-source {
+.page-html-source,.jini-page-html-source {
   width: 100%;
   min-height: 32rem;
   padding: 1rem;

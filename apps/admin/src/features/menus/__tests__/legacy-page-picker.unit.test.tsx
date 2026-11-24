@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-rend
 import { expect, it } from "vitest";
 import { menusHostKit } from "@/features/menus/menus-host-ports";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { MenuEditor } from "../MenuEditor";
+import { MenuEditor } from "../menu-editor-panel";
 import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 

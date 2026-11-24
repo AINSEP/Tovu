@@ -2,6 +2,8 @@ import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { ApiError, request } from "@/lib/admin-http/request";
 import type { MenusHostKit } from "@jini-ai/admin/screens/menus/menus-host-kit";
 import { createMenusApi } from "@jini-ai/admin/screens/menus/api/menus-api";
+import { useMenuEditorState, useMenuFieldActions, useMenuItemActions } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor-state.hooks";
+import { useMenuCopyEmbed, useMenuSave } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor-writes.hooks";
 import { createMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { trashApi } from "@/features/trash/api/trash-api";
@@ -30,7 +32,8 @@ export const defaultMenusPort = createMenusPort({
 /** The menus hooks' host kit (`@jini-ai/admin/screens/menus/menus-host-kit`): this host's admin
  *  request error class (the trash classifier's predicate), its version-conflict test and copy key,
  *  the website's browser-safe slug rule, the admin shell's slug-redirect rule and the admin failure
- *  channel the menu editor reports a failed embed copy through. */
+ *  channel the menu editor reports a failed embed copy through, and the menu editor's own state/action
+ *  and write hooks (`@jini-ai/admin`'s implementations, passed in). */
 export const menusHostKit: MenusHostKit = {
   isApiError: (e): e is ApiError => e instanceof ApiError,
   isVersionConflict: ({ error }) => isVersionConflict({ error }),
@@ -42,4 +45,9 @@ export const menusHostKit: MenusHostKit = {
     isClipboardRefusal: ({ error }) => isClipboardRefusal({ error }),
     publishLocal: (required, optional) => publishLocalAdminFailure(required, optional),
   },
+  useMenuEditorState,
+  useMenuFieldActions,
+  useMenuItemActions,
+  useMenuCopyEmbed,
+  useMenuSave,
 };

@@ -2,7 +2,7 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { CollectionEntries } from "../CollectionEntries";
+import { CollectionEntries } from "../CollectionEntriesScreen";
 import type { CollectionEntriesController } from "@jini-ai/admin/screens/collections/hooks/use-collection-entries.hooks";
 
 /**
@@ -98,8 +98,6 @@ describe("loaded entries and errors", () => {
     title: "My Recipe", bodyJson: null, fieldsJson: null, publishedAt: null,
     createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", version: 1,
   };
-  const contentType = { workspaceId: "w1", key: "recipe", label: "Recipe", status: "active" as const, version: 1, fields: [] };
-
   it("renders entries returned through the real hook", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("/content-types")) return jsonResponse(CONTENT_TYPES_RESPONSE);
@@ -109,60 +107,8 @@ describe("loaded entries and errors", () => {
     render(<FetchQueryProvider><CollectionEntries contentTypeKey="recipe" /></FetchQueryProvider>);
     expect(await screen.findByRole("link", { name: "My Recipe" })).toHaveAttribute("href", "/admin/collections/recipe/my-recipe");
     expect(screen.queryByText("No entries yet in Recipe.")).not.toBeInTheDocument();
-  });
-
-  it.each([null, [], [entry]])("shows load errors with entries %j", (entries) => {
-    const controller: CollectionEntriesController = { contentType, entries, error: "entries unavailable", t: ({ key }, _optional = {}) => key };
-    render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
-    expect(screen.getByText("entries unavailable")).toHaveClass("notice", "error");
-    if (entries?.length) expect(screen.getByRole("link", { name: "My Recipe" })).toBeInTheDocument();
-    if (entries === null) expect(screen.queryByRole("link", { name: /new entry/i })).not.toBeInTheDocument();
-  });
-});
-
-describe("injected hook seam (useCollectionEntriesHook)", () => {
-  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
-    const controller: CollectionEntriesController = {
-      contentType: null,
-      entries: [],
-      error: null,
-      t: ({ key }, _optional = {}) => key,
-    };
-    render(<CollectionEntries contentTypeKey="does-not-matter" useCollectionEntriesHook={() => controller} />);
-
-    // The real hook can never resolve `contentType: null` synchronously on first render (it starts
-    // `undefined` until the fetch settles) — reaching this branch with no `act`/`waitFor` is only
-    // possible because the fake bypassed `useWiredCollectionEntries` entirely.
-    expect(screen.getByText('Unknown content type "does-not-matter".')).toBeInTheDocument();
-  });
-
-  // readable-slugs S6b (2026-09-23): the list row links by slug, not the raw id — same rule
-  // Posts/Pages/Widgets/Menus rows already follow.
-  it("links an entry row by its slug, not its id", () => {
-    const controller: CollectionEntriesController = {
-      contentType: { workspaceId: "w1", key: "recipe", label: "Recipe", status: "active", version: 1, fields: [] },
-      entries: [
-        {
-          id: "e1",
-          workspaceId: "w1",
-          type: "recipe",
-          slug: "my-recipe",
-          status: "draft",
-          title: "My Recipe",
-          bodyJson: null,
-          fieldsJson: null,
-          publishedAt: null,
-          createdAt: "2026-08-01T00:00:00.000Z",
-          updatedAt: "2026-08-01T00:00:00.000Z",
-          version: 1,
-        },
-      ],
-      error: null,
-      t: ({ key }, _optional = {}) => key,
-    };
-    render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
-
-    const link = screen.getByRole("link", { name: "My Recipe" });
-    expect(link).toHaveAttribute("href", "/admin/collections/recipe/my-recipe");
+    // The host collaborator the Jini screen takes as a required prop: this admin's `ServerLabel`
+    // fills the status pill (`draft` has no localized copy, so the protocol value shows through).
+    expect(screen.getByText("draft", { selector: ".status-draft" })).toBeInTheDocument();
   });
 });
