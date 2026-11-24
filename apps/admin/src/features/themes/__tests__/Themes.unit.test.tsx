@@ -293,10 +293,10 @@ describe("tier tabs", () => {
     render(<Themes useThemesHook={() => baseController({ themeTiers: { signal: "static" } })} />);
     for (const name of [/^Declarative/, /^Templated/, /^Code/]) {
       const tab = screen.getByRole("tab", { name });
-      expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+      expect(tab.querySelector(".jini-tab-bar-tag")?.textContent).toBe("Soon");
       expect(tab).not.toBeDisabled();
     }
-    expect(screen.getByRole("tab", { name: /^Static/ }).querySelector(".tab-bar-tag")).toBeNull();
+    expect(screen.getByRole("tab", { name: /^Static/ }).querySelector(".jini-tab-bar-tag")).toBeNull();
     await user.click(screen.getByRole("tab", { name: /^Code/ }));
     expect(window.location.search).toBe("?tab=code");
   });

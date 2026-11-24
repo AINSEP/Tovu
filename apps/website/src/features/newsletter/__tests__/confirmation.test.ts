@@ -233,12 +233,29 @@ test("consumeConfirmationToken: a removed subscription leaves its valid token un
   assert.equal(await subscriptionRepo.findById({ workspaceId: WS, id: "sub-1" }), null);
 });
 
-test("consumeConfirmationToken: an unbound consentCapability is a hard error (ADR-PIPE-011 — never stub to succeed)", async () => {
+test("consumeConfirmationToken: with NO consent capability configured, the token is consumed and the subscriber is confirmed without consent evidence (B176)", async () => {
   const { deps } = makeDeps(null); // no consentCapability
   const rawToken = await issueRawToken(deps);
-  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), {
-    message: "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)",
+  const result = await consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } });
+  assert.equal(result.subscription.status, "subscribed");
+  assert.equal(result.subscription.consentRevisionIdAtSubscribe, null);
+  assert.equal((await deps.subscriptionRepo.findById({ workspaceId: WS, id: "sub-1" }))?.status, "subscribed");
+  // Single-use still holds when there is no consent step.
+  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), (err: unknown) => {
+    assert.ok(err instanceof NewsletterConfirmTokenInvalidError);
+    assert.equal(err.reason, "already_consumed");
+    return true;
   });
+});
+
+test("consumeConfirmationToken: with a consent capability configured, consent is requested then confirmed before the subscriber is confirmed (B176)", async () => {
+  const spy = makeCallOrderSpy();
+  const { deps } = makeDeps(spy.capability);
+  const rawToken = await issueRawToken(deps);
+  const result = await consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } });
+  assert.equal(result.subscription.status, "subscribed");
+  assert.ok(spy.calls.length >= 2, `expected request+confirm calls, got ${JSON.stringify(spy.calls)}`);
+  assert.notEqual(result.subscription.consentRevisionIdAtSubscribe, null);
 });
 
 test("consumeConfirmationToken: a non-'granted' confirm result (denied) is rejected, token still marked consumed", async () => {

@@ -454,14 +454,14 @@ describe("StaticSiteTab — publish-target tab bar: connected indicator", () => 
     renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
     const ghTab = screen.getByRole("tab", { name: /GitHub Pages/ });
     expect(ghTab).toHaveAccessibleName(/Connected/);
-    expect(ghTab.querySelector(".tab-bar-dot")).toBeInTheDocument();
+    expect(ghTab.querySelector(".jini-tab-bar-dot")).toBeInTheDocument();
   });
 
   it("shows no dot, and no 'Connected' in the accessible name, for a tab with nothing saved", () => {
     renderTab();
     const vercelTab = screen.getByRole("tab", { name: "Vercel" });
     expect(vercelTab).not.toHaveAccessibleName(/Connected/);
-    expect(vercelTab.querySelector(".tab-bar-dot")).not.toBeInTheDocument();
+    expect(vercelTab.querySelector(".jini-tab-bar-dot")).not.toBeInTheDocument();
   });
 
   it("reflects more than one connected provider at once — dots are independent per tab, not a single global flag", () => {
@@ -481,7 +481,7 @@ describe("StaticSiteTab — publish-target tab bar: connected indicator", () => 
 
   it("shows no dots anywhere while credentials are still loading — never a false 'connected' guess", () => {
     renderTab({ credentialsController: { rows: undefined, executionMode: undefined } });
-    expect(document.querySelectorAll(".tab-bar-dot")).toHaveLength(0);
+    expect(document.querySelectorAll(".jini-tab-bar-dot")).toHaveLength(0);
   });
 });
 

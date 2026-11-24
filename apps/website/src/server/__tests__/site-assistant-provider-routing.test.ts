@@ -492,3 +492,42 @@ test("site assistant: env key and endpoint cannot revive a site with no saved cr
   assert.equal(raw.status, 503);
   assert.equal(JSON.parse(raw.text).code, "NOT_CONFIGURED");
 });
+
+async function postChatWithTurn(siteUrl: string, turnId: string | undefined): Promise<Response> {
+  return fetch(`${siteUrl}/api/site-assistant/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "What posts are on this site?", ...(turnId ? { turnId } : {}) }),
+  });
+}
+
+async function bootAnthropicStub(t: import("node:test").TestContext) {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const stub = await bootProviderStub(t, deps, () => anthropicReply("One reply."));
+  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "anthropic", baseUrl: stub.baseUrl, model: "claude-x" });
+  return stub;
+}
+
+test("site assistant: a retry carrying the same turnId reaches the provider ONCE (visitor-turn dedupe is mounted)", async (t) => {
+  const stub = await bootAnthropicStub(t);
+
+  const first = await drainedBody(await postChatWithTurn(stub.siteUrl, "turn-aaaaaaaa-0001"));
+  const retry = await drainedBody(await postChatWithTurn(stub.siteUrl, "turn-aaaaaaaa-0001"));
+
+  assert.equal(first.status, 200);
+  assert.equal(sseTextOf(first.text), "One reply.");
+  assert.equal(retry.status, 409, "the repeat is refused in plain words, not billed again");
+  assert.equal((JSON.parse(retry.text) as { code?: string }).code, "DUPLICATE_TURN");
+  assert.equal(stub.requests.length, 1, `same message ID must cost one provider call, got ${stub.requests.length}`);
+});
+
+test("site assistant: distinct turnIds, and requests with no turnId, each get their own provider call", async (t) => {
+  const stub = await bootAnthropicStub(t);
+
+  for (const turnId of ["turn-aaaaaaaa-0001", "turn-aaaaaaaa-0002", undefined, undefined]) {
+    assert.equal((await drainedBody(await postChatWithTurn(stub.siteUrl, turnId))).status, 200);
+  }
+
+  assert.equal(stub.requests.length, 4);
+});
