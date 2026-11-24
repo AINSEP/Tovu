@@ -4,7 +4,7 @@ import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-t
 
 /**
  * One media-generation vendor's stored credentials, keyed by ENGINE-CANONICAL provider id (`grok`,
- * `nanobanana`, …) — see `features/media/media-provider-catalog.ts` for why the spelling matters.
+ * `nanobanana`, …) — see `@jini-ai/integrations/media-providers/catalog`'s `CONFIGURABLE_MEDIA_PROVIDER_CATALOG` for why the spelling matters.
  *
  * Structurally `@jini-ai/ui`'s `MediaProviderCredentials` and mirrors
  * `apps/website/src/features/media/provider-credential-store.ts`'s `MediaProviderCredentialView` on the server. `apiKey`
