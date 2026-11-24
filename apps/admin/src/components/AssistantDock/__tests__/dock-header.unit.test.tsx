@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { useInfoTip } from "@jini-ai/ui/admin-widgets";
@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockHeaderTip } from "../DockHeaderTip";
 import { useDockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks";
-import { DockSettingsMenu } from "../DockSettingsMenu";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
@@ -65,7 +67,8 @@ describe("dock header rules", () => {
 function SettingsMenuHarness({ notice }: { notice?: string }) {
   const [preferences, setPreferences] = useState(DEFAULT_CHAT_DISPLAY);
   const update = (patch: Partial<ChatDisplayPreferences>) => setPreferences((current) => ({ ...current, ...patch }));
-  return <DockSettingsMenu label="Settings" sections={dockSettingsMenuSections({ t: identity, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences, update } })} notice={notice} />;
+  return <DockSettingsMenu label="Settings" sections={dockSettingsMenuSections({ t: identity, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences, update } })} notice={notice}
+    useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />;
 }
 
 describe("DockSettingsMenu", () => {

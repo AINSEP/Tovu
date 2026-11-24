@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { ChatSettingsDialog } from "@jini-ai/chat/react";
+import { ChatSettingsDialog, ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockSettingsMenu } from "../DockSettingsMenu";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { CHAT_TOOL_CALL_OPTIONS, CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS } from "../assistant-runtime-preferences";
@@ -61,7 +62,7 @@ describe("Agent plugins section", () => {
     const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
     const sections = sectionsFor({ update });
     if (surface === "gear") {
-      render(<DockSettingsMenu label="Settings" sections={sections} />);
+      render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
       await user.click(screen.getByRole("button", { name: "Settings" }));
     } else {
       render(<ChatSettingsDialog open onClose={onClose} displaySections={sections}

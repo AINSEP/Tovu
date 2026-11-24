@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
-import { ChatSettingsDialog } from "@jini-ai/chat/react";
+import { ChatSettingsDialog, ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockSettingsMenu } from "../DockSettingsMenu";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections, groupOptionTooltips, type DockSettingsMenuItem } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
 import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
@@ -34,7 +35,7 @@ async function openSurface(surface: "gear" | "dialog") {
   const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
   const sections = dockSettingsMenuSections({ t: key => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
   if (surface === "gear") {
-    render(<DockSettingsMenu label="Settings" sections={sections} />);
+    render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
     await user.click(screen.getByRole("button", { name: "Settings" }));
   } else {
     render(<ChatSettingsDialog open onClose={onClose} displaySections={sections}
@@ -152,7 +153,7 @@ it("Reply length has one info tooltip beside its heading; tapping it leaves the 
     display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
     runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update, visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
   });
-  render(<DockSettingsMenu label="Settings" sections={sections} />);
+  render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
   await user.click(screen.getByRole("button", { name: "Settings" }));
   const panel = screen.getByRole("menu");
   const group = within(panel).getByRole("group", { name: "Reply length" });

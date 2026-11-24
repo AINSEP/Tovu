@@ -1,17 +1,19 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
-import { DockSettingsMenu } from "../DockSettingsMenu";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { dockSettingsMenuSections, type DockSettingsMenuSection } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**
- * @file `DockSettingsMenu` markup for every popup position and row shape, against a typed fake of
- * its menu hook (the `useMenu` seam). Open/close and focus behaviour with the real hook live in
- * `dock-header.unit.test.tsx`.
+ * @file `DockSettingsMenu` section and row markup with the host's real info tip and segmented
+ * control, against a typed fake of its menu hook (the `useTaxonomyRowMenuHook` seam). Popup
+ * position markup moved with the component to Jini (`@jini-ai/admin`'s own DockSettingsMenu test).
+ * Open/close and focus behaviour with the real hook live in `dock-header.unit.test.tsx`.
  */
 
 afterEach(cleanup);
@@ -47,7 +49,7 @@ const SECTIONS: DockSettingsMenuSection[] = [
 
 function renderMenu(state: { open: boolean; position: Menu["position"] }, notice?: string) {
   const fake = fakeMenu(state);
-  render(<DockSettingsMenu label="Chat settings" sections={SECTIONS} notice={notice} useMenu={fake.useMenu} />);
+  render(<DockSettingsMenu label="Chat settings" sections={SECTIONS} notice={notice} useTaxonomyRowMenuHook={fake.useMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
   return fake;
 }
 
@@ -56,69 +58,34 @@ const PLACED = { open: true, position: { top: 0, left: 0, placement: "below" } }
 
 const popup = () => document.querySelector<HTMLElement>("[role=menu]")!;
 
-describe("popup", () => {
-  it("renders only the gear while closed", () => {
-    renderMenu({ open: false, position: null });
-    expect(screen.getByRole("button", { name: "Chat settings" }).getAttribute("aria-expanded")).toBe("false");
-    expect(document.querySelector("[role=menu]")).toBeNull();
-  });
-
-  it("keeps an unmeasured popup hidden off-screen", () => {
-    renderMenu({ open: true, position: null });
-    expect(popup().className).toBe("row-menu-popup dock-settings-menu");
-    expect(popup().style.cssText).toBe("position: fixed; top: -9999px; left: -9999px; visibility: hidden;");
-  });
-
-  it("places a measured popup below the gear", () => {
-    renderMenu({ open: true, position: { top: 10, left: 20, placement: "below" } });
-    expect(popup().className).toBe("row-menu-popup dock-settings-menu");
-    // Capped to the room below the gear (top + 8px margin) so a short viewport scrolls the menu.
-    expect(popup().style.cssText).toBe("position: fixed; top: 10px; left: 20px; visibility: visible; max-height: calc(100dvh - 18px);");
-  });
-
-  it("lifts a popup that opens above the gear", () => {
-    renderMenu({ open: true, position: { top: 10, left: 20, placement: "above" } });
-    expect(popup().className).toBe("row-menu-popup dock-settings-menu row-menu-popup-above");
-    expect(popup().style.transform).toBe("translateY(-100%)");
-  });
-
-  it("shows a notice under the rows only when one is given", () => {
-    renderMenu(PLACED, "Could not save.");
-    expect(screen.getByRole("status").textContent).toBe("Could not save.");
-    cleanup();
-    renderMenu(PLACED);
-    expect(screen.queryByRole("status")).toBeNull();
-  });
-});
-
 describe("sections", () => {
   it("separates sections and names each labelled group by its heading", () => {
     renderMenu(PLACED);
     expect(document.querySelectorAll("[role=separator]")).toHaveLength(2);
     expect(screen.getAllByRole("group").map((group) => group.getAttribute("aria-labelledby"))).toEqual(["dock-settings-show", "dock-settings-toggles", null]);
-    expect(Array.from(document.querySelectorAll(".dock-settings-menu-heading"), (heading) => heading.textContent)).toEqual(["Show", "Toggles"]);
+    expect(Array.from(document.querySelectorAll(".jini-dock-settings-menu-heading"), (heading) => heading.textContent)).toEqual(["Show", "Toggles"]);
   });
 
   it("describes only a section that has a tooltip, beside its heading", () => {
     renderMenu(PLACED);
     const [show, toggles, actions] = screen.getAllByRole("group");
     expect(show!.getAttribute("aria-describedby")).toMatch(/-section-show$/);
-    expect(show!.querySelectorAll(".dock-settings-menu-heading-row .info-tip")).toHaveLength(1);
+    expect(show!.querySelectorAll(".jini-dock-settings-menu-heading-row .info-tip")).toHaveLength(1);
     expect(toggles!.getAttribute("aria-describedby")).toBeNull();
-    expect(toggles!.querySelectorAll(".dock-settings-menu-heading-row .info-tip")).toHaveLength(0);
-    expect(actions!.querySelector(".dock-settings-menu-heading-row")).toBeNull();
+    expect(toggles!.querySelectorAll(".jini-dock-settings-menu-heading-row .info-tip")).toHaveLength(0);
+    expect(actions!.querySelector(".jini-dock-settings-menu-heading-row")).toBeNull();
   });
 });
 
 describe("rows", () => {
   it("draws an all-radio section as the dialog's segmented control, and other setting rows with a check mark", () => {
     renderMenu(PLACED);
-    const radios = Array.from(document.querySelectorAll<HTMLInputElement>(".dock-settings-menu-choice .jini-chat-settings-segment input"));
+    const radios = Array.from(document.querySelectorAll<HTMLInputElement>(".jini-dock-settings-menu-choice .jini-chat-settings-segment input"));
     expect(radios.map((radio) => [radio.type, radio.getAttribute("role"), radio.getAttribute("aria-checked"), radio.checked, radio.labels?.[0]?.textContent])).toEqual([
       ["radio", "menuitemradio", "true", true, "Shown"], ["radio", "menuitemradio", "false", false, "Hidden"],
     ]);
     const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".row-menu-item"));
-    expect(rows.map((row) => [row.getAttribute("role"), row.getAttribute("aria-checked"), Boolean(row.querySelector(".dock-settings-menu-check"))])).toEqual([
+    expect(rows.map((row) => [row.getAttribute("role"), row.getAttribute("aria-checked"), Boolean(row.querySelector(".jini-dock-settings-menu-check"))])).toEqual([
       ["menuitemcheckbox", "false", true], ["menuitem", null, false], ["menuitem", null, false],
     ]);
   });
@@ -143,7 +110,7 @@ describe("rows", () => {
       { key: "hidden", label: "Hidden", role: "menuitemradio", onSelect },
     ] }];
     const fake = fakeMenu(PLACED);
-    render(<DockSettingsMenu label="Chat settings" sections={sections} useMenu={fake.useMenu} />);
+    render(<DockSettingsMenu label="Chat settings" sections={sections} useTaxonomyRowMenuHook={fake.useMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(fake.selected).toEqual([]);
@@ -165,7 +132,7 @@ describe("runtime switches", () => {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: () => {} },
       runtime: { preferences: { useClaudeInChrome: true, preferSubagents: false, replyLength: "normal" }, update, visible: visibleAssistantRuntimePreferences({ agent }) },
     });
-    render(<DockSettingsMenu label="Chat settings" sections={sections} useMenu={fakeMenu(PLACED).useMenu} />);
+    render(<DockSettingsMenu label="Chat settings" sections={sections} useTaxonomyRowMenuHook={fakeMenu(PLACED).useMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
     return update;
   }
   const switches = () => screen.queryAllByRole("menuitemcheckbox").filter((row) => /Chrome|subagents/.test(row.textContent ?? ""));

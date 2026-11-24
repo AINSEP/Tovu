@@ -514,32 +514,32 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
    a divider between groups, and a check-mark column that is always laid out (hidden when off) so a
    toggle never shifts the rows. The row's own fill stays the hover cue; keyboard focus also gets the
    admin's focus ring, inset so the popup's edge never clips it. */
-.dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
+.jini-dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
 /* The popup is a flex column; once it is height-capped and scrolls, rows must not shrink (the 1px
    separators would collapse to nothing). */
-.dock-settings-menu > * { flex-shrink: 0; }
-.dock-settings-menu-row { display: flex; align-items: center; }
-.dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
-.dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
+.jini-dock-settings-menu > * { flex-shrink: 0; }
+.jini-dock-settings-menu-row { display: flex; align-items: center; }
+.jini-dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
+.jini-dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
 /* A radio group's one ⓘ (`groupOptionTooltips`) follows its heading's text. */
-.dock-settings-menu-heading-row { display: flex; align-items: center; }
-.dock-settings-menu-heading-row > .dock-settings-menu-heading { padding-right: 0; }
-.dock-settings-menu-heading-row > .info-tip { flex: none; margin: 0.075rem 0 0 0.3rem; }
-.dock-settings-menu-heading {
+.jini-dock-settings-menu-heading-row { display: flex; align-items: center; }
+.jini-dock-settings-menu-heading-row > .jini-dock-settings-menu-heading { padding-right: 0; }
+.jini-dock-settings-menu-heading-row > .info-tip { flex: none; margin: 0.075rem 0 0 0.3rem; }
+.jini-dock-settings-menu-heading {
   padding: 0.35rem 0.65rem 0.2rem;
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--muted);
 }
 /* Tool calls / Agent plugins: the Chat settings dialog's segmented pill, inset to the rows' text. */
-.dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
-.dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
-.dock-settings-menu .row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
-.dock-settings-menu .row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.dock-settings-menu-check { flex: 0 0 14px; display: inline-flex; visibility: hidden; color: var(--fg); }
-.dock-settings-menu .row-menu-item[aria-checked="true"] .dock-settings-menu-check { visibility: visible; }
-.dock-settings-menu .row-menu-item[aria-checked="true"] { color: var(--fg); }
-.dock-settings-menu-notice {
+.jini-dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
+.jini-dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
+.jini-dock-settings-menu .row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.jini-dock-settings-menu .row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.jini-dock-settings-menu-check { flex: 0 0 14px; display: inline-flex; visibility: hidden; color: var(--fg); }
+.jini-dock-settings-menu .row-menu-item[aria-checked="true"] .jini-dock-settings-menu-check { visibility: visible; }
+.jini-dock-settings-menu .row-menu-item[aria-checked="true"] { color: var(--fg); }
+.jini-dock-settings-menu-notice {
   max-width: 14rem;
   margin: var(--space-1) 0 0;
   padding: 0.35rem 0.65rem;
@@ -1413,7 +1413,7 @@ button.jini-composer-leading,
 /* The dock header's gear (`DockSettingsMenu.tsx`) shares the switcher trigger's look, so the two
    read as one button row (owner, 2026-10-11). */
 .jini-conv-trigger,
-.assistant-dock-icon-button {
+.jini-assistant-dock-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1429,13 +1429,13 @@ button.jini-composer-leading,
 }
 
 .jini-conv-trigger:hover,
-.assistant-dock-icon-button:hover {
+.jini-assistant-dock-icon-button:hover {
   background: var(--surface-2);
   color: var(--fg);
 }
 
 .jini-conv-trigger-open,
-.assistant-dock-icon-button[aria-expanded="true"] {
+.jini-assistant-dock-icon-button[aria-expanded="true"] {
   border-color: var(--accent-text);
   color: var(--accent-text);
 }
@@ -1807,10 +1807,10 @@ button.jini-composer-leading,
 }
 /* Quick settings help targets stay host-owned; dialog targets live in the shared stylesheet. */
 @media (pointer: coarse), (max-width: 640px) {
-  .dock-settings-menu-row .info-tip-icon,
-  .dock-settings-menu-heading-row .info-tip-icon { position: relative; }
-  .dock-settings-menu-row .info-tip-icon::before,
-  .dock-settings-menu-heading-row .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
+  .jini-dock-settings-menu-row .info-tip-icon,
+  .jini-dock-settings-menu-heading-row .info-tip-icon { position: relative; }
+  .jini-dock-settings-menu-row .info-tip-icon::before,
+  .jini-dock-settings-menu-heading-row .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
 }
 
 /* ---- Chat UI batch (2026-10-23, `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`) ----

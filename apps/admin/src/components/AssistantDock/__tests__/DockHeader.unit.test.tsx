@@ -1,4 +1,4 @@
-import { cleanup, render as renderWithoutProvider, screen, within } from "@testing-library/react";
+import { cleanup, render as renderWithoutProvider, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";

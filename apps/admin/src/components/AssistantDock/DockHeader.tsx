@@ -1,13 +1,14 @@
 import { useCallback, type ComponentProps } from "react";
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
+import { ChatSettingsSegmented, ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
 import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockHeaderTip } from "./DockHeaderTip";
-import { DockSettingsMenu } from "./DockSettingsMenu";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
@@ -108,7 +109,8 @@ export function DockHeader({
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
         <DockHeaderTip label={t({ key: "Settings" })}>
           <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
-            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined} />
+            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined}
+            useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />
         </DockHeaderTip>
       </div>
       {empty ? (
