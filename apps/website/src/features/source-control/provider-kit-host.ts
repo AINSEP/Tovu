@@ -2,6 +2,7 @@ import type { SourceControlKitHost } from "@jini-ai/devops/source-control/site/p
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { EgressRefusedError } from "../../platform/http/index.js";
 
 /**
@@ -17,7 +18,9 @@ import { EgressRefusedError } from "../../platform/http/index.js";
 export function sourceControlKitHost(required: { readonly observability?: ObservabilityPort } = {}, _optional: Record<string, never> = {}): SourceControlKitHost {
   const { observability } = required;
   return {
-    describeEgressRefusal: ({ error }) => error instanceof EgressRefusedError ? { refusal: error.callerSafeMessage, logDetail: error.message } : undefined,
+    describeTransportError: ({ error }) => error instanceof EgressRefusedError
+      ? { refusal: error.callerSafeMessage, logDetail: error.message }
+      : { refusal: undefined, logDetail: describeErrorForLog({ err: error }) },
     ...(observability ? { observeFetch: ({ fetch }: { fetch: typeof globalThis.fetch }) => trackFetch({ fetch, observability }) } : {}),
   };
 }

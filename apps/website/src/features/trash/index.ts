@@ -7,6 +7,7 @@
  * or the media route knows a Trash exists.
  */
 import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 export { TRASH_TABLES } from "./repo.sqlite.js";
 // Shared trash forks were removed; @jini-ai/cms/trash owns their implementation.
 export type {
@@ -76,8 +77,9 @@ export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
-/** Host binding of the Jini rollback reporter: a failed unhide is written to stderr with the same
- *  line as before the move. Theme trash wiring imports it from here (theme files are frozen). */
-export const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
+/** The one host binding of the Jini rollback reporter: a failed unhide is written to stderr, the error
+ *  redacted through `describeErrorForLog` (type/code only, never a raw error object). Every composition
+ *  mount and theme trash wiring imports it from here (theme files are frozen). */
+export const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, describeErrorForLog({ err: error })) });
 export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

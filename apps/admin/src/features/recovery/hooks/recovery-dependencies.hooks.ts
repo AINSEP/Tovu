@@ -1,4 +1,5 @@
 import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, AdminRestorePointSummary, DatabaseContextEnvelope } from "@jini-ai/admin/core";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import { databaseApi } from "@/features/database/api/database-api";
 import type { RecoveryPort } from "@jini-ai/admin/recovery/hooks/recovery-port.hooks";
@@ -30,7 +31,7 @@ export const RECOVERY_HOST: RecoveryHost = {
   // The screen's refresh subscription stays on this host's bus: a restore point minted by an
   // assistant run reloads the list through the package hook's own `load`.
   useContentRefreshSubscription: (required) => useContentRefreshSubscription(required),
-  reportError: ({ message, detail }) => console.error(message, detail),
+  reportError: ({ message, error }) => console.error(message, describeErrorForLog({ err: error })),
 };
 
 /**

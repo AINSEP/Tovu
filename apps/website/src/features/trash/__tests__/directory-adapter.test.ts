@@ -8,14 +8,13 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { createTrashService } from "@jini-ai/cms/trash";
 
 /** The host binding of the rollback reporter, exactly as the composition sites bind it. */
-const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
 
 const WS = "workspace-1";
 const ENTITY = "plugin";
@@ -423,4 +422,15 @@ test("cross-filesystem refusal retains cause and restores the original directory
   await assert.rejects(adapter.hide(markerArgs()), error => error instanceof Error && error.cause === cause && /across filesystems/.test(error.message));
   assert.equal((await stat(liveDir)).mode & 0o777, 0o500);
   assert.equal(await pathExists(liveDir), true);
+});
+
+// Mutation: bind the host reporter's sink to `console.error(message, error)` (raw error) -> the secret assertion is RED.
+test("the host rollback reporter logs the unhide failure with the error redacted, never the raw object", () => {
+  const lines: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => { lines.push(args); };
+  try { reportDirectoryRollbackFailure({ error: new TypeError("EACCES token=fixture_secret") }); } finally { console.error = original; }
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0][0], "[trash] Could not unhide the directory after a failed removal");
+  assert.equal(JSON.stringify(lines[0]).includes("fixture_secret"), false);
 });
