@@ -2,8 +2,6 @@ import type { PeerCallDeps } from "#src/features/publish-content/peer-transport"
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Request, Response } from "express";
 
-import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
-// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
@@ -34,6 +32,7 @@ import {
   OVERWRITE_REFUSED,
   sendRefusal,
   type MappedErrorClass,
+  type RouteRefusal,
 } from "./route-helpers.js";
 import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -50,6 +49,8 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
  * - `POST .../push/execute` → relay the redemption; the peer applies.
  * - `POST .../pull` → fetch the peer's export and stage it HERE, returning a local `bundleId` that
  *   this instance's own `/import/plan|confirm|execute` then drives. One importer, two directions.
+ *   That route is the Jini spec `@jini-ai/cms/admin-http/routes/publish-content/peer-transport`,
+ *   mounted by `runtime/composition/modules/publish-content-transport.ts` after the three below.
  *
  * ## FROZEN CONTRACT: every route here takes a `peerId`
  *
@@ -96,18 +97,27 @@ const PEER_ACTION_ERRORS: readonly MappedErrorClass[] = [
   [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
 ];
 
-/** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
- *  failure reaches the owner there as the same actionable answer; `message` names its private 500.
- *  @complexity O(1). */
-export function respondWithError({ res, err }: { res: Response; err: unknown }, { message }: { message?: string } = {}): void {
+/** A peer action's typed failure as its refusal, or `undefined` for the redacted 500. Manual
+ *  publishing (`modules/publish-content-backstop.ts`) maps its failures through this too.
+ *  @complexity O(t) in the table length. */
+export function knownPeerActionRefusal({ err }: { err: unknown }, _options: Record<string, never> = {}): RouteRefusal | undefined {
   if (err instanceof PublishContentPeerTransportError) {
     // 502: this instance is fine and the request was well-formed; the PEER (or the path to it) is
     // what failed. A 500 here would send an operator looking in the wrong server's logs — and for
     // `EGRESS_REFUSED` specifically, the message is the `devHostAllowlist` diagnosis, which is only
     // actionable if it reaches them intact.
-    res.status(502).json({ error: err.message, code: err.code });
-    return;
+    return { status: 502, body: { error: err.message, code: err.code } };
   }
+  const match = PEER_ACTION_ERRORS.find(([errorClass]) => err instanceof errorClass);
+  return match ? { status: match[1], body: { error: (err as Error).message, code: match[2] } } : undefined;
+}
+
+/** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
+ *  failure reaches the owner there as the same actionable answer; `message` names its private 500.
+ *  @complexity O(1). */
+export function respondWithError({ res, err }: { res: Response; err: unknown }, { message }: { message?: string } = {}): void {
+  const known = knownPeerActionRefusal({ err });
+  if (known) { sendRefusal({ res, refusal: known }); return; }
   // The mapper needs the registered template to distinguish preparation from an uncertain send.
   // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
   sendRefusal({ res, refusal: mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
@@ -247,7 +257,6 @@ interface PeerRouteContext {
   app: Parameters<PublishContentRouteRegistrar>[0]["app"];
   deps: PeerRouteDeps;
   base: string;
-  guard: PeerGuard;
   pushGuard: PeerGuard;
 }
 
@@ -349,35 +358,16 @@ function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteConte
   });
 }
 
-function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
-  app.post(`${base}/pull`, async (req, res) => {
-    try {
-      const principalId = await guard({ req, res });
-      if (principalId === null) return;
-
-      res.status(201).json(await pullAndStageFromPeer({
-                                                        deps,
-                                                        input: {
-          peerId: readRouteParam({ req, name: "peerId" }),
-          principalId,
-        }
-                                                      }));
-    } catch (err) {
-      respondWithError({ res, err });
-    }
-  });
-}
-
-export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+/** The three push routes, in their registered order; the pull spec follows them
+ *  (`modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes`). */
+export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const context: PeerRouteContext = {
     app,
     deps,
     base: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId",
-    guard: ({ req, res }) => peerGuard({ deps, req, res }),
     pushGuard: ({ req, res }) => peerPushGuard({ deps, req, res }),
   };
   registerPushPlanRoute(context);
   registerPushConfirmRoute(context);
   registerPushExecuteRoute(context);
-  registerPullRoute(context);
 };

@@ -5,9 +5,9 @@ import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import type { UsersRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyListRoute } from "../list-policies.js";
-import { registerAdminRoleListRoute } from "../list-roles.js";
-import { registerAdminPolicyPermissionListRoute } from "../list-policy-permissions.js";
+import { registerAdminPolicyListRoute } from "#src/server/runtime/composition/modules/users-access";
+import { registerAdminRoleListRoute } from "#src/server/runtime/composition/modules/users-access";
+import { registerAdminPolicyPermissionListRoute } from "#src/server/runtime/composition/modules/users-access";
 
 const base = "/api/admin/v1/workspaces/:workspaceId";
 function harness(overrides: Record<string, unknown>) {

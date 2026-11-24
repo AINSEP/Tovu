@@ -11,7 +11,9 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserResetPasswordRoute, sendResetPasswordError } from "../reset-password.js";
+import { registerAdminUserResetPasswordRoute, userResetPasswordRouteDeps } from "#src/server/runtime/composition/modules/users";
+import { userResetPasswordRoute } from "@jini-ai/user-management/admin-http/routes/users/reset-password";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/user-management/server";
@@ -362,9 +364,27 @@ test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently 
 });
 
 // No service path raises SelfDeleteError for reset-password today (assertUserAccountAction exempts
-// it so an owner can reset its own password); the mapping is defence-in-depth, proven directly.
-test("RESET_USER_PASSWORD error mapping: SelfDeleteError maps to 409 SELF_DELETE", () => {
-  const { res, capture } = createCapturingResponse();
-  sendResetPasswordError({ res, err: new SelfDeleteError("you cannot reset your own password here") });
-  assert.deepEqual(capture, { statusCode: 409, jsonBody: { error: "you cannot reset your own password here", code: "SELF_DELETE" } });
+// it so an owner can reset its own password); the mapping is defence-in-depth. K1: the hand-written
+// `sendResetPasswordError` helper moved into the Jini spec's error ladder, so the rule is now proven
+// at the wire: the registrar's own deps with only the account guard swapped for one that throws.
+test("RESET_USER_PASSWORD error mapping: SelfDeleteError maps to 409 SELF_DELETE", async (t) => {
+  const { deps, ownerId } = await buildApp();
+  const app = express();
+  app.use(express.json());
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.locals.principal = { id: ownerId };
+    next();
+  });
+  const guard = async () => { throw new SelfDeleteError("you cannot reset your own password here"); };
+  mountAdminJsonRoute({ app, spec: userResetPasswordRoute, deps: { ...userResetPasswordRouteDeps({ deps }), assertUserAccountAction: guard } },
+    { authorization: "direct", failure: { operation: "routes/users/reset-password", code: "INTERNAL_ERROR" } });
+  const baseUrl = await startTestServer(app, t);
+  const { principalId } = await createTestUser(deps, ownerId, "resetselfdelete");
+  const res = await fetch(`${baseUrl}${urlFor(principalId)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "some-p4ssw0rd!" }),
+  });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "you cannot reset your own password here", code: "SELF_DELETE" });
 });

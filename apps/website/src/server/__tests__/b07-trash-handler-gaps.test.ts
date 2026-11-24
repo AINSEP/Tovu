@@ -6,11 +6,11 @@ import type { RestoreOutcome, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashDb } from "../../features/trash/index.js";
 import { sqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
 import { buildTrashRegistry } from "../../features/trash/registry.js";
-import { registerAdminTrashListRoute } from "../inbound/admin-http/routes/trash/list.js";
-import { registerAdminTrashMoveToTrashRoute } from "../inbound/admin-http/routes/trash/items.js";
-import { registerAdminTrashRestoreRoute } from "../inbound/admin-http/routes/trash/restore.js";
-import { registerAdminTrashPurgeRoute } from "../inbound/admin-http/routes/trash/purge.js";
-import type { TrashRouteDeps, TrashRouteRegistrar } from "../inbound/admin-http/routes/trash/deps.js";
+import { registerAdminTrashListRoute } from "#src/server/runtime/composition/modules/trash";
+import { registerAdminTrashMoveToTrashRoute } from "#src/server/runtime/composition/modules/trash";
+import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/modules/trash";
+import { registerAdminTrashPurgeRoute } from "#src/server/runtime/composition/modules/trash";
+import type { TrashRouteDeps, TrashRouteRegistrar } from "#src/server/runtime/composition/modules/trash";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

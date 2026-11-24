@@ -16,7 +16,7 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-import { registerPublishContentImportRoutes } from "../import.js";
+import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import { BASE, recordingAuthorize, routeApp, routeDeps } from "./route-fixture.js";
 
 /**

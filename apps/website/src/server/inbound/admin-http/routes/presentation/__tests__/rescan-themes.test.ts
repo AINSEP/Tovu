@@ -17,8 +17,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeRescanRoute } from "../rescan-themes.js";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import { registerAdminThemeRescanRoute } from "#src/server/runtime/composition/modules/presentation";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file Unit-tier branch/line coverage for `POST .../themes/rescan` (`registerAdminThemeRescanRoute`).

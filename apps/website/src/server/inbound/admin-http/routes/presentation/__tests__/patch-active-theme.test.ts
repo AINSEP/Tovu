@@ -16,8 +16,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPresentationPatchRoute } from "../patch-active-theme.js";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import { registerAdminPresentationPatchRoute } from "#src/server/runtime/composition/modules/presentation";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import { THEME_STYLING_REQUIRED_MESSAGE, UNSTYLED_THEME_MARKER } from "#src/features/theme/active-theme";
 
 /**

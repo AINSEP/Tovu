@@ -5,21 +5,7 @@ import { beginOidcLogin, memberLoginCallbackUrl } from "#src/features/member-log
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
 import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
-  redirectMemberOidcError, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
-
-/** Safe provider metadata only; configuration/pins and credentials never leave the server.
- * @complexity O(p*c), p admitted providers, c credential metadata rows; bounded bundled catalog.
- */
-export function registerMemberLoginProvidersRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
-  app.get("/api/members/v1/workspaces/:workspaceId/login-providers", async (req, res) => {
-    memberOidcHeaders({ res });
-    try {
-      if (!checkMemberWorkspace({ req, res, deps: deps.members })) return;
-      const providers = await deps.listProviders({ workspaceId: deps.members.workspaceId });
-      res.json({ providers: providers.map(provider => ({ id: provider.id, label: provider.label })) });
-    } catch (error) { sendMemberOidcError({ res, error }); }
-  });
-}
+  redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Plain-link entry point. Independent browser proof stays out of the authorization URL. A
  * refusal (cross-site, provider unavailable) sends the person back to /signin with its code.

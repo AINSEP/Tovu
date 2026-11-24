@@ -14,7 +14,7 @@ import {
   uploadMedia,
 } from '#src/features/media/index';
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from '@jini-ai/cms/media';
-import { registerAdminMediaReplaceRoute } from '../replace.js';
+import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/modules/media';
 import type { MediaRouteDeps } from '../deps.js';
 
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';

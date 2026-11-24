@@ -6,18 +6,22 @@ import {
 import {
   peerCreateRoute, peerDeleteRoute, peerListRoute, peerUpdateRoute, type PublishPeerErrorClasses,
 } from "@jini-ai/cms/admin-http/routes/publish-content/peers";
+import { peerPullRoute } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 import { connectAndRecordDestination, disconnectAndForgetDestination } from "#src/features/publish-content/connect-destination";
 import {
   createPublishContentPeer, deletePublishContentPeer, listPublishContentPeers, PublishContentPeerDuplicateLabelError,
   PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError,
   selectConnectedDestination, updatePublishContentPeer,
 } from "#src/features/publish-content/peers";
+import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
+// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, PublishTrustConnectError } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import type { PublishTrustProvisioningPort } from "#src/features/publish-trust/provisioning";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/publish-content/deps";
+import { knownPeerActionRefusal, registerPublishContentPeerPushRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
 
 /**
  * @file K1 (RT-K1-adm-publish-content, transport half): the publish-content peer CRUD and
@@ -123,3 +127,16 @@ export function registerPublishContentDestinationRoutes(
   mountAdminJsonRoute({ app, spec: destinationConnectRoute, deps: { ...base, listPublishableTypes, connectDestination: connectWith({ deps, own }) } }, mount);
   mountAdminJsonRoute({ app, spec: destinationDisconnectRoute, deps: { ...base, disconnectDestination: disconnectWith({ deps, own }) } }, mount);
 }
+
+/**
+ * The peer transport under `.../publish-content/peers/:peerId`, same order as before: the three
+ * hand-written push routes (`routes/publish-content/peer-transport.ts`), then `POST .../pull` as the Jini
+ * spec. Pull's failures answer through `knownPeerActionRefusal`, else the redacted 500 under the copy
+ * key `respondWithError` used (`routes/publish-content/route-helpers`).
+ */
+export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  registerPublishContentPeerPushRoutes({ app, deps });
+  const pullAndStage = ({ peerId, principalId }: { peerId: string; principalId: string }) => pullAndStageFromPeer({ deps, input: { peerId, principalId } });
+  mountAdminJsonRoute({ app, spec: peerPullRoute, deps: { ...transportPortDeps({ deps }), peerActionRefusal: ({ error }) => knownPeerActionRefusal({ err: error }), pullAndStage } },
+    { authorization: "guarded", failure: { operation: "routes/publish-content/route-helpers" } });
+};

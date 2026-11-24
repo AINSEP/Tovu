@@ -1,4 +1,4 @@
-import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
+import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 import { isLocalAdminRequest } from './local-admin-request.js';
 import { resolveSiteConsentOrigin } from '../public-http/middleware/site-consent.js';
 import type { Express, Request, Response } from 'express';

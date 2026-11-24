@@ -11,7 +11,7 @@ import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
-import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
+import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 
 /**
  * @file The provider plugin's settings card route with DI fakes: declared fields from the manifest, public

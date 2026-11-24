@@ -5,7 +5,7 @@ import { MemberValidationError } from "#src/features/members/index";
 import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "#src/features/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { MEMBER_VERSION_CONFLICT_MESSAGE, registerAdminMemberDisableRoute } from "../disable.js";
+import { MEMBER_VERSION_CONFLICT_MESSAGE, registerAdminMemberDisableRoute } from "#src/server/runtime/composition/modules/members";
 import type { MembersRouteDeps } from "../deps.js";
 
 /**

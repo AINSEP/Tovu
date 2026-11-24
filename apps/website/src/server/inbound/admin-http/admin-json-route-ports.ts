@@ -1,12 +1,13 @@
 import type { Express, Response } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
-import type { ServerApiError } from "@jini-ai/core/contracts/server";
+import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
-import { reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
+import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
 
 /**
@@ -66,7 +67,22 @@ export interface AdminJsonRouteMountOptions {
    *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
    *  request open; the route-table pin sees the same registration as before the move. */
   forwardRejection?: boolean;
+  /** Refuse every credential but a session with `rejectUnlessSessionCredential`'s exact 403, in
+   *  `authenticate` — after the workspace 404, before parse, authorization or any side effect. */
+  sessionCredentialOnly?: SessionCredentialGate;
+  /** The route's own denial reply (media where-used/import-url), instead of `authorizeOrRespond`'s
+   *  403 body. Given the decision that was denied; whatever it answers is written as-is. */
+  forbidden?: (args: AdminForbiddenArgs) => { status: number; body: unknown };
+  /** Per-error failure options (agent-plugins memory: a Node system error has its own operation and
+   *  copy); `undefined` keeps {@link AdminJsonRouteMountOptions.failure}. */
+  failureFor?: (error: unknown) => FailureOptions | undefined;
+  /** `"route"` (default) is `sendAdminFailure`'s method/route-derived copy; `"operation"` is the
+   *  operation-only `adminFailureResponse` body the presentation PATCH writes. */
+  failureCopy?: "route" | "operation";
 }
+
+/** The denied decision a {@link AdminJsonRouteMountOptions.forbidden} override answers. */
+export interface AdminForbiddenArgs { principalId: string; permission: string; entityType?: string; entityId?: string; reason: string }
 
 /** The mode one permission is answered by: its override, else the mount default (`"guarded"`).
  * @complexity O(1). */
@@ -83,6 +99,49 @@ function mountMayUseGrant({ options }: { options: AdminJsonRouteMountOptions }, 
   return Object.values(options.authorizationByPermission ?? {}).includes("guarded");
 }
 
+type AdminPorts = JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord>;
+
+/** The host `authorize` port. A by-id route names its entity (`entityId`), as the hand-written routes
+ * passed it to `deps.authorize`; an id-free route (list, import) sends no `entityId` key, and a
+ * type-free check (users list-roles) no `entityType` key — the hand-written calls pinned exactly that.
+ * @complexity O(1) plus the injected authorizer.
+ */
+async function authorizeWithPorts(
+  { args, scope, options }: { args: Parameters<NonNullable<AdminPorts["authorize"]>>[0]; scope: JsonRouteAuthorizeScope; options: AdminJsonRouteMountOptions },
+  _optional: Record<string, never> = {},
+): Promise<void> {
+  const { context, deps, permission } = args;
+  // Read off the args object (not destructured with a type) so this compiles whether the adapter's
+  // `entityType` is required or optional; the key is forwarded only when the spec named one.
+  const entityType: string | undefined = args.entityType;
+  if (!context) throw new Error("getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route");
+  // Per permission: a `"direct"` check never consults the grant even when another check on
+  // this mount does (Menus update-tree asks one of each).
+  const grant = authorizationFor({ options, permission }) === "guarded" ? publishTrustByContext.get(context) : undefined;
+  const authorize = grant ?? deps.authorize;
+  const entity = { ...(entityType === undefined ? {} : { entityType }), ...(scope.entityId === undefined ? {} : { entityId: scope.entityId }) };
+  const result = await authorize({ principalId: context.id, permission, workspaceId: deps.workspaceId, ...entity });
+  if (result.allowed) return;
+  if (options.forbidden) throw new RouteRefusalError(options.forbidden({ principalId: context.id, permission, ...entity, reason: result.reason }));
+  // Same 403 body `authorizeOrRespond` writes (authorize-guard.ts `writeForbidden`).
+  rejectRoute({
+    status: 403, error: `principal '${context.id}' is not authorized for '${permission}' (${result.reason})`,
+    code: "FORBIDDEN", details: { permission, reason: result.reason },
+  });
+}
+
+/** An unexpected failure: the per-error options if `failureFor` claims it, else the mount's; written
+ * with `sendAdminFailure`'s route-derived copy, or — `failureCopy: "operation"` — exactly as the
+ * presentation PATCH writes `adminFailureResponse` (operation-only copy, the request's tracker).
+ * @complexity The shared failure lifecycle.
+ */
+function writeAdminFailure({ res, error, options }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): void {
+  const failure = options.failureFor?.(error) ?? options.failure;
+  if (options.failureCopy !== "operation") { sendAdminFailure({ res, error }, failure); return; }
+  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker }, failure);
+  res.status(status).json(body);
+}
+
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
@@ -90,7 +149,7 @@ function mountMayUseGrant({ options }: { options: AdminJsonRouteMountOptions }, 
 export function createAdminJsonRoutePorts(
   required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean } = {},
   _optional: Record<string, never> = {},
-): JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> {
+): AdminPorts {
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
@@ -105,56 +164,67 @@ export function createAdminJsonRoutePorts(
     // redacted 500). Every other mount throws here, before parse, exactly as before.
     authenticate: ({ res }) => {
       if (required.deferMissingPrincipal && !res.locals.principal) return undefined;
+      if (required.sessionCredentialOnly) refuseUnlessSessionCredential({ res, gate: required.sessionCredentialOnly });
       const principal = { ...getAuthedPrincipal(res) };
+      recordAdminRequestFacts({ principal, res });
       const publishTrust = mountMayUseGrant({ options: required }) ? getPublishTrustContext(res) : null;
       if (publishTrust) publishTrustByContext.set(principal, publishTrustAuthorizeFor(publishTrust));
       return principal;
     },
-    // A by-id route names its entity (`entityId`), as the hand-written routes passed it to
-    // `deps.authorize`; an id-free route (list, import) sends no `entityId` key at all.
-    authorize: async ({ context, deps, permission, entityType }, scope = {}) => {
-      if (!context) throw new Error("getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route");
-      // Per permission: a `"direct"` check never consults the grant even when another check on
-      // this mount does (Menus update-tree asks one of each).
-      const grant = authorizationFor({ options: required, permission }) === "guarded" ? publishTrustByContext.get(context) : undefined;
-      const authorize = grant ?? deps.authorize;
-      const entity = scope.entityId === undefined ? { entityType } : { entityType, entityId: scope.entityId };
-      const result = await authorize({ principalId: context.id, permission, workspaceId: deps.workspaceId, ...entity });
-      // Same 403 body `authorizeOrRespond` writes (authorize-guard.ts `writeForbidden`).
-      if (!result.allowed) rejectRoute({
-        status: 403, error: `principal '${context.id}' is not authorized for '${permission}' (${result.reason})`,
-        code: "FORBIDDEN", details: { permission, reason: result.reason },
-      });
-    },
+    authorize: (args, scope = {}) => authorizeWithPorts({ args, scope, options: required }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
-      sendAdminFailure({ res, error }, required.failure);
+      writeAdminFailure({ res, error, options: required });
     },
     onReturnedError: writeReturnedFailure,
+    requestFacts: routeRequestFactsFor,
   };
 }
 
 /** The default admin ports: `sendAdminFailure`'s route-derived copy for unexpected failures. */
 export const adminJsonRoutePorts = createAdminJsonRoutePorts();
 
+/** A public route's unexpected-failure copy: `operation` for the incident sink, the visitor-safe sentence. */
+export interface PublicRouteFailure { operation: string; visitorError: string; status?: number }
+
 /** Build the public (visitor) ports: no session or RBAC; an unexpected failure is reported to the
  * incident sink and the visitor sees only the route's own safe copy plus the error ID.
  * @param required.operation - `<area>:<step>` for `reportServerFailure`.
  * @param required.visitorError - The visitor-safe sentence the hand-written route writes today.
+ * @param required.workspaceId - When given, a foreign `:workspaceId` is the shared 404 (opt-in).
  * @complexity O(1) plus the shared incident report.
  */
 export function createPublicJsonRoutePorts(
-  required: { operation: string; visitorError: string; status?: number },
+  required: PublicRouteFailure & { workspaceId?: string },
   _optional: Record<string, never> = {},
 ): JsonRoutePorts<object> {
+  const { workspaceId } = required;
   return {
+    // Opt-in (a mount given `workspaceId`): the same rule and body as `rejectForeignWorkspace`.
+    ...(workspaceId === undefined ? {} : { workspace: ({ raw }: { raw: RouteInputContext }) => {
+      if (String(raw.params.workspaceId ?? "") !== workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
+    } }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
       const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker });
       res.status(required.status ?? 500).json({ error: required.visitorError, errorId });
     },
     onReturnedError: writeReturnedFailure,
+    requestFacts: routeRequestFactsFor,
   };
+}
+
+/** The admin ports one mount uses: the shared default instance unless the mount customizes them or its
+ * path is deployment-level.
+ * Shared by `mountAdminJsonRoute` and `admin-raw-route-ports.ts`'s `mountAdminRawRoute`.
+ * @complexity O(options).
+ */
+export function adminPortsFor({ path, options }: { path: string; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): AdminPorts {
+  // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
+  const workspaceScoped = path.includes(":workspaceId");
+  const { forwardRejection: _forwardRejection, ...portOptions } = options;
+  const customized = Object.values(portOptions).some((value) => value !== undefined);
+  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...portOptions, workspaceScoped }) : adminJsonRoutePorts;
 }
 
 /** Mount a Jini admin route spec behind the admin ports. `deps` is the route's own small deps type
@@ -167,10 +237,7 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   optional: AdminJsonRouteMountOptions = {},
 ): void {
   const { forwardRejection, ...portOptions } = optional;
-  // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
-  const workspaceScoped = required.spec.path.includes(":workspaceId");
-  const customized = Object.values(portOptions).some((value) => value !== undefined);
-  const ports = customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...portOptions, workspaceScoped }) : adminJsonRoutePorts;
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ports }, deps: required.deps });
 }
@@ -192,8 +259,10 @@ function registeringThroughAsyncRoute(
  * @complexity O(1) setup.
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: { operation: string; visitorError: string; status?: number } },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
   _optional: Record<string, never> = {},
 ): void {
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts(required.failure) }, deps: required.deps });
+  // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
+  const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps });
 }

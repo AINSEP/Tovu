@@ -5,6 +5,10 @@ import { pluginListRoute } from "@jini-ai/cms/admin-http/routes/plugins/list";
 import { pluginPreviewRunRoute, pluginPreviewStatusRoute } from "@jini-ai/cms/admin-http/routes/plugins/preview";
 import { pluginSetEnabledRoute, type PluginSetEnabledInput } from "@jini-ai/cms/admin-http/routes/plugins/set-enabled";
 import { pluginUninstallRoute, type PluginUninstallInput } from "@jini-ai/cms/admin-http/routes/plugins/uninstall";
+import { projectKeyUseRoute } from "@jini-ai/cms/admin-http/routes/plugins/project-key-use";
+import { pluginProviderSettingsGetRoute, pluginProviderSettingsSaveRoute, type ProviderSettingsRouteDeps as ProviderSettingsSpecDeps } from "@jini-ai/cms/admin-http/routes/plugins/provider-settings";
+import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
+import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import {
   PluginAlreadyInTrashError, PluginConflictError, PluginEnabledError, PluginHookFailedError, PluginIncompatibleError, PluginInvalidError,
   PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin,
@@ -19,7 +23,6 @@ import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin
 import { registerChartProviderRoutes } from "#src/server/inbound/admin-http/routes/plugins/chart-providers";
 import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";
 import { localPluginInstaller, type LocalInstallerDeps } from "#src/server/inbound/admin-http/routes/plugins/local-installer";
-import { registerPluginProviderSettingsRoutes } from "#src/server/inbound/admin-http/routes/plugins/provider-settings";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -199,12 +202,62 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps },
   mountAdminJsonRoute({ app, spec: pluginPreviewRunRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
 };
 
+/** The host bag the provider-settings and project-key-use registrar reads (moved from the deleted
+ *  `routes/plugins/provider-settings.ts`; its wire tests build it directly). */
+export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
+  tracker?: import('@jini-ai/core/contracts/site/diagnostics-observability').Tracker;
+  providerConfig?: ProviderConfigSource;
+  ownerPrincipalId?: Promise<string>;
+  projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
+  providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart" | "failed";
+  reapplyProvider?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
+  /** Whether a key was saved the retired way (an API credential labelled `plugin:<id>`), read by label
+   *  only, never decrypted. */
+  legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
+}
+
+/** The provider-settings spec deps, each read per request from the host bag (tests reassign fields). */
+function providerSettingsDeps({ deps }: { deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): ProviderSettingsSpecDeps & AdminJsonRoutePortDeps {
+  return {
+    ...pluginPortDeps({ deps }),
+    get tracker() { return deps.tracker; },
+    get providerConfig() { return deps.providerConfig; },
+    get projectKeys() { return deps.projectKeys; },
+    get providerAppliesAt() { return deps.providerAppliesAt; },
+    get legacyProviderCredential() { return deps.legacyProviderCredential; },
+    discoverPlugins: () => deps.discoverPlugins(),
+    declaredFields: ({ records, pluginId }) => declaredProviderSettingFields({ records: records as readonly PluginDiscoveryRecord[], pluginId }),
+    // The save rule (composition/provider-settings-save.ts) is shared with the assistant's key card;
+    // the live reapply hook is bound here, as the hand-written route passed it.
+    saveProviderSettings: (args) => saveProviderSettings({ ...args, config: args.config as ProviderConfigSource, reapply: deps.reapplyProvider }),
+  };
+}
+
+/**
+ * `PLUGIN_PROVIDER_SETTINGS` (`GET`/`PUT`) and the project key use route: Jini specs
+ * (`@jini-ai/cms/admin-http/routes/plugins/{provider-settings,project-key-use}`) behind the admin ports
+ * (`"guarded"`, `sendAdminFailure`'s route-derived 500 copy, as the hand-written routes had). Only the
+ * installation owner's own session may change saved-key grants: the session-only 403 is the mount gate.
+ */
+export function registerPluginProviderSettingsRoutes({ app, deps }: { app: Express; deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): void {
+  const settingsDeps = providerSettingsDeps({ deps });
+  mountAdminJsonRoute({ app, spec: pluginProviderSettingsGetRoute, deps: settingsDeps }, { authorization: "guarded" });
+  mountAdminJsonRoute({ app, spec: pluginProviderSettingsSaveRoute, deps: settingsDeps }, { authorization: "guarded" });
+  const keyUseDeps = {
+    ...pluginPortDeps({ deps }), get projectKeys() { return deps.projectKeys; },
+    ownerPrincipalId: async () => deps.ownerPrincipalId, ownerOnlyMessage: "Sign in as the installation owner to change this site's saved key grants.",
+  };
+  mountAdminJsonRoute({ app, spec: projectKeyUseRoute, deps: keyUseDeps }, {
+    authorization: "guarded",
+    sessionCredentialOnly: { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" },
+  });
+}
+
 /**
  * K1 (RT-K1-adm-plugins): list, set-enabled, files, uninstall and preview (status + run) are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/plugins/*`) mounted behind the admin ports; `RouteDeps` is read only
  * here. `@jini-ai/cms` does not depend on `@jini-ai/plugins`, so the plugin mechanisms and the error
- * classes each ladder maps are injected from here. Still hand-written (non-JSON or host-session
- * bound): chart-providers, install, provider-settings.
+ * classes each ladder maps are injected from here. Still hand-written (non-JSON): chart-providers, install.
  */
 /**
  * @file The `plugins` server module (SPEC-005, ADR-005-ARCH) — ADR-046 Phase 3 server-module

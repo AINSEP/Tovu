@@ -7,7 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminNewsletterResendConfirmationRoute } from "../resend-confirmation.js";
+import { registerAdminNewsletterResendConfirmationRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { SubscriberContact } from "#src/features/newsletter/index";
 import type { SubscriptionRow } from "#src/features/newsletter/types";

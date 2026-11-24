@@ -5,7 +5,7 @@
  */
 
 import { bindSiteConsentService } from '../site-consent.js';
-import { registerAdminConsentRoutes } from '../../../inbound/admin-http/routes/consent/routes.js';
+import { registerAdminConsentRoutes } from '../modules/consent.js';
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
@@ -29,7 +29,7 @@ import { restartAssistantDaemon as restartAssistantDaemonReal } from "#src/serve
 import { registerAdminAssistantPermanentDeletesRoutes, registerAdminAssistantSubagentsRoutes } from "../modules/system-assistant.js";
 import { registerAdminDeploymentOverviewRoute, registerAdminExportSiteRoutes, registerAdminPublishSiteRoutes } from "../modules/system-deploy.js";
 import { registerAdminSitesRoutes } from "../modules/sites.js";
-import { registerAdminSiteProfileRoute } from "../../../inbound/admin-http/routes/site/profile.js";
+import { registerAdminSiteProfileRoute } from "../modules/site.js";
 import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
 import { registerAdminCustomCredentialsRoutes, registerAdminPublishCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
 import { registerAdminCredentialCopyRoutes } from "../../../inbound/admin-http/routes/system/credential-copy.js";
