@@ -8,7 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMediaUpdateRoute } from "../update.js";
+import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
 import type { MediaRouteDeps } from "../deps.js";
 
 /**

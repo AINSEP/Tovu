@@ -1,5 +1,5 @@
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
-import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -12,7 +12,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import { registerFeedRoute } from "../feed.js";
 
 /**

@@ -1,5 +1,8 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { ApiError, authenticatedAdminRequest, fetchOrThrowUnreachable } from "../../../lib/admin-http/request";
+import type {
+  AssistantListModelsResponseDto, AssistantProbeVerdictDto, AssistantSettingsEnvelopeDto,
+} from "@jini-ai/core/contracts/site/cms-assistant";
 import type { AdminExecutionDetectedAgent, PublicAssistantSettings } from "./ai-assistant-api.types";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
@@ -29,9 +32,9 @@ export const aiAssistantApi = {
     useStoredCredential?: boolean;
     useAdminStoredCredential?: boolean;
   }) =>
-    authenticatedAdminRequest<{ ok: boolean; message: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, body: input }),
+    authenticatedAdminRequest<AssistantProbeVerdictDto>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, body: input }),
   testExecutionAgent: (input: { agentId: string; model?: string }) =>
-    authenticatedAdminRequest<{ ok: boolean; message: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`, body: input }),
+    authenticatedAdminRequest<AssistantProbeVerdictDto>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`, body: input }),
   listExecutionModels: (input: {
     protocol: string;
     baseUrl: string;
@@ -40,7 +43,7 @@ export const aiAssistantApi = {
     useStoredCredential?: boolean;
     useAdminStoredCredential?: boolean;
   }) =>
-    authenticatedAdminRequest<{ ok: boolean; models: string[]; message?: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/models`, body: input }),
+    authenticatedAdminRequest<AssistantListModelsResponseDto>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/models`, body: input }),
 
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as Jini's SEO settings adapter, because the two routes are deliberately
@@ -52,7 +55,7 @@ export const aiAssistantApi = {
   // one of exactly two admin-assistant server modules mounted unconditionally, so it is reachable
   // even with that flag off). `apps/admin/src/App.hooks.ts`'s `useAdminAssistantAvailability` is the one reader.
   getAssistantSettings: () =>
-    authenticatedAdminRequest<{ data: PublicAssistantSettings; adminAssistantEnabled: boolean }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/settings` }),
+    authenticatedAdminRequest<AssistantSettingsEnvelopeDto<PublicAssistantSettings>>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/settings` }),
   setAssistantSettings: (patch: Partial<PublicAssistantSettings>) =>
     authenticatedAdminRequest<{ data: PublicAssistantSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/settings`, body: patch }),
   // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for

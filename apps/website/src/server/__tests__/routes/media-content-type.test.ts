@@ -8,7 +8,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminMediaListRoute } from "../../inbound/admin-http/routes/media/list.js";
-import { registerAdminMediaUpdateRoute } from "../../inbound/admin-http/routes/media/update.js";
+import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaUploadRoute } from "../../inbound/admin-http/routes/media/upload.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { uploadMedia } from "#src/features/media/index";
