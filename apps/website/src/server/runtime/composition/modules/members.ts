@@ -37,7 +37,7 @@ function memberPortDeps({ deps }: { deps: MembersRouteDeps }, _optional: Record<
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
  *  had: list/get never consulted the publishing-credential override (`"direct"`); disable and delete
  *  did (`"guarded"`). Switching either is an authorization change, not a move. */
-function mountOptions(operation: string, authorization: AdminRouteAuthorization) {
+function mountOptions({ operation, authorization }: { operation: string; authorization: AdminRouteAuthorization }, _optional: Record<string, never> = {}) {
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
@@ -55,12 +55,12 @@ export const classifyMemberError: MemberErrorClassifier = ({ err }, _optional = 
 
 export const registerAdminMemberListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions("routes/members/list", "direct"));
+  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions({ operation: "routes/members/list", authorization: "direct" }));
 };
 
 export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions("routes/members/get-by-id", "direct"));
+  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions({ operation: "routes/members/get-by-id", authorization: "direct" }));
 };
 
 /**
@@ -79,7 +79,7 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: rou
     disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, versionConflictMessage: MEMBER_VERSION_CONFLICT_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions("routes/members/disable", "guarded"));
+  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions({ operation: "routes/members/disable", authorization: "guarded" }));
 };
 
 /** The trash move is the members library's, bound here to this request's repo, remover and clock. The
@@ -90,7 +90,7 @@ export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: rout
     trashMember: (input: Parameters<typeof trashMember>[0]) => trashMember(input, { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }),
     classifyMemberError,
   };
-  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions("routes/members/delete", "guarded"));
+  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions({ operation: "routes/members/delete", authorization: "guarded" }));
 };
 
 /** The 503 copy for a site whose mailer has no sender identity: the mailer's own message names internal setup. */
@@ -109,7 +109,7 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, 
     requestSignInLink: (input: { workspaceId: string; email: string; redirectPath: string | undefined }) => requestSignInLink({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, senderNotConfiguredMessage: MEMBER_SENDER_NOT_CONFIGURED_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions("routes/members/request-magic-link", "direct"));
+  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions({ operation: "routes/members/request-magic-link", authorization: "direct" }));
 };
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot
