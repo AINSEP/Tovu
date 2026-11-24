@@ -29,13 +29,6 @@
       "reason": "Exact brand, protocol, unit or editor notation."
     },
     {
-      "file": "features/authentication/Authentication.tsx",
-      "line": 88,
-      "kind": "aria-label",
-      "text": "authentication setup",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
       "file": "features/collections/CollectionEntryEditor.tsx",
       "line": 328,
       "kind": "placeholder",

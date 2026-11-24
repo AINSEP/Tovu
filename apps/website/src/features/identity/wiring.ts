@@ -10,14 +10,14 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { authorize as authorizeCore } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
-import { applyBuiltinRoleGrants } from "./builtin-role-grants.js";
-import type { PermissionGrantRegistry } from "./permission-grants.js";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
-import { InMemoryApiKeyRepo } from "./repo.memory.js";
-import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
-import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
-import type { RemoveUserFn } from "./delete-user-service.js";
+import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
+import { ScryptApiKeySecretHasher } from "@jini-ai/user-management/identity/api-key-secret";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
+import type { RemoveUserFn } from "@jini-ai/user-management/identity/delete-user-service";
 import {
   SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,

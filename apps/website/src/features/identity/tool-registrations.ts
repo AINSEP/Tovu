@@ -3,7 +3,7 @@ import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-gran
 import { toolMetadata } from '@jini-ai/core/tool-metadata/identity';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
-import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
+import { assertUserAccountAction, SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
 import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-management";
 /**
  * @file Identity tools built by Jini, with host human-confirmation and password-entry adapters.
@@ -31,7 +31,7 @@ import type { SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createUsernameChangePort } from "./username-change-ports.js";
+import { createUsernameChangePort } from "@jini-ai/user-management/identity/username-change-ports";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 

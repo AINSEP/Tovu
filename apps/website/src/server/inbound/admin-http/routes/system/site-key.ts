@@ -25,7 +25,7 @@ import {
 } from "#src/features/webhooks/index";
 import { hasKeyDependentData } from "#src/platform/db/key-dependent-data";
 import { findSiteKeyDependentData, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
-import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
+import { SITE_KEY_MANAGE_PERMISSION } from "@jini-ai/user-management/identity/site-key-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { SiteKeyState } from "#src/contracts/core/site-key-state";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";

@@ -14,7 +14,7 @@ import {
 import { registerAdminUserResetPasswordRoute, userResetPasswordRouteDeps } from "#src/server/runtime/composition/modules/users";
 import { userResetPasswordRoute } from "@jini-ai/user-management/admin-http/routes/users/reset-password";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { SelfDeleteError } from "#src/features/identity/delete-user-service";
+import { SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/user-management/server";
 

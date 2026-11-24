@@ -12,8 +12,9 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
-import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
-import { UserDeleteUnsupportedError } from "../user-purge-types.js";
+import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, SelfDeleteError, type DeleteUserDeps } from "@jini-ai/user-management/identity/delete-user-service";
+import { trashUser } from "../trash-user-binding.js";
+import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**

@@ -3490,42 +3490,6 @@
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
     },
     {
-      "id": "4a80b78d2f91",
-      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts RouteRefusalError doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's error mappings'); the Tovu class it explained is deleted (RT-K1-0.T)."
-    },
-    {
-      "id": "73584ff700c8",
-      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
-    },
-    {
-      "id": "cceb7a862edc",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/forms.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/forms.ts:4-4."
-    },
-    {
-      "id": "28a9b2b2cb37",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/identity.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/identity.ts:4-4."
-    },
-    {
-      "id": "15efc3d83ed9",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/mail-status.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/mail-status.ts:4-4."
-    },
-    {
-      "id": "bb06f7589991",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/media-import.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/media-import.ts:4-4."
-    },
-    {
-      "id": "66bda7081a29",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/media.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/media.ts:4-4."
-    },
-    {
-      "id": "57b493d7023c",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/navigation.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/navigation.ts:4-4."
-    },
-    {
-      "id": "7e1c895e5347",
-      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/pages.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/pages.ts:4-4."
-    },
-    {
       "id": "b85a25ac38ae",
       "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
     },
@@ -5160,6 +5124,174 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "73959d9d4ff5",
+      "reason": "Moved with the file to Jini @jini-ai/admin/screens/auth/hooks/login-port.hooks.ts (ex6-users batch C); host doc paths reworded to name the host's wired-hooks convention, why kept."
+    },
+    {
+      "id": "4c4e33425613",
+      "reason": "users-api.types.ts deleted in favour of its existing core owner @jini-ai/core/contracts/site/user-management-react AdminIdentityUser (ex6-users batch D); the canRename field there already carries the same why (host refusal for accounts whose bootstrap identity cannot follow a rename)."
+    },
+    {
+      "id": "5058c130677d",
+      "reason": "Moved with the test to Jini packages/admin/src/shell/lib/__tests__/boot-token-fragment.unit.test.ts (ex6-users batch C); plan paths reworded neutral, why kept."
+    },
+    {
+      "id": "db354693756a",
+      "reason": "Moved with the file to Jini @jini-ai/admin/shell/lib/boot-token-fragment.ts (ex6-users batch C); product name and host paths reworded to 'the host', why kept."
+    },
+    {
+      "id": "f072ce6db3da",
+      "reason": "Moved with the test to Jini packages/user-management/src/identity/__tests__/boot-session-token.test.ts (ex6-users batch A), why kept."
+    },
+    {
+      "id": "4437cb64646c",
+      "reason": "Moved with the file to Jini @jini-ai/user-management/identity/boot-session-token.ts (ex6-users batch A); product name and TOVU_DESKTOP_* env mentions in comments reworded to 'the host', why kept."
+    },
+    {
+      "id": "35b6e9c4edf2",
+      "reason": "w3-users-sec rv1123f FIX 1: the duplicate roles DTO leaf was deleted; the OQ-10 permission-row rationale lives on the one owner, Jini packages/core/src/contracts/site/user-management-react.ts AdminPolicyPermission (link now names RolesPort.removePolicyPermission)."
+    },
+    {
+      "id": "176a208d3dbe",
+      "reason": "w3-users-sec U-AUTH-T1: the password-status route moved to Jini packages/user-management/src/admin-http/auth/password-status.ts; its doc carries this rationale (own-row check, separate from /auth/me, memoized by hash) reworded neutral; the host passes the default owner password."
+    },
+    {
+      "id": "e42952d20fef",
+      "reason": "w3-users-sec U-AUTH-T1: logout now mounts the Jini K1 spec (Jini packages/user-management/src/admin-http/auth/logout.ts); the K1 adapter answers a rejected handler, so the Express-4 hang this guarded cannot occur; the host ownerAuthErrorPort doc in dev-auth.ts records the pre-K1 next(error)/asyncRoute path."
+    },
+    {
+      "id": "7122b0c76682",
+      "reason": "w3-users-sec U-AUTH-T1: moved with the boot-session route to Jini packages/user-management/src/admin-http/auth/boot-session.ts module doc ('Exchange a single-use boot token for an ordinary admin session…'), reworded neutral."
+    },
+    {
+      "id": "fe318fdfab9d",
+      "reason": "w3-users-sec U-AUTH-T1: moved with /auth/me to Jini packages/user-management/src/admin-http/auth/current-user.ts:31 ('The same check the trash routes gate on, so this affordance flag can never drift…'), reworded neutral; the host binds callerMayManageUserTrash."
+    },
+    {
+      "id": "15982f736aba",
+      "reason": "w3-users-sec U-AUTH-T1: moved with /auth/me to Jini packages/user-management/src/admin-http/auth/current-user.ts:38 ('Affordance flag, not the boundary…'), reworded neutral."
+    },
+    {
+      "id": "66539c2fa1b2",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.test.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/__tests__/api-key-secret.test.ts:8-14."
+    },
+    {
+      "id": "6e5e83ad036a",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-secret.ts:5-42."
+    },
+    {
+      "id": "14452d15d2b3",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-secret.ts:44-44."
+    },
+    {
+      "id": "80d78b4ce405",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-secret.ts:56-56."
+    },
+    {
+      "id": "fc42e054056e",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-secret.ts:73-73."
+    },
+    {
+      "id": "88e759be8e2f",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-secret.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-secret.ts:95-104."
+    },
+    {
+      "id": "dcb893bbccc0",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/api-key-types.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/api-key-types.ts:35-35."
+    },
+    {
+      "id": "c89234cf7cc1",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/owner-reset-env.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/owner-reset-env.ts:3-24."
+    },
+    {
+      "id": "11f6fa105c6c",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/repo.memory.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/repo.memory.ts:3-15."
+    },
+    {
+      "id": "b8efc6a0bba5",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/user-purge-types.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/user-purge-types.ts:4-36."
+    },
+    {
+      "id": "51d5e9f53a29",
+      "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/username-change-ports.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/username-change-ports.ts:5-7."
+    },
+    {
+      "id": "479e83ac9497",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/screens/authentication/Authentication.tsx (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/Authentication.tsx:24-33."
+    },
+    {
+      "id": "6ac966bff5f4",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/screens/authentication/Authentication.tsx (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/Authentication.tsx:131-140."
+    },
+    {
+      "id": "de41f80394f0",
+      "reason": "w3-users-sec: moved with the code to the host binding apps/admin/src/features/authentication/index.tsx @file header (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/index.ts:1-4."
+    },
+    {
+      "id": "d09ae0fc378c",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/local-owner-signin.ts:1 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/local-owner-signin.ts:1-1."
+    },
+    {
+      "id": "18237559fe3f",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/owner-mfa-api.ts:4 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/owner-mfa-api.ts:4-6."
+    },
+    {
+      "id": "cfc48a8425d2",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/owner-recovery-api.ts:30-45 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/owner-recovery-api.ts:30-34."
+    },
+    {
+      "id": "a47c35cb78fd",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:115-116."
+    },
+    {
+      "id": "e64cbd7faf4d",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:253-254."
+    },
+    {
+      "id": "3aec5e0a233e",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:295-301."
+    },
+    {
+      "id": "cf8be36297a1",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:389-392."
+    },
+    {
+      "id": "0c1671e9e586",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/roles/hooks/use-roles.hooks.ts (batch E; host path reworded neutral by the review fix S1); reworded neutral where it named the product or host paths. Was apps/admin/src/features/roles/hooks/use-roles.hooks.ts:12-59."
+    },
+    {
+      "id": "29fec532e96c",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/roles/hooks/use-roles.hooks.ts (batch E; host path reworded neutral by the review fix S1); reworded neutral where it named the product or host paths. Was apps/admin/src/features/roles/hooks/use-roles.hooks.ts:152-153."
+    },
+    {
+      "id": "528bc3a39fa4",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/__tests__/site-key-permission.test.ts (batch P; tests 1-9 moved, host boot test stays); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/__tests__/site-key-permission.test.ts:17-19."
+    },
+    {
+      "id": "f2e8c8efe3d5",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:117-119."
+    },
+    {
+      "id": "3dee25d3ce0a",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:122-122."
+    },
+    {
+      "id": "2acea41d418d",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:127-127."
+    },
+    {
+      "id": "cf1d9bf477a1",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:132-132."
+    },
+    {
+      "id": "1886e96d2c87",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/site-key-permission.ts (batch P; the product site-key name is the injected siteKeyName, K3); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/site-key-permission.ts:3-50."
+    },
+    {
+      "id": "75eba65f9f7e",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/site-key-permission.ts (batch P; the product site-key name is the injected siteKeyName, K3); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/site-key-permission.ts:64-69."
     }
   ]
 }

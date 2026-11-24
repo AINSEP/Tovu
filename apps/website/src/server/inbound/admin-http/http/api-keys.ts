@@ -1,6 +1,6 @@
 import type { PrincipalRecord } from "@jini-ai/user-management";
 
-import type { ApiKeyRecord } from "#src/features/identity/api-key-types";
+import type { ApiKeyRecord } from "@jini-ai/user-management/identity/api-key-types";
 
 /**
  * @file Admin-facing api-key response DTOs (mirrors `@jini-ai/user-management/admin-http/http/users`'s pattern).

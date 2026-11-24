@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import { createPermissionGrantRegistry } from "#src/features/identity/permission-grants";
+import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { bootSiteDir as bootSiteDirWithDeps, type BootSiteDirOptions, type BootSiteDirRequired, type BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
 import { initSite as initSiteWithDeps, type InitSiteOptions, type InitSiteRequired } from "#src/platform/site-dir/init-site";
 import { createSite as createSiteWithDeps, type CreateSiteOptions, type CreateSiteRequired } from "#src/platform/site-dir/site-registry";

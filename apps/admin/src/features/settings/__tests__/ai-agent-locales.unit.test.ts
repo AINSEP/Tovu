@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SETTINGS_DIALOG_DICTIONARIES } from '@jini-ai/ui';
 import { ADMIN_LOCALES } from '@/lib/settings-tabs';
 import { t, aiAgentPanelDictionaries } from '../settings-execution-i18n';
-import { t as tSecurity } from '../../security/security-i18n';
+import { t as tSecurity } from '../../../integrations/jini-admin/security-i18n';
 import { AI_ASSISTANT_DICT } from '../../ai-assistant/ai-assistant-i18n';
 
 const expected: Record<string, readonly [string, string, string]> = {

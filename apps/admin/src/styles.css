@@ -309,7 +309,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    oklch tokens and the scale above, never `--jini-*`.
    ============================================================ */
 
-.page { display: flex; flex-direction: column; gap: var(--space-6); }
+.page,
+.jini-page { display: flex; flex-direction: column; gap: var(--space-6); }
 /* Workspace screen measure — `.page` itself carries no max-width anywhere in the app (~39 call
    sites: tables, side-by-side card grids, and other layouts that legitimately want the full
    column), so a cap belongs on a scoped wrapper class, not the shared shell. Workspace is a single-
@@ -358,8 +359,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    width and fall back to one column below ~29rem — and a row of two is what reads as a form
    rather than a spreadsheet at this measure. (0,2,0) so it beats the (0,1,0) base rule wherever
    the bundler puts this file. */
-.form-measure { max-width: var(--form-measure); }
-.form-measure.integrations-form label { max-width: none; }
+.form-measure, .jini-roles-form-measure { max-width: var(--form-measure); }
+.form-measure.integrations-form label, .jini-roles-form-measure.jini-roles-integrations-form label { max-width: none; }
 /* Workspace's ID/Created chips (`.settings-layer-grid` inside the form) span the measured box so
    the `auto-fit` grid has a width to fit into — see the Workspace bullet above. */
 .form-measure.integrations-form > .settings-layer-grid { align-self: stretch; }
@@ -376,11 +377,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 
 /* Kicker + title + description on the left, actions on the right — mirrors the measured
    Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */
-.page-header {
+.page-header,
+.jini-page-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--space-4); flex-wrap: wrap;
 }
-.page-header-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.page-header-text,
+.jini-page-header-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* One row of page-level actions under the header: leading links sit left, everything after them is
    pushed to the far right by the auto margin on the first button. Wraps rather than overflowing on
    narrow viewports, at which point the auto margin collapses and the button simply follows the link. */
@@ -890,15 +893,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
    `.page-title` is itself an `<h1>` sitting inside `.admin-content`, so both rules would
    otherwise match the same element with conflicting margins. */
-.page-header .page-kicker {
+.page-header .page-kicker,
+.jini-page-header .jini-page-kicker {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted); margin: 0;
 }
-.page-header .page-title {
+.page-header .page-title,
+.jini-page-header .jini-page-title {
   font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
   letter-spacing: -0.01em; color: var(--fg); margin: 0;
 }
-.page-header .page-description { font-size: var(--text-md); color: var(--muted); margin: 0; max-width: 60ch; }
+.page-header .page-description,
+.jini-page-header .jini-page-description { font-size: var(--text-md); color: var(--muted); margin: 0; max-width: 60ch; }
 /* `max-width: 100%`: `flex-shrink: 0` keeps the group at its one-row width, so once `.page-header`
    wraps it under the title its own `flex-wrap` never fired and a wide group (Widgets: Publish ·
    Regions · type select · Add New, 474px) pushed the whole page sideways at 375px with "Add New"
@@ -1090,7 +1096,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 
 /* Scheduled publishing + featured image (2026-10-05) — one compact row right under the action row it
    qualifies, pulled up by the same 12px idiom so the two read as one publishing block. */
-.page > .jini-post-publishing__fields {
+.page > .jini-post-publishing__fields,
+.jini-page > .jini-post-publishing__fields {
   display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap;
   gap: var(--space-4);
   margin-top: calc(-1 * var(--space-3));
@@ -1318,7 +1325,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll, .jini-roles-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Empty state — a list with zero rows (Media with nothing uploaded yet) gets a real message
    instead of a header row floating over blank white space. */
@@ -1364,19 +1371,28 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
 /* Login */
-.login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; padding: var(--space-3); background: var(--surface-2); }
-.login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: min(22rem, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
-.login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
-.login-card p { margin: 0; color: var(--muted); }
+.login-screen,
+.jini-login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; padding: var(--space-3); background: var(--surface-2); }
+.login-card,
+.jini-login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: min(22rem, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
+.login-card h1,
+.jini-login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
+.login-card p,
+.jini-login-card p { margin: 0; color: var(--muted); }
 /* The recovery card is a <details>: its body does not take the card's flex gap, so the paragraph touched the first label. */
-details.login-card > p { margin-block: 0.9rem; }
-details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; }
+details.login-card > p,
+details.jini-login-card > p { margin-block: 0.9rem; }
+details.login-card > form,
+details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9rem; }
 /* Unified onto `.field-label`'s metrics (uppercase/letterspaced/muted/11px) — was its own
    0.85rem/600/fg-2 value, one of four different label idioms MSG-02 asked to consolidate.
    Layout (flex/gap) stays, since that's this context's own, not shared with the primitive. */
-.login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.login-field { display: flex; flex-direction: column; gap: 0.3rem; }
-.login-error { color: var(--danger); font-size: 0.85rem; }
+.login-card label,
+.jini-login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.login-field,
+.jini-login-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.login-error,
+.jini-login-error { color: var(--danger); font-size: 0.85rem; }
 
 /* Layout */
 .admin-layout { background: var(--tovu-admin-layout-bg); display: flex; height: 100vh; overflow: hidden; }
@@ -1867,7 +1883,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    of its own to fall back on, so its border stays `--border-strong` (was already the left edge's
    color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
    reads as a slightly more emphatic box than a plain card, just without a directional rail. */
-.notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.notice,
+.jini-login-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
 .notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
@@ -1889,9 +1906,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    banner (amber warning / red error) still carries that tone as its text color: the owner asked for
    the box gone, not the visual weight a real, disclosed limitation like this one still needs. */
 .notice.recovery-plain-notice { background: transparent; border: none; box-shadow: var(--jini-panel-shadow-flat); padding: 0; border-radius: 0; margin: 0; }
-.list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-.list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
-.list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.list-table, .jini-roles-list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.list-table th, .list-table td, .jini-roles-list-table th, .jini-roles-list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
+.list-table th, .jini-roles-list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 /* Posts list's sortable "Updated" column header (2026-08-10) — a `<button>` sitting inside a
    `<th>`, not a `<td>`, so the row-action reset above (`.list-table td button...`) does not reach
    it; this rule inherits the `<th>`'s own type treatment instead of the default filled-primary
@@ -1904,13 +1921,18 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   cursor: pointer;
 }
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
-.list-table tbody tr:last-child td { border-bottom: none; }
+.list-table tbody tr:last-child td, .jini-roles-list-table tbody tr:last-child td { border-bottom: none; }
 /* DataTable's `rowDetail`: the record and its full-width line read as one row. */
-.list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
-.list-table .list-table-detail > td { padding-block-start: 0; }
+.list-table tbody tr:has(+ .list-table-detail) td,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
+.list-table .list-table-detail > td,
+.jini-roles-list-table .list-table-detail > td { padding-block-start: 0; }
 .list-table tbody tr:has(+ .list-table-detail:hover),
-.list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
-.list-table tbody tr:hover { background: var(--surface-2); }
+.list-table tbody tr:hover + .list-table-detail,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail:hover),
+.jini-roles-list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
+.list-table tbody tr:hover,
+.jini-roles-list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
    rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
    "New user" plus 4× "Disable" plus 4× "Manage" — nine identically loud buttons on one screen)
@@ -1937,10 +1959,12 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    action semantic promotion (a genuinely destructive or access-affecting row action earning
    `.btn-danger` or the `.btn-warning` scaffold below) needs the owning section's own markup and
    is phase 2 — see the report's hierarchy-spec section. */
-.list-table td button:not([class*="btn-"]):not(.link-button) {
+.list-table td button:not([class*="btn-"]):not(.link-button),
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button) {
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
-.list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
+.list-table td button:not([class*="btn-"]):not(.link-button):hover,
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
 /* Collision on file, named per this comment block's own convention: `ThemePagesTab.tsx`'s Publish
    switch (`.theme-explore-switch`, reused verbatim from `ThemeExplore.tsx`'s toolbar toggle) sits
    inside a `.list-table td` same as every other row control, so this reset's `:not([class*="btn-"])`
@@ -2036,10 +2060,10 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .status-warning { background: var(--warning-bg); color: var(--warning); }
 .status-neutral { background: var(--surface-3); color: var(--muted); }
 /* `.jini-menu-page-link-unavailable`: `@jini-ai/admin` `MenuPageLinkFields`'s "Page not published" hint. */
-.muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
-.integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.muted-cell, .jini-roles-muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
+.integrations-form, .jini-roles-integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 /* Same consolidation as `.login-card label` above. */
-.integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
+.integrations-form label, .jini-roles-integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
 /* Roles.tsx `PolicyPermissionList` — a bare `<ul>`/`<li>` with no rule of its own here, so the
    `<code>`, optional `(resourceType)` span, and Remove button ran together in normal inline flow
    with zero gap between them (visual QA, 2026-08-31). Same `list-style: none; margin: 0; padding:
@@ -3750,8 +3774,10 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * its own kicker/title/subtitle, and stacking a second header above it was
  * what made the first pass look cluttered. The page is admin sidebar →
  * settings sidebar → panel, nothing else. */
-.settings-ui-section { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-.settings-ui-section > .jini-tabbed-dialog { flex: 1 1 auto; min-height: 0; }
+.settings-ui-section,
+.jini-settings-ui-section { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.settings-ui-section > .jini-tabbed-dialog,
+.jini-settings-ui-section > .jini-tabbed-dialog { flex: 1 1 auto; min-height: 0; }
 .settings-ui-load-error { margin: 0 0 0.75rem; color: var(--danger); font-size: 0.85rem; }
 .settings-ui-save { font-size: 0.75rem; color: var(--faint); align-self: center; }
 .settings-ui-save.is-error { color: var(--danger); }
@@ -3767,12 +3793,14 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * `.settings-ui-inert-control` already makes it unusable; this is the visual
  * complement so it also *looks* disabled rather than merely being inert to
  * screen readers/keyboard while appearing fully interactive to the eye. */
-.settings-ui-inert-note {
+.settings-ui-inert-note,
+.jini-settings-ui-inert-note {
   margin: 0 0 12px; padding: 10px 14px; font-size: 12px; line-height: 1.5;
   color: var(--jini-text-muted); background: var(--jini-bg-subtle);
   border: 1px dashed var(--jini-border); border-radius: var(--jini-radius-sm);
 }
-.settings-ui-inert-control { opacity: 0.55; }
+.settings-ui-inert-control,
+.jini-settings-ui-inert-control { opacity: 0.55; }
 
 /* ------------------------------------------------------------------------
    Agent Plugins screen (AgentPlugins.tsx) — scoped to `.agent-plugins-section`
@@ -4268,7 +4296,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * parity is restored here rather than by forking the component. Scoped to
  * this section: `.jini-seg-title`/`.jini-seg-btn` are shared with Appearance
  * and Notifications, but only `ExecutionTab` ever emits `.jini-seg-meta`. */
-.settings-ui-section .jini-seg-meta { display: none; }
+.settings-ui-section .jini-seg-meta,
+.jini-settings-ui-section .jini-seg-meta { display: none; }
 
 /* ------------------------------------------------------------------------
    Observability screen (Observability.tsx) header history.
@@ -4326,15 +4355,20 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * that class for its chrome while opting out of its layout. */
 .settings-ui-section--page-flow,
 .settings-ui-section--page-flow .jini-tabbed-dialog,
-.settings-ui-section--page-flow .jini-tabbed-dialog-body {
+.settings-ui-section--page-flow .jini-tabbed-dialog-body,
+.jini-settings-ui-section--page-flow,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog-body {
   height: auto;
   max-height: none;
 }
-.settings-ui-section--page-flow .jini-tabbed-dialog {
+.settings-ui-section--page-flow .jini-tabbed-dialog,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog {
   width: auto;
   overflow: visible;
 }
-.settings-ui-section--page-flow .jini-tabbed-dialog-content {
+.settings-ui-section--page-flow .jini-tabbed-dialog-content,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog-content {
   overflow: visible;
   /* Released with the scroller itself. Left in place it would keep swallowing
      wheel events at the boundary of an element that no longer scrolls. */
@@ -4355,7 +4389,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * `tab.title`/`tab.subtitle` are still supplied in AiAssistant.tsx and Observability.tsx — they
  * are part of the shell's contract and feed its accessible naming; this hides the
  * visual duplicate, it does not strip the semantics. */
-.settings-ui-section--page-flow .jini-tabbed-dialog-head {
+.settings-ui-section--page-flow .jini-tabbed-dialog-head,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog-head {
   display: none;
 }
 
@@ -4383,7 +4418,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * Upstream note: the shell has no `flat`/`chromeless` prop, so this is CSS
  * rather than a `@jini-ai/ui` change — same reasoning as the tab-strip block
  * below, and the same "delete to revert" property. */
-.settings-ui-section--page-flow .jini-tabbed-dialog {
+.settings-ui-section--page-flow .jini-tabbed-dialog,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -4394,7 +4430,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    longer exists, which left the form and the tab strip hanging ~24px inside
    the page title above them. Zeroed so both align to the page's own column. */
 .settings-ui-section--page-flow .jini-tabbed-dialog-content,
-.settings-ui-section--page-flow .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+.settings-ui-section--page-flow .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog-content,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
   padding-inline: 0;
 }
 
@@ -4405,7 +4443,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    Restores the constraint the card was incidentally providing, without
    restoring the card. Sibling of `.assistant-switch`'s own `max-width: 68ch`,
    set in the same spirit. */
-.settings-ui-section--page-flow .jini-tabbed-dialog-content { max-width: 46rem; }
+.settings-ui-section--page-flow .jini-tabbed-dialog-content,
+.jini-settings-ui-section--page-flow .jini-tabbed-dialog-content { max-width: 46rem; }
 /* Recovery holds tables and empty cards, which should align with its full-width tab/header. */
 .settings-ui-section--page-flow.recovery-section .jini-tabbed-dialog-content { max-width: none; }
 .settings-ui-section--page-flow.observability-section .jini-tabbed-dialog-content { max-width: none; }
@@ -4429,7 +4468,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    undifferentiated column of text. Explicit now, because it is real structure
    and not a side effect of boxes. */
 .settings-ui-section--page-flow .see-more { margin-top: 1.15rem; }
-.settings-ui-section--page-flow .jini-settings-byok { margin-top: 1.5rem; }
+.settings-ui-section--page-flow .jini-settings-byok,
+.jini-settings-ui-section--page-flow .jini-settings-byok { margin-top: 1.5rem; }
 
 /* --- Card-free credential form -------------------------------------------
  *
@@ -4442,7 +4482,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * `.jini-byok-card-head` (the provider name, "Google Gemini") is deliberately
  * LEFT ALONE. It looks like card chrome and is not: with the box gone it is the
  * only thing on the tab that names which provider the key below belongs to. */
-.settings-ui-section--page-flow .jini-byok-card {
+.settings-ui-section--page-flow .jini-byok-card,
+.jini-settings-ui-section--page-flow .jini-byok-card {
   padding: 0;
   border: none;
   background: transparent;
@@ -4455,7 +4496,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .assistant-key-footer { display: flex; flex-direction: column; gap: 8px; }
 /* The host footer already explains server encryption and replacement. Hide only the shared
    storage hint, keeping format warnings visible and standalone forms' host hint intact. */
-.settings-ui-section .jini-byok-card > .jini-field:has(+ .jini-byok-key-footer) > .jini-field-hint:not(.is-error) { display: none; }
+.settings-ui-section .jini-byok-card > .jini-field:has(+ .jini-byok-key-footer) > .jini-field-hint:not(.is-error),
+.jini-settings-ui-section .jini-byok-card > .jini-field:has(+ .jini-byok-key-footer) > .jini-field-hint:not(.is-error) { display: none; }
 
 .assistant-key-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
@@ -4557,7 +4599,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * buttons, not an ARIA tablist. Painting a nav to look like tabs is not the
  * same as promising arrow-key tab semantics, and claiming the role without
  * the roving-focus behaviour would be the worse of the two. */
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-body {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-body,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-body {
   display: flex;
   flex-direction: column;
   /* A grid item (of `.jini-tabbed-dialog`) defaults to `min-width: auto`, i.e. its content's
@@ -4568,7 +4611,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   min-width: 0;
 }
 
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
   flex: 0 0 auto;
   flex-direction: row;
   /* Wrap rather than scroll: 13 tabs overflow a narrow viewport, and a second
@@ -4584,7 +4628,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   overflow: visible;
 }
 
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
   width: auto;
   /* Sidebar mode reserves a fixed 18px icon track so labels can't fall into
    * it (see the shell's own comment); in a row, `auto` just shrink-wraps. */
@@ -4598,12 +4643,15 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   color: var(--jini-text-muted);
 }
 
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item strong {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item strong,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item strong {
   white-space: nowrap;
 }
 
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active,
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active:hover {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active:hover,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active:hover {
   /* The filled pill that reads as "selected" in a vertical list reads as a
    * button in a row; an underline is the tab-strip idiom for the same state. */
   background: transparent;
@@ -4612,17 +4660,21 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active svg,
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active .jini-tabbed-dialog-nav-icon {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active .jini-tabbed-dialog-nav-icon,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active svg,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active .jini-tabbed-dialog-nav-icon {
   opacity: 1;
 }
 
 /* Collapsing a full-width strip would hide the nav outright rather than
  * reclaim space, so the chevron has nothing left to do here. */
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar-toggle {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar-toggle,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar-toggle {
   display: none;
 }
 
-.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-content,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -4681,7 +4733,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    the nav expanded and the assistant dock open, a desktop pane is phone-narrow, and the wrap turned
    Settings' nine tabs into four rows above the form. Same one swipeable row as on a phone. */
 @container admin-content (max-width: 620px) {
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
@@ -4691,20 +4744,24 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
     border-bottom: none;
     box-shadow: var(--jini-panel-shadow-divider);
   }
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
   /* The right-edge "more tabs" fade `.tab-bar` uses on phones (2026-10-17): at 360px Agent Plugins'
      Marketplace tab sat fully off screen with nothing saying the strip scrolls. Invisible on a strip
      that fits; off when the operator chose wrapping tabs. */
-  .admin-layout:not(.wraps-tabs) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .admin-layout:not(.wraps-tabs) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.admin-layout:not(.wraps-tabs) .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     padding-right: 32px;
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
     flex-shrink: 0;
     margin-bottom: 0;
     padding-inline: 8px;
   }
-  .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.admin-layout.wraps-tabs .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: wrap;
     overflow: visible;
   }
@@ -4744,38 +4801,48 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 /* Card/section titles across these tabs are bare `<h4>` elements with no
    className of their own; the browser's ~1.33em block margin would otherwise
    fight every `gap` set below. */
-.settings-ui-section h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--jini-text-strong); }
+.settings-ui-section h4,
+.jini-settings-ui-section h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--jini-text-strong); }
 
 /* `.jini-hint` — Notifications/Privacy/MCP server's helper-text class.
    `settings-dialog.css` only ever defined `.jini-field-hint`; same look. */
-.settings-ui-section .jini-hint { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-hint,
+.jini-settings-ui-section .jini-hint { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
 
 /* `.jini-button` / `-ghost` / `-primary` / `-disabled` — Privacy's "Delete my
    data" and MCP server's "One-click install" use this family; the
    stylesheet only ever defined `.jini-btn` / `.jini-btn-ghost`. Mirrors that
    recipe, plus a filled variant for the one primary use. */
-.settings-ui-section .jini-button {
+.settings-ui-section .jini-button,
+.jini-settings-ui-section .jini-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 7px 14px; font: inherit; font-size: 12px; font-weight: 500;
   color: var(--jini-text); background: var(--jini-bg-panel);
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius-sm);
   cursor: pointer; text-decoration: none;
 }
-.settings-ui-section .jini-button:hover { border-color: var(--jini-border-strong); }
-.settings-ui-section .jini-button-ghost { background: transparent; }
-.settings-ui-section .jini-button-primary { color: var(--jini-control-solid-ink); background: var(--jini-accent); border-color: var(--jini-accent); }
-.settings-ui-section .jini-button-primary:hover { background: var(--jini-accent-hover); border-color: var(--jini-accent-hover); }
-.settings-ui-section .jini-button-disabled { opacity: 0.55; pointer-events: none; }
+.settings-ui-section .jini-button:hover,
+.jini-settings-ui-section .jini-button:hover { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-button-ghost,
+.jini-settings-ui-section .jini-button-ghost { background: transparent; }
+.settings-ui-section .jini-button-primary,
+.jini-settings-ui-section .jini-button-primary { color: var(--jini-control-solid-ink); background: var(--jini-accent); border-color: var(--jini-accent); }
+.settings-ui-section .jini-button-primary:hover,
+.jini-settings-ui-section .jini-button-primary:hover { background: var(--jini-accent-hover); border-color: var(--jini-accent-hover); }
+.settings-ui-section .jini-button-disabled,
+.jini-settings-ui-section .jini-button-disabled { opacity: 0.55; pointer-events: none; }
 
 /* `.jini-empty-card-error` / `-warning` — color modifiers on the already-
    defined `.jini-empty-card` (MCP server's daemon-error / prerequisite-
    missing states). */
-.settings-ui-section .jini-empty-card-error {
+.settings-ui-section .jini-empty-card-error,
+.jini-settings-ui-section .jini-empty-card-error {
   border-color: color-mix(in srgb, var(--jini-danger) 45%, var(--jini-border));
   color: var(--jini-danger);
   background: color-mix(in srgb, var(--jini-danger) 6%, var(--jini-bg-subtle));
 }
-.settings-ui-section .jini-empty-card-warning {
+.settings-ui-section .jini-empty-card-warning,
+.jini-settings-ui-section .jini-empty-card-warning {
   border-color: color-mix(in srgb, var(--jini-accent) 45%, var(--jini-border));
   background: color-mix(in srgb, var(--jini-accent) 6%, var(--jini-bg-subtle));
 }
@@ -4783,13 +4850,17 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 /* Instructions — `od-settings-instructions.png`: one bordered card holding
    the title, description and textarea; textarea spans the card and is
    several lines tall, not a ~80px browser-default box. */
-.settings-ui-section .jini-settings-section-card {
+.settings-ui-section .jini-settings-section-card,
+.jini-settings-ui-section .jini-settings-section-card {
   margin-top: 0; padding: 16px; border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius); background: var(--jini-bg-panel);
 }
-.settings-ui-section .jini-field-block { display: flex; flex-direction: column; gap: 12px; }
+.settings-ui-section .jini-field-block,
+.jini-settings-ui-section .jini-field-block { display: flex; flex-direction: column; gap: 12px; }
 .settings-ui-section .jini-instructions-input,
-.settings-ui-section .jini-custom-instructions-input {
+.settings-ui-section .jini-custom-instructions-input,
+.jini-settings-ui-section .jini-instructions-input,
+.jini-settings-ui-section .jini-custom-instructions-input {
   width: 100%; min-height: 96px; box-sizing: border-box;
   padding: 10px 12px; font: inherit; font-size: 13px; line-height: 1.5;
   color: var(--jini-text); background: var(--jini-bg-panel);
@@ -4797,7 +4868,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   resize: vertical;
 }
 .settings-ui-section .jini-instructions-input:focus,
-.settings-ui-section .jini-custom-instructions-input:focus {
+.settings-ui-section .jini-custom-instructions-input:focus,
+.jini-settings-ui-section .jini-instructions-input:focus,
+.jini-settings-ui-section .jini-custom-instructions-input:focus {
   outline: none; border-color: var(--jini-accent);
   box-shadow: var(--jini-control-shadow-focus-accent);
 }
@@ -4807,17 +4880,22 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    still inside the same card. Without this, the pill's `--seg-cols: 1`
    `.jini-seg-control` stretches to the full panel width instead of sizing
    to its own label. */
-.settings-ui-section .jini-settings-subsection { display: flex; flex-direction: column; gap: 10px; }
-.settings-ui-section .jini-settings-notify-card {
+.settings-ui-section .jini-settings-subsection,
+.jini-settings-ui-section .jini-settings-subsection { display: flex; flex-direction: column; gap: 10px; }
+.settings-ui-section .jini-settings-notify-card,
+.jini-settings-ui-section .jini-settings-notify-card {
   display: flex; flex-direction: column; gap: 6px;
   padding: 14px 16px; border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius); background: var(--jini-bg-panel);
 }
-.settings-ui-section .jini-settings-notify-card-header {
+.settings-ui-section .jini-settings-notify-card-header,
+.jini-settings-ui-section .jini-settings-notify-card-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.settings-ui-section .jini-settings-field { display: flex; flex-direction: column; gap: 6px; }
-.settings-ui-section .jini-settings-field > label { font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
+.settings-ui-section .jini-settings-field,
+.jini-settings-ui-section .jini-settings-field { display: flex; flex-direction: column; gap: 6px; }
+.settings-ui-section .jini-settings-field > label,
+.jini-settings-ui-section .jini-settings-field > label { font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
 
 /* AI agent tab (Chrome check, 2026-10-11; design checklist: no control wider than its content).
    The Local CLI / BYOK segmented switch spanned the whole panel (~530px for two short words) and,
@@ -4826,60 +4904,79 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    now sizes to its labels (its `1fr` columns keep the two halves equal) and the stacked selects
    stay full width only up to 16rem. Three classes deep so it beats Jini's two-class rules in any
    stylesheet order. */
-.settings-ui-section .jini-settings-execution > .jini-seg-control { width: max-content; max-width: 100%; }
-.settings-ui-section .jini-agent-settings :is(.jini-searchable-select, select.jini-input, .jini-agent-settings-custom) {
+.settings-ui-section .jini-settings-execution > .jini-seg-control,
+.jini-settings-ui-section .jini-settings-execution > .jini-seg-control { width: max-content; max-width: 100%; }
+.settings-ui-section .jini-agent-settings :is(.jini-searchable-select, select.jini-input, .jini-agent-settings-custom),
+.jini-settings-ui-section .jini-agent-settings :is(.jini-searchable-select, select.jini-input, .jini-agent-settings-custom) {
   max-width: min(100%, 16rem);
 }
 
 /* Privacy — the two choices show once, as real switches, not unstyled
    `<button>`s (the disclosure list and share/decline buttons that repeated
    them were removed 2026-10-26). */
-.settings-ui-section .jini-settings-privacy-toggles { display: flex; flex-direction: column; gap: 8px; }
-.settings-ui-section .jini-toggle-row {
+.settings-ui-section .jini-settings-privacy-toggles,
+.jini-settings-ui-section .jini-settings-privacy-toggles { display: flex; flex-direction: column; gap: 8px; }
+.settings-ui-section .jini-toggle-row,
+.jini-settings-ui-section .jini-toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   width: 100%; padding: 12px 14px; font: inherit; text-align: left;
   color: var(--jini-text); background: var(--jini-bg-panel);
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
 }
-.settings-ui-section .jini-toggle-row-text { display: flex; flex-direction: column; gap: 2px; }
-.settings-ui-section .jini-toggle-row-label { font-size: 13px; font-weight: 600; color: var(--jini-text-strong); }
-.settings-ui-section .jini-toggle-row-hint { font-size: 12px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-toggle-row-switch {
+.settings-ui-section .jini-toggle-row-text,
+.jini-settings-ui-section .jini-toggle-row-text { display: flex; flex-direction: column; gap: 2px; }
+.settings-ui-section .jini-toggle-row-label,
+.jini-settings-ui-section .jini-toggle-row-label { font-size: 13px; font-weight: 600; color: var(--jini-text-strong); }
+.settings-ui-section .jini-toggle-row-hint,
+.jini-settings-ui-section .jini-toggle-row-hint { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-toggle-row-switch,
+.jini-settings-ui-section .jini-toggle-row-switch {
   position: relative; flex: 0 0 auto; width: 36px; height: 20px;
   border-radius: var(--jini-radius-pill); background: var(--jini-border-strong);
   transition: background-color 120ms var(--jini-ease-out);
 }
-.settings-ui-section .jini-toggle-row-switch::after {
+.settings-ui-section .jini-toggle-row-switch::after,
+.jini-settings-ui-section .jini-toggle-row-switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
   border-radius: 50%; background: var(--jini-control-thumb-bg); box-shadow: var(--jini-shadow-xs);
   transition: transform 120ms var(--jini-ease-out);
 }
-.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch { background: var(--jini-accent); }
-.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch::after { transform: translateX(16px); }
+.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch,
+.jini-settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch { background: var(--jini-accent); }
+.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch::after,
+.jini-settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch::after { transform: translateX(16px); }
 
 /* Language — `od-settings-language.png`: a grid of bordered tiles, each
    title above its locale code. Without this the title and code spans sit
    on one line with no separator at all — "English" + "en" reads as
    "Englishen". */
-.settings-ui-section .jini-settings-language-grid {
+.settings-ui-section .jini-settings-language-grid,
+.jini-settings-ui-section .jini-settings-language-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
 }
-.settings-ui-section .jini-settings-language-tile {
+.settings-ui-section .jini-settings-language-tile,
+.jini-settings-ui-section .jini-settings-language-tile {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 10px 12px; font: inherit; text-align: left;
   color: var(--jini-text); background: var(--jini-bg-panel);
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
 }
-.settings-ui-section .jini-settings-language-tile:hover { border-color: var(--jini-border-strong); }
-.settings-ui-section .jini-settings-language-tile.active {
+.settings-ui-section .jini-settings-language-tile:hover,
+.jini-settings-ui-section .jini-settings-language-tile:hover { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-settings-language-tile.active,
+.jini-settings-ui-section .jini-settings-language-tile.active {
   border-color: var(--selected-ring);
   background: color-mix(in srgb, var(--jini-accent) 8%, var(--jini-bg-panel));
   color: var(--jini-accent);
 }
-.settings-ui-section .jini-settings-language-tile-text { display: flex; flex-direction: column; gap: 2px; }
-.settings-ui-section .jini-settings-language-tile-title { font-size: 13px; font-weight: 600; }
-.settings-ui-section .jini-settings-language-tile-code { font-size: 11px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-settings-language-tile.active .jini-settings-language-tile-code { color: inherit; }
+.settings-ui-section .jini-settings-language-tile-text,
+.jini-settings-ui-section .jini-settings-language-tile-text { display: flex; flex-direction: column; gap: 2px; }
+.settings-ui-section .jini-settings-language-tile-title,
+.jini-settings-ui-section .jini-settings-language-tile-title { font-size: 13px; font-weight: 600; }
+.settings-ui-section .jini-settings-language-tile-code,
+.jini-settings-ui-section .jini-settings-language-tile-code { font-size: 11px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-settings-language-tile.active .jini-settings-language-tile-code,
+.jini-settings-ui-section .jini-settings-language-tile.active .jini-settings-language-tile-code { color: inherit; }
 
 /* MCP server — `od-settings-mcp-server.png`: an uppercase-kicker capabilities
    card, a bordered client-picker dropdown (not a dark pill — and its name
@@ -4887,67 +4984,94 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    "CLI command" reads as "Claude CodeCLI command"), and a dark code block
    with the Copy button overlaid on it rather than sitting below as its own
    row. */
-.settings-ui-section .jini-mcp-capabilities-card {
+.settings-ui-section .jini-mcp-capabilities-card,
+.jini-settings-ui-section .jini-mcp-capabilities-card {
   padding: 14px 16px; border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius); background: var(--jini-bg-panel);
 }
-.settings-ui-section .jini-mcp-capabilities-label {
+.settings-ui-section .jini-mcp-capabilities-label,
+.jini-settings-ui-section .jini-mcp-capabilities-label {
   margin: 0 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--jini-text-muted);
 }
-.settings-ui-section .jini-mcp-capabilities-list {
+.settings-ui-section .jini-mcp-capabilities-list,
+.jini-settings-ui-section .jini-mcp-capabilities-list {
   margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px;
   font-size: 13px; color: var(--jini-text);
 }
-.settings-ui-section .jini-mcp-setup-card { display: flex; flex-direction: column; gap: 12px; }
-.settings-ui-section .jini-mcp-instruction { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-mcp-restart-note { font-size: 12px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-mcp-deeplink-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings-ui-section .jini-mcp-setup-card,
+.jini-settings-ui-section .jini-mcp-setup-card { display: flex; flex-direction: column; gap: 12px; }
+.settings-ui-section .jini-mcp-instruction,
+.jini-settings-ui-section .jini-mcp-instruction { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-mcp-restart-note,
+.jini-settings-ui-section .jini-mcp-restart-note { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-mcp-deeplink-row,
+.jini-settings-ui-section .jini-mcp-deeplink-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-.settings-ui-section .jini-picker { position: relative; }
-.settings-ui-section .jini-picker-trigger {
+.settings-ui-section .jini-picker,
+.jini-settings-ui-section .jini-picker { position: relative; }
+.settings-ui-section .jini-picker-trigger,
+.jini-settings-ui-section .jini-picker-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   width: 100%; padding: 10px 14px; font: inherit; text-align: left;
   color: var(--jini-text); background: var(--jini-bg-panel);
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
 }
 .settings-ui-section .jini-picker-trigger:hover,
-.settings-ui-section .jini-picker-trigger.open { border-color: var(--jini-border-strong); }
-.settings-ui-section .jini-picker-meta { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.settings-ui-section .jini-picker-title { font-size: 13px; font-weight: 600; }
-.settings-ui-section .jini-picker-sub { font-size: 12px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-picker-chevron { flex: 0 0 auto; color: var(--jini-text-muted); transition: transform 120ms var(--jini-ease-out); }
-.settings-ui-section .jini-picker-popover {
+.settings-ui-section .jini-picker-trigger.open,
+.jini-settings-ui-section .jini-picker-trigger:hover,
+.jini-settings-ui-section .jini-picker-trigger.open { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-picker-meta,
+.jini-settings-ui-section .jini-picker-meta { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.settings-ui-section .jini-picker-title,
+.jini-settings-ui-section .jini-picker-title { font-size: 13px; font-weight: 600; }
+.settings-ui-section .jini-picker-sub,
+.jini-settings-ui-section .jini-picker-sub { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-picker-chevron,
+.jini-settings-ui-section .jini-picker-chevron { flex: 0 0 auto; color: var(--jini-text-muted); transition: transform 120ms var(--jini-ease-out); }
+.settings-ui-section .jini-picker-popover,
+.jini-settings-ui-section .jini-picker-popover {
   position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
   padding: 6px; background: var(--jini-bg-elevated); border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius); box-shadow: var(--jini-shadow-lg);
 }
-.settings-ui-section .jini-picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
-.settings-ui-section .jini-picker-item {
+.settings-ui-section .jini-picker-list,
+.jini-settings-ui-section .jini-picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.settings-ui-section .jini-picker-item,
+.jini-settings-ui-section .jini-picker-item {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   padding: 8px 10px; font: inherit; text-align: left; color: var(--jini-text);
   background: transparent; border: none; border-radius: var(--jini-radius-sm); cursor: pointer;
 }
-.settings-ui-section .jini-picker-item:hover { background: var(--jini-bg-subtle); }
-.settings-ui-section .jini-picker-item.active { background: color-mix(in srgb, var(--jini-accent) 10%, transparent); color: var(--jini-accent); }
-.settings-ui-section .jini-picker-item-title { font-size: 13px; }
-.settings-ui-section .jini-picker-item-sub { font-size: 11px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-picker-item:hover,
+.jini-settings-ui-section .jini-picker-item:hover { background: var(--jini-bg-subtle); }
+.settings-ui-section .jini-picker-item.active,
+.jini-settings-ui-section .jini-picker-item.active { background: color-mix(in srgb, var(--jini-accent) 10%, transparent); color: var(--jini-accent); }
+.settings-ui-section .jini-picker-item-title,
+.jini-settings-ui-section .jini-picker-item-title { font-size: 13px; }
+.settings-ui-section .jini-picker-item-sub,
+.jini-settings-ui-section .jini-picker-item-sub { font-size: 11px; color: var(--jini-text-muted); }
 
-.settings-ui-section .jini-snippet-block { position: relative; }
-.settings-ui-section .jini-snippet-pre {
+.settings-ui-section .jini-snippet-block,
+.jini-settings-ui-section .jini-snippet-block { position: relative; }
+.settings-ui-section .jini-snippet-pre,
+.jini-settings-ui-section .jini-snippet-pre {
   margin: 0; padding: 14px 16px; overflow-x: auto;
   background: var(--jini-text-strong); border-radius: var(--jini-radius);
 }
-.settings-ui-section .jini-snippet-code {
+.settings-ui-section .jini-snippet-code,
+.jini-settings-ui-section .jini-snippet-code {
   font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.6;
   color: var(--jini-bg-panel); white-space: pre-wrap; word-break: break-all;
 }
-.settings-ui-section .jini-snippet-copy-btn {
+.settings-ui-section .jini-snippet-copy-btn,
+.jini-settings-ui-section .jini-snippet-copy-btn {
   position: absolute; top: 10px; right: 10px;
   color: var(--jini-bg-panel); background: color-mix(in srgb, var(--jini-text-strong) 60%, transparent);
   border-color: transparent;
 }
-.settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
+.settings-ui-section .jini-snippet-copy-btn:hover,
+.jini-settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
 /* The MCP page uses the shared visible Copy label; keep it legible over its code surface. */
 :root .providers-page .jini-snippet-copy-btn {
   color: var(--fg);
@@ -6570,54 +6694,81 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    `useListTableCellLabels` sets `data-label` at every width, so nothing JS-side is phone-gated.
    ------------------------------------------------------------------------ */
 @container admin-content (max-width: 620px) {
-  .table-scroll:has(> table.list-table) { overflow-x: visible; }
-  table.list-table { display: block; min-width: 0; table-layout: auto; }
-  table.list-table > colgroup { display: none; }
+  .table-scroll:has(> table.list-table),
+  .jini-roles-table-scroll:has(> table.jini-roles-list-table) { overflow-x: visible; }
+  table.list-table,
+  table.jini-roles-list-table { display: block; min-width: 0; table-layout: auto; }
+  table.list-table > colgroup,
+  table.jini-roles-list-table > colgroup { display: none; }
   table.list-table > thead,
-  table.list-table > tbody { display: block; }
+  table.list-table > tbody,
+  table.jini-roles-list-table > thead,
+  table.jini-roles-list-table > tbody { display: block; }
 
-  table.list-table > thead:not(:has(button, input)) { display: none; }
-  table.list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-  table.list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
-  table.list-table > thead > tr > th:not(:has(button, input)) { display: none; }
+  table.list-table > thead:not(:has(button, input)),
+  table.jini-roles-list-table > thead:not(:has(button, input)) { display: none; }
+  table.list-table > thead > tr,
+  table.jini-roles-list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  table.list-table > thead > tr > th,
+  table.jini-roles-list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
+  table.list-table > thead > tr > th:not(:has(button, input)),
+  table.jini-roles-list-table > thead > tr > th:not(:has(button, input)) { display: none; }
   /* A select-all checkbox alone read as an empty grey bar (owner, Trash, 2026-10-07). Its label
      already carries the translated screen-reader text ("Select every item shown"); on a phone that
      text is shown beside the box, and the whole label is the tap target. */
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]),
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden,
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
     position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
     font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--muted);
   }
 
-  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-  table.list-table > tbody > tr:last-child { border-bottom: none; }
+  table.list-table > tbody > tr,
+  table.jini-roles-list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  table.list-table > tbody > tr:last-child,
+  table.jini-roles-list-table > tbody > tr:last-child { border-bottom: none; }
   /* A record and its `rowDetail` line are one card. */
-  table.list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
-  table.list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
-  table.list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
+  table.list-table > tbody > tr:has(+ .list-table-detail),
+  table.jini-roles-list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
+  table.list-table > tbody > tr.list-table-detail,
+  table.jini-roles-list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
+  table.list-table > tbody > tr.list-table-detail > td:first-child,
+  table.jini-roles-list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
-  table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
-  table.list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
-  table.list-table > tbody > tr > td:empty { display: none; }
+  table.list-table > tbody > tr::after,
+  table.jini-roles-list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
+  table.list-table > tbody > tr > td,
+  table.jini-roles-list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+  table.list-table > tbody > tr > td:empty,
+  table.jini-roles-list-table > tbody > tr > td:empty { display: none; }
 
   table.list-table > tbody > tr > td:first-child,
-  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td,
+  table.jini-roles-list-table > tbody > tr > td:first-child,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
     order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
   }
-  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
+  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]),
+  table.jini-roles-list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select),
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
     order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
   }
 
   /* Meta line: "LABEL value". Not on the title, the actions slot or a lone checkbox. */
-  table.list-table > tbody > tr > td[data-label]::before {
+  table.list-table > tbody > tr > td[data-label]::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]::before {
     content: attr(data-label); margin-right: 6px;
     font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
   }
   table.list-table > tbody > tr > td:first-child::before,
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
 
   /* Each meta cell is its own "LABEL | value" line, labels in one fixed-width column (owner,
      2026-10-07). As inline "LABEL value" runs side by side, the pairs wrapped wherever the line
@@ -6627,25 +6778,32 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      the value's children stay in ordinary flow however many there are, every value line keeps
      the indent, and `flow-root` grows the cell when a long label wraps to two lines. Excluded:
      the title, the actions slot, editable cells (label above, below) and colspan detail rows. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]),
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
     --list-meta-label-w: 7.5rem;
     flex: 0 0 100%; display: flow-root; padding-left: calc(var(--list-meta-label-w) + 12px); line-height: 20px;
   }
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
     float: left; width: var(--list-meta-label-w); margin: 0 0 0 calc(-1 * (var(--list-meta-label-w) + 12px)); line-height: 20px;
   }
   /* A button value (Collections' "Copy embed code") is 44px tall on phones: centre the label on it. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
 
   /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
      label ABOVE the control and a share of the line, so a field reads as a small labelled form —
      including the primary cell, whose control is otherwise anonymous. */
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
-  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select),
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
+  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
   /* An inline detail row (Users' expanded panel spans every column) now gets the card's width,
      not the old table's — its own controls must not keep a desktop min-width past it. */
-  table.list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
+  table.list-table > tbody > tr > td[colspan] :is(select, input),
+  table.jini-roles-list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
 }
 
 /* ------------------------------------------------------------------------
@@ -6660,11 +6818,14 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    the pill switches draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]),
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
     min-height: 44px;
   }
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]),
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]),
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
   /* The chrome outside `.admin-content` the floor above cannot reach, plus the 15px text link and the
      18px radio labels inside it (measured at 390px, 2026-11-05). The link and the label grow their hit
@@ -6681,7 +6842,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
      looking pressed. The active underline and keyboard focus outline still convey state. */
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item:hover {
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item:hover,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
+.jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item:hover {
     background: transparent;
   }
 
@@ -6701,7 +6864,8 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
      37px against the floor buttons and selects already get; one floor for every field, the same
      44px so a field and the button beside it stay one height. */
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]),
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
     min-height: 44px;
   }
   /* Standalone links that sit beside 44px buttons (a panel head's "All posts"/"Change", a
@@ -6732,12 +6896,16 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .database-filter-bar .field { min-width: 0; width: 100%; }
   .database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
   .database-filter-bar > button { justify-self: start; }
-  .settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
-  .settings-ui-section .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 100%; }
-  .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
+  .settings-ui-section .jini-byok-model-row,
+.jini-settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
+  .settings-ui-section .jini-byok-model-row > .jini-field,
+.jini-settings-ui-section .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 100%; }
+  .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn,
+.jini-settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
 
   /* PO-3: labels start their own line; featured-image controls can still sit beside each other. */
-  .page > .jini-post-publishing__fields { justify-content: flex-start; align-items: stretch; }
+  .page > .jini-post-publishing__fields,
+.jini-page > .jini-post-publishing__fields { justify-content: flex-start; align-items: stretch; }
   .jini-post-publishing__fields > .jini-post-publishing__field { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
   .jini-post-publishing__fields .jini-field-label { flex-basis: 100%; text-align: left; }
   .jini-post-publishing__fields input { width: 100%; min-width: 0; }

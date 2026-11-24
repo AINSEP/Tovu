@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createPermissionMigrationRegistry } from "@jini-ai/user-management/server";
 
-import { createPermissionGrantRegistry } from "#src/features/identity/permission-grants";
+import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
@@ -50,7 +50,7 @@ test("boot with the app's registry grants every host admin permission", async ()
 
 test("importing feature permission modules registers nothing: a fresh registry still holds only the library built-ins", async () => {
   await import("#src/features/pages/permissions");
-  await import("#src/features/identity/site-key-permission");
+  await import("@jini-ai/user-management/identity/site-key-permission");
   await import("#src/features/publish-content/permissions");
   await import("#src/features/fs-files/custom-root-permission");
 

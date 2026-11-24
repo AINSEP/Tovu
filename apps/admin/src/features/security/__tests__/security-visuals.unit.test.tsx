@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { AccessTokensIcon, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon, SiteKeyIcon } from "../security-visuals";
+import { AccessTokensIcon, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon, SiteKeyIcon } from "../../../integrations/jini-admin/security-visuals";
 
 it.each([
   [AccessTokensIcon, 16], [SiteKeyIcon, 16], [SearchIcon, 16], [ConnectedMarkIcon, 12], [DisclosureChevronIcon, 14],

@@ -15,7 +15,7 @@ import { DEFAULT_OWNER_CREDENTIALS, DEFAULT_OWNER_PASSWORD, createInMemoryIdenti
 // this repo's OWN pairs and grants (theme.edit -> pages.edit_html, `features/pages/permissions.ts`),
 // registered by a host rather than by the library — the seam the migration registry exists for.
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import { InMemoryApiKeyRepo } from "../repo.memory.js";
+import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
 
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z", nowMs: () => Date.parse("2026-07-14T00:00:00.000Z") };
