@@ -1850,17 +1850,6 @@
         ]
       },
       {
-        "path": "apps/website/src/features/comments/agent-tools.ts",
-        "ids": [
-          "content_read.comment_moderation_queue",
-          "comments_get_provider",
-          "comments_mark_comment_spam",
-          "comments_trash_comment",
-          "comments_restore_comment",
-          "comments_approve_comment"
-        ]
-      },
-      {
         "path": "apps/website/src/features/consent/tool-registrations.ts",
         "ids": [
           "consent_get_settings"
@@ -2040,21 +2029,6 @@
           "external_mcp_save",
           "external_mcp_oauth_connect",
           "external_mcp_oauth_poll_device"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/forms/agent-tools.ts",
-        "ids": [
-          "forms_list_submissions",
-          "forms_list_providers",
-          "forms_create_definition",
-          "forms_update_definition",
-          "forms_set_definition_status",
-          "forms_get_submission",
-          "widgets_create_instance",
-          "widgets_insert_embed",
-          "content_read.form_definition",
-          "trash_item"
         ]
       },
       {
@@ -2706,19 +2680,6 @@
         "ids": [
           "webhooks_create_subscription",
           "content_read.webhook_subscription"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/widgets/agent-tools.ts",
-        "ids": [
-          "widgets_create_instance",
-          "content_read.widget_instance",
-          "content_post_create",
-          "content_read.content_post",
-          "pages_write_region",
-          "content_read.widget_region",
-          "widgets_set_region_placements",
-          "widgets_insert_embed"
         ]
       },
       {
