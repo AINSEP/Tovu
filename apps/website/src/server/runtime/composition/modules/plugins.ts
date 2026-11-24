@@ -10,7 +10,7 @@ import {
   PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin,
 } from "@jini-ai/plugins/host";
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
-import { ToolAccessLoweringError } from "#src/contracts/core/tool-access-change";
+import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 import { lowerPluginToolAccess } from "#src/features/plugin-runtime/lower-tool-access";
 import {
   mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
@@ -42,7 +42,7 @@ import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
  * captured by the composition root), so the route layer never constructs a discovery call itself.
  */
 export interface PluginsRouteDeps {
-  notifyRosterChanged: import("#src/contracts/core/tool-access-change").NotifyToolAccessChanged;
+  notifyRosterChanged: import("@jini-ai/core/tool-access-change").NotifyToolAccessChanged;
   /** Existing provider/assistant-face owner, bound by the site composition. */
   providerFaces?: Pick<import('#src/features/plugin-runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
   /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { lowerAssistantToolAccess, ToolAccessLoweringError } from '../assistant-tool-access-lowering.js';
+import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
+import { lowerAssistantToolAccess } from '../assistant-tool-access-lowering.js';
 
 test('tool lowering is cold-safe and sends the site capability without caller identity fields', async () => {
   let calls = 0;
