@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
-import "../../components/InstallTabCard/install-tab-card.css";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
 

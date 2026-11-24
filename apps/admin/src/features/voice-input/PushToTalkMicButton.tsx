@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useT } from "@jini-ai/chat/react";
 
-import { useMicButtonView } from "./hooks/mic-button-view.hooks";
+import { useMicButtonView } from "@jini-ai/admin/screens/voice-input/hooks/mic-button-view.hooks";
 import { usePushToTalk, type UsePushToTalkOverrides } from "./hooks/use-push-to-talk.hooks";
 import { useSpaceHoldToTalk } from "./hooks/use-space-hold-to-talk.hooks";
 import "@jini-ai/admin/screens/voice-input/push-to-talk-mic-button.css";
