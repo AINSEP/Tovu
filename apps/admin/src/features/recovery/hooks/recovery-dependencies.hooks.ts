@@ -30,7 +30,7 @@ export const RECOVERY_HOST: RecoveryHost = {
   // The screen's refresh subscription stays on this host's bus: a restore point minted by an
   // assistant run reloads the list through the package hook's own `load`.
   useContentRefreshSubscription: (required) => useContentRefreshSubscription(required),
-  reportError: ({ message, detail }) => console.error(message, detail),
+  reportError: ({ message, error }) => console.error(message, error),
 };
 
 /**

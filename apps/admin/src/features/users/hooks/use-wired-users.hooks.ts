@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useLocalizedUsers, type LocalizedUsersController } from "@jini-ai/user-management/react";
+import { useLocalizedUsers, useUsers as useJiniUsers, type LocalizedUsersController } from "@jini-ai/user-management/react";
 import type { UsersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
@@ -15,7 +15,7 @@ import { t } from "@jini-ai/admin/users/users-i18n";
 
 /** Bind host locale, workspace scope and dictionary; Jini owns the controller. */
 export function useUsers({ port, openOwnPasswordReset, navigate }: { port: UsersPort; openOwnPasswordReset?: boolean; navigate?: (path: string, options?: { replace?: boolean }) => void }, _optional: Record<string, never> = {}): LocalizedUsersController {
-  return useLocalizedUsers({ port, openOwnPasswordReset, navigate, useAdminLocale, queryScope: WORKSPACE_ID, t });
+  return useLocalizedUsers({ port, openOwnPasswordReset, onOwnPasswordResetClosed: () => navigate?.("/users"), useUsers: useJiniUsers, useAdminLocale, queryScope: WORKSPACE_ID, t });
 }
 
 /**
