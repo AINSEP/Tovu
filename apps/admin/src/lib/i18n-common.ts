@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createPluginsDictionary } from "@jini-ai/admin/screens/plugins/plugins-i18n";
 import { createSecurityDictionary } from "@jini-ai/admin/security/security-i18n";
 import { createCollectionsDictionary } from "@jini-ai/admin/screens/collections/collections-i18n";
 import { createTaxonomyDictionary } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
@@ -115,3 +116,6 @@ export const {
   removeDialogBody,
   otherCredentialRemoveDialogBody,
 } = createSecurityDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });
+
+/** The plugins dictionary, bound once to this app's common fallback and product name. */
+export const { t: tPlugins } = createPluginsDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
 import type { AgentPluginListRow } from '@jini-ai/admin/agent-plugins/models';
-import { t } from '../plugins-i18n';
+import { tPlugins as t } from '../../../lib/i18n-common';
 
 it.each([
   ['connected', 'Signed in'], ['disconnected', 'Not signed in'], ['pending', 'Waiting for sign-in'], ['needs_reauth', 'Sign in again'],

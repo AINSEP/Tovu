@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as translate } from "../plugins-i18n";
+import { tPlugins as translate } from "../../../lib/i18n-common";
 import {
   describeApiError,
   packageFilesRead,

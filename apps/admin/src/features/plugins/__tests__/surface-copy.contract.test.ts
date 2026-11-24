@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { t as pluginCopy } from '../plugins-i18n';
+import { tPlugins as pluginCopy } from '../../../lib/i18n-common';
 import { t as monitoringCopy } from '../../observability/observability-i18n';
 import { tSecurity as securityCopy } from '../../../lib/i18n-common';
 import { SHARED_COMPONENTS_DICT } from '../../../components/shared-components-i18n';

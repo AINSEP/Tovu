@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { t } from "../plugins-i18n";
+import { tPlugins as t } from "../../../lib/i18n-common";
 
 it("binds plugin actions and package-viewer copy to the requested locale", () => {
   // F4.3 regression target: bind an empty dictionary, or swap Enable and Disable entries.

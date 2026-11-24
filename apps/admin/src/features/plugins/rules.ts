@@ -5,7 +5,7 @@ import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFile } from "@jini-ai/core/contracts/site/host-node";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
-import { t } from "./plugins-i18n";
+import { tPlugins as t } from "../../lib/i18n-common";
 
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "@jini-ai/admin/agent-plugins";

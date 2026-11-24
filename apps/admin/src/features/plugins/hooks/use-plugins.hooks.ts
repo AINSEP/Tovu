@@ -6,7 +6,7 @@ import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { t as translate } from "../plugins-i18n";
+import { tPlugins as translate } from "../../../lib/i18n-common";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "@jini-ai/admin/screens/plugins/hooks/plugins-port.hooks";
 import { usePluginInstall, type PluginInstallController } from "./use-plugin-install.hooks";

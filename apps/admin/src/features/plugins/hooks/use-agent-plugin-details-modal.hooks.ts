@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as translate } from "../plugins-i18n";
+import { tPlugins as translate } from "../../../lib/i18n-common";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 import { usePluginPackageFiles, type PluginPackageFilesController } from "./use-plugin-package-files.hooks";

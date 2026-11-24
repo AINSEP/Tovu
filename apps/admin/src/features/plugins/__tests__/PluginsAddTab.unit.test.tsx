@@ -9,7 +9,7 @@ import type { PluginInstallPort } from "@jini-ai/admin/screens/plugins/hooks/plu
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { Plugins } from "../Plugins";
-import { t } from "../plugins-i18n";
+import { tPlugins as t } from "../../../lib/i18n-common";
 
 afterEach(cleanup);
 const preview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: ["content.read"], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };
