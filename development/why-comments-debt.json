@@ -4813,6 +4813,12 @@
     { "id": "a82386725739", "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto` doc (\"Every field is a SNAPSHOT captured when the thing was deleted\")." },
     { "id": "ea539f89db54", "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto.actorUsername` doc." },
     { "id": "f68143699a57", "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto.actorIsSystem` doc." },
-    { "id": "b026b2a8b2c6", "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): restore/purge outcome docs (\"`forbidden` means the operator lacks THAT ROW'S kind's permission\")." }
-]
+    { "id": "b026b2a8b2c6", "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): restore/purge outcome docs (\"`forbidden` means the operator lacks THAT ROW'S kind's permission\")." },
+    {"id": "f1dc27b41d18", "reason": "Header of the `openMcpUiLink` tests, moved with the function to Jini `packages/admin/src/shell/components/AssistantDock/hooks/__tests__/open-mcp-ui-link.unit.test.ts` (w5-admin)."},
+    {"id": "4dad39d28648", "reason": "Moved with the type to Jini `packages/admin/src/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (`ChatToolCallDisplay` doc, w5-admin)."},
+    {"id": "681f1f558a88", "reason": "Moved with the function to Jini `packages/admin/src/shell/components/AssistantDock/hooks/open-mcp-ui-link.ts` (`openMcpUiLink` doc, w5-admin)."},
+    {"id": "9997fb58724e", "reason": "Moved with the hook to Jini `packages/admin/src/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (`useChatDisplayPreferences` doc, w5-admin)."},
+    {"id": "117d8cecfcaf", "reason": "Moved with `sharedPort` to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (w5-admin)."},
+    {"id": "dd1ac8c6c4ba", "reason": "Moved with the action wrapper to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (`useAssistantChats`, w5-admin)."}
+  ]
 }
