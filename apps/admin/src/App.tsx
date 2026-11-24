@@ -760,7 +760,7 @@ function AdminShell({
 }
 
 function AdminShellProviders({ permissions, principalId, locale, children }: { permissions: readonly string[] | undefined; principalId: string; locale: string; children: ReactNode }) {
-  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS}>
+  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS} grantsReady={permissions !== undefined}>
     <ChartRegistryProvider key={principalId} principalId={principalId}>
       <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale, key: "Cancel" })}>{children}</ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>

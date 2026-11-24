@@ -5,7 +5,7 @@ export function AdminModulesProvider(
     useAdminModulesHook = useAdminModules,
     useModuleProviderContentHook = useModuleProviderContent,
     ...props
-  }: { permissions: readonly string[]; children: ReactNode; useAdminModulesHook?: typeof useAdminModules; useModuleProviderContentHook?: typeof useModuleProviderContent }
+  }: { permissions: readonly string[]; grantsReady?: boolean; children: ReactNode; useAdminModulesHook?: typeof useAdminModules; useModuleProviderContentHook?: typeof useModuleProviderContent }
 ) {
   const runtime = useAdminModulesHook(props);
   const content = useModuleProviderContentHook({ runtime, children: props.children });

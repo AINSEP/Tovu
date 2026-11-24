@@ -2,7 +2,7 @@ import { siteKeyStatusBadgeLabel } from "./hooks/site-key-status.rules";
 import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { siteKeyGenerateErrorMessage } from "./security-i18n";
+import { siteKeyGenerateErrorMessage } from "../../integrations/jini-admin/security-i18n";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site-key.hooks";
 import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";

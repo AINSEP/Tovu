@@ -84,6 +84,10 @@ What this host injects into the Jini identity modules (`@jini-ai/user-management
 - `tool-registrations.ts` / `routes/users/deps.ts` call `createUsernameChangePort` with the host's
   outbox, id generator, Trash membership check and seeded owner id.
 - `user-purge.ts` (`SqlUserPurge`) implements Jini's `UserPurgePort`.
+- `server/runtime/composition/app-permission-grants.ts` calls `registerSiteKeyPermissionGrants`
+  (`@jini-ai/user-management/identity/site-key-permission`) with `siteKeyName: SITE_KEY_ENV_VAR_NAME`
+  (`features/webhooks/site-key-sources.ts`, K3: the product env var name stays here);
+  `__tests__/site-key-permission.test.ts` pins the bound reason and the real SQLite boot.
 - `trash-user-binding.ts` calls `createTrashUserService({})` ONCE for the process (one workspace per
   process, CIC U-001) so the admin `DELETE users/:principalId` route and the assistant's `trash_item`
   user port share one INV-08 serialization queue; each call injects `DeleteUserDeps` (the Trash-bound

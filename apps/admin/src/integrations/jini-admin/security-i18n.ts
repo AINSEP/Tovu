@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 
-import type { OtherCredentialStoreInfo } from "./other-credential-stores";
+import type { OtherStoreId } from "@jini-ai/admin/security";
 
 import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
@@ -2289,7 +2289,7 @@ const REMOVE_DIALOG_EXTERNAL_MCP_BODY: Record<string, string> = {
  *  wording (above), the other three keep {@link removeDialogBody} with `purposeLabel` for both
  *  placeholders, exactly as before (Tier 2 has no vendor/destination split — its deep links go to
  *  Tovu's own screens). @complexity O(1). */
-export function otherCredentialRemoveDialogBody({ locale, store }: { locale: string; store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel"> }, _options = {}): string {
+export function otherCredentialRemoveDialogBody({ locale, store }: { locale: string; store: { id: OtherStoreId; purposeLabel: string } }, _options = {}): string {
   if (store.id === "external-mcp") return localeEntry({ table: REMOVE_DIALOG_EXTERNAL_MCP_BODY, locale });
   return removeDialogBody({ locale, credentialLabel: store.purposeLabel, vendor: store.purposeLabel });
 }
