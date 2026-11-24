@@ -6,11 +6,12 @@ import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cm
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
-import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
+import { AlwaysAllowPanel } from "@jini-ai/admin/screens/providers/AlwaysAllowPanel";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { formatGrantedAt, groupAlwaysAllow } from "@jini-ai/admin/screens/providers/always-allow-rules";
 import { createFakeAlwaysAllowPort, defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
-import { useAlwaysAllow } from "../hooks/use-always-allow.hooks";
+import { useAlwaysAllow } from "@jini-ai/admin/screens/providers/hooks/use-always-allow.hooks";
 
 /**
  * @file The Integrations "Always allow" tab: grouping rules, the hook against a fake port, and the
@@ -32,7 +33,7 @@ const SERVERS = [
 ];
 
 function renderPanel(port: AlwaysAllowPort) {
-  const hook = () => useAlwaysAllow({ port: port, t: fakeT, locale: "en" });
+  const hook = () => useAlwaysAllow({ port: port, t: fakeT, locale: "en", useFetchQuery, useFetchMutation });
   return render(
     <FetchQueryProvider>
       <AlwaysAllowPanel useAlwaysAllowHook={hook} />
