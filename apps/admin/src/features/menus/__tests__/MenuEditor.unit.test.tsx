@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor, MenuItemTargetFields } from "../MenuEditor";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
-import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
+import type { MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { installInternalLinkInterceptor, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 

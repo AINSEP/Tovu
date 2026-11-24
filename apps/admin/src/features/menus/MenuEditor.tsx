@@ -3,7 +3,8 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 
 import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 
-import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-editor.hooks";
+import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
+import type { MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "@jini-ai/admin/screens/menus/MenuEditor.hooks";
 import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields";
 import type { MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";

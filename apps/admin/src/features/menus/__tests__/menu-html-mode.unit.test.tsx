@@ -1,11 +1,12 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { menusHostKit } from "@/features/menus/menus-host-ports";
 
 import type { AdminMenu, AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
-import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
+import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { menuAuthoringForSave, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 
 /**
@@ -32,7 +33,7 @@ const MENU: AdminMenu = {
 };
 
 function deps(port = createFakeMenusPort({ menus: [MENU] })) {
-  return { port, navigate: vi.fn(), t: (key: string) => key };
+  return { kit: menusHostKit, port, navigate: vi.fn(), t: (key: string) => key };
 }
 
 afterEach(() => vi.restoreAllMocks());

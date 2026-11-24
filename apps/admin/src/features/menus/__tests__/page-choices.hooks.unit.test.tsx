@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from "vitest";
+import { menusHostKit } from "@/features/menus/menus-host-ports";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
+import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 
@@ -14,7 +15,7 @@ it("loads the page catalogue when a URL item is switched to Page, and saves a st
   const listPages = vi.fn().mockResolvedValue({ pages });
   const fake = createFakeMenusPort({ menus: [menu] });
   const port = { ...fake, listPages };
-  const { result } = renderHook(() => useMenuEditor({ menuId: "footer", dependencies: { port, navigate: () => {}, t: (key) => key } }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "footer", dependencies: { kit: menusHostKit, port, navigate: () => {}, t: (key) => key } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(listPages).not.toHaveBeenCalled();
   act(() => result.current.changeAt({ path: [0], fn: (item) => ({ ...item, target: targetForKind({ kind: "page", prev: { kind: "entryRef", entryId: "about-page" } }) }) }));
@@ -32,7 +33,7 @@ it("loads pages for legacy unhinted refs and saves nested page metadata while pr
   const fake = createFakeMenusPort({ menus: [legacy] });
   const pages = [{ id: "about-page", title: "About", status: "published" as const, publicPath: "/our-story" }];
   const port = { ...fake, listPages: vi.fn().mockResolvedValue({ pages }) };
-  const { result } = renderHook(() => useMenuEditor({ menuId: "footer", dependencies: { port, navigate: () => {}, t: (key) => key } }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "footer", dependencies: { kit: menusHostKit, port, navigate: () => {}, t: (key) => key } }));
   await waitFor(() => expect(result.current.pageChoices).toEqual(pages));
   await act(() => result.current.save());
   expect(fake.menus[0].items[0].children?.map((item) => item.target)).toEqual([
@@ -48,7 +49,7 @@ it("drops an old page catalogue after the editor navigates to a URL-only menu", 
   const other = { ...menu, id: "other", slug: "other", title: "Other" };
   const listPages = vi.fn().mockReturnValue(pending);
   const port = { ...createFakeMenusPort({ menus: [referenced, other] }), listPages };
-  const { result, rerender } = renderHook(({ id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate: () => {}, t: (key) => key } }), { initialProps: { id: "footer" } });
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor({ menuId: id, dependencies: { kit: menusHostKit, port, navigate: () => {}, t: (key) => key } }), { initialProps: { id: "footer" } });
   await waitFor(() => expect(listPages).toHaveBeenCalledTimes(1));
   rerender({ id: "other" });
   await waitFor(() => expect(result.current.title).toBe("Other"));

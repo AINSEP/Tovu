@@ -1,9 +1,10 @@
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { menusHostKit } from "@/features/menus/menus-host-ports";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
-import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
+import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { menuHtmlEmbed } from "@jini-ai/admin/screens/menus/html-rules";
 import { MENUS_DICT } from "../menus-i18n";
@@ -17,7 +18,7 @@ describe("menu Copy HTML embed", () => {
     const user = userEvent.setup();
     const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
     const port = createFakeMenusPort({ menus: [menu] });
-    const dependencies = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
+    const dependencies = { kit: menusHostKit, port, clipboard, navigate: vi.fn(), t: (key: string) => key };
     render(<MenuEditor menuId="docs" useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: dependencies })} />);
     await user.click(await screen.findByRole("button", { name: "Copy HTML embed" }));
     expect(clipboard.writeText).toHaveBeenCalledWith(`<div data-embed-config='{"type":"menu","id":"docs","mode":"html"}'></div>`);
@@ -32,7 +33,7 @@ describe("menu Copy HTML embed", () => {
   it("reports clipboard failure and exposes no embed on an unsaved menu", async () => {
     const port = createFakeMenusPort({ menus: [menu] });
     const clipboard = { writeText: vi.fn().mockRejectedValue(new Error("denied")) };
-    const dependencies = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
+    const dependencies = { kit: menusHostKit, port, clipboard, navigate: vi.fn(), t: (key: string) => key };
     const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: dependencies }));
     await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
     await act(async () => { await result.current.copyHtmlEmbed(); });
@@ -48,7 +49,7 @@ describe("menu Copy HTML embed", () => {
     adminFailureChannel.reset();
     const port = createFakeMenusPort({ menus: [menu] });
     const clipboard = { writeText: vi.fn().mockRejectedValue(new DOMException("Write permission denied.", "NotAllowedError")) };
-    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { kit: menusHostKit, port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
     await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
     await act(async () => { await result.current.copyHtmlEmbed(); });
     expect(result.current.copyFeedback).toBe("Could not copy embed");
@@ -60,7 +61,7 @@ describe("menu Copy HTML embed", () => {
     adminFailureChannel.reset();
     const port = createFakeMenusPort({ menus: [menu] });
     const clipboard = { writeText: vi.fn().mockRejectedValue(new TypeError("writeText is not a function")) };
-    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { kit: menusHostKit, port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
     await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
     await act(async () => { await result.current.copyHtmlEmbed(); });
     expect(result.current.copyFeedback).toBe("Could not copy embed");
