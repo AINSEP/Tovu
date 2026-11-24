@@ -1,4 +1,5 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import userEvent from "@testing-library/user-event";
 import { Suspense, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -43,12 +44,12 @@ function wrapper({ children }: { children: ReactNode }) {
 const english = (key: string) => key;
 
 function renderLibraryHook(port: ReturnType<typeof createFakeLibraryPort>) {
-  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml }), { wrapper });
+  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), { wrapper });
 }
 
 function renderLibrary(port: ReturnType<typeof createFakeLibraryPort>, tabId: string | null) {
   function useHook(): LibraryController {
-    return useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml });
+    return useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription });
   }
   return render(<Library tabId={tabId} useLibraryHook={useHook} />, { wrapper });
 }
@@ -254,7 +255,7 @@ describe("Library rename and Trash", () => {
     const dismissNotice = vi.fn();
     const port = createFakeLibraryPort();
     function useHook(): LibraryController {
-      return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml }), notice: "Moved to Trash.", dismissNotice };
+      return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), notice: "Moved to Trash.", dismissNotice };
     }
     const { container } = render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
     const toast = await screen.findByRole("status");
@@ -273,7 +274,7 @@ describe("Library rename and Trash", () => {
       const dismissNotice = vi.fn();
       const port = createFakeLibraryPort();
       function useHook(): LibraryController {
-        return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml }), notice: "Moved to Trash.", dismissNotice };
+        return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), notice: "Moved to Trash.", dismissNotice };
       }
       render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
       act(() => vi.advanceTimersByTime(10_000));

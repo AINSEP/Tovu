@@ -4,6 +4,8 @@ import { withFollowUps, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
+import { sniffContentType, uploadMedia, trashMedia } from "@jini-ai/cms/media";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
 import type { InMemoryPostRepo } from "#src/features/post/index";
@@ -56,7 +58,7 @@ export function formAttachmentRemover(required: FormAttachmentPurgeInput, _optio
     const asset = await mediaRepo.findById({ workspaceId, id: mediaId });
     if (!asset) return;
     const root = routeDeps();
-    const files = createFormFileStorage({ media: {
+    const files = createFormFileStorage({ mediaOps: { sniffContentType, uploadMedia, trashMedia, purgeMedia }, media: {
       mediaRepo, clock, idGen, entryRefsRepo: entryRefsRepo(), postRepo, blobRepo: root.assetBlobRepo,
       renditionRepo: root.assetRenditionRepo, blobStore: root.blobStore,
       ...createFormMediaCleanup({ kernel: root.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),

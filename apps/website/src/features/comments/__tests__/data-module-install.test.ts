@@ -8,6 +8,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { installCommentsDataModule } from "@jini-ai/cms/comments/site/data-module-install";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { COMMENTS_DATA_MODULE_PROVENANCE } from "#src/server/runtime/composition/data-modules";
 
 test("installCommentsDataModule: installs tables cleanly on a fresh database", async () => {
@@ -17,7 +18,7 @@ test("installCommentsDataModule: installs tables cleanly on a fresh database", a
   db.pragma("journal_mode = WAL");
 
   try {
-    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE });
+    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule });
 
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
@@ -30,7 +31,7 @@ test("installCommentsDataModule: installs tables cleanly on a fresh database", a
     assert.ok(names.includes("p_comments__moderation_log"), `expected p_comments__moderation_log in [${names.join(", ")}]`);
 
     // Idempotent: re-invoking succeeds
-    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE }, {});
+    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule }, {});
   } finally {
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -48,7 +49,7 @@ test("installCommentsDataModule: throws Error when declareDataModule fails", asy
     db.prepare(`CREATE TABLE p_comments__comments (id INTEGER PRIMARY KEY)`).run();
 
     await assert.rejects(
-      () => installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE }),
+      () => installCommentsDataModule({ db: contentKernel({ store: db }), dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule }),
       /comments dataModule declaration failed/
     );
   } finally {

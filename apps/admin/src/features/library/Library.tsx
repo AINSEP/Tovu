@@ -62,7 +62,7 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
         ariaLabel={t("Library")}
         tabs={resolveLibraryTabs({ t }, { documentCount: documents?.length })}
         activeId={activeTabId}
-        onChange={(tabId) => goToLibraryTab({ tabId })}
+        onChange={(tabId) => goToLibraryTab({ tabId, navigate })}
         containerHandle="library-tab-bar"
       />
       {activeTabId === "upload" ? <UploadTab controller={controller} /> : <DocumentsTab controller={controller} />}
@@ -154,7 +154,7 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
           {uploadedCount > 0 ? (
             <button
               type="button"
-              onClick={() => goToLibraryTab({ tabId: "documents" })}
+              onClick={() => goToLibraryTab({ tabId: "documents", navigate })}
               {...agentHandle({ handle: "library-view-documents" }, { role: "button", label: "Open the Documents tab to see the uploaded documents" })}
             >
               {t("View in Documents")}

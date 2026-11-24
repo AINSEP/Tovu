@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary, type LibraryController } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
@@ -15,5 +16,5 @@ import { defaultLibraryPort } from "./library-dependencies.hooks";
 export function useWiredLibrary(): LibraryController {
   const locale = useAdminLocale();
   const t = useCallback((key: string): string => translate({ locale: locale, key: key }), [locale]);
-  return useLibrary({ port: defaultLibraryPort, locale, t, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml });
+  return useLibrary({ port: defaultLibraryPort, locale, t, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription });
 }

@@ -11,7 +11,7 @@ import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useWiredLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { NewContentTypeDialog } from "./NewContentTypeDialog";
-import { LifecycleConfirmDialog } from "./LifecycleConfirmDialog";
+import { LifecycleConfirmDialog } from "@jini-ai/admin/screens/collections/LifecycleConfirmDialog";
 import { EditFieldsDialog } from "./EditFieldsDialog";
 
 /**
@@ -103,7 +103,7 @@ function CollectionsDialogs(props: {
           contentType={pendingLifecycle.contentType}
           onConfirm={() => onLifecycleConfirm(pendingLifecycle.op, pendingLifecycle.contentType)}
           onCancel={onLifecycleCancel}
-          useLifecycleConfirmDialogHook={props.dialogHooks?.useLifecycleConfirmDialogHook}
+          useLifecycleConfirmDialogHook={props.dialogHooks?.useLifecycleConfirmDialogHook ?? useWiredLifecycleConfirmDialog}
           t={t}
         />
       ) : null}

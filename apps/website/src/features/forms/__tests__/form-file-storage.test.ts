@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } from '@jini-ai/cms/media';
 import { createFormFileStorage } from '@jini-ai/cms/forms/site/form-file-storage';
+import { sniffContentType, uploadMedia, trashMedia } from '@jini-ai/cms/media';
+import { purgeMedia } from '@jini-ai/cms/media/site/purge-media';
+/** The media operations the host binds into the forms file-storage port. */
+const mediaOps = { sniffContentType, uploadMedia, trashMedia, purgeMedia };
 
 test('form photos are private before store resolves and failed submission compensation removes their asset', async () => {
   let id = 0;
   const media = { mediaRepo: Object.assign(new InMemoryMediaRepo({}), { listRetiredSlugs: async () => [] }), blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 }, idGen: { newId: () => `m-${++id}` }, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] } };
-  const files = createFormFileStorage({ media, contentTypes: { set: async () => {}, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
+  const files = createFormFileStorage({ mediaOps, media, contentTypes: { set: async () => {}, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
   const reference = await files.store({ workspaceId: 'w', submissionId: 's', fieldId: 'photo', file: { filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10) } });
   const asset = await media.mediaRepo.findById({ workspaceId: 'w', id: reference.mediaId });
   assert.equal(asset!.source.private, true);
@@ -21,7 +25,7 @@ test('failed upload metadata writes and discarded submissions retain their rendi
     ...createFormMediaCleanup({ outbox: { enqueue: async event => { events.push(event); } }, clock: { nowMs: () => 0 }, graceMs: 10 }),
   };
   let failMetadata = true;
-  const files = createFormFileStorage({ media, contentTypes: { set: async () => { if (failMetadata) throw new Error('metadata failed'); }, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
+  const files = createFormFileStorage({ mediaOps, media, contentTypes: { set: async () => { if (failMetadata) throw new Error('metadata failed'); }, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
   const input = { workspaceId: 'w', submissionId: 's', fieldId: 'photo', file: { filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10) } };
   await assert.rejects(files.store(input), /metadata failed/);
   assert.deepEqual(await media.mediaRepo.list({ workspaceId: 'w' }), []);

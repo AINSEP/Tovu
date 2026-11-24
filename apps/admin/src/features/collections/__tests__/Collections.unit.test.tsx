@@ -645,14 +645,14 @@ describe("LifecycleConfirmDialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("uses btn-warning for the deprecate confirm button", () => {
+  it("uses jini-btn-warning for the deprecate confirm button", () => {
     renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
-    expect(screen.getByRole("button", { name: "Deprecate" })).toHaveClass("btn-warning");
+    expect(screen.getByRole("button", { name: "Deprecate" })).toHaveClass("jini-btn-warning");
   });
 
-  it("uses btn-danger for the tombstone confirm button", () => {
+  it("uses jini-btn-danger for the tombstone confirm button", () => {
     renderCollections({ pendingLifecycle: { op: "tombstone", contentType: TYPE } });
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("btn-danger");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("jini-btn-danger");
   });
 
   it("confirming calls runLifecycle(contentType, op) then setPendingLifecycle(null)", async () => {

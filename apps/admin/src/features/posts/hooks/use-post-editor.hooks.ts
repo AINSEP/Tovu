@@ -59,6 +59,7 @@ import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
+import { unchangedSaveHandlers } from "@jini-ai/admin/shell/lib/unchanged-save-warning";
 import {
   loadedPostForm,
   loadedPostHandles,
@@ -1170,7 +1171,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
   // one controller instead of calling a second hook itself. See `use-post-editor-ui.hooks.ts`'s file
   // header for which handlers deliberately stayed OUT of this hook (and why).
-  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: isDirty || !post?.id, setConfirmingUnchangedSave });
+  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: isDirty || !post?.id, setConfirmingUnchangedSave, unchangedSaveHandlers });
 
   return {
     ...ui,

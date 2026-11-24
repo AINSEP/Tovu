@@ -5,7 +5,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { createPost } from "../post-create.js";
-import { hasPostBeenPublished } from "../post-slugs.js";
+import { hasPostBeenPublished } from "@jini-ai/cms/posts/post-slugs";
 import { findPublishedPostById, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, listAdminPages, listAdminPosts } from "@jini-ai/cms/posts/post-read";
 import { PostConflictError, PostNotFoundError, PostValidationError } from "@jini-ai/cms/posts/post";
 import { updatePost } from "../post-update.js";

@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -27,7 +28,7 @@ function wrapper({ children }: { children: ReactNode }) {
 const english = (key: string) => key;
 
 function renderController(port: LibraryPort) {
-  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml }), { wrapper });
+  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), { wrapper });
 }
 
 /** A promise the test settles by hand, to hold a port call in flight. */

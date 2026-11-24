@@ -9,6 +9,7 @@ import { createNewTermFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new
 import { createTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { createTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import type { TaxonomyHostKit } from "@jini-ai/admin/screens/taxonomy/taxonomy-host-kit";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t } from "./taxonomy-i18n";
 
 /**
@@ -46,6 +47,7 @@ export const taxonomyHostKit: TaxonomyHostKit = {
     isClipboardRefusal,
     publishLocalFailure: publishLocalAdminFailure,
   },
+  useContentRefreshSubscription,
 };
 
 /** Builds a real {@link ApiError} for `createFakeTaxonomyPort`'s blocked-trash seed — `describeDeleteBlocked`

@@ -4,7 +4,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { RemovePostFn } from "./post-trash.js";
 import { versionConflictMessage, appendPostRevision, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { releaseTrashedSlug } from "./post-slugs.js";
+import { releaseTrashedSlug } from "@jini-ai/cms/posts/post-slugs";
 
 export interface RetirePostForReplacementInput {
   workspaceId: UUID;
@@ -96,7 +96,7 @@ export async function retirePostForReplacement(
   // `entry.unpublished` either — re-emitting it would duplicate the one `deletePost` (or an earlier
   // retire) already sent for the same transition.
   if (isTrashed(existing)) {
-    const post = await deps.repo.transaction({ fn: () => releaseTrashedSlug(deps.repo, existing) });
+    const post = await deps.repo.transaction({ fn: () => releaseTrashedSlug({ repo: deps.repo, holder: existing }) });
     return { post, revisionId: null, previousRevisionId: null };
   }
 

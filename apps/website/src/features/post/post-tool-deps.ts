@@ -1,5 +1,5 @@
 import type { ForgetRemovedPostFn, RemovePostFn } from "./post-trash.js";
-import type { SlugChangeCaptureLookup } from "./post-slugs.js";
+import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostAuthorAccountPort } from "./post-create.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { Clock } from "@jini-ai/core/primitives";

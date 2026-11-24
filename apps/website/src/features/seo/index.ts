@@ -79,7 +79,7 @@ export interface SeoHostBindings extends SeoSitemapDeps {
  * @example createSeoDeps({ deps: routeOwners }, {})
  * @complexity O(1) wiring; effects/errors belong to the bound owners.
  */
-export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
+export function createSeoDeps({ deps }: { deps: Omit<FeaturedImageDeps, "findMediaByIdOrSlug"> & {
   postRepo: PostRepoPort;
   settingsRepo: SettingsRepoPort;
   transformDefinitionRepo: TransformDefinitionRepoPort;

@@ -14,6 +14,8 @@ import { registerCommentsSubmitRoute } from "../../../inbound/public-http/routes
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { registerAnalyticsIngestRoute } from "../../../inbound/public-http/routes/site/analytics-ingest.js";
 import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
+import { sniffContentType, uploadMedia, trashMedia } from "@jini-ai/cms/media";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { registerFormsSubmitRoute } from "../../../inbound/public-http/routes/site/forms-submit.js";
 import type { MountInput } from "./module-handles.js";
 
@@ -96,7 +98,7 @@ export function registerFormsSubmit({ app, routeDeps }: MountInput, _optional = 
         return stats.bavail * stats.bsize;
       },
       uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
-      files: createFormFileStorage({ media: {
+      files: createFormFileStorage({ mediaOps: { sniffContentType, uploadMedia, trashMedia, purgeMedia }, media: {
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,

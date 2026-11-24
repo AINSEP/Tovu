@@ -3095,12 +3095,13 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 /* Twin of the three rules above for the Jini post dialogs (`PostSettingsDialog`, `PostUrlDialog`),
-   which emit only `jini-*` classes. Own blocks so `.settings-dialog` stays the shared modal rule. */
-.jini-post-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
+   and the Jini collections dialogs (`LifecycleConfirmDialog`), which emit only `jini-*` classes.
+   Own blocks so `.settings-dialog` stays the shared modal rule. */
+.jini-post-dialog, .jini-collections-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
   background-image: var(--jini-panel-texture, none);
 }
-.jini-post-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
-.jini-post-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
+.jini-post-dialog h2, .jini-collections-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.jini-post-dialog p, .jini-collections-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 
 /* `WidgetPickerDialog.tsx`'s "Place a {type} widget" modal — `.widget-picker-dialog`/`-body`/
    `-section`/`-footer` below all first-appear here; this modal had ZERO CSS anywhere for its own

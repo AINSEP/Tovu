@@ -36,7 +36,8 @@ import type {
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import type { RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
+import type { RemovePostFn } from "../../features/post/index.js";
+import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
 import type { PostSearchPort } from "@jini-ai/cms/posts/search";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

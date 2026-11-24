@@ -12,6 +12,10 @@ import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/plat
 import { outboxOn } from '#src/platform/db/__tests__/events-adapters';
 import { InMemoryEventBus } from '#src/contracts/core/events/index';
 import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '../form-file-purge.js';
+import { sniffContentType } from '@jini-ai/cms/media';
+import { purgeMedia as purgeSiteMedia } from '@jini-ai/cms/media/site/purge-media';
+/** The media operations the host binds into the forms file-storage port. */
+const mediaOps = { sniffContentType, uploadMedia, trashMedia, purgeMedia: purgeSiteMedia };
 
 test('rendition journal and row removal roll back together and survive a database reopen', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'form-renditions-')); const path = join(dir, 'content.sqlite');
@@ -110,7 +114,7 @@ test('SQLite compensation commits before a same-hash upload waiting for its data
     const writer = uploadMedia({ deps: { ...base, blobRepo: writerBlobs }, input: { ...input, filename: 'second.png' } });
     await held;
     const outbox = outboxOn({ kernel });
-    const files = createFormFileStorage({ media: { ...base, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] },
+    const files = createFormFileStorage({ mediaOps, media: { ...base, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] },
       ...createFormMediaCleanup({ kernel, clock: base.clock, graceMs: 1, outbox: { enqueue: async event => { await outbox.enqueue(event); releaseWriter(); } } }),
     }, contentTypes: { set: async () => {}, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
     const discard = files.discard({ workspaceId: 'w', reference: { mediaId: media.id } });

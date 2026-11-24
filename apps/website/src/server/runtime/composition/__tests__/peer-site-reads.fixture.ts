@@ -31,6 +31,7 @@ import { LocalFsBlobStore } from '#src/features/media/index';
 import { SqliteFormDefinitionRepo } from '#src/features/forms/repo.sqlite';
 import { SqliteToolAttemptAuditSink } from '#src/features/tool-audit/repo.sqlite';
 import { installCommentsDataModule } from '@jini-ai/cms/comments/site/data-module-install';
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { COMMENTS_DATA_MODULE_PROVENANCE } from '../data-modules.js';
 import { installNewsletterDataModule } from '#src/features/newsletter/data-module-manifest';
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteMediaContentTypeStore } from '#src/platform/db/sqlite/media-repo.sqlite';
@@ -70,7 +71,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const identity = createSqliteIdentityRouteDeps({ db: contentKernel({ store: db }), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
-    await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE });
+    await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule });
     await installNewsletterDataModule({ db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
     const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });

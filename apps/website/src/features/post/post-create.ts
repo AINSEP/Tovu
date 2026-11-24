@@ -4,7 +4,8 @@ import { type PostRepoPort, type PostRecord, type PostBodyFormat, PostValidation
 import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { assertTitleWithinLimit, isJsonObject, isValidPostStatus, resolveBodyFields, normalizePostAuthor, normalizeShowPostAuthor, assertOptionalBoolean, assertPostPresentationFields, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
-import { assertValidExplicitSlug, resolveCreateSlug, releaseTrashedSlug } from "./post-slugs.js";
+import { assertValidExplicitSlug, resolveCreateSlug, releaseTrashedSlug } from "@jini-ai/cms/posts/post-slugs";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 
 export interface CreatePostInput {
@@ -124,7 +125,7 @@ function resolveExplicitSlug(input: CreatePostInput): string | undefined {
   // `input.kind` defaults to `"post"` the same way `createPost`'s own record construction does
   // (see this file's `kind: input.kind ?? "post"`) — a create request that omits `kind` entirely
   // must be gated exactly like an explicit `kind: "post"` one, not treated as unopinionated.
-  assertValidExplicitSlug({ slug: explicitSlug, kind: input.kind ?? "post" });
+  assertValidExplicitSlug({ slug: explicitSlug, kind: input.kind ?? "post", reservedSegments: RESERVED_SEGMENTS });
   return explicitSlug;
 }
 
@@ -228,7 +229,7 @@ export async function createPost(
   const byline = await resolveCreateByline({ deps, input });
   // A slug only a trashed row holds is free (see `trashedSlugHolderOrConflict`); that row is moved
   // aside inside the write transaction below, before this post is saved onto its slug.
-  const { slug, trashedHolder } = await resolveCreateSlug({ repo: deps.repo, input, title, explicitSlug });
+  const { slug, trashedHolder } = await resolveCreateSlug({ repo: deps.repo, input, title, explicitSlug, reservedSegments: RESERVED_SEGMENTS });
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
   // repo.save() below. A new entry has no prior ext, so the draft's ext starts empty.
@@ -284,7 +285,7 @@ function persistCreatedPost(
   _optional: Record<string, never> = {}
 ) {
   return deps.repo.transaction({ fn: async () => {
-    if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
+    if (trashedHolder) await releaseTrashedSlug({ repo: deps.repo, holder: trashedHolder });
     await deps.repo.save(post);
     const revision = await appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
     // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
