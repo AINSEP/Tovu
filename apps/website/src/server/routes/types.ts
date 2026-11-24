@@ -1,7 +1,7 @@
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
 import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
-import type { CommentsProviderRegistry } from "@jini-ai/capability-providers/comments";
+import type { CommentsProviderRegistry } from "@jini-ai/core/contracts/site/capability-providers-comments";
 import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
