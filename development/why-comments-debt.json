@@ -4874,6 +4874,22 @@
     {
       "id": "096121b6167d",
       "reason": "Its retained copy lived in vendor-credentials/project-scope.ts, which moved to Jini @jini-ai/integrations/vendor-credentials/project-scope, w4-webfeat-b D2."
+    },
+    {
+      "id": "2056248aefef",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/public-urls (w5-webfeat)"
+    },
+    {
+      "id": "5b6174943397",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/public-urls (w5-webfeat)"
+    },
+    {
+      "id": "8952e2aa398d",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/public-urls (w5-webfeat)"
+    },
+    {
+      "id": "8608662d164a",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/public-urls (w5-webfeat)"
     }
   ]
 }
