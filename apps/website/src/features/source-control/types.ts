@@ -2,7 +2,7 @@ import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { CredentialTokenHint, CredentialConnection } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import { SealedSecret } from "../webhooks/index.js";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 
 /** Source-control identities are separate from deploy targets: they carry authentication,

@@ -19,7 +19,7 @@ import {
   renameEmailTemplate,
   renderEmailTemplateForSend,
 } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore } from "#src/features/email-templates/index";
+import { emailTemplateStore } from "#src/features/email-templates/operations";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";

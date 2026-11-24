@@ -9,7 +9,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import { type PublishContentDeps, buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
-import { SqliteRedirectRepo } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";

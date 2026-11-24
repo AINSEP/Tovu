@@ -6,7 +6,7 @@ import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credent
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor, suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
-import { DeployTargetRegistry } from "../deployments/contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credentials/credential-recovery";
@@ -48,7 +48,8 @@ import { CredentialedRequestValidationError } from "@jini-ai/integrations/creden
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
-import { readPluginCredentialValues, loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { readPluginCredentialValues } from "./plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildCreateForm, buildCreateOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-create-ui";
 import { setTokenForm, setTokenOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";

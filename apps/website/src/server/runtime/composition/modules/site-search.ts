@@ -15,11 +15,10 @@ import { loadSearchProviderContributions, type LoadedSearchProviders } from "#sr
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { set } from "#src/features/settings/index";
-import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
-import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
+import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
+import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
-import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
-import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
+import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";

@@ -8,8 +8,8 @@ import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { AgentPluginPathsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 import { readInstalledMcpServers } from "./lifecycle.js";
-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import { InstalledAgentPluginServers } from "./import-access-token.js";
+import { titleCaseFromPluginId } from "./connect-tool.js";
+import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./lifecycle.js";
 import { listTokenSignInPlugins } from "./token-sign-in.js";
 

@@ -18,7 +18,7 @@ import { buildBackstopPreview } from "#src/features/publish-content/backstop-pre
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
-import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
+import { getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
 import { registeredPublishTypePermissions, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor, adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";

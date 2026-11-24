@@ -77,8 +77,8 @@ export function routeDepsPublishCredentials(required: RouteDepsPublishCredential
     loadDeployWorkflowFiles: input => loadDeployWorkflowFiles({ ...input, loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-    loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
-    loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules,
+    loadPluginCredentialCards: (workspaceId: string) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
+    loadAuthSchemes: async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules,
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
     // `index.ts`/`agent-daemon-server.ts`'s own call sites), same singleton lifetime

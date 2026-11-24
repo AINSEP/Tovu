@@ -7,7 +7,7 @@ import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
-import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
+import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { FIRST_PARTY_PUBLISHER } from "../data-modules.js";
 import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";

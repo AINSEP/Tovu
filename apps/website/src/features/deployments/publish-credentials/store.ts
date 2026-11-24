@@ -12,8 +12,8 @@ import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
-import { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
-import { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
+import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
+import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 
 /** Publish credentials map deploy hosts to vendor accounts. Feature validation and human-gated
  * verification remain here; Jini's vault owns sealing, defaults and persistence. Create/update
