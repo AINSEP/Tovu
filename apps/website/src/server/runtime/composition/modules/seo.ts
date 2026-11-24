@@ -1,3 +1,4 @@
+import { createSettingsPrincipalLookup, getEffective, set } from "#src/features/settings/index";
 import type { Express } from "express";
 import { describeRequestFailure } from "@jini-ai/core";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
@@ -129,14 +130,14 @@ export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = ({ app, d
 
 /** The `seo.*` settings ledger mapping is host-local (`features/seo/settings.ts`), bound here. */
 export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const readSeoSettings = (input: { workspaceId: string }) => getSeoSettings({ settingsRepo: deps.settingsRepo }, input);
+  const readSeoSettings = (input: { workspaceId: string }) => getSeoSettings({ settingsRepo: deps.settingsRepo, getEffective }, input);
   mountAdminJsonRoute({ app, spec: seoGetSettingsRoute, deps: { ...seoPortDeps({ deps }), readSeoSettings } }, mountOptions({ operation: "routes/seo/get-settings", authorization: "direct" }));
 };
 
 export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const writeSeoSettings = (input: { workspaceId: string; patch: unknown; callerPrincipalId: string }) => setSeoSettings(
     {
-      settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
+      settingsRepo: deps.settingsRepo, getEffective, set, createPrincipalLookup: createSettingsPrincipalLookup, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
       invalidateSitemap: deps.sitemapService.invalidateSitemapCache, media: deps.seoDeps.media,
     },
     { workspaceId: input.workspaceId, patch: input.patch as SeoSettingsPatch, callerPrincipalId: input.callerPrincipalId },

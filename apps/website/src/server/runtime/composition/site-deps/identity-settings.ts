@@ -1,3 +1,4 @@
+import { nowIso } from "@jini-ai/core/primitives";
 import { observed } from "@jini-ai/core/errors/idioms";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
@@ -124,7 +125,7 @@ function startPersistentSiteSettings(required: {
   const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw, ...siteTitlePreservationHostBindings },
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw, nowIso, ...siteTitlePreservationHostBindings },
         { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }
       )
     )
