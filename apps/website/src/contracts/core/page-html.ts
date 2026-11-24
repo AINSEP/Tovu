@@ -100,14 +100,19 @@ export const PAGE_HTML_CONTRACT =
   "top-level section. These handles are how you edit parts of the page later without rewriting all " +
   `of it. A starter page ships with ${PAGE_SKELETON_REGIONS.join(", ")}; keep those handles when they ` +
   "still fit the content, and add new ones for new sections.\n" +
-  "- BROWSER AGENTS (WebMCP): tag visitor-facing buttons, links and tabs with " +
+  // Owner decision P10 G7-13: tagging is guidance for a request, never a standing chore or a
+  // post-save pass. Region handles above are different: the writer refuses a page without them.
+  "- BROWSER AGENTS (WebMCP), only when the owner asks for them: by default add no WebMCP tags and run no " +
+  "tagging pass after saving. When the owner asks for browser-agent support, tag visitor-facing buttons, " +
+  "links and tabs with " +
   "`data-toolname=\"<unique-action-name>\" data-tooldescription=\"<what the action does>\"`. " +
   "These tags describe non-form actions; a published-site registration script is needed to expose " +
   "them as WebMCP tools. `data-tovu-agent` is retired. Keep the data-agent-element REGION handles " +
   "above for page editing; visitor-action tags serve a different purpose.\n" +
   "- REAL FORMS: when working with a form backed by the site's forms system, preserve its action, " +
-  "method and field names, and add `toolname`, `tooldescription`, plus `toolparamtitle` and " +
-  "`toolparamdescription` on named controls. Use `toolautosubmit` only for read-only operations " +
+  "method and field names. Add `toolname`, `tooldescription`, plus `toolparamtitle` and " +
+  "`toolparamdescription` on named controls only when the owner asks for browser-agent support. " +
+  "Use `toolautosubmit` only for read-only operations " +
   "such as search. Contact, newsletter and booking submissions must retain human submission. " +
   "Do not invent a submission endpoint or field contract just to add WebMCP tags.\n" +
   "- CONTACT FORM: Reuse or create a native form with supported fields, then place it on the requested page. " +

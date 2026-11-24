@@ -160,7 +160,7 @@ test("stop() is idempotent and waits for a sweep already in flight", async (t) =
 // OWN decision logic (claim/compare/delete, the restore race) but nothing about any one registered
 // type. `sweeper.ts` has no per-`entityType` branch — `sweepTrashOnce` calls
 // `deps.adapters.get(claim.entityType).purge(...)` the same way for every kind — so the menu-specific
-// claim that "the 60-day sweeper purge behaves the same [as an interactive purge]"
+// claim that "the retention sweeper purge behaves the same [as an interactive purge]"
 // (`registry.ts`'s `menu` entry, `table-adapter.test.ts`'s purge/rollback tests) is really a claim
 // about `sweeper.ts` calling the SAME `createTableTrashAdapter` instance, not a second implementation
 // to keep in sync. Proved here against real SQLite rather than inferred from reading the two files
@@ -169,7 +169,7 @@ test("stop() is idempotent and waits for a sweep already in flight", async (t) =
 
 const REAL_WS = "workspace-real-1";
 const REAL_AT = "2026-07-01T00:00:00.000Z";
-/** Comfortably past the 60-day retention window from `REAL_AT`. */
+/** Comfortably past the 30-day host retention window from `REAL_AT`. */
 const REAL_DUE = "2026-10-01T00:00:00.000Z";
 
 test("the sweeper purges a real, overdue menu through the real table adapter — its location bindings go with it, in one transaction", async () => {

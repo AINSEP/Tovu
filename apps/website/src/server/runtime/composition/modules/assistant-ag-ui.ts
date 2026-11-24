@@ -64,7 +64,7 @@ import { RUN_NOTICES } from "#src/contracts/core/assistant-run-events";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
-import { redactedError } from "@jini-ai/diagnostics/observability/node";
+import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -302,7 +302,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
-          routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run" } });
+          routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run" } });
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
             res.end();

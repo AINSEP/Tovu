@@ -4,7 +4,8 @@ import { z } from "zod/v3";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
-import { createTracker, redactedError } from "@jini-ai/diagnostics/observability/node";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/core/contracts/ai-trace";
 import type { getEffective } from "@jini-ai/core/settings";
@@ -138,7 +139,7 @@ function createDaemonTracker(send: ReturnType<typeof createDaemonTelemetry>["sen
       send({ operation: "telemetryCapture", input: { ...input, ...optional } });
     },
     error: (input: Parameters<ReturnType<typeof createTracker>["error"]>[0], optional: Parameters<ReturnType<typeof createTracker>["error"]>[1] = {}) => {
-      const error = redactedError({ error: input.error }, { exactSecrets: optional.context?.exactSecrets });
+      const error = redactedTovuError({ error: input.error }, { exactSecrets: optional.context?.exactSecrets });
       send({ operation: "telemetryError", input: { name: error.name, message: error.message, stack: error.stack,
         operation: optional.context?.operation ?? optional.context?.route ?? "daemon", level: optional.context?.level,
         attributes: { ...optional.context?.attributes, process: "daemon" } } });

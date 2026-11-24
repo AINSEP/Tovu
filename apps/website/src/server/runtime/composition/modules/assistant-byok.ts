@@ -88,7 +88,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import type { AgentRunStatus } from "@jini-ai/core/contracts/observability";
-import { redactedError } from "@jini-ai/diagnostics/observability/node";
+import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -812,7 +812,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
         let reportedError = false;
         // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
         // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
-        const reportRunFailure = ({ error }: { error: unknown }, _optional = {}) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
+        const reportRunFailure = ({ error }: { error: unknown }, _optional = {}) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
         const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
         function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
           aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });

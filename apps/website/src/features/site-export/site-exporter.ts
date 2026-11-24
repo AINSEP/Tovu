@@ -1,4 +1,5 @@
 import type { ExportReport } from "#src/contracts/core/export-report";
+import { createExportPreflight } from "./export-preflight.js";
 import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import type { RequestListener } from "node:http";
 import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
@@ -567,6 +568,8 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
   const omitted = publicOrigin ? [] : ["/sitemap.xml", "/feed.xml"];
   const siteApp = themeId === undefined ? routeDeps.createSiteApp() : routeDeps.createSiteApp({ themeId });
   const consentWarning = await routeDeps.cookieConsent?.exportWarning?.();
+  // Pre-flight warnings (A421 placeholder, A400 third-party scripts) ride the same report field as the consent warning.
+  const preflight = createExportPreflight({ ownOrigins: [publicBaseUrl, sourceOrigin] });
   const report = await runExport({
     outputDir: path.resolve(outputDir),
     manifest: { build: async () => ({ ...manifest, routes: manifest.routes.filter(route => !omitted.includes(route.path)) }) },
@@ -584,9 +587,16 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       assetUrlPrefix: `/theme-assets/${theme.id}/`,
     }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],
-    assetUrls: async () => [...declaredThemeAssets({ routeDeps, activeThemeId: manifest.activeTheme?.id }), ...(await routeDeps.cookieConsent?.exportAssets?.() ?? [])],
+    assetUrls: async () => {
+      const consentAssets = await routeDeps.cookieConsent?.exportAssets?.() ?? [];
+      preflight.setConsentConfigured({ configured: consentAssets.length > 0 });
+      return [...declaredThemeAssets({ routeDeps, activeThemeId: manifest.activeTheme?.id }), ...consentAssets];
+    },
     requestHeaders: { "x-tovu-static-export": "1" },
-    security: { transformHtml: ({ html }) => withSecurityMeta({ html: exportHtml({ html, publicOrigin: publicBaseUrl }) }) },
+    security: { transformHtml: ({ html }) => {
+      preflight.observePage({ html });
+      return withSecurityMeta({ html: exportHtml({ html, publicOrigin: publicBaseUrl }) });
+    } },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },
     assetPathFailureReason: "asset URL resolved outside the output directory — refused",
@@ -601,7 +611,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
-  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning });
+  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning: preflight.joinWarnings({ existing: consentWarning }) });
 }
 
 /** The site's manifest for its active theme, or for one chosen theme rendered as if active (then without previews). */
