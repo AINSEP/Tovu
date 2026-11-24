@@ -4778,6 +4778,27 @@
     {
       "id": "c1e29ad66827",
       "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
-    }
-  ]
+    },
+    { "id": "26dd06ce7b5f", "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (RawAdmissionConnection; only the `{@link}` reworded)." },
+    { "id": "55eee86f08fe", "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (flattenAdmissionConnection doc)." },
+    { "id": "a332f2e70c86", "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (agent-plugins list comment; type name reworded to AgentPluginListRow)." },
+    { "id": "833b08eaaaaa", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\"). Orphan duplicate of the AdminExternalMcpServer doc, merged into it." },
+    { "id": "00f86120d991", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "fab39c338330", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "f63d07533a33", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "9680b6ff20db", "reason": "Alias `AdminExternalMcpToolApproval` removed; importers use core `ExternalMcpToolApprovalDto` (documented in `packages/core/src/contracts/site/cms-external-mcp.ts`)." },
+    { "id": "0f042dfad336", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "319a1a22de45", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "59482f38027f", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "f789208077cd", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "d3f65fe18dce", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "7ac873c199a2", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "0887dc78835f", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "6566d2066082", "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")." },
+    { "id": "92cf6b79a19b", "reason": "Moved to Jini `packages/admin/src/agent-plugins/models.ts` (AgentPluginListRow doc, trimmed of host paths)." },
+    { "id": "66cf93dd8ea7", "reason": "Moved to Jini `packages/admin/src/agent-plugins/models.ts` (AgentPluginListRow.maturity, reworded to \"Host maturity\")." },
+    { "id": "d2eb862b603c", "reason": "AdminAgentPluginFiles removed; the identical shape is `AgentPluginFiles` in Jini `packages/admin/src/agent-plugins/models.ts`, which documents it (\"existing read-only route's bounded listing\")." },
+    { "id": "7c05d1598292", "reason": "Moved to Jini `packages/admin/src/screens/integrations/IntegrationsRedirect.tsx` (host-neutral reword: the hook is now a required prop)." },
+    { "id": "50b5bb539e5c", "reason": "Moved to Jini `packages/admin/src/agent-plugins/react/hooks/AgentPluginInspector.hooks.ts` (`useAgentPluginFileTree`: \"Move DOM focus only after keyboard navigation, never when opening the inspector\")." }
+]
 }
