@@ -1,5 +1,9 @@
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
-import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
+import { useJiniMediaPicker } from "@jini-ai/admin/shell/components/MediaPickerDialog/JiniMediaPicker.hooks";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { ApiError } from "../../lib/admin-http/request";
+import { useHostMediaPicker } from "../../integrations/jini-admin/module-context";
+import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t as sharedComponentsT } from "../shared-components-i18n";
 import { Dialog } from "@jini-ai/ui-kit/react";
@@ -148,9 +152,17 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
   );
 }
 
+/** The host side of the Jini picker bridge: the CMS media list, the host redaction policy and the API incident id. */
+export const jiniMediaPickerHostArgs = {
+  port: defaultMediaPickerPort,
+  errorRedaction: TOVU_ERROR_REDACTION_OPTIONS,
+  errorIdOf: (cause: unknown) => cause instanceof ApiError && typeof cause.body?.errorId === "string" ? cause.body.errorId : undefined,
+};
+
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
 export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
-  const vm = useJiniMediaPickerHook(props);
+  const picker = useHostMediaPicker();
+  const vm = useJiniMediaPickerHook({ ...props, ...jiniMediaPickerHostArgs, picker });
   const locale = useAdminLocaleHook();
   return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }
