@@ -112,18 +112,18 @@ Found on Sienna's site (zoran-new): the in-app assistant could not add "GRV Reca
 - The in-app assistant can't run ffmpeg (tools-first, no shell), so it had no way to convert.
 
 Fix:
-- [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports.
+- [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports. **bt2-todos 11-24:** Jini cms sniff/upload + backup archive `.mov`/`.m4v` DONE (Jini `848323076`, `584899361`). WAIT-M19: assistant URL import allow-list (`media-import/fetch-image.ts`, re-apply Tovu `363a8df97` together with the message pinned in `import-local-file.test.ts:292`), admin 50 MB/.mov picker (todos-a `cf77668a7`, never merged).
 - **Owner 2026-10-31:** accept the .MOV as-is when it is ≤ 50 MB; transcode only when it is over 50 MB (no automatic conversion of small files). Small kept files whose codec most browsers can't play (e.g. HEVC) show a "may not play in Chrome" note on the media card with a **Convert for web** button (owner chose option A).
-- [ ] Convert to a web-safe MP4 (H.264/AAC, faststart) on import, because HEVC .mov doesn't play in most browsers.
+- [ ] Convert to a web-safe MP4 (H.264/AAC, faststart) on import, because HEVC .mov doesn't play in most browsers. **bt2-todos 11-24:** Jini port + ffmpeg adapter + `shouldTranscodeOnImport` DONE (Jini `9881dfeef`). WAIT-M19: Tovu import hook (`routes/media/upload.ts`, `features/media/*` are merge-19 files).
   - Keep the original.
   - Resize/bitrate-cap large videos.
-- [ ] Do the conversion through a media tool the assistant can call. It runs ffmpeg server-side or via a provider plugin; never vendor code in core.
-- [ ] Settle one consistent size limit across Library, Media, chat attachments and assistant imports, and say the limit in the error message.
+- [ ] Do the conversion through a media tool the assistant can call. **bt2-todos 11-24:** Jini `media_convert_video` (approval-gated) DONE (`9881dfeef`); WAIT-M19: Tovu registration in `features/media/tool-registrations.ts`. It runs ffmpeg server-side or via a provider plugin; never vendor code in core.
+- [ ] Settle one consistent size limit across Library, Media, chat attachments and assistant imports, and say the limit in the error message. **bt2-todos 11-24:** WAIT-M19: all remaining files (AssistantDock composer, `use-library.hooks.ts`, `Library.tsx`, `routes/media/upload.ts`) are merge-19 files; todos-a `cf77668a7` never merged.
 
 ## ⭐ NEEDED (owner 2026-10-29 ~5:45 PM): update a deployed site to a new Tovu version from the production site itself
 Today a site can (re)deploy through its hosting platform with the `deployment_ops` tools (`apps/website/src/features/deployments/deploy-ops/agent-tools.ts`), using a saved credential and the repo's deploy workflow. But nothing lets the owner open the PRODUCTION admin and say "update this site to the latest Tovu".
-- [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release.
-- [ ] One-click (or chat) update.
+- [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release. **bt2-todos 11-24:** `site_update_check` tool DONE (`features/site-update/tools.ts`, Tovu `2be36f1f5`). Left: admin notice (UI pass) + tool wiring WAIT-M19 (`contracts/core/tool-metadata/index.ts`, `composition/tool-catalog-manifest.ts`) + NEEDS-OWNER: release feed URL per host kind.
+- [x] One-click (or chat) update. **bt2-todos 11-24:** `site_update_apply` behind the owner approval card, approval bound to the shown version (Tovu `c326f1779`); wiring WAIT-M19 (see above).
   - It bumps the site's Tovu version and triggers the platform deploy.
   - It waits for the deploy, then checks the live site.
   - It shows what changed.
@@ -132,7 +132,7 @@ Today a site can (re)deploy through its hosting platform with the `deployment_op
   - Run the schema/migration readiness gate before switching.
   - Keep the previous version to roll back to.
   - Never auto-update without the owner's OK.
-- [ ] Desktop-made sites and self-hosted sites need the same path. Plan with Codex, contract-first, platform deploy adapters reused.
+- [x] Desktop-made sites and self-hosted sites need the same path. **bt2-todos 11-24:** `createSiteUpdateRuntime({host})` picks the Jini desktop or self-hosted (image tag) adapter; both go through the same approval card; nothing automatic (Tovu `1afdde660`). Plan with Codex, contract-first, platform deploy adapters reused.
   - **bt-dec-a 11-24 (owner YES 11-23):** Jini `createDesktopSiteUpdate` + `createSelfHostedSiteUpdate` (image tag from the release version only) on the same `SiteUpdatePort`/`runSiteUpdate` approval, never automatic. Tovu desktop IPC, image-tag adapter and the shared approval card are AFTER-MERGE (w3 files; see `cloud-results/bt-dec-a.md`).
 
 ## LATER (owner 2026-10-29 ~4:30 PM): ui-ux-design — one shared copy (Tovu still uses its own)
@@ -1214,13 +1214,13 @@ Backed by a source-level survey of ten shipped products; full reports in
 `development/tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29 (both verified present).
 Build in this order.
 
-- [ ] **Make the entity discriminator a per-principal enum**, not a free string. Kills the extra
+- [ ] **Make the entity discriminator a per-principal enum** (**bt2-todos 11-24:** Jini daemon `catalogFor` per-request principal view, fails closed: `bfbe821c2`; Tovu wiring: see cloud-results/bt2-todos.md), not a free string. Kills the extra
       discovery round trip and puts least privilege in the contract. Neither Payload nor Strapi
       shipped this combination — it's ours to get right. Cache keys must include principal +
       permission version; execution-time authorization stays mandatory regardless.
 - [ ] **Two-sided conformance test**, taken verbatim from Strapi's suite: *a read-only principal
       cannot see write tools and cannot invoke them.* One test, both halves of the anti-pattern.
-- [ ] **Kill-switch completeness test.** (bt-dec-a 11-24, owner YES 11-23: pause only AGENT-created webhooks / scheduled sends / scheduled publishes / API keys and record the creator. Jini webhooks part done: `CreatorKind` in core, subscriptions record `createdByKind`, agent-made deliveries held while off. Tovu migration 0043, worker wiring, newsletter / scheduled-publish / API-key holds AFTER-MERGE — `cloud-results/bt-dec-a.md`.) Verify that disabling the AI feature stops artifacts the
+- [ ] **Kill-switch completeness test.** (**bt2-todos 11-24:** agent-created webhook deliveries held while the assistant is off, person-created still deliver, nothing deleted: Tovu `a80c5f1db`. WAIT-M19 (schema.sqlite.ts): creator kind for scheduled sends / scheduled publishes / API keys; resume-through-approval needs a small table.) (bt-dec-a 11-24, owner YES 11-23: pause only AGENT-created webhooks / scheduled sends / scheduled publishes / API keys and record the creator. Jini webhooks part done: `CreatorKind` in core, subscriptions record `createdByKind`, agent-made deliveries held while off. Tovu migration 0043, worker wiring, newsletter / scheduled-publish / API-key holds AFTER-MERGE — `cloud-results/bt-dec-a.md`.) Verify that disabling the AI feature stops artifacts the
       agent already created, not just new invocations. Directus (agent-authored Flow with an `exec`
       step) and novamira (agent-written sandbox PHP) both fail this — two of ten products.
 - [ ] **Actor kind in the event envelope.** Record agent-vs-human on every mutation. Directus knows
@@ -1311,7 +1311,7 @@ signed URLs on a cookie-less origin, GC policy, ingress policy, `entry_refs`).
 ### 2) Eventing / Hybrid Sync + Async
 - [ ] Define event naming conventions and ownership — a consistent `domain.verb` convention is used
       pervasively in code (`entry.created`, `content_type.tombstoned`, …) but is not written down
-- [ ] Add idempotency support for handlers — idempotency exists for gated mutations
+- [x] Add idempotency support for handlers (**bt2-todos 11-24:** Jini `processed-event-guard` exported from the outbox entry + README: `6aaf998d6`) — idempotency exists for gated mutations
       (`contracts/core/gated-mutations/token.ts` idempotency keys, `contracts/core/operation-lock.ts`)
       but not for event-handler/outbox consumption
 - [ ] Add event replay strategy for recovery/backfill — explicitly deferred by ADR-022
@@ -2311,7 +2311,7 @@ Email nav stays SOON until these land.
 - [ ] Senders phase 1 (Jini, jini-int codex/email-senders-p1 57fbd0d2): committed, untested, unreleased → Jini cloud test + release.
 - [x] Decide: delete sent-email records after 30 days — owner YES 11-23; already on base (`MAIL_ACTIVITY_RETENTION_MS`, features/mail/retention.ts).
 - [x] Decide: auto-delete captured test emails — owner YES 11-23: after **7 days** + "clear all" (approval card).
-- [ ] Implement: captured test emails 24h → 7 days + "clear all" behind an approval card. AFTER-MERGE: retention moves to Jini `packages/platform/src/mail/sql/` on w3-addons (`cloud-results/bt-dec-a.md`).
+- [x] Implement: captured test emails 24h → 7 days + "clear all" behind an approval card. **bt2-todos 11-24:** retention 30 d sent / 7 d captured with injected windows + exact boundaries (Jini `f4d1d64e9`, Tovu `a5b8b0d1c`); admin Clear test emails confirm card (Jini `fc5d5108f`/`a793d532a`/`82a7af668`, Tovu `de047ccb0`). WAIT-M19: assistant tool `mail_clear_captured` held as `cloud-results/bt2-todos/clear-captured-tool-*.patch` (needs `assistant/batch-tool-inputs.ts`). AFTER-MERGE: retention moves to Jini `packages/platform/src/mail/sql/` on w3-addons (`cloud-results/bt-dec-a.md`).
 - [ ] Guided "Connect email" flow (SMTP under advanced) — Q18/25 suggestion.
 - [ ] tovu.dev: save the Resend key ON tovu.dev itself (no localhost→prod key transfer), set a sender address, check Resend domain verification (needs full-access Resend connect or the Resend dashboard).
 - [ ] LATER idea: encrypted key transfer localhost → production (owner: "not right now").
@@ -2362,13 +2362,13 @@ Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu
 - [x] G7-1 new-site password: desktop unchanged; server sites refuse the default (`identity/first-owner-password.ts`, ERR-OWNER-PASSWORD-REQUIRED). Boot wiring in `identity/wiring.ts` + `identity-settings.ts` AFTER-MERGE.
 - [x] G7-2 dev CORS: off outside dev, admin Vite origins allow-list only (`inbound/shared/dev-cors.ts`).
 - [x] G7-3 menu HTML mode needs `pages.edit_html`: already enforced (`modules/menus.ts:82`, `menu-html-mode.test.ts`).
-- [ ] G7-4 trash retention 30 days: held as patches `cloud-results/bt-dec-b/g7-4-*.patch` (Jini constant + Tovu UI copy/21 locales + `member-adapter.test.ts`) — apply together after the w3 merge.
+- [ ] G7-4 trash retention 30 days (bt2-todos: WAIT-M19, `apps/admin/src/features/trash/Trash.tsx` is a merge-19 file): held as patches `cloud-results/bt-dec-b/g7-4-*.patch` (Jini constant + Tovu UI copy/21 locales + `member-adapter.test.ts`) — apply together after the w3 merge.
 - [x] G7-5 Q-M2: decided together with the media single-limit step (P10-M2). Plan only.
-- [ ] G7-6/G7-7 sent-email 30 d / test-email 7 d: same as the owner's YES item "sent-email records 30d + captured test emails 7d + clear all" — done in that lane, not here.
+- [x] G7-6/G7-7 sent-email 30 d / test-email 7 d (bt2-todos: done, see the Email section): same as the owner's YES item "sent-email records 30d + captured test emails 7d + clear all" — done in that lane, not here.
 - [x] G7-8 pre-consent pages with gated tracking scripts are `private, no-store` (`pages/pre-consent-cache.ts`).
-- [ ] G7-9 captions: Jini `renderVideoTag` emits a safe `<track kind="captions">` (`cms/widgets/caption-track.ts`); Tovu column + migration, `.vtt` upload/serving and renderer wiring AFTER-MERGE.
+- [ ] G7-9 captions (bt2-todos: WAIT-M19, needs `schema.sqlite.ts` + `features/media/publish-content.ts`): Jini `renderVideoTag` emits a safe `<track kind="captions">` (`cms/widgets/caption-track.ts`); Tovu column + migration, `.vtt` upload/serving and renderer wiring AFTER-MERGE.
 - [x] G7-10 four catch-await handlers: fix in the P4-T4 sheet. Plan only.
-- [ ] G7-11 `<<SUBAGENT_DISPATCH>>` only when the site folder has `AGENTS.md`: helper `assistant/subagent-dispatch-marker.ts`; call site `agent-daemon-run-start.ts:378` + 2 pinned tests AFTER-MERGE.
+- [ ] G7-11 (bt2-todos: WAIT-M19, `agent-daemon-run-start.ts` is a merge-19 file) `<<SUBAGENT_DISPATCH>>` only when the site folder has `AGENTS.md`: helper `assistant/subagent-dispatch-marker.ts`; call site `agent-daemon-run-start.ts:378` + 2 pinned tests AFTER-MERGE.
 - [x] G7-12 theme `/` layout: parked until the owner designs it.
 - [x] G7-13 page tagging: only on owner request (see WebMCP section).
 - [x] G7-14 browser observability adapter and ffmpeg: off / not bundled by default (no change).
