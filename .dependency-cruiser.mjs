@@ -683,7 +683,7 @@ const PUBLIC_ENTRIES = {
   "features/deployments": ["contracts"],
   "features/entries": ["contracts", "render-entry", "public-read"],
   "features/forms": ["render-entry"],
-  "features/media": ["contracts", "public-urls", "attachment-tools", "bootstrap", "guard-rendition-repo"],
+  "features/media": ["contracts", "public-urls", "attachment-tools", "bootstrap", "guard-rendition-repo", "access-evidence"],
   "features/members": ["access-resolver"],
   "features/navigation": ["render-entry"],
   "features/post": ["contracts", "rendering", "read-model", "post", "post-read", "post-update", "post-trash"],
