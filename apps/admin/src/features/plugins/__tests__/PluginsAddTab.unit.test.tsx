@@ -89,7 +89,7 @@ it("the header no longer carries an Install plugin button; the tab offers fields
   renderAddTab(createFakePluginInstallPort({ preview }), []);
   const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
   expect(tab).toBeDisabled();
-  expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+  expect(tab.querySelector(".jini-tab-bar-tag")?.textContent).toBe("Soon");
   expect(screen.getByRole("tab", { name: "Installed" }).getAttribute("aria-selected")).toBe("true");
   expect(screen.queryByText("Local folder installs are disabled on this server.")).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Folder on this server" })).toBeNull();
@@ -134,7 +134,7 @@ it("the working Add a plugin tab is untagged and switches to the tab", async () 
   function useHook() { return usePlugins({ port, installPort: createFakePluginInstallPort({ preview }), locale: "en", t: (key) => key }); }
   render(<Plugins tabId="installed" usePluginsHook={useHook} />);
   const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
-  expect(tab.querySelector(".tab-bar-tag")).toBeNull();
+  expect(tab.querySelector(".jini-tab-bar-tag")).toBeNull();
   expect(tab).not.toBeDisabled();
   await userEvent.setup().click(tab);
   expect(window.location.search).toBe("?tab=add");

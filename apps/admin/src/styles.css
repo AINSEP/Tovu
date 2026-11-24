@@ -774,7 +774,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Burnt orange (`--primary`) when on, and the same mid-grey off track, as `.agent-plugin-switch`
    (2026-10-06 mobile catalog P-8: these were the only green toggles left in the app, next to the
    burnt-orange plugin/skill switches). History: it was green when on — the owner's own 2026-08-30 ask, verbatim ("a green toggle, Apple style") — reusing `--ok`
-   (the SAME green `.status-ok`/`.tab-bar-dot` use for "this is connected/active") rather than
+   (the SAME green `.status-ok`/`.jini-tab-bar-dot` use for "this is connected/active") rather than
    inventing a second green token, and `--ok-solid` as its own fallback-preferred value: dark mode's
    plain `--ok` is tuned to read as TEXT on a dark background and is too light to hold this track's
    own contrast against `--surface-2` there, the identical reasoning `.deployment-step-marker-done`'s
@@ -2988,17 +2988,17 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
    bordered, muted), just scoped to a tab-bar button instead of a nav row so the app has one "Soon"
    look rather than two. */
-.tab-bar-tag {
+.jini-tab-bar-tag {
   margin-left: 0.4rem; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
-.tab-bar-item[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
+.tab-bar-item[aria-selected="true"] .jini-tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
 /* Themes' "Soon" tabs (Declarative/Templated/Code, owner 2026-10-11): label greyed like the sidebar's
    `.cms-item.is-soon`, but still a live tab (no `disabled`), so hover and the selected state keep
    their normal colours. Scoped to Themes: other screens' tagged tabs are unchanged. Import & Export's
    Export / Import tabs carried the same tag until 2026-11-01, when both were working. */
-.themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
-.themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
+.themes-page .tab-bar-item:has(.jini-tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
+.themes-page .tab-bar-item:has(.jini-tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
 /* Themes header (owner 2026-10-11): "View site ↗" pinned to the header's top-right corner, the
    Rescan / Turn off / Publish buttons as one row under the description, left edge flush with the
    title. The side block takes the full row so it always wraps below the text; the link is absolute so
@@ -3017,7 +3017,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    on this tab (`.status-ok`, the credential row's own "Connected" pill) is what lets a reader learn
    the color once and reuse it, rather than this tab inventing a second meaning for a color already
    spoken for. `flex-shrink: 0` keeps it a circle even inside a tab whose label wraps the row tight. */
-.tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
+.jini-tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
 /* `TabBarTab.icon`'s own frame — `1em`-relative so it tracks this tab row's own type scale rather
    than a pinned px size (`deployment-visuals.tsx`'s own icon sizing note gives the identical
    reasoning), and `currentColor` inherits `.tab-bar-item`'s own text color so the icon dims/accents
@@ -3641,7 +3641,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    `:has(:checked)` tint below is now a real state change rather than one wash replacing another.
 
    2026-09-10 owner feedback: this used to turn `--ok` (green) when checked — reusing the same
-   token `.status-ok`/`.tab-bar-dot` use for "connected/active" (see that comment further up this
+   token `.status-ok`/`.jini-tab-bar-dot` use for "connected/active" (see that comment further up this
    file). Checking this box isn't a success state, though — it's the operator acknowledging a loss
    window on a DESTRUCTIVE action, and green's "you're safe now" vocabulary said the opposite of
    what this screen means. Recolored to `--primary`, the same burnt-orange token `.btn-primary`
@@ -5167,7 +5167,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.row-menu-popup-above, .jini-taxonomy-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
+.jini-row-menu-popup-above, .jini-taxonomy-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
 .row-menu-item, .jini-taxonomy-row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
