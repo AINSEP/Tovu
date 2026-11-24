@@ -19,7 +19,7 @@ import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
-import { entityKey } from "../plan-rows.js";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "./round-trip-harness.js";
 
 /**

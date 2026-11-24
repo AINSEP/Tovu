@@ -25,7 +25,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { buildMembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type {
   MagicLinkTokenRepoPort,

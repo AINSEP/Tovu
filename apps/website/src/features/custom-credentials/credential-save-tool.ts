@@ -1,5 +1,5 @@
 import { createCredentialSaveTools } from '@jini-ai/agent-plugins/connect';
-import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/index.js';
 import { CUSTOM_CREDENTIAL_CATEGORIES } from '../../contracts/core/custom-credential-categories.js';
 const messages = { oauthRefusal: 'This plugin connects by browser sign-in. Use agent_plugin_connect with its pluginId.', description: 'Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. ' +

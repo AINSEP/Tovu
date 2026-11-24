@@ -4,7 +4,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '@tovu/contracts/credential-copy';
-import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+import { resolveOperatorLocale } from '@jini-ai/core/settings/operator-locale';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";

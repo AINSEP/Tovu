@@ -33,7 +33,7 @@ import {
   type PublishContentDbOpsPort,
   type PublishContentRestorePointSavePort,
 } from "../gated-hooks.js";
-import type { PublishContentReport } from "../plan-rows.js";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";

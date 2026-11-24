@@ -1,9 +1,9 @@
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { entityKey, packedEntityLabel } from "./plan-rows.js";
+import { entityKey, packedEntityLabel } from "@jini-ai/cms/publish/content/plan-rows";
 import type {
   BaselineRecord, PublishContentBundle, PublishContentOutcomeRow, PublishContentReport,
-} from "./plan-rows.js";
+} from "@jini-ai/cms/publish/content/plan-rows";
 import { buildPublishContentCatalog } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { PublishContentHandler, ReferenceHolder } from "@jini-ai/cms/publish/content/type-registry";

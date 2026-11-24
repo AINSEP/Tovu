@@ -1,4 +1,4 @@
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { renderWidgetRegion, renderDocNode } from "./content-html.js";
 import { COMPONENTS } from "./components/registry.js";

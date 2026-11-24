@@ -1,5 +1,5 @@
 import { formatMoney } from "@jini-ai/commerce/money";
-import type { SiteRenderContext, SiteProduct } from "../render-context.js";
+import type { SiteRenderContext, SiteProduct } from "@jini-ai/cms/public-http/http/site/render-context";
 import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { shortDate, renderPostBody } from "./post-body.js";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";

@@ -27,7 +27,7 @@ import { registerPublishContentContributor, resetPublishContentContributorsForTe
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { planImport, type PlanImportDeps } from "../planner.js";
-import { entityDisplayLabel, entityKey, packedEntityLabel, type BaselineRecord, type PublishContentBundle } from "../plan-rows.js";
+import { entityDisplayLabel, entityKey, packedEntityLabel, type BaselineRecord, type PublishContentBundle } from "@jini-ai/cms/publish/content/plan-rows";
 import type { RetireTarget, ReferenceHolder } from "@jini-ai/cms/publish/content/type-registry";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

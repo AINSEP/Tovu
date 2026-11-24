@@ -9,7 +9,7 @@ import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import type { AgentPluginPreferencesPort } from '@jini-ai/agent-plugins/site/service-ports';
 import { resolveAgentPluginGuidance, rankInstalledAgentPlugins } from './lifecycle.js';
-import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
+import { agentPluginsToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 
 /** Only the ports read by automatic plugin guidance and its settings write. */
 export interface AutomaticPluginDeps extends AgentPluginSearchToolDeps {

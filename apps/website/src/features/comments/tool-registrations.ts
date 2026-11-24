@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/comments';
 /**
  * @file Comments' half of ADR-049 Decision 4 (ADR-031/SPEC-033/SPEC-035), the host binding: the
  * catalog, the ten handlers, the authored risk map and the typed-error mapping live in
@@ -8,7 +8,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { buildCommentsToolRegistrations, commentsDerivedRisk, type CommentRepoPort, type CommentsPackageToolDeps, type CommentWriteService } from "@jini-ai/cms/comments";
 import type { CommentsProviderRegistry } from "@jini-ai/core/contracts/site/comments-providers";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

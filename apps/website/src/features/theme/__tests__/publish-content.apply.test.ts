@@ -24,7 +24,7 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { planImport } from "#src/features/publish-content/planner";
-import { entityKey } from "#src/features/publish-content/plan-rows";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import {
   registerPublishContentContributor,

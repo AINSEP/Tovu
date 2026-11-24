@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { NextFunction, Request, Response } from 'express';
 import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
-import { createPublicPageSecurityHeaderSet } from '../../public-page-security-headers.js';
+import { createPublicPageSecurityHeaderSet } from '@jini-ai/cms/public-http/middleware/public-page-security-headers';
 import { publicPageSecurityHeaders } from '../../../../features/theme/public-page-security-headers.js';
 import { createPublicPageSecurityHeaders } from '../../../../server/inbound/public-http/middleware/public-page-security-headers.js';
 import { renderHeadersFile } from '../../../../features/site-export/static-security-headers.js';

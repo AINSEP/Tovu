@@ -9,7 +9,7 @@ import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
-import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
+import type { SiteProduct } from "@jini-ai/cms/public-http/http/site/render-context";
 
 import type { ExportReport } from "@tovu/contracts/export-report";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";

@@ -1,4 +1,4 @@
-import { entityKey } from "../plan-rows.js";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";

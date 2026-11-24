@@ -17,7 +17,7 @@ import {
   resolveDefaultTimeoutMs as resolveWorkerTimeout,
   type WorkerFactory,
 } from "@jini-ai/sandbox/node-worker";
-import type { SiteRenderContext } from "./render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 
 export type { SandboxRenderResult } from "@jini-ai/sandbox/node-worker";

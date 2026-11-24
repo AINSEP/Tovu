@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import type { WorkerFactory } from "@jini-ai/sandbox/node-worker";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 
 test("Liquid and Handlebars visitors share a two-worker render limit and recover after cleanup", async () => {
   const workers: { events: EventEmitter; terminated: boolean }[] = [];

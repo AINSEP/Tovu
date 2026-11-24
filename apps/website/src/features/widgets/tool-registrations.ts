@@ -1,4 +1,4 @@
-import { toolMetadata } from "../../contracts/core/tool-metadata/widgets.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/widgets";
 /**
  * @file Widgets' half of ADR-049 Decision 4 (SPEC-043/ADR-047), the host binding: the catalog, the
  * twelve handlers, the authored risk map and the typed-error mapping live in `@jini-ai/cms/widgets`
@@ -8,7 +8,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/widgets.js";
  * (`toolMetadata`), and the default surface store.
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { buildWidgetsToolRegistrations, widgetsDerivedRisk, type WidgetsPackageToolDeps } from "@jini-ai/cms/widgets";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";

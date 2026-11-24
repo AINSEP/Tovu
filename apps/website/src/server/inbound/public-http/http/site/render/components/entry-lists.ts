@@ -1,4 +1,4 @@
-import type { SiteRenderContext } from "../../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { LISTING_BATCH_DEFAULT, renderListingMore, listingBatchPath, wrapListingItems } from "@jini-ai/cms/listing";
 import { featuredImageView, formatProductMoney } from "../template-render-data.js";

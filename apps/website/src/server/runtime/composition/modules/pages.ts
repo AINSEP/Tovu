@@ -14,7 +14,7 @@ import {
   PageKindMismatchError,
   PageNotFoundError,
 } from "#src/features/pages/index";
-import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

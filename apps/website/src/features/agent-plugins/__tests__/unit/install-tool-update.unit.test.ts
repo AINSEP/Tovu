@@ -15,7 +15,7 @@ import { approvalClassAsks } from "../../../../assistant/assistant-tool-approval
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { toolMetadata } from "../../../../contracts/core/tool-metadata/agent-plugins.js";
+import { agentPluginsToolMetadata as toolMetadata } from "../../../../contracts/core/tool-metadata/index.js";
 import { AGENT_PLUGINS_UPDATE_TOOL_ID, buildRegistrations, catalog, derivedRisk } from "../../install-tool.js";
 import { installUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";

@@ -15,7 +15,7 @@ import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-ht
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormFlashPayload } from "@jini-ai/cms/forms/result-flash";
 import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
-import type { SiteProduct, SiteRenderContext } from "../render-context.js";
+import type { SiteProduct, SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderBlockSeam } from "../render/blocks.js";
 import { renderHtmlPageBody } from "../render/page-body.js";

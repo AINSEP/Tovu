@@ -12,7 +12,7 @@ import { BACKSTOP_FORBIDDEN, mayUseBackstop, readBackstopMetadata, runAuditedBac
 import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { confirmPeerImport, executePeerImport, pushBundleToPeer, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
-import { entityKey } from "#src/features/publish-content/plan-rows";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";
 import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";

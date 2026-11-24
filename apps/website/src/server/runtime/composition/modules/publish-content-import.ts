@@ -17,7 +17,7 @@ import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
-import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
 import { registeredPublishTypePermissions, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";

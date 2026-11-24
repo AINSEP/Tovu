@@ -20,7 +20,7 @@ import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
-import { entityKey, type PublishContentReport } from "./plan-rows.js";
+import { entityKey, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
 import { PublishContentPeerTransportError } from "./peer-transport.js";

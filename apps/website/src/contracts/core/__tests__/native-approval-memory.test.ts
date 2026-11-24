@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ToolExecutionContext } from '@jini-ai/core';
 import { createInMemoryConversationToolApprovalStore } from '../../../assistant/external-mcp-tool-approval-adapters.js';
-import { createNativeApprovalMemory } from '../native-approval-memory.js';
+import { createNativeApprovalMemory } from '@jini-ai/core/native-approval-memory';
 
 const ctx = (principalId = 'human', runId = 'run'): ToolExecutionContext => ({ executionId: 'exec', principal: { id: principalId }, run: { id: runId }, input: {}, signal: new AbortController().signal });
 test('native identity grants reuse the external store across chats, bound to workspace/human/digest', async () => {

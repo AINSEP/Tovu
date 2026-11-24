@@ -21,8 +21,8 @@ Tovu imports those owners directly.
   settings routes (`server/inbound/admin-http/routes/seo/{get,put}-settings.ts`).
 - `tool-registrations.ts` moved to `@jini-ai/cms/seo/site/tool-registrations`.
   `server/runtime/composition/tool-catalog-manifest.ts` binds it with the tool
-  metadata (`contracts/core/tool-metadata/seo.ts`), the read vocabulary
-  (`contracts/core/tool-metadata/content-read.ts`) and `seoSettingsHostBindings`.
+  metadata (`@jini-ai/core/tool-metadata/seo`), the read vocabulary
+  (`@jini-ai/core/tool-metadata/content-read`) and `seoSettingsHostBindings`.
 - `__tests__/`: the retained product suites run the Jini modules against Tovu's
   real ledger, metadata and composition. The modules' own unit tests live in Jini
   `packages/cms/src/seo/site/__tests__/`. Package boundary rules: Jini

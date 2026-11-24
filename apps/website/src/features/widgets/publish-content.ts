@@ -1,6 +1,6 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { collectPlacementReferences } from "#src/features/publish-content/content-references";
+import { collectPlacementReferences } from "@jini-ai/cms/publish/content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";

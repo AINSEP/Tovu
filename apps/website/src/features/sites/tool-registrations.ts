@@ -1,5 +1,5 @@
 import { createSitesWorkspace } from "#src/platform/site-dir/index";
-import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/sites';
 import path from "node:path";
 
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

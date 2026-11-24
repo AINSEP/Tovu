@@ -8,7 +8,7 @@ import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
-import { toContentPostResponse } from "#src/server/inbound/public-http/http/content/posts";
+import { toContentPostResponse } from "@jini-ai/cms/public-http/http/content/posts";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 

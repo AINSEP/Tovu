@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SiteProduct, SiteRenderContext } from "../render-context.js";
+import type { SiteProduct, SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 
 /**

@@ -1,6 +1,6 @@
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { entityKey } from "./plan-rows.js";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import {
   buildPublishContentCatalog,
   type PackedEntity,

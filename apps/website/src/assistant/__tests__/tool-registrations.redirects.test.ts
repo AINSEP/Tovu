@@ -39,8 +39,8 @@ import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {

@@ -48,8 +48,8 @@ import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/__tests__/remove-redirect-double";
 import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";

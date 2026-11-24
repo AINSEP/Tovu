@@ -13,7 +13,7 @@ import { resolveTemplate } from "#src/features/theme/static-template-resolution"
 import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { postPublicPath } from "#src/platform/routing/index";
 import { renderAssignedTermsBlock } from "../../../http/site/render/post-body.js";
@@ -21,7 +21,7 @@ import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "../../../http/site/render/site-assistant-mount.js";
 import type { TemplateRenderDeps } from "./render-context/deps.js";
-import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "./render-context/taxonomy.js";
+import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "@jini-ai/cms/public-http/routes/site/pages/render-context/taxonomy";
 import { htmlEmbedHostDeps } from "./render-context/site-title.js";
 import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
 import { contentMarkerPorts } from "./render-context/content-marker-ports.js";

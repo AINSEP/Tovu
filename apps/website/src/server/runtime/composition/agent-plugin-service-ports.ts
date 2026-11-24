@@ -13,7 +13,7 @@ import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-rost
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential-card';
 import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
-import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+import { resolveOperatorLocale } from '@jini-ai/core/settings/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "@jini-ai/cms/settings/site/admin-interface";
 import { AgentPluginLinkedError, providerFaceLifecycle } from '#src/features/agent-plugins/provider-plugin-link';
 import { bindProviderFacePorts, linkedProviderOf } from '@jini-ai/agent-plugins/site/provider-plugin-link';

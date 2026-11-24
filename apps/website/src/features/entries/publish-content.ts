@@ -1,7 +1,7 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { collectBodyReferences } from "#src/features/publish-content/content-references";
+import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";

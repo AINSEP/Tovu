@@ -40,7 +40,7 @@ import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src
 import { createToolHumanConfirmer } from "#src/assistant/tool-approval-policy";
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "@jini-ai/analytics/site/tool-registrations";
-import { toolMetadata as commerceToolMetadata } from "#src/contracts/core/tool-metadata/commerce";
+import { toolMetadata as commerceToolMetadata } from "@jini-ai/core/tool-metadata/commerce";
 import { toMajorString } from "@jini-ai/commerce/money";
 import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@jini-ai/commerce/tools";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
@@ -141,10 +141,10 @@ import { contributeMenusTools } from "#src/features/navigation/tool-registration
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
-import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
 import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { contributeSettingsTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-registrations";

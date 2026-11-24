@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/site-evidence.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/site-evidence';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for

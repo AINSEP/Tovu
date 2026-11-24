@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { createPublicPageSecurityHeaderSet } from '../../public-page-security-headers.js';
+import { createPublicPageSecurityHeaderSet } from '@jini-ai/cms/public-http/middleware/public-page-security-headers';
 import { publicPageSecurityHeaders, readPublicThemeResources } from '../../../../features/theme/public-page-security-headers.js';
 import { PAGE_HTML_CONTRACT } from '../../page-html.js';
 import { addDeclaredHostsToPolicy } from '@jini-ai/core/contracts/server/security-headers';

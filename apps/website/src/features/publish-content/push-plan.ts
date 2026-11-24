@@ -3,7 +3,7 @@ import { applyPublishScope, buildExportBundle, includeReferencedEntities, select
 import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
 import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } from "./peer-transport.js";
 import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
-import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "./report-labels.js";
+import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "@jini-ai/cms/publish/content/report-labels";
 import { entryPublicPath } from "#src/platform/routing/index";
 /** The post fields `entryPublicPath` reads, named `PostRecord` so the cast at its call below stays as written. */
 type PostRecord = Parameters<typeof entryPublicPath>[0]["post"];

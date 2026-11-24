@@ -28,8 +28,8 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import { createSeoDeps, seoSettingsHostBindings } from "../index.js";
-import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";
 import { contributeSeoTools, type SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
 

@@ -6,7 +6,7 @@ import { Liquid } from "liquidjs";
 
 import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { renderLiquidInSandbox } from "../liquid-sandbox.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

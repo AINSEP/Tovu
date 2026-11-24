@@ -47,12 +47,12 @@ import { InMemoryPublishContentBaselineRepo, type PublishContentBaselineRepoPort
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
 import { planImport } from "../planner.js";
-import { entityKey, type PublishContentBundle, type PublishContentReport } from "../plan-rows.js";
+import { entityKey, type PublishContentBundle, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
 import type { EntityReplacement, PublishContentHandler, RepointResult, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentApplyPort } from "../apply-port.js";
-import { publishContentItemIdempotencyKey } from "../idempotency.js";
+import { publishContentItemIdempotencyKey } from "@jini-ai/cms/publish/content/idempotency";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** `post` depends on `term`; no taxonomy ports are wired here, so both pack nothing. */

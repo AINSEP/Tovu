@@ -4,8 +4,8 @@ import { applyRetiringRow as applyRetiringRowSequence } from "@jini-ai/cms/publi
 import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-failure.js";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { publishContentItemIdempotencyKey } from "./idempotency.js";
-import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
+import { publishContentItemIdempotencyKey } from "@jini-ai/cms/publish/content/idempotency";
+import { entityKey, type PublishContentOutcomeRow } from "@jini-ai/cms/publish/content/plan-rows";
 import { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import { PublishContentHandler, PackedEntity } from "./type-registry.js";
 

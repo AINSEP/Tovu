@@ -1,5 +1,5 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/site-guide";
+import { siteGuideToolMetadata as toolMetadata } from "#src/contracts/core/tool-metadata/index";
 import type { ToolContributor } from "@jini-ai/core";
 import { createTovuSiteGuide, type TovuSiteGuideDeps } from "./site-guide.js";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";

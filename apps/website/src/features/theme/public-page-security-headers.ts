@@ -1,5 +1,5 @@
 import { describeFormCollectionProviders, type FormCollectionRegistry } from '@jini-ai/cms/forms';
-import { createPublicPageSecurityHeaderSet } from "../../contracts/core/public-page-security-headers.js";
+import { createPublicPageSecurityHeaderSet } from "@jini-ai/cms/public-http/middleware/public-page-security-headers";
 import type { SecurityHeaderSet } from "@jini-ai/core/contracts/server/security-headers";
 import { publicThemeResources } from "./public-theme-resources.js";
 

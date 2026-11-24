@@ -5,7 +5,7 @@ import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { runLiquidRender } from "../liquid-render.js";
 import { renderSite } from "../render-site.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 
 /**

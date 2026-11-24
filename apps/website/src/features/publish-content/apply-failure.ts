@@ -3,7 +3,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentOutcomeRow } from "./plan-rows.js";
+import type { PublishContentOutcomeRow } from "@jini-ai/cms/publish/content/plan-rows";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 /**

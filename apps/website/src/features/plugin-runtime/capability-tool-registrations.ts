@@ -1,7 +1,7 @@
 import { type ToolRegistry, type ToolRegistration } from "@jini-ai/core";
 import { createPluginCapabilityTools, pluginCapabilityToolDerivedRisk as derivedRiskFor, type PluginCapabilityToolSource, type PluginContributionRegistry, type PluginCapabilityToolText } from "@jini-ai/plugins/host";
 import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
-import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
+import { pluginRuntimeToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import type { DerivedRiskByToolId } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";

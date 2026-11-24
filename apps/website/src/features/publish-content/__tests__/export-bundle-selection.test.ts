@@ -10,8 +10,8 @@ import {
   type PublishContentExportEnvelope,
   type ReferenceHandlers,
 } from "../export-bundle.js";
-import { collectBodyReferences } from "../content-references.js";
-import { entityKey } from "../plan-rows.js";
+import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**

@@ -10,7 +10,7 @@ import { createInMemorySearchProvider, createInMemorySearchState, createStaticAc
 
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/search";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/search";
 import type { HttpResponse } from "#src/platform/http/index";
 import { createSiteSearchRuntime, type SiteSearchRuntime } from "../modules/site-search.js";
 import {

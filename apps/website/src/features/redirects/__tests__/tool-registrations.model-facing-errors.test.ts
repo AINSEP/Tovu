@@ -25,8 +25,8 @@ import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
