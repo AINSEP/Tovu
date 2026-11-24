@@ -1,6 +1,7 @@
 import type { RunPorts } from './agent-daemon-run-start.js';
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { requestAssistantToolAlternative } from './assistant-tool-consent.js';
+import { grantReadOnlyRunAccess } from './run-has-write-access.js';
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { type ToolExecutionContext, type SurfaceEmitter } from "@jini-ai/core";
@@ -56,6 +57,8 @@ async function prepareAgentToolChoice(ports: RunPorts, { selected }: { selected:
     ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
   if (plan.verdict === 'RUN') return true;
   if (plan.verdict === 'SETUP' || !snapshot.def) return prepareUnavailableToolChoice(ports, { selected, snapshot, plan, inventory });
+  // A425: a plan that only asks for read-only switches starts without a card; the access is disclosed instead.
+  if (await grantReadOnlyRunTools(ports, { snapshot, keys: plan.keys })) return selected;
   const result = await askForRunToolAccess({ snapshot, keys: plan.keys, inventory });
   if (result.status === 'alternative') return result.agentId;
   if (result.status === 'allowed') return selected;
@@ -102,6 +105,22 @@ async function askForRunToolAccess(ports: RunPorts, { snapshot, keys, inventory 
     readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
     allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),
   }, { alternatives, emitSurface }) });
+}
+
+/** No-write consent keys: same fresh-owner and revision checks as the card's Allow, then a status
+ * disclosure in the run. False means nothing was granted and the card must be shown. */
+async function grantReadOnlyRunTools(ports: RunPorts, { snapshot, keys }: {
+  snapshot: Awaited<ReturnType<typeof readAssistantRunToolPolicy>>; keys: readonly string[];
+}): Promise<boolean> {
+  const { routeDeps, run, runLifecycle } = ports;
+  const { runToolAccessIsLive } = createRunToolLiveness(ports);
+  const def = snapshot.def;
+  if (!def) return false;
+  return grantReadOnlyRunAccess({ name: def.name, agentId: def.id, keys, isLive: runToolAccessIsLive,
+    readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: def.id }),
+    allow: input => routeDeps.allowRunTools({ runId: run.id, ...input }),
+    disclose: async ({ detail }) => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'status', label: 'tool_access', detail } } }); },
+  });
 }
 
 /** Both access and setup cards use the existing principal-bound exchange event stream. */
