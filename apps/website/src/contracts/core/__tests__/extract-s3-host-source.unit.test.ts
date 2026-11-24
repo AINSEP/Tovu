@@ -17,8 +17,11 @@ test('F5 boot mail catalog drops the named unused imports', () => {
   // (packages/platform/src/mail/__tests__/positional-purpose-gate.test.ts).
 });
 
-test('F5 active credential-card shim binds direct find/load exports and keeps only its required reader factory', () => {
+test('F5 active credential-card shim forwards no Jini names and keeps only its required reader factory', () => {
   const source = read('features/custom-credentials/plugin-credential-card.ts');
-  assert.match(source, /export \{ findPluginCredentialCard, loadPluginCredentialCardsSafely \}/);
+  // w3 FIX 12 / batch K: importers take findPluginCredentialCard and loadPluginCredentialCardsSafely
+  // from @jini-ai/agent-plugins/connect directly, so the shim must not forward them any more.
+  assert.doesNotMatch(source, /export (type )?\{[^}]*\} from/);
+  assert.doesNotMatch(source, /findPluginCredentialCard|loadPluginCredentialCardsSafely/);
   assert.match(source, /export const \{ readPluginCredentialValues \} = createPluginCredentialCardOperations/);
 });
