@@ -20,7 +20,7 @@ import {
   type SourceControlProviderInfo,
 } from "../rules";
 import { defaultSourceControlCredentialsPort } from "./source-control-credentials-dependencies.hooks";
-import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
+import type { SourceControlCredentialsPort } from "@jini-ai/admin/source-control/host/hooks/source-control-credentials-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -28,7 +28,7 @@ import { accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWith
 import { PUBLISH_CREDENTIAL_ROW_LABEL } from "@/features/deployment/rules";
 import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@/features/source-control/rules";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
-import type { AccessTokensPort } from "./access-tokens-port.hooks";
+import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 
 /** The two stores' legacy sentinel row labels, each read from its own store's constant. */
 const LEGACY_SENTINEL_LABELS = { publish: PUBLISH_CREDENTIAL_ROW_LABEL, "source-control": SOURCE_CONTROL_CREDENTIAL_ROW_LABEL };

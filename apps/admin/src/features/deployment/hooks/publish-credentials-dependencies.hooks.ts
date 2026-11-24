@@ -1,6 +1,6 @@
 import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishCredentialsSnapshot } from "@jini-ai/admin/security/api/security-api.types";
 import { securityApi } from "@/features/security/security-host-ports";
-import type { PublishCredentialSaveResult, PublishCredentialsPort } from "./publish-credentials-port.hooks";
+import type { PublishCredentialSaveResult, PublishCredentialsPort } from "@jini-ai/admin/deployment/host/hooks/publish-credentials-port.hooks";
 
 /** Keeps the save-time `verification` the server returns beside `credential` — dropping it was how
  *  a rejected token saved as plain "connected" with no warning. */

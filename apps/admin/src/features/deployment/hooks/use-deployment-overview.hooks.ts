@@ -5,7 +5,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, deploymentOverviewLoadErrorMessage } from "../deployment-i18n";
 
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
-import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
+import type { DeploymentOverviewPort } from "@jini-ai/admin/deployment/host/hooks/deployment-overview-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

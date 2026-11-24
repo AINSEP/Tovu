@@ -1,6 +1,6 @@
 import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialsSnapshot, AdminSourceControlProvidersSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
-import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
+import type { SourceControlCredentialsPort } from "@jini-ai/admin/source-control/host/hooks/source-control-credentials-port.hooks";
 
 /**
  * @file The live {@link SourceControlCredentialsPort} binding.

@@ -25,7 +25,7 @@ import {
   withPromotedDefault,
 } from "../rules";
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
-import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
+import type { PublishCredentialsPort } from "@jini-ai/admin/deployment/host/hooks/publish-credentials-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

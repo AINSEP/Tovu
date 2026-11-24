@@ -6,7 +6,7 @@ import type { AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/
 import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targets.fixture";
 import { AccessTokensTab } from "../AccessTokensTab";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";
-import type { AccessTokensPort } from "../hooks/access-tokens-port.hooks";
+import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";

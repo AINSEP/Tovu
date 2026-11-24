@@ -4,7 +4,7 @@ import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import type { AdminSourceControlCredentialsSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
 import { providersApi } from "@/features/providers/providers-host-ports";
-import type { AccessTokensPort } from "./access-tokens-port.hooks";
+import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `publish-credentials-dependencies.hooks.ts`'s `defaultPublishCredentialsPort`. Every method is a
