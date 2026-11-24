@@ -23,7 +23,6 @@ export const PostEditor = lazy(() => import("./features/posts").then(module => (
 export const Posts = lazy(() => import("./features/posts").then(module => ({ default: module.Posts })));
 export const PageEditor = lazy(() => import("./features/pages").then(module => ({ default: module.PageEditor })));
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
-export const Members = lazy(() => import("./features/members").then(module => ({ default: module.Members })));
 export { Comments } from "./features/comments";
 export const Analytics = lazy(() => import("./features/analytics").then(module => ({ default: module.Analytics })));
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));

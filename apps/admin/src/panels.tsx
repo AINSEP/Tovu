@@ -4,6 +4,8 @@ import { useIntegrationsRedirect } from "./features/integrations/hooks/use-integ
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
+import { Members } from "@jini-ai/user-management/react";
+import { membersScreenProps } from "./features/members";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
 import { renderMediaPanel } from "./media-panel";
 import {
@@ -18,7 +20,6 @@ import {
   Posts,
   PageEditor,
   Pages,
-  Members,
   Comments,
   Analytics,
   Library,
@@ -524,7 +525,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "members",
     description: "Manage site members and their access.",
     anyOfPermissions: ["member.manage"],
-    render: () => <Members />,
+    render: () => <Members {...membersScreenProps} />,
     nav: {
       label: "Members",
       group: "People",

@@ -5,7 +5,7 @@ accounts on the published site, distinct from admin `Users`.
 
 | file | what it is |
 |---|---|
-| `Members.tsx` | List of members, disable/delete. |
+| `members-screen-props.tsx` | Host collaborators (wired hook, port, `ServerLabel`, copy) passed to Jini's `Members`. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
 ## What this feature does not own
@@ -15,4 +15,4 @@ accounts on the published site, distinct from admin `Users`.
 
 ## Notes for anyone editing here
 
-`Members.tsx` has a unit test (`__tests__/Members.unit.test.tsx`).
+The screen is Jini's `Members` (`@jini-ai/user-management/react`); it has a host-wired unit test (`__tests__/Members.unit.test.tsx`).

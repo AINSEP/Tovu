@@ -1,6 +1,8 @@
 import { Suspense, type ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
+import { Members } from "@jini-ai/user-management/react";
+import { membersScreenProps } from "../../features/members";
 import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
 
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
@@ -15,7 +17,6 @@ import {
   Posts,
   PageEditor,
   Pages,
-  Members,
   Comments,
   Analytics,
   CookieConsent,
@@ -122,7 +123,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "taxonomy", component: Taxonomy },
   { id: "authentication", component: Authentication },
   { id: "roles", component: Roles },
-  { id: "members", component: Members },
+  { id: "members", component: Members, extraProps: { description: membersScreenProps.description, emptyDescription: membersScreenProps.emptyDescription } },
   { id: "comments", component: Comments },
   { id: "skills", component: Skills },
   { id: "admin-themes", component: IntegrationsRedirect, extraProps: { routePath: "/admin-ui?tab=theme" } },
