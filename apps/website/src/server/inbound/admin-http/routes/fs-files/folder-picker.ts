@@ -5,7 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { isLocalAdminRequest } from "#src/server/inbound/admin-http/local-admin-request";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
-import type { NativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
+import { NativeFolderPicker } from "@jini-ai/cms/fs-files/native-folder-picker";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 

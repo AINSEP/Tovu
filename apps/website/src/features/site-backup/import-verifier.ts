@@ -6,7 +6,8 @@ import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifes
 import { applyShareProjection } from "./import-verifier-projection.js";
 import { readBundledPackageFiles } from "./package-file-inventory.js";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
-import { addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
+import { addCredentialWarning, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { PackageFileInventory } from "./share-file-policy.js";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
@@ -48,7 +49,7 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   const snapshot = files.get(SITE_BACKUP_DATABASE_PATH);
   if (snapshot === undefined) refuseArchive({ message: "Import archive has no content database." });
   const projection = await required.sanitize({ snapshot }, { signal: optional.signal });
-  for (const warning of projection.credentialWarnings ?? []) addCredentialWarning({ ...warning, credentialWarnings });
+  for (const warning of projection.credentialWarnings ?? []) addCredentialWarning({ ...warning, credentialWarnings, redactSecretShapes });
   await applyShareProjection({ files, projection, manifest }, optional);
   files.delete(SITE_BACKUP_DATABASE_PATH);
   checkShareLimits({ files: [...files].map(([path, content]) => ({ path, bytes: content.length })).concat({ path: SITE_BACKUP_DATABASE_PATH, bytes: projection.bytes.length }) });

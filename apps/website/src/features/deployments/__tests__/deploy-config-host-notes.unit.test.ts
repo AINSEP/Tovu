@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { appendHostDeployNotes, HOST_DEPLOY_ENV, type RenderedDeployConfig } from "../deploy-config.js";
+import { appendHostDeployNotes, HOST_DEPLOY_ENV } from "../deploy-config.js";
+import type { RenderedDeployConfig } from "@jini-ai/devops/deploy";
 
 /**
  * @file Tovu's half of a deploy config once the generators are host-neutral Jini plugins: the

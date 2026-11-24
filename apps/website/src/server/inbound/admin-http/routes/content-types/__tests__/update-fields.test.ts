@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 
 import { EntityNotLiveError } from "@jini-ai/cms/core";
-import * as contentTypes from "#src/features/content-types/index";
+import * as contentTypes from "@jini-ai/cms/content-types";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentTypesRouteDeps } from "../deps.js";
@@ -15,7 +15,7 @@ test("update-fields HTTP characterization", async (t) => {
   let write: typeof contentTypes.updateContentTypeFields = async (_required) => {
     throw new Error("unexpected write");
   };
-  t.mock.module("#src/features/content-types/index", {
+  t.mock.module("@jini-ai/cms/content-types", {
     namedExports: {
       ...contentTypes,
       updateContentTypeFields: (input: Parameters<typeof write>[0]) => write(input),

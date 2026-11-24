@@ -6,7 +6,7 @@
 import { createApplyConnectDefaults as createWithPorts, recordAgentPluginAccessDeclined as recordDeclinedWithActor, type AgentPluginConnectActors, type ApplyConnectDefaultsDeps as PortableApplyConnectDefaultsDeps } from '@jini-ai/agent-plugins/connect';
 import { tovuEnableAccessMessages } from './enable-access.js';
 import { withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
-import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpContext } from '@jini-ai/agent-plugins/site/service-ports';
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
 import { resolveAgentPluginMcpServers } from "./federate-mcp.js";

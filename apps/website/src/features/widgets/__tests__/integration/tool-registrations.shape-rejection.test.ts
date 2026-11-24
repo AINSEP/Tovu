@@ -5,7 +5,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

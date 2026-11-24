@@ -5,7 +5,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";

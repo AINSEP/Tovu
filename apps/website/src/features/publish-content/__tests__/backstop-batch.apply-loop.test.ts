@@ -11,7 +11,7 @@ import { contributeRawRowPublish } from "../raw-row-contributor.js";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
-import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "../run-repo.js";
+import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
 import { planImport } from "../planner.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PublishContentDeps } from "../type-registry.js";

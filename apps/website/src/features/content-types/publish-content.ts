@@ -11,14 +11,14 @@ import {
   ContentTypeNotFoundError,
   deprecateContentType,
   reactivateContentType,
-  registerContentType,
   toContentTypeOutbox,
   updateContentTypeFields,
   VersionConflictError,
   type ContentTypeFieldDef,
   type ContentTypeRecord,
   type ContentTypeStatus,
-} from "./index.js";
+} from "@jini-ai/cms/content-types";
+import { registerContentType } from "./write-service.js";
 
 /**
  * @file `content-type` (a collection's schema) on the publish factory. Addressed by its `key`.

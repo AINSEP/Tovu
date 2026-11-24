@@ -9,7 +9,7 @@ import { processOutbox } from "../../contracts/core/events/index.js";
 import { PostNotFoundError, PostValidationError, type PostRecord, type PublicPostRecord } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
-import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
+import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
 import { toPostWriteResultView } from "./post-tool-views.js";
 import type { PostToolDeps } from "./post-tool-deps.js";

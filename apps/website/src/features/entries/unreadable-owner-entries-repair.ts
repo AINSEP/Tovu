@@ -2,13 +2,16 @@ import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "@jini-ai/cms/widgets/site/declared-content-type-owners";
 import { buildTrashRegistry } from "../trash/registry.js";
-import { TRASH_TABLES, type TrashAdapter } from "../trash/index.js";
+import { TRASH_TABLES } from "../trash/index.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import type { TrashEntry } from "@jini-ai/cms/trash";
+import { removeMismatchedOwnerEntries, type OwnerEntryRemoval, type RemovedOwnerEntry } from "@jini-ai/cms/entries/site/unreadable-owner-entries-repair";
 
 /**
  * @file A once-per-site boot data repair: removes `entries` rows whose envelope namespace does not
- * match their content type's declared owner.
+ * match their content type's declared owner. The predicate and the classify-then-remove loop live
+ * in `@jini-ai/cms/entries/site/unreadable-owner-entries-repair`; this host binding supplies the
+ * marker setting, the lock, the SQL, the declared-owner map, the Trash adapters and the log lines.
  *
  * Why it exists: on 2026-08-03 the generic entries route created two `widget` entries in production
  * with their payload under `fieldsJson.ext.site`. The widgets reader only reads `ext.widget`, so
@@ -16,11 +19,6 @@ import type { TrashEntry } from "@jini-ai/cms/trash";
  * owning content type (`content-types/declared-owners.ts`), so no new ones can be written; this
  * removes the old ones. Owner decision 2026-10-04: a boot step that ships with the deploy, never a
  * hand edit of the production database.
- *
- * Safety: the predicate ({@link isMismatchedOwnerEnvelope}) is deliberately narrower than "unreadable".
- * Only types with a declared non-`site` owner are scanned, a trashed row is left to the Trash sweeper,
- * and a row is removed only when its `ext` has namespaces and none of them is the owner's. A row with
- * the owner's key present is never touched, even when malformed or carrying a stray namespace too.
  *
  * Marker: a reserved `setting_values_global` row, as `post/search-index.ts`'s projection version
  * (no schema change on any dialect; no setting definition, so no settings surface shows it). It also
@@ -35,40 +33,6 @@ export const UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON =
   "boot repair 2026-10-04: an entry whose envelope namespace does not match its content type's declared owner can never be read; this type has no Trash registration, so it was deleted directly";
 
 const LOCK_KEY = "boot_repair_unreadable_owner_entries";
-
-/** How a row was removed: through its registered Trash entry, or (no registration) directly. */
-export type OwnerEntryRemovalVia = "trash-purge" | "hard-delete";
-
-/** One removed row, as logged and recorded in the marker. */
-export interface RemovedOwnerEntry {
-  workspaceId: string;
-  id: string;
-  type: string;
-  via: OwnerEntryRemovalVia;
-}
-
-/** The adapter that removes one type's rows (hide, then purge), and which path it is. */
-export interface OwnerEntryRemoval {
-  adapter: TrashAdapter;
-  via: OwnerEntryRemovalVia;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Whether `fieldsJson`'s envelope has at least one `ext` namespace and none of them is `owner`.
- * A missing or non-object envelope, or an empty `ext`, is not this defect and returns `false`.
- *
- * @complexity O(k) in the number of `ext` keys.
- */
-export function isMismatchedOwnerEnvelope(required: { fieldsJson: unknown; owner: string }, _optional: Record<string, never> = {}): boolean {
-  const { fieldsJson, owner } = required;
-  if (!isPlainObject(fieldsJson) || !isPlainObject(fieldsJson.ext)) return false;
-  const namespaces = Object.keys(fieldsJson.ext);
-  return namespaces.length > 0 && !namespaces.includes(owner);
-}
 
 /**
  * The removal for `type`: its `TRASHABLE` entry when one scopes `entries` to that type (`widget`),
@@ -103,17 +67,6 @@ export function ownerEntryRemovalFor(required: { kernel: ContentKernel; type: st
   return { adapter: createTableTrashAdapter({ entry, kernel, tables: TRASH_TABLES }), via: registered ? "trash-purge" : "hard-delete" };
 }
 
-/** Parses a `fields_json` cell; `undefined` when it is not JSON (left alone, never removed). */
-function parseFields({ raw }: { raw: string }, _options = {}): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return undefined;
-  }
-}
-
-type DeclaredOwnerRow = Awaited<ReturnType<typeof selectDeclaredOwnerRows>>[number];
-
 async function repairMarkerIsSet(required: { kernel: ContentKernel }, _optional = {}): Promise<boolean> {
   const marker = await required.kernel.run((db) =>
     db.selectFrom("setting_values_global").select("setting_id").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).executeTakeFirst()
@@ -131,25 +84,6 @@ function selectDeclaredOwnerRows(required: { kernel: ContentKernel }, _optional 
       .orderBy("id")
       .execute()
   );
-}
-
-/** Hides then purges one mismatched row, each step guarded by the version it classified; any refusal aborts the run. */
-async function hideAndPurgeEntry(
-  required: { row: DeclaredOwnerRow; removalFor: (type: string) => OwnerEntryRemoval; at: string },
-  _optional = {}
-): Promise<RemovedOwnerEntry> {
-  const { row, removalFor, at } = required;
-  const { adapter, via } = removalFor(row.type);
-  const where = { workspaceId: row.workspace_id, entityId: row.id };
-  const hidden = await adapter.hide({ ...where, at, expectedVersion: Number(row.version) });
-  if (!hidden.ok) {
-    throw new Error(`boot repair: entry ${row.id} (type ${row.type}) changed since it was classified (${hidden.reason}); nothing was removed, the next boot retries`);
-  }
-  const purged = await adapter.purge({ ...where, expectedVersion: hidden.version });
-  if (purged !== "purged") {
-    throw new Error(`boot repair: entry ${row.id} (type ${row.type}) was not purged (${purged}); nothing was removed, the next boot retries`);
-  }
-  return { workspaceId: row.workspace_id, id: row.id, type: row.type, via };
 }
 
 async function writeRepairMarker(required: { kernel: ContentKernel; at: string; removed: RemovedOwnerEntry[] }, _optional = {}): Promise<void> {
@@ -191,13 +125,7 @@ export async function removeUnreadableOwnerEntries(
 
     const rows = await selectDeclaredOwnerRows({ kernel });
     const at = now();
-    const removed: RemovedOwnerEntry[] = [];
-    for (const row of rows) {
-      const owner = DECLARED_CONTENT_TYPE_OWNERS[row.type];
-      if (owner === undefined) throw new Error(`Owner entry repair has no owner for type ${row.type}`);
-      if (!isMismatchedOwnerEnvelope({ fieldsJson: parseFields({ raw: row.fields_json }), owner })) continue;
-      removed.push(await hideAndPurgeEntry({ row, removalFor, at }));
-    }
+    const removed = await removeMismatchedOwnerEntries({ rows, owners: DECLARED_CONTENT_TYPE_OWNERS, removalFor, at });
 
     if (removed.length > 0) await required.stampWatermark();
     await writeRepairMarker({ kernel, at, removed });

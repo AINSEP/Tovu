@@ -36,8 +36,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry  } from "#src/features/navigation/index";
-import type { MenuRepoPort } from "@jini-ai/cms/navigation";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry, type MenuRepoPort } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';
@@ -46,7 +45,7 @@ import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo, type PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
-import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
+import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
 import { planImport } from "../planner.js";
 import { entityKey, type PublishContentBundle, type PublishContentReport } from "../plan-rows.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";

@@ -1,17 +1,9 @@
 /**
  * @file Public surface for deployments (ADR-009 §1): export, publish and plugin deploy paths.
  */
-export type {
-  DeploymentError,
-  DeploymentErrorCode,
-  DeploymentProviderContext,
-  DeploymentProviderPort,
-  DeploymentRunStatusUpdate,
-  PollDeploymentRunInput,
-  PollDeploymentRunResult,
-  StartDeploymentRunInput,
-  StartDeploymentRunResult,
-} from "./ports.js";
+// The provider-neutral deployment port types (`DeploymentProviderPort`, `DeploymentProviderContext`, …)
+// live in `@jini-ai/devops/deploy/site/ports`, generic over the host's HTTP client type; a consumer
+// imports them there and pins Tovu's `HttpClientPort` (`#src/platform/http/index`) as the type argument.
 
 // static-publish and publish-credentials expose their own nested public barrels. Folding their
 // exports into this barrel would give every unrelated consumer their full transitive dependencies.
@@ -27,32 +19,27 @@ export {
   buildDeploymentDescriptor,
   createDeployConfigKit,
   HOST_DEPLOY_ENV,
-  type DeployConfigGeneratorModule,
-  type DeployConfigKit,
-  type DeploymentDescriptor,
   type HostDeployNotesPorts,
-  type DeploymentSecret,
-  type RenderDeployConfigOptions,
-  type RenderedDeployConfig,
 } from "./deploy-config.js";
 export {
   DEPLOY_CONFIGS_FILENAME,
-  readBundledDeployConfigDescriptors,
-  readBundledDeployConfigCandidatePaths,
-  readBundledDeployWorkflowFile,
-  readBundledDeployWorkflowFiles,
   loadDeployWorkflowFiles,
-  loadDeployConfigGeneratorsFromSource,
-  loadBundledDeployConfigGenerators,
-  readBundledDeployConfigTargetIds,
-  readDeployConfigTargetIdsFromSource,
-  type DeployConfigGeneratorDescriptor,
-  type DeployConfigGeneratorRegistry,
-  type LoadedDeployConfigGenerator,
+  deployConfigGenerators,
 } from "./deploy-config-registry.js";
 
 // publish-agent-tools stays a dedicated tool-registration seam instead of a general barrel export,
 // so unrelated consumers do not inherit its tool/composition dependencies. EXTRA_TO_EXEMPT and
 // TOOL_REGISTRATION_SEAM_TO admit its registration contract tests directly.
 
-export type { DeployOpsRegistry } from "@jini-ai/devops/deploy";
+export type {
+  DeployConfigGeneratorDescriptor,
+  DeployConfigGeneratorModule,
+  DeployConfigGeneratorRegistry,
+  DeployConfigKit,
+  DeploymentDescriptor,
+  DeploymentSecret,
+  DeployOpsRegistry,
+  LoadedDeployConfigGenerator,
+  RenderDeployConfigOptions,
+  RenderedDeployConfig,
+} from "@jini-ai/devops/deploy";

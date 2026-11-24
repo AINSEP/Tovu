@@ -5,7 +5,7 @@ import { assertCredentialFreeField } from '../../contracts/core/credential-token
 import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import { credentialCreateTarget, credentialScopes } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "@jini-ai/integrations/credentialed-http/sets";
@@ -37,8 +37,8 @@ export const tovuCredentialSetHost: CredentialSetStoreHost<CustomCredentialCateg
   /** Constrain one feature service; permission checks remain in routes/tools. */
   openVault: ({ deps, kind }) => createTovuStoreVault({ ...deps, kind,
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) }),
-  scopes: credentialScopes,
-  createTarget: credentialCreateTarget,
+  scopes: (deps, workspaceId) => credentialScopes({ deps, workspaceId }),
+  createTarget: (deps, input, invalid) => credentialCreateTarget({ deps, input, invalid }),
   // The integrations host port is positional; core's isUniqueViolation takes { err } (args-jini-core-mcp).
   isUniqueViolation: (err) => isUniqueViolation({ err }),
   isCreateConflict: (error): error is Error => error instanceof ProjectKeyCreateConflictError,

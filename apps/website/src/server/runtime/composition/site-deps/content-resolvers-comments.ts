@@ -1,6 +1,6 @@
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
@@ -11,10 +11,9 @@ import { createCommentsCapability } from "#src/features/comments/provider-select
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel } from "#src/features/navigation/index";
+import { createNavMenuReadModel, resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import type { SiteStore } from "../open-site-store.js";

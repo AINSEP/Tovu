@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
-import type { PublishContentRunRecord } from "#src/features/publish-content/run-repo";
+import type { PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";

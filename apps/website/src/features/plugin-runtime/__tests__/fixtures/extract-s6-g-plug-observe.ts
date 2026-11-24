@@ -16,7 +16,7 @@ import { InMemoryPluginActivationRepo, PluginInvalidError, setPluginEnabled, typ
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/declared-content-types";

@@ -254,7 +254,7 @@ test("the address to confirm comes from the deploy config the repo already carri
   // bundle the build composes (fly ships from @jini-ai/agent-plugins/fly since D-W4).
   const bundle = await composedBundledSourceRoot();
   t.after(() => bundle.dispose());
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundle.root });
+  const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundle.root });
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
   });

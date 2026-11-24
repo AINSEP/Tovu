@@ -33,9 +33,8 @@ import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/
 
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { getPublishContentRunStatus } from "../run-repo.js";
-import { registerPublishContentContributor, type PublishContentDeps } from "../type-registry.js";
-import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
+import { getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
+import { registerPublishContentContributor, type PublishContentDeps, type PackedEntity } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";
 import { context, fixture, OWNER, tool } from "./pull-tool-fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

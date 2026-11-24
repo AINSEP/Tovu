@@ -9,7 +9,8 @@
  * uses to tell a deleted redirect from one an operator merely switched off.
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { compareAndDelete, flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 import { loose } from "@jini-ai/cms/trash/sql";
 
@@ -24,7 +25,7 @@ const REDIRECT_LIVE_STATUS = "active";
 
 /** @complexity O(1) to build. */
 export function createRedirectTrashAdapter(store: MarkerStore): TrashAdapter {
-  const kernel = lazyKernel(store);
+  const kernel = lazyKernel({ store });
   return {
     entityType: REDIRECT_ENTITY_TYPE,
 

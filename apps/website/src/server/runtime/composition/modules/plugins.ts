@@ -47,7 +47,7 @@ import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 export interface PluginsRouteDeps {
   notifyRosterChanged: import("@jini-ai/core/tool-access-change").NotifyToolAccessChanged;
   /** Existing provider/assistant-face owner, bound by the site composition. */
-  providerFaces?: Pick<import('#src/features/plugin-runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
+  providerFaces?: Pick<import('@jini-ai/plugins/runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
   /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */
   tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;

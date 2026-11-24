@@ -16,7 +16,7 @@ import { INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
 import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
-import { SqliteMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo.sqlite";
+import { SqlMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo";
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composeAgentPluginPreferences } from "../agent-plugin-service-ports.js";
 import { composePluginProviderFaces } from "../agent-plugin-service-ports.js";
@@ -128,7 +128,7 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
     adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo({ store: kernel }),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
-    mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
+    mediaProviderCredentialRepo: new SqlMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,

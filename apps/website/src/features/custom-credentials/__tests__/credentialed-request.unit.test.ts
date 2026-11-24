@@ -10,14 +10,13 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { CustomCredentialNotFoundError } from "../store.js";
 import {
   ConsoleCredentialedRequestAuditLog,
-  CredentialedRequestTransportError,
-  CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
   resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
+import { CredentialedRequestTransportError, CredentialedRequestValidationError } from "@jini-ai/integrations/credentialed-http";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
@@ -1321,7 +1320,8 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
   const { forceRemove } = await import("../../agent-plugins/__tests__/fixtures/force-remove.js");
   const { resolveAgentPluginLayout } = await import("../../agent-plugins/layout.js");
   const { createTovuAgentPluginLifecycle } = await import("../../agent-plugins/lifecycle.js");
-  const { loadCredentialSchemeRegistry } = await import("../../agent-plugins/auth-schemes.js");
+  const { loadCredentialSchemeRegistry } = await import("@jini-ai/agent-plugins/site/auth-schemes");
+  const { parseCredentialSchemesFile } = await import("@jini-ai/integrations/credentialed-http");
   const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-example-host-header-"));
   try {
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
@@ -1335,7 +1335,7 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
     await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "example-host.io", category: "ops", baseUrl: "https://api.example-host.io", connection: { token: "ExampleV1fake_test_token_value" } });
     const httpClient = new FakeHttpClient();
     const deps = makeDeps({ httpClient, loadAuthSchemes: async () => {
-      const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE }, { loadContributions: lifecycle.loadPluginContributions });
+      const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE, loadContributions: lifecycle.loadPluginContributions, parseCredentialSchemesFile });
       assert.deepEqual(registry.refusals, []);
       return registry.rules;
     } }, writeDeps);

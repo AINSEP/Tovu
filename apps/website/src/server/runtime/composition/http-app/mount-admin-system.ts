@@ -41,7 +41,7 @@ import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/s
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
-import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
+import { createNativeFolderPicker } from "@jini-ai/cms/fs-files/native-folder-picker";
 import { isLocalTovuHost } from "../registered-sites.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
@@ -229,5 +229,5 @@ function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}
   // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
   // for a request from this machine — see that route file's own header.
   registerAdminFsFilesFolderPickerRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
-    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({}) } });
+    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({ platform: process.platform, env: process.env }) } });
 }

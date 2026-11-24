@@ -9,11 +9,11 @@ import test, { type TestContext } from "node:test";
 
 import express, { type NextFunction, type Request, type Response } from "express";
 
-import type { ContentTypeRecord } from "#src/features/content-types/index";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
-import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";

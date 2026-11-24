@@ -21,7 +21,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
-import { InMemoryContentTypeRepo } from "../../content-types/index.js";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createPost, InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo, noopStampWatermark } from "@jini-ai/cms/taxonomy";

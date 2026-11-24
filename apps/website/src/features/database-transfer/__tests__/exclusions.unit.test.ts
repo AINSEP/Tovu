@@ -9,7 +9,8 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables } from "#src/platform/db/migration/manifest";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
+import { countPartialExclusions } from "../copy-engine.js";
+import { collectTransferTables, planSnapshotTables } from "../table-catalog.js";
 import { SHARE_LEGACY_PRIVATE_TABLES, SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";

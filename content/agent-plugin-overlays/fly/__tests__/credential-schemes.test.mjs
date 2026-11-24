@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { detectSelfDescribingAuthScheme } from "@jini-ai/integrations/credentialed-http";
+import { detectSelfDescribingAuthScheme, parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
+import { loadCredentialSchemeRegistryFromSource } from "@jini-ai/agent-plugins/site/auth-schemes";
 
-import { loadCredentialSchemeRegistryFromSource } from "../../../../apps/website/src/features/agent-plugins/auth-schemes.ts";
+import { loadPluginContributionsFromSource } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
@@ -17,12 +18,12 @@ import { agentPluginSourceDir } from "../../../../development/test-support/agent
 const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "fly" });
 
 test("the bundled fly plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix", async () => {
-  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: PACKAGE_ROOT });
+  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: PACKAGE_ROOT, loadFromSource: loadPluginContributionsFromSource, parseCredentialSchemesFile });
   assert.deepEqual(registry.rules, [{ id: "fly-io", prefix: "FlyV1", scheme: "FlyV1" }]);
   assert.deepEqual(registry.refusals, []);
 });
 
 test("detect: a token starting with FlyV1 splits into scheme 'FlyV1' and everything after it as the value", async () => {
-  const { rules } = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: PACKAGE_ROOT });
+  const { rules } = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: PACKAGE_ROOT, loadFromSource: loadPluginContributionsFromSource, parseCredentialSchemesFile });
   assert.deepEqual(detectSelfDescribingAuthScheme({ token: "FlyV1fake_test_token_value", rules }), { scheme: "FlyV1", value: "fake_test_token_value" });
 });

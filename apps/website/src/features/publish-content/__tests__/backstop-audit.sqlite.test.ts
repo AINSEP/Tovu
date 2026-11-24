@@ -5,7 +5,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
 import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { runAuditedBackstop } from "../backstop-service.js";
-import { BackstopRefusal } from "../backstop-policy.js";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 
 test("failed manual sends redact credentials before audit persistence and preserve safe refusals", async (t) => {
   const db = new Database(":memory:");

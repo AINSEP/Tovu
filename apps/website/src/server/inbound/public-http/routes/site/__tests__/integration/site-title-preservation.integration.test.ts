@@ -19,7 +19,7 @@ import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
-import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
+import { type SiteTitlePreservationStorePort, SqlSiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title-preservation";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
@@ -149,10 +149,11 @@ function publishPricingPage(deps: RouteDeps): void {
  */
 async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<CommerceSiteTestDeps> {
   if (beforeBootChain) {
-    const store = SqliteSiteTitlePreservationStore.prototype as SiteTitlePreservationStorePort;
+    const store = SqlSiteTitlePreservationStore.prototype as SiteTitlePreservationStorePort;
+    const { listPendingWorkspaceIds, isPending } = store;
     t.after(() => {
-      delete (store as Partial<SiteTitlePreservationStorePort>).listPendingWorkspaceIds;
-      delete (store as Partial<SiteTitlePreservationStorePort>).isPending;
+      store.listPendingWorkspaceIds = listPendingWorkspaceIds;
+      store.isPending = isPending;
     });
     beforeBootChain(store);
   }

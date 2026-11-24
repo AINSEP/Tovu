@@ -13,7 +13,8 @@
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { MediaStillReferencedError } from "@jini-ai/cms/media";
-import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 
 export const MEDIA_ENTITY_TYPE = "media";
 
@@ -33,7 +34,7 @@ export interface MediaTrashAdapterDeps {
 
 /** @complexity O(1) to build. */
 export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapter {
-  const kernel = lazyKernel(deps.db);
+  const kernel = lazyKernel({ store: deps.db });
 
   /** Reads just the version column — never the asset. @complexity O(1). */
   async function currentVersion({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}): Promise<number | null> {

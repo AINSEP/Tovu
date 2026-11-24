@@ -1,6 +1,7 @@
-import { bindProviderFacePorts } from "#src/features/agent-plugins/provider-plugin-link";
+import { bindProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
-import { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { providerFaceLifecycle, warnProviderFace } from "#src/features/agent-plugins/provider-plugin-link";
 import { preparePostSearchIndex } from "#src/features/post/index";
 import { randomUUID } from "node:crypto";
 import { redactSecrets } from "@jini-ai/core";
@@ -36,7 +37,7 @@ export function composeStoreBasics(required: ComposeStoreBasicsRequired, _option
     log: entry => console.error("[tool-audit]", entry) });
   // One vendor, one switch (owner 2026-10-25): a provider plugin's linked agent plugin face follows
   // every write of its activation row (`provider-plugin-link.ts`).
-  const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,
-    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root }) });
+  const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId, reportFollowFailure: warnProviderFace,
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle }) });
   return { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo };
 }

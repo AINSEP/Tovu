@@ -60,7 +60,7 @@ import {
 import { createFormAuthoring, htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
-import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
+import { MAX_SUFFIX_ATTEMPTS } from "@jini-ai/cms/content-duplication/derive-available-name";
 import { capSubmissionFieldLengths } from "@jini-ai/cms/forms";
 
 export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";

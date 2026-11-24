@@ -1,7 +1,7 @@
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";

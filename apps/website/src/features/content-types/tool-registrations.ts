@@ -16,8 +16,6 @@ import { buildContentTypesRegistrations } from "./write-service.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 
-export { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTypesToolDeps };
-
 /**
  * Content-types' model-facing allowlist — deliberately just `forbiddenRule`.
  *

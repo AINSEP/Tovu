@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildAgentPluginConnectCard, type AgentPluginConnectCardSpec } from '../../connect-card-ui.js';
+import { buildAgentPluginConnectCard } from '../../connect-card-ui.js';
+import type { AgentPluginConnectCardSpec } from '@jini-ai/agent-plugins/connect';
 
 test('completed and skipped sign-in cards need no sign-in URL or credential fields', () => {
   const connected: Extract<AgentPluginConnectCardSpec, { state: 'connected' }> = {

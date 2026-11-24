@@ -206,7 +206,7 @@ test("assigned menu links match in editor preview and the public template pipeli
   } as unknown as DiscoveredTheme;
   deps.themes = [theme];
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: theme.manifest.id, updatedAt: post.updatedAt }] });
-  const { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } = await import("#src/features/navigation/index");
+  const { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } = await import("@jini-ai/cms/navigation");
   deps.menuRepo = new InMemoryMenuRepo({}, { initialRows: [{
     id: "assigned", workspaceId: "w", slug: "different-slug", title: "Assigned", status: "published",
     doc: { type: NAV_DOC_TYPE, version: 1, items: [{ id: "link", label: "Assigned link", target: { kind: "url", href: "/assigned-link" } }] },

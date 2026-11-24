@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { ContentTypeFieldDef } from "#src/features/content-types/index";
+import type { ContentTypeFieldDef } from "@jini-ai/cms/content-types";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";

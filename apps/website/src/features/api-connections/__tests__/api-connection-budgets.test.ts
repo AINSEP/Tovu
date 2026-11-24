@@ -18,9 +18,13 @@ import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { createConnectionBudgets, type ConnectionBudget } from "../budgets.js";
+import { createConnectionBudgets, type ConnectionBudget, type CreateConnectionBudgetLimiter } from "@jini-ai/integrations/api-connections";
+import { createRateLimiter } from "../../../contracts/core/rate-limit/rate-limit.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createApiConnectionHost } from "../host.js";
+
+/** The host's http-kit limiter, injected exactly as `host-bindings.ts` binds it. */
+const createLimiter: CreateConnectionBudgetLimiter = ({ profile, clock }) => createRateLimiter({ profile, clock });
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
 const fixtureRaw = readFileSync(path.join(fixtureRoot, "jini-connections.json"), "utf8");
@@ -162,7 +166,7 @@ async function allowed(charge: Promise<void>): Promise<boolean> {
 }
 
 test("security: a per-account budget is namespaced by workspace, plugin and account", async () => {
-  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const budgets = createConnectionBudgets({ clock: manualClock(), createLimiter });
   const declared: readonly ConnectionBudget[] = [{ scope: "connection", perMinute: 1, burst: 0 }];
   const target = { workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: declared };
   assert.equal(await allowed(budgets.charge(target)), true);
@@ -173,7 +177,7 @@ test("security: a per-account budget is namespaced by workspace, plugin and acco
 });
 
 test("security: an instance budget is shared by one plugin connection's accounts and never by another plugin", async () => {
-  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const budgets = createConnectionBudgets({ clock: manualClock(), createLimiter });
   const declared: readonly ConnectionBudget[] = [{ scope: "instance", perMinute: 2, burst: 0 }];
   const target = { workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: declared };
   assert.equal(await allowed(budgets.charge(target)), true);
@@ -184,7 +188,7 @@ test("security: an instance budget is shared by one plugin connection's accounts
 });
 
 test("security: a refused per-account charge does not spend the shared instance budget", async () => {
-  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const budgets = createConnectionBudgets({ clock: manualClock(), createLimiter });
   const declared: readonly ConnectionBudget[] = [{ scope: "instance", perMinute: 2, burst: 0 }, { scope: "connection", perMinute: 1, burst: 0 }];
   const target = { workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: declared };
   assert.equal(await allowed(budgets.charge(target)), true);
@@ -193,7 +197,7 @@ test("security: a refused per-account charge does not spend the shared instance 
 });
 
 test("security: each plugin gets exactly the budget it declared, even when another declared the same rate with a different burst", async () => {
-  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const budgets = createConnectionBudgets({ clock: manualClock(), createLimiter });
   const strict = { workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: [{ scope: "connection", perMinute: 1, burst: 0 }] as const };
   const bursty = { ...strict, pluginId: "plugin-b", budgets: [{ scope: "connection", perMinute: 1, burst: 1 }] as const };
   assert.equal(await allowed(budgets.charge(strict)), true);
@@ -204,7 +208,7 @@ test("security: each plugin gets exactly the budget it declared, even when anoth
 });
 
 test("security: an instance and a per-account budget with the same rate never share a counter", async () => {
-  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const budgets = createConnectionBudgets({ clock: manualClock(), createLimiter });
   const declared: readonly ConnectionBudget[] = [{ scope: "instance", perMinute: 1, burst: 0 }, { scope: "connection", perMinute: 1, burst: 0 }];
   assert.equal(await allowed(budgets.charge({ workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: declared })), true);
 });

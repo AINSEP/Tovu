@@ -1,25 +1,19 @@
 /** Tovu compatibility shim (A8 seam, A9 move). The portable body lives in `@jini-ai/agent-plugins/connect`
  * and requires the host's projection pair, installed-package reads and trust rule; only these legacy
  * entries, whose frozen callers pass none of them, bind Tovu's owners: the pair via
- * `agentPluginMcpPortsOf`, the lifecycle reads below and `capability-projection.ts`'s trust rule. A
+ * `agentPluginMcpPortsOf`, the lifecycle reads below and `@jini-ai/agent-plugins/lifecycle`'s trust rule. A
  * caller that already carries projections keeps its own pair (same function and error identity). */
 import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import {
-  deriveAgentPluginConnectionId as deriveConnectionId, isEmptyJsonList as emptyJsonList,
   planAgentPluginMcpFederation as planWithTrust, provisionAgentPluginMcpServers as provisionWithPorts,
   resolveAgentPluginMcpServers as resolveWithReads, resolveAgentPluginReadOnlyRemoteNames as readOnlyNamesWithReads,
   type AgentPluginInstalledMcpReads, type AgentPluginMcpFederationMessages, type AgentPluginMcpFederationPlan, type AgentPluginMcpTrustClassifier,
   type ProvisionAgentPluginMcpServersInput as PortableProvisionInput, type ProvisionAgentPluginMcpServersResult,
 } from "@jini-ai/agent-plugins/connect";
-import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
+import { mcpServerTrustClassifier, readInstalledMcpServers } from "./lifecycle.js";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
-import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
-export {
-  findAgentPluginMcpServerDefaults,
-  type SkippedAgentPluginMcpServer, type AgentPluginMcpTrustClassifier, type PlannedAgentPluginMcpUpsert,
-  type AgentPluginMcpFederationPlan, type ProvisionAgentPluginMcpServersResult,
-} from "@jini-ai/agent-plugins/connect";
+import type { AgentPluginMcpContext, AgentPluginMcpPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 /** Tovu's lifecycle owner, adapted to the portable object-argument reads (same functions, same order). */
 export const tovuInstalledMcpReads: AgentPluginInstalledMcpReads = {
@@ -38,7 +32,7 @@ export const tovuFederationMessages: AgentPluginMcpFederationMessages = {
 export type ProvisionAgentPluginMcpServersInput = Omit<PortableProvisionInput, "classifyTrust" | "messages"> & { readonly classifyTrust?: AgentPluginMcpTrustClassifier };
 
 export function planAgentPluginMcpFederation(input: { readonly servers: Readonly<Record<string, McpServerConfig>> }, options: { readonly classifyTrust?: AgentPluginMcpTrustClassifier } = {}): AgentPluginMcpFederationPlan {
-  return planWithTrust({ ...input, classifyTrust: options.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages });
+  return planWithTrust({ ...input, classifyTrust: options.classifyTrust ?? mcpServerTrustClassifier, messages: tovuFederationMessages });
 }
 
 export function resolveAgentPluginMcpServers(input: Omit<Parameters<typeof resolveWithReads>[0], "lifecycle">, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
@@ -54,14 +48,5 @@ export function provisionAgentPluginMcpServers(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
-  return provisionWithPorts(withOverrides({ target: input, overrides: { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages } }));
-}
-
-/** Keep the host entry points bound to the portable implementations. */
-export function deriveAgentPluginConnectionId({ serverKey }: { serverKey: string }, _optional: Record<string, never> = {}): string | null {
-  return deriveConnectionId({ serverKey });
-}
-
-export function isEmptyJsonList({ raw }: { raw: string | null }, _optional: Record<string, never> = {}): boolean {
-  return emptyJsonList({ raw });
+  return provisionWithPorts(withOverrides({ target: input, overrides: { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? mcpServerTrustClassifier, messages: tovuFederationMessages } }));
 }

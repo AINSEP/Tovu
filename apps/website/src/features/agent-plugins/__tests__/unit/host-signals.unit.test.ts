@@ -4,9 +4,13 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../host-signals.js";
+import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "@jini-ai/agent-plugins/site/host-signals";
+import { bundledContributionSources } from "../../bundled-contribution-sources.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
-import { CORE_HOST_SIGNAL_FALLBACK } from "@tovu/contracts/host-signals";
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, selectCoreHostSignalDeclaration } from "@tovu/contracts/host-signals";
+
+/** This product's bindings for the injected bundled-source policy and core host-signal policy. */
+const host = { sources: bundledContributionSources, evaluateHostSignals, selectCoreHostSignalDeclaration };
 
 const signal = { env: "EXAMPLE_APP", facts: { hosted: true, nativeToolsRestricted: true, trustProxyHops: 1 }, label: "Example host" };
 const manifest = (hostSignals: unknown, deploymentAdvice?: unknown) => ({ extensions: { tovu: { hostSignals, deploymentAdvice } } });
@@ -43,11 +47,13 @@ test("nonthrowing reader rejects ambiguous declarations as a whole for the core 
   };
   const sourceRequests: unknown[] = [];
   const readPaths: string[] = [];
-  const result = readBundledHostSignalDeclaration({ sourceRoot: "/shipped" }, {
+  const result = readBundledHostSignalDeclaration({
+    sourceRoot: "/shipped",
     sources: required => {
       sourceRequests.push(required);
       return [...Object.keys(files), "unreadable"].map(pluginId => ({ pluginId, packageRoot: `/shipped/${pluginId}` }));
     },
+  }, {
     readText: file => {
       readPaths.push(file);
       const text = files[path.basename(path.dirname(file))];
@@ -58,20 +64,22 @@ test("nonthrowing reader rejects ambiguous declarations as a whole for the core 
   assert.deepEqual(sourceRequests, [{ sourceRoot: "/shipped", filename: "plugin.json" }]);
   assert.deepEqual(readPaths, [...Object.keys(files), "unreadable"].map(name => `/shipped/${name}/plugin.json`));
   assert.deepEqual(result, { signals: [] });
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: "/missing" }, { sources: () => { throw new Error("missing root"); } }), { signals: [] });
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: "/empty" }, { sources: () => [] }), { signals: [] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: "/missing", sources: () => { throw new Error("missing root"); } }), { signals: [] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: "/empty", sources: () => [] }), { signals: [] });
 });
 
 test("conflicting advice and duplicate names within one package yield no hints", () => {
-  const result = readBundledHostSignalDeclaration({ sourceRoot: "/shipped" }, {
+  const result = readBundledHostSignalDeclaration({
+    sourceRoot: "/shipped",
     sources: () => [{ pluginId: "one", packageRoot: "/one" }, { pluginId: "two", packageRoot: "/two" }],
+  }, {
     readText: file => JSON.stringify(manifest([signal, signal], file)),
   });
   assert.deepEqual(result, { signals: [] });
 });
 
 test("path-fact and read/evaluation failures never fail boot; supplied roots select the declaration", () => {
-  const input = { env: { EXAMPLE_APP: "private-value" }, bundledSourceRoot: "/trusted" };
+  const input = { env: { EXAMPLE_APP: "private-value" }, bundledSourceRoot: "/trusted", ...host };
   assert.deepEqual(resolveBundledHostSignals({ ...input, get bundledSourceRoot(): string { throw new Error("no bundled root"); } }), fallback);
   assert.deepEqual(resolveBundledHostSignals(input, { readDeclaration: () => { throw new Error("I/O failed"); } }), fallback);
   let reads = 0;
@@ -101,15 +109,15 @@ test("real synchronous bundled selection reads manifests, excludes retired/non-p
   writeFileSync(path.join(sourceRoot, "deploy", "plugin.json"), JSON.stringify(manifest([{ env: "RETIRED", facts: { hosted: true } }])));
   writeFileSync(path.join(sourceRoot, "malformed", "plugin.json"), "{");
   writeFileSync(path.join(sourceRoot, "ordinary-file"), "not a directory");
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot }), { signals: [signal] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }), { signals: [signal] });
   // An unrelated valid declaration cannot mask a missing baseline security declaration.
-  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" }, bundledSourceRoot: sourceRoot }), fallback);
+  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" }, bundledSourceRoot: sourceRoot, ...host }), fallback);
   // Exercise the text port separately from the production default reader.
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot }, { readText: file => readFileSync(file, "utf8") }), { signals: [signal] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }, { readText: file => readFileSync(file, "utf8") }), { signals: [signal] });
 });
 
 test("explicit shipped and unavailable payloads keep independent no-signal defaults", () => {
   // fly, the shipped declarer, comes from @jini-ai/agent-plugins/fly (D-W4): read the folder that holds it.
-  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: path.dirname(agentPluginSourceDir({ pluginId: "fly" })) }).labels, []);
-  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: "/missing-host-signals-payload" }).labels, []);
+  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: path.dirname(agentPluginSourceDir({ pluginId: "fly" })), ...host }).labels, []);
+  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: "/missing-host-signals-payload", ...host }).labels, []);
 });

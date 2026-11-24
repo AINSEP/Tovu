@@ -9,7 +9,7 @@ import { createTrashService, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import {
   bindRemoveEntity,
@@ -55,7 +55,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const nextTrashId = counter("trash-id");
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
   const trash: TrashPort = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

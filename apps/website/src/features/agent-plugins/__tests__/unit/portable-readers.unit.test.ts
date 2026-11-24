@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseAgentPluginMcpConfig } from '@jini-ai/agent-plugins/lifecycle';
-import { parseHostSignalDeclaration } from '../../host-signals.js';
+import { parseHostSignalDeclaration } from '@jini-ai/agent-plugins/site/host-signals';
 import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { parseSupersedes } from '@jini-ai/agent-plugins/site/supersession';
 

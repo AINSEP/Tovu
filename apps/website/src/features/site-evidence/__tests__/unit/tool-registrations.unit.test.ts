@@ -10,7 +10,7 @@ import {
   type OriginRegistryPort,
   type VerifiedOrigin,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "../../agent-tools.js";
+import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { SITE_EVIDENCE_LIMITS } from "@jini-ai/diagnostics/web-evidence";
 import type { ObservePageRequest, PageObservation, SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 import {

@@ -5,7 +5,7 @@ import type { ExternalMcpStoreDeps } from "@jini-ai/core/contracts/hosted-mcp";
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { probeCredentialConnection } from "../../../custom-credentials/credentialed-request.js";
 import type { HttpClientPort } from "../../../../platform/http/index.js";
-import type { AgentPluginMcpPort, PluginCredentialsPort } from "../../service-ports.js";
+import type { AgentPluginMcpPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 /** Bind the existing in-memory store/sealer fixtures through the consumer's production boundary. */
 export function mcpTestPort(store: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpPort {

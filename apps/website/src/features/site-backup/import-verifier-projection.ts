@@ -1,9 +1,14 @@
 import type { ArchiveManifest } from "./archive-manifest.js";
 import { validateDocumentIngress } from "#src/features/media/index";
-import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+;
 import type { ShareDatabaseProjection } from "./share-policy.js";
 import { validateSharePath } from "./share-file-policy.js";
 import { refuseArchive, sha256Hex } from "./import-verifier-inventory.js";
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 /**
  * @file The database half of `verifySiteImport`: after the isolated sanitizer rebuilt the database,
@@ -76,7 +81,7 @@ export async function admitProjectedDocuments(required: { files: ReadonlyMap<str
 }
 
 function defaultDocumentAdmission(): DocumentAdmission {
-  const archiveReader = createDocumentArchiveReader({});
+  const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
   return required => validateDocumentIngress(required, { archiveReader });
 }
 

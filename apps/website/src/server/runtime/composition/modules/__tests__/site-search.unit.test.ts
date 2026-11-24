@@ -530,7 +530,7 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
   const contributionCalls: unknown[] = [];
   const httpClient = { send: async () => ({ status: 200 }) as unknown as HttpResponse };
   const ports = bindSiteSearchPorts({
-    workspaceId: WS, kernel: {} as ContentKernel, now: () => NOW,
+    workspaceId: WS, kernel: { lockKey: async () => undefined } as unknown as ContentKernel, now: () => NOW,
     settingsRepo, settingsWriteDeps: { repo: settingsRepo, clock, ids, authorize: allowAll, principals },
     keyring: { derive: async () => new Uint8Array(32).fill(7) } as unknown as KeyringPort,
     resolveCredentialByLabel: async input => {

@@ -5,7 +5,8 @@ import type { composeStoragePhase } from "./boot-phases.js";
 import type { resolveWorkspaceIdOverride } from "./overrides.js";
 import type { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import type { SiteStore } from "../open-site-store.js";
-import type { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
+import type { LoadedMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";
+import type { MediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import type { composeSiteServicesPhase } from "./boot-phases.js";
 import type { composeAssistantCredentials } from "./assistant-credentials.js";
 import type { composeProviderConfig } from "./provider-identity.js";
@@ -81,7 +82,7 @@ interface AssembleRouteDepsPhaseRequired {
   workspaceId: Awaited<ReturnType<typeof resolveWorkspaceIdOverride>>;
   publishTrustRevocations: Awaited<ReturnType<typeof publishTrustRevocationStoreFor>>;
   chat: SiteStore["chat"];
-  mediaProviders: Awaited<ReturnType<typeof loadMediaProviderRegistry>>;
+  mediaProviders: LoadedMediaProviderRegistry<MediaProviderRegistry>;
   clock: ReturnType<typeof composeSiteServicesPhase>["clock"];
   idGen: ReturnType<typeof composeSiteServicesPhase>["idGen"];
   pluginActivationRepo: ReturnType<typeof composeSiteServicesPhase>["pluginActivationRepo"];

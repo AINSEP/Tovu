@@ -500,11 +500,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/custom-credentials/credential-recovery.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/database-transfer/destination-store.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -617,11 +612,6 @@
   {
     "file": "apps/website/src/features/mail-status/provider-operations.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/media-generation/media-provider-registry.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {

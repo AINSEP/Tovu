@@ -6,4 +6,3 @@ import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
 export function getDatabaseAgentToolCatalog(): AgentToolDefinition[] {
   return getJiniDatabaseAgentToolCatalog({}, { messages: TOVU_DATABASE_MESSAGES });
 }
-export type { AgentToolDefinition, AgentToolSideEffect, AgentToolActorClassRule } from "@jini-ai/core";

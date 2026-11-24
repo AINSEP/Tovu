@@ -331,7 +331,8 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
 
   // A host entry needs a registered content type first (mirrors the widgets domain-layer test
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
-  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { registerContentType } = await import("../../features/content-types/write-service.js");
+  const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { createEntry } = await import("@jini-ai/cms/entries");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
 
@@ -1028,7 +1029,8 @@ test("admin widgets agent tools: widgets.remove removes a region placement (regi
   // --- embed-kind removal, via a widgets.create call targeting an embed host (readTarget's
   // "embed" branch and placeTarget's insertWidgetEmbed branch were otherwise never exercised —
   // every other test in this file only ever targets a region) ---
-  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { registerContentType } = await import("../../features/content-types/write-service.js");
+  const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { createEntry } = await import("@jini-ai/cms/entries");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
@@ -1328,7 +1330,8 @@ test("admin widgets embed-remove route: rejects wrong workspace and a missing ba
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.identityReady;
 
-  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { registerContentType } = await import("../../features/content-types/write-service.js");
+  const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { createEntry } = await import("@jini-ai/cms/entries");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
@@ -1442,7 +1445,8 @@ test("admin widgets regions-list/region-get: reject wrong workspace and no-permi
 
   // A binding pointing at a REAL entry that is the wrong content type (not a widget_area) —
   // region-get's `areaEntry.type !== WIDGET_AREA_CONTENT_TYPE` branch.
-  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { registerContentType } = await import("../../features/content-types/write-service.js");
+  const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { createEntry } = await import("@jini-ai/cms/entries");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({

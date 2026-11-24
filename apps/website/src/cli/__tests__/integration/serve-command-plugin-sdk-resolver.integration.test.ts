@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 /**
  * @file CIC U-002 (ESCALATE_SECURITY): `registerPluginSdkResolver()` must be registered
  * synchronously, before any code path can reach `loadPlugin()`'s dynamic `import()`
- * (`server/runtime/boot/plugin-sdk-resolver.ts`'s own header; `ADS-memory/reports/pipeline/
+ * (`features/plugin-runtime/sdk-resolver.ts`'s own header; `ADS-memory/reports/pipeline/
  * 005-plugin-system/critical-internal-constraints.md` U-002-B1/ORD1). `src/index.ts`'s `main()`
  * calls it first, before anything else — but `cli/commands/serve.ts` (`tovu serve`, the packaged
  * CLI path and what Tovu-Runner spawns per project — see that file's own header) never did.

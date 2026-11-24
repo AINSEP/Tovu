@@ -6,7 +6,7 @@ import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-r
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { EntryPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
-import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "#src/features/taxonomy/term-sync";
+import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 
 import {
@@ -28,7 +28,7 @@ import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
  *
  * `fieldsJson` travels whole: Tovu only ever writes the `ext.site` namespace, so there is nothing
  * else in it to leave behind. Term assignments (categories/tags) travel as `termIds`
- * (`taxonomy/publish-term-ids.ts`); the publish ports' `contentTypeTaxonomyPolicy` admits them for
+ * (`@jini-ai/cms/taxonomy/site/publish-term-ids`); the publish ports' `contentTypeTaxonomyPolicy` admits them for
  * any live collection.
  */
 

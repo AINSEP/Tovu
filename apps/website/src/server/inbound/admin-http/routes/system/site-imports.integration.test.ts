@@ -10,7 +10,7 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSiteImportRoutes } from "./site-imports.js";
 import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 // Narrow route probes override only the exercised operation; unexpected backend calls must fail.
 const unexpectedBackend: SiteImportBackend = {

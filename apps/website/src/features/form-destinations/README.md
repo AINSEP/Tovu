@@ -62,7 +62,7 @@ over about a day). To stop those too, delete or revoke the binding's saved crede
 
 - `types.ts`: the module ABI (`FormDestinationModule`, `FormDeliveryConnectionPort`, …).
 - `registry.ts`: loads and validates contributed destinations.
-- `deliver.ts`: `createFormDestinationDeliverer` (one push attempt). It hands the connection port
+- `@jini-ai/cms/forms/destinations/deliver`: `createFormDestinationDeliverer` (one push attempt). It hands the connection port
   the job's frozen `binding` (`optional.binding`) and, when the composition gives it a
   `pluginState` reader, each adapter its own plugin's read-only settings (`optional.state`).
 - `connection-port.ts`: `createCustomCredentialConnectionPort` (a saved custom credential by id).
@@ -79,3 +79,9 @@ over about a day). To stop those too, delete or revoke the binding's saved crede
   `additionalHosts`, exact origins), and never cache or persist what it returns. The site binds the
   plugin OAuth port (`features/api-connections/form-delivery-connection.ts`) ahead of the
   custom-credential port in `server/runtime/composition/form-delivery-deliverer.ts`.
+
+## Wiring
+
+- `assertSubmitUrl` / `rewriteFormActions` live in `@jini-ai/cms/forms/destinations/rewrite-actions`; `port.ts` and `deployments/static-publish/adapter.ts` import them directly (the static adapter passes its `DeployFile[]`, which satisfies Jini's structural `FormActionFile`).
+- `connection-port.ts` and `key-store.ts` bind Tovu's `custom-credentials` feature; `registry.ts` binds Tovu's `agent-plugins/lifecycle` loader to Jini's form-destination registry builders.
+- `createFormDestinationDeliverer` lives in `@jini-ai/cms/forms/destinations/deliver`; the host injects `resolveRequestTarget` (from `@jini-ai/integrations/credentialed-http`, the custom-credential make-request host check) plus its registry loader, connection port and kit in `server/runtime/composition/form-delivery-deliverer.ts`.

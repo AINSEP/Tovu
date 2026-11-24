@@ -7,9 +7,9 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import type { BackstopAuditPort, BackstopAuditRecord, BackstopInverse, BackstopPorts, RawFilePort } from "@jini-ai/cms/publish/transfer";
 import { nowIso } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey } from "#src/features/media/index";
-import { BackstopRefusal } from "#src/features/publish-content/backstop-policy";
+import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 import { BACKSTOP_FORBIDDEN, mayUseBackstop, readBackstopMetadata, runAuditedBackstop, validateBackstopRequest } from "#src/features/publish-content/backstop-service";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { confirmPeerImport, executePeerImport, pushBundleToPeer, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import { entityKey } from "#src/features/publish-content/plan-rows";

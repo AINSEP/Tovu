@@ -8,7 +8,7 @@ import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { planImport } from "./planner.js";
-import type { PublishContentSeedHashFn } from "./seed-hash.js";
+import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { PlanImportDeps } from "./planner.js";
 import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
 import type { PublishContentDeps } from "./type-registry.js";

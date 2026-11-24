@@ -21,7 +21,7 @@ import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
 import type { SiteBackupPlanContent } from "../plan-content.js";
 import type { SiteBackupSources } from "../sources.js";
 import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
-import { SiteShareRefusal } from "../share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
 import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
 import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
@@ -1395,7 +1395,7 @@ for (const id of ["site_share_create", "site_share_list", "site_share_revoke", "
   });
 }
 test("share tool adapters enforce exact input contracts, pass job/principal/signal and preserve coded refusals", async t => {
-  const { SiteShareRefusal } = await import("../share-policy.js");
+  const { SiteShareRefusal } = await import("@jini-ai/devops/backup/site/share-refusal");
   const h = harness(t), signal = new AbortController().signal, calls: unknown[] = [];
   let error: unknown;
   const backend = { registry: {} as never,

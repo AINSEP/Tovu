@@ -2,7 +2,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { listContentTypes } from "#src/features/content-types/index";
+import { listContentTypes } from "@jini-ai/cms/content-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 

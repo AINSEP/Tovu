@@ -1,7 +1,7 @@
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "@jini-ai/cms/posts/slug";
 
 import { TIPTAP_TEXT_BODY_EXAMPLE } from "./post-tool-schemas.js";
-import { TIPTAP_MARK_SCHEMA, TIPTAP_TEXT_NODE_SCHEMA } from "./tiptap-text-schema.js";
+import { TIPTAP_MARK_SCHEMA, TIPTAP_TEXT_NODE_SCHEMA } from "@jini-ai/cms/posts/tiptap-text-schema";
 import { BLOCK_NODE_REF, TIPTAP_BLOCK_NODE_SCHEMA } from "./tiptap-block-schema.js";
 
 /**

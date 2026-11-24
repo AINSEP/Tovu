@@ -4,7 +4,8 @@ import type { outboxEventValues } from "@jini-ai/db/events";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import { lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 
 /**
  * @file `TrashAdapter` for users (delete-user plan v2, decision 4) — bespoke rather than a
@@ -228,7 +229,7 @@ function userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }: UserT
  */
 export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
   const { purge, idGen, clock } = deps;
-  const kernel = lazyKernel(deps.db);
+  const kernel = lazyKernel({ store: deps.db });
 
   /** Runs `body` in one transaction holding the principal's row lock. */
   const underPrincipalLock = <T>({ workspaceId, principalId, body }: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, _optional = {}): Promise<T> => {

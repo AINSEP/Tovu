@@ -1,9 +1,9 @@
 import type { Request } from "express";
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { loadAnalyticsProviders } from "#src/features/agent-plugins/analytics-provider-registry";
+import { loadAnalyticsProviders } from "@jini-ai/agent-plugins/site/analytics-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import type { AnalyticsForwarderCredential } from "@jini-ai/analytics";
+import { type AnalyticsForwarderCredential, ANALYTICS_FORWARDER_CONTRACT, ANALYTICS_INGEST_HOOK_CONTRACT, asAnalyticsForwarderModule, asAnalyticsIngestHook, createAnalyticsForwarderRegistry } from "@jini-ai/analytics";
 import { ANALYTICS_PROVIDERS_TTL_MS, cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "@jini-ai/analytics/site/forwarding";
 import { warnAnalytics } from "#src/features/analytics/warn";
 import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
@@ -17,6 +17,13 @@ import { readSiteVisitorConsent } from "../../inbound/public-http/middleware/sit
  * `analyticsProviderRouteDeps` is what `createApp` adds to the public beacon route. The consent
  * decision uses the same published consent owner as the public runtime.
  */
+
+/** The analytics package's contracts/validators/registry and this product's manifest filenames, for the plugin loader. */
+const analyticsProviderPorts = {
+  forwarders: { contract: ANALYTICS_FORWARDER_CONTRACT, filename: "tovu-analytics-forwarders.json", validate: asAnalyticsForwarderModule },
+  hooks: { contract: ANALYTICS_INGEST_HOOK_CONTRACT, filename: "tovu-analytics-hooks.json", validate: asAnalyticsIngestHook },
+  createForwarderRegistry: () => createAnalyticsForwarderRegistry(),
+};
 
 /**
  * The real root's `analyticsProviders`: plugin providers and vendor credentials (both cached per TTL) from the
@@ -45,7 +52,7 @@ export function buildAnalyticsProviders(
   // takes effect within the TTL; a failed lookup is not cached (the next beacon retries).
   const credentials = new Map<string, { at: number; value: Promise<AnalyticsForwarderCredential | null> }>();
   return {
-    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId }, { loadContributions }), clock, warn: warnAnalytics }),
+    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId, loadContributions, analytics: analyticsProviderPorts }), clock, warn: warnAnalytics }),
     resolveCredential: ({ label }) => {
       const now = clock.nowMs();
       const hit = credentials.get(label);

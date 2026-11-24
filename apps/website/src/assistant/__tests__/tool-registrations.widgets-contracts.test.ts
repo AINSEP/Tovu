@@ -23,8 +23,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
-import { registerContentType } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
+import { registerContentType } from "../../features/content-types/write-service.js";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createEntry } from "@jini-ai/cms/entries";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";

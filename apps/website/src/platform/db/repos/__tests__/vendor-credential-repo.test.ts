@@ -2,7 +2,7 @@ import { contentKernel } from "../../content-kernel.js";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import { eq } from "drizzle-orm";
 

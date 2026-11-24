@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { startSubmissionIpExpirySweep, SUBMISSION_IP_SWEEP_INTERVAL_MS } from "../submission-ip-expiry-sweep.js";
+import { startSubmissionIpExpirySweep } from "../submission-ip-expiry-sweep.js";
+import { SUBMISSION_IP_SWEEP_INTERVAL_MS } from "@jini-ai/cms/forms/site/submission-ip-expiry-sweep";
 type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmissionIps;
 
 /** Owner retention decision 2026-10-04 / DR-002: prove boot, daily ticks and shutdown behavior. */

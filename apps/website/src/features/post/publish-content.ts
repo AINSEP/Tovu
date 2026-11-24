@@ -11,7 +11,7 @@ import type { PublishContentContributor, PublishContentDeps } from "#src/feature
 import type { PublishContentReference, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
-import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
+import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 
 import { importPostEntity } from "./post-import.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";

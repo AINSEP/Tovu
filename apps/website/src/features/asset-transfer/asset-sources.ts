@@ -10,7 +10,7 @@ import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
 import { findThemeOrThrow } from "../theme/asset-operations.js";
 import { sniffThemeImportType } from "../theme/asset-operations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
-import { inspectWriteTarget } from "../fs-files/write-files.js";
+import { inspectWriteTarget } from "@jini-ai/cms/fs-files/write-files";
 import { openFsFileForRead, resolveFsFilePath } from "../fs-files/fs-files.js";
 import { resolvePickedFolder } from "../fs-files/tool-registrations.js";
 import type { AssetToolDeps } from "./asset-destinations.js";
@@ -43,7 +43,7 @@ export async function resolveAssetSource({ deps, ctx, source }: { deps: AssetToo
 /** One local file: the writer's lstat walk refuses every symlink (even one pointing inside), then
  * the guarded reader re-checks denylist/containment and the byte cap. @complexity O(bytes). */
 export async function readLocalFile({ rootPath, relativePath, maxBytes }: { rootPath: string; relativePath: string; maxBytes: number }, _options = {}): Promise<Buffer> {
-  inspectWriteTarget({ folder: rootPath, path: relativePath });
+  inspectWriteTarget({ folder: rootPath, path: relativePath, resolveFsFilePath });
   return Buffer.from(await openFsFileForRead({ rootPath, relativePath, maxBytes }));
 }
 

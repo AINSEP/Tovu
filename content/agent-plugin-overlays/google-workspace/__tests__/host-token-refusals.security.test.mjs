@@ -1,7 +1,7 @@
 /**
  * @file Security pins for how `lib/http.mjs` turns the host's token-accessor refusals into safe
  * errors, including the host's per-connection budget refusal (`ConnectionBudgetExceededError`,
- * `apps/website/src/features/api-connections/budgets.ts`). The budget refusal must surface as the
+ * `@jini-ai/integrations/api-connections` budgets, limiter bound in `apps/website/src/features/api-connections/host-bindings.ts`). The budget refusal must surface as the
  * plugin's `quota-delay` with the host's `retryAfterMs`, follow only the existing inline backoff
  * rules, and never read as an uncertain write: nothing was sent to Google. The real host class is
  * used so the pin breaks if its shape changes. No request leaves the process: the fetch below is
@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { ConnectionBudgetExceededError } from '../../../../apps/website/src/features/api-connections/budgets.ts';
+import { ConnectionBudgetExceededError } from '@jini-ai/integrations/api-connections';
 import { createGoogleClient } from '@jini-ai/agent-plugins/google-workspace/lib/http.mjs';
 import { MAX_INLINE_WAIT_MS } from '@jini-ai/agent-plugins/google-workspace/lib/request-policy.mjs';
 

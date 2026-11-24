@@ -38,9 +38,9 @@ import type { MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-inter
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
-// sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
+// sourcing this one type from `@jini-ai/db/recovery/migrate-forward-hooks` too is the established "Recovery
 // depends on Database, never the reverse" direction, not a new cross-domain edge.
-import type { LedgerAppendPort } from "../database/gated-hooks.js";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
 import { listRestorePoints, type RestorePointListPort } from "@jini-ai/db/tools";
 import { createRecoveryAgentToolCatalog } from "@jini-ai/db/recovery/agent-tools";
 import {

@@ -189,7 +189,7 @@ test("limits refuse and credential-looking files stay included before encoding",
   const { zip, calls } = encoder();
   await assert.rejects(buildShareZip({ plan: plan({ totalBytes: SHARE_LIMITS.maxExpandedBytes + 1 }), zip }), { code: "LIMIT_EXCEEDED" });
   assert.equal(calls.length, 0);
-  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
   await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/site/script.js", content: Buffer.from('const key="gh' + 'p_' + "x".repeat(36) + '"') }] }), zip }, { credentialWarnings });
   assert.equal(calls.length, 1);
   assert.match(JSON.stringify(credentialWarnings), /themes\/site\/script.js/);
@@ -285,7 +285,7 @@ test("a buffered file and the database at the same path are refused as a duplica
 
 test("credential-shaped bytes stay included with a warning", { timeout: 120000 }, async () => {
   const { zip, calls } = encoder();
-  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
   await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/leak.txt", content: credentialShaped() }] }), zip }, { credentialWarnings });
   assert.equal(calls.length, 1);
   assert.match(JSON.stringify(credentialWarnings), /themes\/leak.txt/);

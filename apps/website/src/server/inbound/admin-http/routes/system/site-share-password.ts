@@ -4,7 +4,7 @@ import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observabi
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { isSameOriginBrowserWrite } from "@jini-ai/core/contracts/server";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";
 import { sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 

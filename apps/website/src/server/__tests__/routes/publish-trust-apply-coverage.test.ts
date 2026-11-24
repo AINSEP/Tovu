@@ -16,9 +16,8 @@ import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import { resolveDefinitionRaw, set, type SettingDefinitionRecord } from "#src/features/settings/index";
 import { applyReport, packAll, plan } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { listPublishContentContributors, registeredPublishTypePermissions, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
-import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { listPublishContentContributors, registeredPublishTypePermissions, resetPublishContentContributorsForTests, type PublishContentDeps, type PackedEntity } from "#src/features/publish-content/type-registry";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import type { BackstopSelection } from "@jini-ai/cms/publish/transfer";
 import { entityKey } from "#src/features/publish-content/plan-rows";
 import { contentKernel } from "#src/platform/db/content-kernel";

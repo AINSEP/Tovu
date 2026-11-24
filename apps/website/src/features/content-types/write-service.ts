@@ -1,26 +1,11 @@
 /**
  * @file Thin content-type write adapters binding Tovu's reserved routes to `@jini-ai/cms/content-types`.
  *
- * `src/widgets/`'s deep imports were redirected to `./index.ts` on 2026-08-17 (matching the
- * `features/entries` shim retirement in c3c030a9). The one remaining direct importer is
- * `src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts` (dynamic
- * `await import(...)`), which `.dependency-cruiser.mjs`'s `TOOL_REGISTRATION_TEST_FROM` pattern
- * deliberately, permanently exempts as a tool-registration-seam contract test — not a pending
- * migration, so this is not necessarily temporary. Out of scope for this change (owned by
- * concurrent work in `src/assistant/`); retiring this shim depends on whether that file's own
- * owner redirects it to `./index.ts`, which already exports everything it needs.
+ * Host composition only: it injects `RESERVED_SEGMENTS` (Tovu's route vocabulary) into the shared,
+ * authorization-first write owner. Everything else about content types is imported straight from
+ * `@jini-ai/cms/content-types`; the old `./index.ts` barrel and this file's type re-exports were
+ * removed 2026-11-24, so this file is the one owner of these two bindings.
  */
-export type {
-  AuthorizeFn,
-  ContentTypeRevisionInput,
-  ContentTypeRepoPort,
-  IndexProvisionerPort,
-  OutboxPort,
-  WatermarkPort,
-  ContentTypeWriteServiceDeps,
-  RegisterContentTypeRequired,
-  UpdateContentTypeFieldsRequired,
-} from "@jini-ai/cms/content-types";
 import {
   registerContentType as registerSharedContentType,
   buildContentTypesRegistrations as buildSharedContentTypesRegistrations,
@@ -28,8 +13,6 @@ import {
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
-
-export { updateContentTypeFields } from "@jini-ai/cms/content-types";
 
 /** Bind Tovu's route vocabulary to the shared, authorization-first write owner. O(1). */
 export function registerContentType(required: RegisterContentTypeRequired, _optional: Record<string, never> = {}) {

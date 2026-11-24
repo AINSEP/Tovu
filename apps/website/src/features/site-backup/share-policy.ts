@@ -1,5 +1,6 @@
 import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
 
+import { archiveRefusalName, SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 export { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 
@@ -32,22 +33,6 @@ export const SHARE_LEGACY_PRIVATE_TABLES = new Set([
   "_plugin_identity", "_plugin_migrations", "_plugin_migration_journal",
 ]);
 
-export class SiteShareRefusal extends Error {
-  readonly code: string;
-  constructor(required: { code: string; message: string }, { cause }: { cause?: unknown } = {}) { super(required.message, { cause }); this.code = required.code; this.name = "SiteShareRefusal"; }
-}
-
-/** Display an archive-controlled name in a refusal, never use this value for lookup.
- * Strip invisible controls before quoting, and bound each name to 120 UTF-16 units so a
- * hostile ZIP cannot flood or visually reorder a refusal. Pure; O(name.length) time/space.
- */
-export function archiveRefusalName({ name }: { name: string }, _options = {}): string {
-  const clean = name.replace(/[\p{Cc}\p{Cf}]/gu, "");
-  if (clean.length <= 120) return clean;
-  // Do not split an astral character at the truncation boundary.
-  return clean.slice(0, 119).replace(/[\uD800-\uDBFF]$/, "") + "…";
-}
-
 /** Reject before allocating or uploading. No required content is silently skipped. O(n). */
 export function checkShareLimits(required: { files: readonly { path: string; bytes: number }[]; totalBytes?: number }, _optional: Record<string, never> = {}): void {
   if (required.files.length > SHARE_LIMITS.maxFiles) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 2,000-file cap. Reduce the site or wait for streaming exports." });
@@ -67,7 +52,7 @@ export interface ArchiveMediaSource {
 }
 
 export interface ShareDatabaseProjection {
-  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  readonly credentialWarnings?: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   readonly notices?: readonly string[];
   readonly archiveMedia?: readonly ArchiveMediaSource[];
   readonly bytes: Buffer;

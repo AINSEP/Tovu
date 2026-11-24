@@ -5,15 +5,16 @@ import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
 import { providerOk } from "@jini-ai/core/provider-registry";
 
 import { artifactStoreBinding, selectArtifactStoreProvider } from "../artifact-provider.js";
-import type { LoadedObjectStoreRegistry, TovuObjectStoreProvider } from "../registry.js";
+import type { LoadedObjectStoreRegistry } from "@jini-ai/platform/object-store/site/registry";
+import type { ObjectStoreHost, TovuObjectStoreProvider } from "../media-store.js";
 
 const store = { put: async () => ({ written: true }), get: async () => null, head: async () => null, delete: async () => {} };
 const plain: TovuObjectStoreProvider = { create: () => providerOk({ value: store }) };
 const capable = (tag: string) => ({ ...plain, tag, createArtifactStore: () => ({ upload: async () => ({ url: tag }), delete: async () => {}, verify: async () => true }) });
 
-function loaded(entries: Array<[id: string, provider: TovuObjectStoreProvider]>): LoadedObjectStoreRegistry {
+function loaded(entries: Array<[id: string, provider: TovuObjectStoreProvider]>): LoadedObjectStoreRegistry<ObjectStoreHost> {
   const registry = createObjectStoreRegistry<never>({}, { seed: entries.map(([id, provider]) => ({ id, provider })) });
-  return { registry: registry as unknown as LoadedObjectStoreRegistry["registry"], refusals: [] };
+  return { registry: registry as unknown as LoadedObjectStoreRegistry<ObjectStoreHost>["registry"], refusals: [] };
 }
 
 /** Credential lookup that answers only for `credentialed` ids and records the order it was asked in. */

@@ -205,7 +205,7 @@ test("static credential-looking bytes remain in the separate static download wit
   assert.ok(!files.has("static_site/index.html"));
   assert.equal(JSON.parse(files.get("manifest.json")!.toString()).staticSiteOmitted, undefined);
   if (!("reason" in copy)) {
-    const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+    const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
     const staticFiles = await unpack(await buildStaticSiteZip({ copy, zip: zipFolderFiles }, { credentialWarnings }));
     assert.equal([...staticFiles.keys()].some(path => path.endsWith("/secret.js")), true);
     assert.ok(credentialWarnings.some(warning => warning.path.endsWith("/secret.js")));

@@ -9,7 +9,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { protectThemeFileTools } from './file-mutation-tools.js';
 
 import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
-import { FsFilePathError } from "../fs-files/fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION, THEME_FILE_REPLACEMENT_GUIDANCE } from "./agent-tools.js";
 import { importThemeFileFromLocalFile, importThemeFileFromUrl, THEME_IMPORT_MAX_BYTES } from "./theme-file-import.js";

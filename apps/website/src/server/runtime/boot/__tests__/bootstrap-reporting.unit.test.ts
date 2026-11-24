@@ -6,7 +6,7 @@ import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/new
 const lifecycle = await import("#src/features/agent-plugins/lifecycle");
 const tokens = await import("#src/features/agent-plugins/import-access-token");
 const renames = await import("#src/features/agent-plugins/apply-tool-renames");
-const faces = await import("#src/features/agent-plugins/provider-plugin-link");
+const faces = await import("@jini-ai/agent-plugins/site/provider-plugin-link");
 const catalog = await import("#src/features/agent-plugins/bundled-catalog");
 const grants = await import("#src/features/agent-plugins/grant-signed-in-defaults");
 const soonLock = await import("#src/features/agent-plugins/soon-lock");
@@ -30,7 +30,7 @@ mock.module("#src/features/agent-plugins/import-access-token", { namedExports: {
 mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { ...renames,
   applyAgentPluginToolRenames: async () => { calls.push("renames"); },
 } });
-mock.module("#src/features/agent-plugins/provider-plugin-link", { namedExports: { ...faces,
+mock.module("@jini-ai/agent-plugins/site/provider-plugin-link", { namedExports: { ...faces,
   syncProviderFaces: async () => { calls.push("faces"); },
 } });
 mock.module("#src/features/agent-plugins/soon-lock", { namedExports: { ...soonLock,

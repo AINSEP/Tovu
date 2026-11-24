@@ -4,5 +4,5 @@ import * as deployments from "../index.js";
 
 test("the core deployment barrel exposes generic publishing and no dormant provider implementation", () => {
   assert.deepEqual(Object.keys(deployments).filter(name => /DeploymentProvider/.test(name)), []);
-  assert.equal(typeof deployments.loadDeployConfigGeneratorsFromSource, "function");
+  assert.equal(typeof deployments.deployConfigGenerators.loadDeployConfigGeneratorsFromSource, "function");
 });

@@ -17,8 +17,10 @@ import { getTableConfig as getSqliteTableConfig } from "drizzle-orm/sqlite-core"
 
 import * as pgSchema from "#src/platform/db/schema.postgres";
 import { countSourceRows, createPsqlPostgresTarget, inspectTarget, runCopy, type CopyResult } from "@jini-ai/db/transfer";
-import { collectTransferTables, countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, planSnapshotTables, TRANSFER_APPLICATION_NAME, TRANSFER_NAMING } from "../copy-engine.js";
+import { collectTransferTables, planSnapshotTables } from "../table-catalog.js";
+import { countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, TRANSFER_APPLICATION_NAME, TRANSFER_NAMING } from "../copy-engine.js";
 import { SITE_TRANSFER_MESSAGES } from "@jini-ai/db/tools";
+import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 

@@ -14,7 +14,7 @@ import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
  * Two very different kinds of assertion live here on purpose:
  *
  * 1. **Schema validity** — the manifests parse under this repo's own v1.0.0 validators, and
- *    `mcp.json` declares ZERO servers. That last one is not a formality: `capability-projection.ts`
+ *    `mcp.json` declares ZERO servers. That last one is not a formality: `@jini-ai/agent-plugins/lifecycle`
  *    marks every plugin-declared MCP server `execute: { kind: "unavailable" }` with no promotion
  *    path, so a server declared here would be inert decoration that looks like a capability. The
  *    emptiness is the design; a future edit that adds one should fail this test and have to argue

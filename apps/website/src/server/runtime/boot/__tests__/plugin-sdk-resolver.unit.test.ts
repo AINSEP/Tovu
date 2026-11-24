@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { registerPluginSdkResolver, resolveDefaultSdkModulePath } from "../plugin-sdk-resolver.js";
+import { registerPluginSdkResolver, resolveDefaultSdkModulePath } from "../../../../features/plugin-runtime/sdk-resolver.js";
 
 /**
  * @file `resolveDefaultSdkModulePath()` — the true default path every real boot call site

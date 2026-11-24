@@ -149,8 +149,8 @@ async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExt
 function createPluginEnabledReader(inputs: Pick<StoredExternalMcpConnectionSourceDeps, 'agentPluginLayout' | 'workspaceId'>): (pluginId: string) => Promise<boolean> {
   let pluginReader: Promise<(pluginId: string) => Promise<boolean>> | undefined;
   return async pluginId => {
-    pluginReader ??= import('../features/agent-plugins/activation-effects.js').then(({ createAgentPluginEnabledReader }) =>
-      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace({ workspaceId: inputs.workspaceId }).root }));
+    pluginReader ??= Promise.all([import('@jini-ai/agent-plugins/site/activation-effects'), import('../features/agent-plugins/activation-effects.js')]).then(([{ createAgentPluginEnabledReader }, { agentPluginActivations }]) =>
+      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace({ workspaceId: inputs.workspaceId }).root, resolveAgentPluginActivation: agentPluginActivations.resolveAgentPluginActivation }));
     return (await pluginReader)(pluginId);
   };
 }

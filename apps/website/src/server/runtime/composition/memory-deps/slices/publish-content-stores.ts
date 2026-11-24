@@ -3,7 +3,7 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/in
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
-import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
+import { InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import type { InMemoryOutbox } from "#src/contracts/core/events/index";

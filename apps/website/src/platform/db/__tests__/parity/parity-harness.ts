@@ -21,7 +21,7 @@ import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credent
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { MediaProviderCredentialVaultRepo } from "#src/features/media/provider-credential-vault";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/repo.memory";
 import { VaultPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";

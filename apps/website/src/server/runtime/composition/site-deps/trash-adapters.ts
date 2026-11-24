@@ -3,7 +3,7 @@ import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { POST_ENTITY_TYPE } from "#src/features/trash/index";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { USER_ENTITY_TYPE } from "#src/features/trash/index";
@@ -23,12 +23,12 @@ import { purgeMedia } from "#src/features/media/index";
 import { randomUUID } from "node:crypto";
 import { withFollowUps } from "@jini-ai/cms/trash";
 import type { composePluginRuntime } from "../plugin-runtime.js";
-import type { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import type { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import type { SiteStore } from "../open-site-store.js";
 import type { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import type { SqlitePostRepo } from "#src/features/post/index";
-import type { createMediaBlobStore } from "#src/features/object-storage/index";
+import type { createMediaBlobStore } from "#src/features/object-storage/media-store";
 import type { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import type { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashFollowUpHooks } from "@jini-ai/cms/trash";
@@ -98,7 +98,7 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
         // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
         // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
         // through this adapter's own `purge()`, never directly from the route layer.
-        purge: new SqliteUserPurge({ kernel, eventValues: outboxEventValues }),
+        purge: new SqlUserPurge({ kernel, eventValues: outboxEventValues }),
         idGen: { next: () => randomUUID() },
         clock,
       }),

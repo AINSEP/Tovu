@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseSiteImportInput, type SiteImportBackend } from "../import-backend.js";
 import { buildSiteBackupRegistrations, type SiteBackupToolDeps } from "../tool-registrations.js";
-import { SiteShareRefusal } from "../share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 test("B source boundary rejects paths, both/neither sources, credentials and password fields", () => {
   for (const [input, message] of [
@@ -42,7 +42,7 @@ test("B import/list authorization happens before any backend effect and binds th
 });
 
 test("import adapters reject list fields and preserve coded failures while propagating unexpected errors", async () => {
-  const { SiteShareRefusal } = await import("../share-policy.js");
+  const { SiteShareRefusal } = await import("@jini-ai/devops/backup/site/share-refusal");
   let failure: unknown = new SiteShareRefusal({ code: "BUSY", message: "Import still running" });
   let effects = 0;
   const backend = { importBackup: async () => { effects++; throw failure; }, list: async () => { effects++; throw failure; } } as unknown as SiteImportBackend;

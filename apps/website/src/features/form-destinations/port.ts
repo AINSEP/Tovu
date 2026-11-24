@@ -1,7 +1,7 @@
 import { resolveCustomCredentialByLabel, listCustomCredentials, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 
 import { formReceiverKey } from "./key-store.js";
-import { assertSubmitUrl } from "./rewrite-actions.js";
+import { assertSubmitUrl } from "@jini-ai/cms/forms/destinations/rewrite-actions";
 import { selectFormReceiver, type FormReceiverSelection } from "@jini-ai/cms/forms/destinations/select";
 import type { FormDestinationRegistry, LoadedFormDestination } from "@jini-ai/cms/forms";
 import type { FormDestinationCredential, FormDestinationForm, FormReceiverPlan, FormReceiverPort, FormSubmissionsInspection } from "@jini-ai/core/contracts/site/cms-forms";

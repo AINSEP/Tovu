@@ -2,7 +2,7 @@ import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { MAX_FS_FILE_BYTES } from "./fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
-import { FS_WRITE_LIMITS } from "./write-files.js";
+import { FS_WRITE_LIMITS } from "@jini-ai/cms/fs-files/write-files";
 
 /**
  * @file The `fs-files` domain's agent-tool catalog: two read-only tools, `fs_list_files` and

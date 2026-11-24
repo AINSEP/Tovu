@@ -13,7 +13,8 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories, type LoadedAgentPluginTool, type AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
-import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
+import { registerAgentPluginExecutableTools } from '../register.js';
+import type { AgentPluginExecutableToolHost } from '../host-bindings.js';
 import type { AgentPluginConnectionAccess, AgentPluginConnectionTarget } from '@jini-ai/agent-plugins/connect/executable';
 
 export const WORKSPACE = 'ws-1';

@@ -8,6 +8,7 @@ import {
   type CustomCredentialWriteDeps,
 } from "#src/features/custom-credentials/index";
 import type { FormDestinationAddress } from "@jini-ai/cms/forms";
+import { listReceiverKeys, resolveReceiverKey, type ReceiverKeyVault } from "@jini-ai/cms/forms/destinations/key-store";
 
 /**
  * @file The site's form receiver keys, kept in Tovu's existing credential vault as one custom
@@ -16,7 +17,9 @@ import type { FormDestinationAddress } from "@jini-ai/cms/forms";
  * category keeps its label) and the destination id for an external one. Its base URL is the
  * receiver's origin, which is where a pull goes. The key is never written to HTML, history, logs or
  * errors. Receiver keys are site-owned: a project-first create would stay hidden on republish and
- * mint a different receiver secret. Every destination uses the same lifecycle.
+ * mint a different receiver secret. Every destination uses the same lifecycle, owned by
+ * `@jini-ai/cms/forms/destinations/key-store`; this binding maps it onto the credential vault and
+ * keeps the persisted label, site scope and category.
  */
 const LABEL_PREFIX = "Form submissions key: ";
 
@@ -25,45 +28,43 @@ export function formDestinationKeyLabel({ scope }: { scope: string }, _optional 
   return `${LABEL_PREFIX}${scope}`;
 }
 
+/** The credential vault as the receiver-key lifecycle sees it: every key is a site-scoped hosting credential. */
+function receiverKeyVault({ credentials }: { credentials: CustomCredentialWriteDeps }, _optional = {}): ReceiverKeyVault {
+  return {
+    listLabels: async ({ workspaceId }) => (await listCustomCredentials(credentials, { workspaceId })).map((summary) => summary.label),
+    resolve: async ({ workspaceId, label }) => {
+      const resolved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label });
+      return resolved ? { id: resolved.id, baseUrl: resolved.baseUrl, secret: resolved.connection.token } : null;
+    },
+    create: async ({ workspaceId, label, baseUrl, secret }) => {
+      await createCustomCredential(credentials, { workspaceId, label, scope: "site", category: "hosting", baseUrl, connection: { token: secret } });
+    },
+    updateBaseUrl: async ({ workspaceId, id, baseUrl }) => { await updateCustomCredential(credentials, { workspaceId, id, baseUrl }); },
+    isDuplicateLabel: (error) => error instanceof CustomCredentialDuplicateLabelError,
+  };
+}
+
 /**
  * The publish-side key. A first publish with forms mints a key and saves it once the receiver has
  * it; a republish reuses the key and moves its base URL when the receiver's origin changed (a rename).
  * @complexity One vault list per call, plus one open for an existing key.
  */
-export async function formReceiverKey(
+export function formReceiverKey(
   required: { credentials: CustomCredentialWriteDeps; workspaceId: string; scope: string },
   optional: { newSecret?: () => string } = {},
 ): Promise<{ readonly secret: string; readonly save: (required: { readonly url: string }) => Promise<void> }> {
   const { credentials, workspaceId, scope } = required;
-  const label = formDestinationKeyLabel({ scope });
-  const existing = await resolveCustomCredentialByLabel(credentials, { workspaceId, label });
-  if (existing) {
-    return { secret: existing.connection.token, save: async ({ url }) => {
-      const baseUrl = new URL(url).origin;
-      if (baseUrl !== existing.baseUrl) await updateCustomCredential(credentials, { workspaceId, id: existing.id, baseUrl });
-    } };
-  }
-  const secret = (optional.newSecret ?? (() => randomBytes(32).toString("base64url")))();
-  return { secret, save: async ({ url }) => {
-    try { await createCustomCredential(credentials, { workspaceId, label, scope: "site", category: "hosting", baseUrl: new URL(url).origin, connection: { token: secret } }); }
-    // A concurrent publish saved its key first; the next publish installs that one everywhere.
-    catch (error) { if (!(error instanceof CustomCredentialDuplicateLabelError)) throw error; }
-  } };
+  return resolveReceiverKey({
+    vault: receiverKeyVault({ credentials }), workspaceId, scope, labelPrefix: LABEL_PREFIX,
+    newSecret: optional.newSecret ?? (() => randomBytes(32).toString("base64url")),
+  });
 }
 
 /** Every saved receiver to pull from, optionally one scope's. Opens only the matching keys.
  * @complexity O(saved credentials) metadata plus one open per destination. */
-export async function listFormDestinations(
+export function listFormDestinations(
   required: { credentials: CustomCredentialWriteDeps; workspaceId: string },
   optional: { scope?: string } = {},
 ): Promise<{ scope: string; destination: FormDestinationAddress }[]> {
-  const { credentials, workspaceId } = required;
-  const labels = (await listCustomCredentials(credentials, { workspaceId })).map((summary) => summary.label)
-    .filter((label) => label.startsWith(LABEL_PREFIX) && (optional.scope === undefined || label === formDestinationKeyLabel({ scope: optional.scope })));
-  const found: { scope: string; destination: FormDestinationAddress }[] = [];
-  for (const label of labels) {
-    const resolved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label });
-    if (resolved) found.push({ scope: label.slice(LABEL_PREFIX.length), destination: { url: resolved.baseUrl, secret: resolved.connection.token } });
-  }
-  return found;
+  return listReceiverKeys({ vault: receiverKeyVault({ credentials: required.credentials }), workspaceId: required.workspaceId, labelPrefix: LABEL_PREFIX }, optional);
 }

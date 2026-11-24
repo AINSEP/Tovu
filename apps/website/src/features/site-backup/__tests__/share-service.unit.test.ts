@@ -10,7 +10,8 @@ import test, { type TestContext } from "node:test";
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry, type SiteShareRecord } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, SHARE_DOWNLOAD_HEADERS, type ShareDelivery } from "../share-service.js";
-import { SHARE_LIMITS, SiteShareRefusal } from "../share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "../share-policy.js";
 
 const ARCHIVE = Buffer.from("PK zip bytes");
 const URL = "https://cdn.example/share.zip";

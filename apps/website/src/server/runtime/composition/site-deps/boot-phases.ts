@@ -7,7 +7,8 @@ import type { assembleRouteDepsPhase } from "./assembly-phases.js";
 import { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
 import { composeMediaStorage } from "./media-storage.js";
 import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";
-import type { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
+import type { LoadedMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";
+import type { MediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import type { createConsoleLogger } from "@jini-ai/core/primitives";
 import { composeStoreBasics } from "./store-basics.js";
 import { composeSitePluginRuntime } from "./plugin-runtime.js";
@@ -74,7 +75,7 @@ interface ComposeSiteServicesPhaseRequired {
   blobStore: ReturnType<typeof composeStoragePhase>["blobStore"];
   storeBound: ReturnType<typeof composeStoragePhase>["storeBound"];
   workspaceId: Awaited<ReturnType<typeof resolveWorkspaceIdOverride>>;
-  mediaProviders: Awaited<ReturnType<typeof loadMediaProviderRegistry>>;
+  mediaProviders: LoadedMediaProviderRegistry<MediaProviderRegistry>;
   assetBlobRepo: () => ReturnType<typeof composeInstrumentedContentPhase>["assetBlobRepo"];
   mediaRepo: () => ReturnType<typeof composeInstrumentedContentPhase>["mediaRepo"];
   postRepo: () => ReturnType<typeof composeInstrumentedContentPhase>["postRepo"];

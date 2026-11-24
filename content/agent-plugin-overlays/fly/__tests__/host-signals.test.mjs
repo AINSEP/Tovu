@@ -7,8 +7,9 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { evaluateHostSignals } from "@tovu/contracts/host-signals";
-import { readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../../../apps/website/src/features/agent-plugins/host-signals.ts";
+import { evaluateHostSignals, selectCoreHostSignalDeclaration } from "@tovu/contracts/host-signals";
+import { readBundledHostSignalDeclaration, resolveBundledHostSignals } from "@jini-ai/agent-plugins/site/host-signals";
+import { bundledContributionSources } from "../../../../apps/website/src/features/agent-plugins/bundled-contribution-sources.ts";
 import { resolveTrustProxySetting } from "../../../../apps/website/src/server/inbound/shared/trust-proxy.ts";
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from "../../../../apps/website/src/features/plugin-runtime/install.ts";
 import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
@@ -21,6 +22,8 @@ import { processComposedBundledSourceRoot } from "../../../../apps/website/src/f
 
 // fly ships from @jini-ai/agent-plugins/fly: the bundle the build composes is the bundled source root.
 const sourceRoot = await processComposedBundledSourceRoot();
+/** This product's bindings for the injected bundled-source policy and core host-signal policy. */
+const host = { sources: bundledContributionSources, evaluateHostSignals, selectCoreHostSignalDeclaration };
 const shippedManifest = readFileSync(path.join(agentPluginSourceDir({ pluginId: "fly" }), "plugin.json"), "utf8");
 const extension = JSON.parse(shippedManifest).extensions.jini;
 
@@ -30,7 +33,7 @@ test("Fly's host declaration is plain manifest data, synchronously readable befo
     { env: "FLY_MACHINE_ID", facts: { nativeToolsRestricted: true } },
     { env: "FLY_ALLOC_ID", facts: { nativeToolsRestricted: true } },
   ]);
-  const declaration = readBundledHostSignalDeclaration({ sourceRoot });
+  const declaration = readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources });
   assert.deepEqual(declaration.signals, extension.hostSignals);
   assert.equal(declaration.deploymentAdvice, "Set TOVU_RUNTIME_MODE=production (fly.toml and docker-compose.yml already do).");
 });
@@ -38,7 +41,7 @@ test("Fly's host declaration is plain manifest data, synchronously readable befo
 for (const app of [undefined, "", " ", "0", "app"]) for (const machine of [undefined, "", " ", "0", "machine"]) for (const alloc of [undefined, "", " ", "0", "alloc"]) {
   test(`Fly APP/MACHINE/ALLOC policy matrix ${JSON.stringify([app, machine, alloc])}`, () => {
     const env = { FLY_APP_NAME: app, FLY_MACHINE_ID: machine, FLY_ALLOC_ID: alloc, TOVU_AGENT_PERMISSION_MODE: "bypass" };
-    const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot });
+    const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot, ...host });
     const options = { hostSignals };
     const restricted = !!(app || machine || alloc);
     assert.equal(resolveTrustProxySetting({ env }, options), app ? 1 : false);
@@ -70,7 +73,7 @@ test("packaged desktop and plugin-install opt-in preserve their separate excepti
   for (const app of ["", "app"]) for (const machine of ["", "machine"]) for (const alloc of ["", "alloc"]) for (const optIn of [undefined, "1"]) {
     const env = { NODE_ENV: "production", ELECTRON_RUN_AS_NODE: "1", TOVU_DESKTOP_OWNER_PID: "42",
       FLY_APP_NAME: app, FLY_MACHINE_ID: machine, FLY_ALLOC_ID: alloc, TOVU_PLUGIN_LOCAL_INSTALL: optIn };
-    const options = { hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot }) };
+    const options = { hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot, ...host }) };
     assert.equal(createSitePluginPolicy({ env, ...options }).localInstallEnabled({}, {}), !app || optIn === "1");
     assert.equal(resolveFullCliAccess({ isOwner: true, env }, options), !(app || machine || alloc));
   }
@@ -78,7 +81,7 @@ test("packaged desktop and plugin-install opt-in preserve their separate excepti
 
 test("boot labels, ordering and full warning bytes stay identical, including incidental advice", () => {
   const env = { NODE_ENV: "production", KUBERNETES_SERVICE_HOST: "private-k8s", FLY_APP_NAME: "private-app" };
-  const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot });
+  const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot, ...host });
   const deploymentSignals = detectDeploymentSignals({ env }, { hostSignals, pathExists: () => true });
   assert.deepEqual(deploymentSignals, ["NODE_ENV=production", "container (/.dockerenv)", "container (/run/.containerenv)", "Kubernetes (KUBERNETES_SERVICE_HOST)", "Fly.io (FLY_APP_NAME)"]);
   assert.deepEqual(collectBootReadinessWarnings({ env, mode: "local", deploymentSignals, agentPermissionMode: "restricted" }, { hostSignals }), [
@@ -132,8 +135,10 @@ function assertHeadConsumers({ env, hostSignals, pathExists }, _optional = {}) {
 
 /** Fakes exercise real JSON validation/aggregation without filesystem permissions or plugin code. */
 function declarationReader({ texts }, _optional = {}) {
-  return required => readBundledHostSignalDeclaration(required, {
+  return required => readBundledHostSignalDeclaration({
+    ...required,
     sources: () => texts.map((_text, index) => ({ pluginId: `host-${index}`, packageRoot: `/bundled/host-${index}` })),
+  }, {
     readText: file => {
       const text = texts[Number(path.basename(path.dirname(file)).slice("host-".length))];
       if (text === undefined) throw new Error("unreadable manifest");
@@ -146,7 +151,7 @@ function declarationReader({ texts }, _optional = {}) {
 function manifestText({ hostSignals, deploymentAdvice = extension.deploymentAdvice }, _optional = {}) {
   return JSON.stringify({ extensions: { tovu: { hostSignals, deploymentAdvice } } });
 }
-const validDeclaration = readBundledHostSignalDeclaration({ sourceRoot });
+const validDeclaration = readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources });
 const resolutionCases = [
   ["valid shipped declaration", { sourceRoot, readDeclaration: () => validDeclaration }],
   ["missing declaration", { sourceRoot, readDeclaration: declarationReader({ texts: [] }) }],
@@ -163,8 +168,8 @@ const resolutionCases = [
   ["ambiguous ownership within package", { sourceRoot, readDeclaration: declarationReader({ texts: [manifestText({ hostSignals: [...extension.hostSignals, extension.hostSignals[2]] })] }) }],
   ["conflicting advice", { sourceRoot, readDeclaration: declarationReader({ texts: [shippedManifest, manifestText({ hostSignals: [], deploymentAdvice: "Other advice." })] }) }],
   ["unresolved product root", { productRoot: () => { throw new Error("no product root"); } }],
-  ["absent source root", { sourceRoot: "/absent", readDeclaration: required => readBundledHostSignalDeclaration(required, {
-    sources: () => { throw new Error("no source root"); },
+  ["absent source root", { sourceRoot: "/absent", readDeclaration: required => readBundledHostSignalDeclaration({
+    ...required, sources: () => { throw new Error("no source root"); },
   }) }],
   ["reader failure", { sourceRoot, readDeclaration: () => { throw new Error("reader failed"); } }],
   ["missing advice", { sourceRoot, readDeclaration: declarationReader({ texts: [JSON.stringify({ extensions: { tovu: { hostSignals: extension.hostSignals } } })] }) }],
@@ -174,7 +179,7 @@ for (const [name, ports] of resolutionCases) {
   test(`${name}: 4,500 combinations match frozen HEAD for every consumer`, () => {
     let combinations = 0;
     for (const env of headEnvironmentMatrix({})) {
-      const hostSignals = resolveBundledHostSignals({ env, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
+      const hostSignals = resolveBundledHostSignals({ env, ...host, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
       assertHeadConsumers({ env, hostSignals, pathExists: () => true });
       combinations++;
     }
@@ -192,7 +197,7 @@ for (const [name, ports] of resolutionCases) {
       ...["TOVU_AGENT_FULL_CLI_ACCESS", "TOVU_AGENT_NATIVE_FALLBACKS", "TOVU_AGENT_FORBID_BASH"].flatMap(key =>
         ["0", "false", "1"].map(value => ({ [key]: value }))),
     ]) {
-      const hostSignals = resolveBundledHostSignals({ env, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
+      const hostSignals = resolveBundledHostSignals({ env, ...host, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
       for (const pathExists of [() => false, marker => marker === "/.dockerenv"]) {
         assertHeadConsumers({ env, hostSignals, pathExists });
       }
@@ -208,7 +213,7 @@ test("missing/malformed on-disk declarations preserve HEAD rather than silently 
   const env = { FLY_APP_NAME: "app", FLY_MACHINE_ID: "machine", FLY_ALLOC_ID: "alloc" };
   for (const text of [undefined, "{", manifestText({ hostSignals: "not an array" })]) {
     if (text !== undefined) writeFileSync(path.join(emptyRoot, "fly/plugin.json"), text);
-    assertHeadConsumers({ env, hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: emptyRoot }), pathExists: () => false });
+    assertHeadConsumers({ env, hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: emptyRoot, ...host }), pathExists: () => false });
   }
 });
 
@@ -232,7 +237,7 @@ test("Docker's runtime-asset staging preserves Fly's host declaration byte for b
   // development/scripts/__tests__/compose-bundled-agent-plugins.test.ts).
   stageServerRuntimeAssets({ repoRoot }, { selection: new Map() });
   assert.equal(readFileSync(path.join(repoRoot, "dist/content/agent-plugins/fly/plugin.json"), "utf8"), shippedManifest);
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: path.join(repoRoot, "dist/content/agent-plugins") }).signals, extension.hostSignals);
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: path.join(repoRoot, "dist/content/agent-plugins"), sources: bundledContributionSources }).signals, extension.hostSignals);
   const dockerfile = readFileSync(new URL("../../../../Dockerfile", import.meta.url), "utf8");
   assert.match(dockerfile, /RUN npm run build/);
   assert.match(dockerfile, /COPY --from=build \/workspace\/Tovu \/workspace\/Tovu/);

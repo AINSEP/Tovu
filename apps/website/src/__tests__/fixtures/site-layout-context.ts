@@ -7,7 +7,8 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
-import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
+import { loadCredentialSchemeRegistry } from "@jini-ai/agent-plugins/site/auth-schemes";
+import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
@@ -61,7 +62,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
     agentPluginLifecycle: { enumerable: true, configurable: true, get: () => createTovuAgentPluginLifecycle({ layout: context.agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() }) },
     loadDeployOps: { enumerable: true, configurable: true, get: () => (ctx: { workspaceId: string }) => loadDeployOpsRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
     loadSourceControlProviders: { enumerable: true, configurable: true, get: () => ({ workspaceId }: { workspaceId: string }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
-    loadAuthSchemes: { enumerable: true, configurable: true, get: () => async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions })).rules },
+    loadAuthSchemes: { enumerable: true, configurable: true, get: () => async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: context.agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules },
     skillLayout: { enumerable: true, configurable: true, get: () => resolveSkillLayout({ host: SKILL_SITE_HOST }) },
     siteBinding: { enumerable: true, configurable: true, get: () => describeSiteBinding() },
   };

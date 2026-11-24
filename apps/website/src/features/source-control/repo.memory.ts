@@ -2,7 +2,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { TovuCredentialSetVaultAdapter } from "../vendor-credentials/vault-adapter.js";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort } from "./types.js";
-import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.js";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 
 /** The same host DTO mapping over Jini's memory adapter; no second default/CAS lifecycle. */
 export class InMemorySourceControlCredentialSetRepo extends TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord> implements SourceControlCredentialSetRepoPort {

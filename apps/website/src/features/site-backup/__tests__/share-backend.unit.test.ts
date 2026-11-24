@@ -13,7 +13,7 @@ import type { SiteSharePlanContent } from "../plan-content.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
-import { SiteShareRefusal } from "../share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 for (const step of ["prepare", "archive", "delivery"] as const) {
   test(`a ${step} exception keeps its actual step when collected by a later job poll`, async t => {

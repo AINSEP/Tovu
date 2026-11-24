@@ -11,7 +11,7 @@ import { rollbackUploadedMedia, uploadMedia } from "@jini-ai/cms/media";
 import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import type { MediaPublicUrlDeps } from "./contracts.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
+import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
 
 /**
  * @file `content_duplicate`'s `"media"` resource — the third resource, and the only one whose rows
