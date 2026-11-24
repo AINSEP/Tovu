@@ -9,12 +9,13 @@ import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks"
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import { EmailActivityTab } from "./EmailActivityTab";
-import { EmailOverviewTab } from "./EmailOverviewTab";
-import { Chip, Section, Segments, type Tone } from "./EmailParts";
+import { EmailActivityTab } from "@jini-ai/admin/screens/email/EmailActivityTab";
+import { EmailOverviewTab } from "@jini-ai/admin/screens/email/EmailOverviewTab";
+import { Chip, Section, type Tone } from "@jini-ai/admin/screens/email/EmailParts";
+import { Segments } from "./EmailSegments";
 import { EmailProviderTab } from "./EmailProviderTab";
-import { EmailSenderTab, SenderDomain } from "./EmailSenderTab";
-import { EmailTemplatesTab } from "./EmailTemplatesTab";
+import { EmailSenderTab, SenderDomain } from "@jini-ai/admin/screens/email/EmailSenderTab";
+import { EmailTemplatesTab } from "@jini-ai/admin/screens/email/EmailTemplatesTab";
 import { emailSummary, type EmailController, type EmailStatusView, type EmailSummary } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
 import { useWiredEmail, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailProvider, useWiredEmailSender, useWiredEmailTemplates } from "./email-hooks-host";
 import type { EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";

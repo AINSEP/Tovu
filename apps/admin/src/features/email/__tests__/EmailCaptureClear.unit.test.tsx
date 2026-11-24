@@ -8,7 +8,7 @@ import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /** The hooks `email-hooks-host.ts` injects. */
 const HOST_HOOKS = { useLoadHook: useLoad, useCaptureClearFlowHook: useCaptureClearFlow };
-import { EmailActivityTab } from "../EmailActivityTab";
+import { EmailActivityTab } from "@jini-ai/admin/screens/email/EmailActivityTab";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { createEmailFake } from "./email.test-helpers";
 
