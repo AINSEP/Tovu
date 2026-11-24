@@ -1,3 +1,5 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -5,8 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../../repo.sqlite.js";
-import { contentKernel } from "../../../../platform/db/content-kernel.js";
+import { contentKernel, schemaErasedKernel } from "../../../../platform/db/content-kernel.js";
 import { kernelStampWatermark } from "../../../../platform/db/watermark-kernel.js";
 import {
   createTaxonomy,
@@ -43,15 +44,15 @@ async function openTempContentDb() {
 
 function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
   let counter = 0;
-  const taxonomies = new SqliteTaxonomyRepo({ db, workspaceId });
+  const taxonomies = new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {});
   return {
     authorize: alwaysAllow(),
     clock: { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") },
     idGen: { newId: () => `${idPrefix}-${++counter}` },
     taxonomies,
-    terms: new SqliteTermRepo({ db, workspaceId }),
-    entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
-    revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId }),
+    terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    revisions: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     stampWatermark: kernelStampWatermark({ kernel: contentKernel({ store: db }) }),
     outbox: { enqueue: async () => {} },
     // `deleteTerm`/`deleteTaxonomy` (coordinator review addition) and `assignTerms` are the only
@@ -59,7 +60,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     // `renameTerm` above never read them, which is why `buildDeps` got away without them until now.
     workspaceId,
     contentLookup: new InMemoryContentLookup({}),
-    // `SqliteTaxonomyRepo.transaction` — real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the
+    // `SqlTaxonomyRepo.transaction` — real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the
     // same connection every other adapter above shares (all constructed with this same `db`).
     transaction: taxonomies.transaction.bind(taxonomies),
   };
@@ -73,8 +74,8 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Recipes" });
 
     const dbAfterRestart = await openPreparedContentDb(filePath);
-    const taxonomyRepoAfterRestart = new SqliteTaxonomyRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
-    const termRepoAfterRestart = new SqliteTermRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
+    const taxonomyRepoAfterRestart = new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: dbAfterRestart }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {});
+    const termRepoAfterRestart = new SqlTermRepo({ kernel: schemaErasedKernel({ store: dbAfterRestart }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {});
 
     const foundTaxonomy = await taxonomyRepoAfterRestart.findById({ id: taxonomy.id });
     assert.ok(foundTaxonomy);
@@ -94,7 +95,7 @@ test("workspace-scoping boundary: a taxonomy created for ws-1 is invisible to ws
     const ws1Deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps: ws1Deps, principalId: "user-1", name: "Category", hierarchical: true });
 
-    const ws2TaxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: "ws-2" });
+    const ws2TaxonomyRepo = new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-2" }, {});
     const crossWorkspace = await ws2TaxonomyRepo.findById({ id: taxonomy.id });
     assert.equal(crossWorkspace, null, "a taxonomy created under ws-1 must not resolve through a ws-2-scoped adapter");
 
@@ -167,7 +168,7 @@ test("guard queries are workspace-scoped: countByTerm/countChildren/delete on a 
     (ws2Deps.contentLookup as InMemoryContentLookup).set({ contentType: "post", contentId: "post-ws2", value: { workspaceId: "ws-2", kind: "post" } });
     await assignTerms({ deps: ws2Deps, principalId: "user-2", contentType: "post", contentId: "post-ws2", termIds: [ws2Term.id] });
 
-    // The mutation this proves: if `SqliteEntryTermRepo.countByTerm`/`SqliteTermRepo.countChildren`
+    // The mutation this proves: if `SqlEntryTermRepo.countByTerm`/`SqlTermRepo.countChildren`
     // ever dropped their `eq(workspaceId, this.deps.workspaceId)` clause (leaving only the
     // `termId`/`parentId` match), THESE assertions would flip from 0 to 1/2 — ws-2's real rows
     // would leak into a ws-1-scoped guard read.
@@ -263,8 +264,8 @@ test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live s
     const names = (await deps.terms.listByTaxonomy({ taxonomyId: taxonomy.id })).map((t) => t.name);
     assert.deepEqual(names, ["Live"]);
 
-    const taxonomyRepo = deps.taxonomies as SqliteTaxonomyRepo;
-    const termRepo = deps.terms as SqliteTermRepo;
+    const taxonomyRepo = deps.taxonomies as SqlTaxonomyRepo;
+    const termRepo = deps.terms as SqlTermRepo;
     assert.equal(await termRepo.findForTrash({ id: trashed.id }), null);
     const display = await termRepo.findForTrash({ id: live.id });
     assert.deepEqual(display, { id: live.id, name: "Live", taxonomyId: taxonomy.id, taxonomyName: "Category", version: 1 });
@@ -304,7 +305,7 @@ test("listForContent excludes a trashed term's assignment and a live term's assi
     (deps.contentLookup as InMemoryContentLookup).set({ contentType: "post", contentId: "post-1", value: { workspaceId: "ws-1", kind: "post" } });
     await assignTerms({ deps, principalId: "user-1", contentType: "post", contentId: "post-1", termIds: [termA.id, termB.id] });
 
-    const entryTermRepo = deps.entryTerms as SqliteEntryTermRepo;
+    const entryTermRepo = deps.entryTerms as SqlEntryTermRepo;
     assert.deepEqual(
       (await entryTermRepo.listForContent({ contentType: "post", contentId: "post-1" })).map((v) => v.termName).sort(),
       ["A", "B"],
@@ -335,7 +336,7 @@ test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status —
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
     const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
     const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
-    const termRepo = deps.terms as SqliteTermRepo;
+    const termRepo = deps.terms as SqlTermRepo;
 
     // Sanity: both reads work before anything is trashed.
     assert.deepEqual(await termRepo.findForPurgeAudit({ id: termA.id }), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
@@ -359,7 +360,7 @@ test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status —
   }
 });
 
-test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed term is a no-op, the row stays exactly as it was", async () => {
+test("SqlTermRepo.update's setWhere guard: a write against an already-trashed term is a no-op, the row stays exactly as it was", async () => {
   const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
@@ -370,7 +371,7 @@ test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed
     // Bypasses `renameTerm`'s own (already trash-filtered) `findById` guard on purpose -- this
     // proves the repo's OWN `setWhere`, not the write-service's read-then-write, is what stops a
     // stale write from reviving or editing an already-trashed row.
-    const termRepo = deps.terms as SqliteTermRepo;
+    const termRepo = deps.terms as SqlTermRepo;
     await termRepo.update({ id: term.id, taxonomyId: taxonomy.id, parentId: null, name: "Hijacked", status: "active", updatedAt: "later", version: 99 });
 
     const row = db.$client.prepare("SELECT name, status, version FROM terms WHERE id = ?").get(term.id) as {
@@ -392,7 +393,7 @@ test("atomicity: a mid-cascade failure in deleteTaxonomy is genuinely undone by 
     const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
     const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
 
-    // A thin proxy over the REAL `SqliteTermRepo` that delegates every method except `delete`,
+    // A thin proxy over the REAL `SqlTermRepo` that delegates every method except `delete`,
     // which throws on its SECOND call — simulating the exact failure mode hazard #1 (atomicity)
     // named: a mid-cascade error after at least one real DELETE has already executed against the
     // live connection.

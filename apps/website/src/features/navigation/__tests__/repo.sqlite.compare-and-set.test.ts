@@ -1,3 +1,6 @@
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +8,6 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { assignLocation, MenuConflictError, updateMenuTree, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { importMenuEntity } from "@jini-ai/cms/navigation/site/import-menu";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 
@@ -228,12 +230,12 @@ function runAtomicitySuite(adapterName: string, make: () => { repo: MenuRepoPort
 }
 
 runCompareAndSetSuite("TrashAwareInMemoryMenuRepo", () => new TrashAwareInMemoryMenuRepo());
-for (const each of eachDialect({ tables: ["menus"], make: (kernel) => new SqliteMenuRepo({ store: kernel }) })) {
+for (const each of eachDialect({ tables: ["menus"], make: (kernel) => new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}) })) {
   runCompareAndSetSuite(`SqlMenuRepo ${each.name}`, each.make);
 }
 for (const each of eachDialect({
   tables: ["menus", "nav_location_bindings"],
-  make: (kernel) => ({ repo: new SqliteMenuRepo({ store: kernel }), bindingRepo: new SqliteNavLocationBindingRepo({ store: kernel }) }),
+  make: (kernel) => ({ repo: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}), bindingRepo: new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}) }),
 })) {
   runAtomicitySuite(`SqlMenuRepo ${each.name}`, each.make);
 }

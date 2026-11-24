@@ -1,3 +1,4 @@
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -5,8 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
   InMemoryBlobStore, uploadMedia, registerTransform, replaceMediaFile } from '@jini-ai/cms/media';
 import { InMemoryPostRepo } from '#src/features/post/repo.memory';
-import { SqlitePostRepo } from '#src/features/post/repo.sqlite';
-import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
+import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/trash-aware-entry-repo';
 import { buildWidgetInstanceFieldsJson } from '@jini-ai/cms/widgets';
@@ -22,7 +22,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
     clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
-    postRepo: db ? new SqlitePostRepo({ store: db }) : new InMemoryPostRepo({}), entryRepo: db ? new SqliteEntryRepo({ store: db }) : trashAwareEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
+    postRepo: db ? new SqlitePostRepo({ store: db }) : new InMemoryPostRepo({}), entryRepo: db ? entryRepoFor({ store: db }) : trashAwareEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>'),

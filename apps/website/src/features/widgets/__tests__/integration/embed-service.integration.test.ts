@@ -1,10 +1,10 @@
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
@@ -557,8 +557,8 @@ test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead
 test("insertWidgetEmbed rolls back document, version, refs and revision when ref persistence fails", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const entryRepo = new SqliteEntryRepo({ store: db });
-  const contentTypeRepo = new SqliteContentTypeRepo({ store: db });
+  const entryRepo = entryRepoFor({ store: db });
+  const contentTypeRepo = contentTypeRepoFor({ store: db });
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: db });
   const memory = makeSharedRepos();
   const deps = makeDeps(memory, { entryRepo, contentTypeRepo, entryRefsRepo });

@@ -1,5 +1,6 @@
-import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
-import { SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { SqliteNewsletterListRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { builtInSeedUploadsDir } from "../site-paths.js";
@@ -36,8 +37,8 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
   // whatever menus this content.db already holds. Fire-and-forget, mirroring `settingsReady`'s
   // shape — logged and swallowed rather than aborting boot, matching W-003's "logs and continues
   // on failure" contract (ADR-PIPE-012 Wiring Map).
-  const menuRepo = new SqliteMenuRepo({ store: kernel });
-  const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });
+  const menuRepo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
+  const navLocationBindingRepo = new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
   const menuBindingsReady = rebuildNavLocationBindings({
     menuRepo,
     bindingRepo: navLocationBindingRepo,

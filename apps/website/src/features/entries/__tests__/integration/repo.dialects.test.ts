@@ -1,3 +1,5 @@
+import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -10,8 +12,6 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createEntry, publishEntry, updateEntry } from "@jini-ai/cms/entries";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import type { CollectionListQuery } from "@jini-ai/cms/entries/site/public-list";
-import { SqliteEntryRepo } from "../../repo.sqlite.js";
-
 /**
  * @file The entry repo contract, by the same assertions on EVERY dialect (SQLite and PGlite): one
  * Kysely query body (`repo.ts`) serves both. Covers workspace scoping, the revision trail, the
@@ -20,7 +20,7 @@ import { SqliteEntryRepo } from "../../repo.sqlite.js";
  */
 
 interface Fixture {
-  repo: SqliteEntryRepo;
+  repo: SqlEntryRepo;
   kernel: ContentKernel;
 }
 
@@ -33,7 +33,7 @@ function lookup(workspaceId: string, key: string, fields: ContentTypeFieldDef[] 
   };
 }
 
-function depsFor(repo: SqliteEntryRepo, idSeed: string, workspaceId = "ws-1", type = "recipe", fields: ContentTypeFieldDef[] = []) {
+function depsFor(repo: SqlEntryRepo, idSeed: string, workspaceId = "ws-1", type = "recipe", fields: ContentTypeFieldDef[] = []) {
   return {
     entryRepo: repo,
     contentTypeRepo: lookup(workspaceId, type, fields),
@@ -51,7 +51,7 @@ const RECIPE_FIELDS: ContentTypeFieldDef[] = [
 ];
 
 async function createPublished(params: {
-  repo: SqliteEntryRepo;
+  repo: SqlEntryRepo;
   idSeed: string;
   slug: string;
   title?: string;
@@ -102,7 +102,7 @@ const listQuery = (overrides: Partial<CollectionListQuery>): CollectionListQuery
 
 describeEachDialect<Fixture>(
   "EntryRepoPort",
-  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: new SqliteEntryRepo({ store: kernel }), kernel }) },
+  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: entryRepoFor({ store: kernel }), kernel }) },
   (make) => {
     test("trash-aware lookups return null for a missing or foreign-workspace row", async () => {
       const { repo } = make();
@@ -137,7 +137,7 @@ describeEachDialect<Fixture>(
       const entry = await createPublished({ repo, idSeed: "r-1", slug: "soup", siteFields: {} });
       const failure = new Error("database connection closed");
       const unavailable: ContentKernel = { ...kernel, run: async () => { throw failure; } };
-      await assert.rejects(new SqliteEntryRepo({ store: unavailable }).save({ ...entry, title: "Must not save" }), (error) => error === failure);
+      await assert.rejects(entryRepoFor({ store: unavailable }).save({ ...entry, title: "Must not save" }), (error) => error === failure);
       assert.equal((await repo.findById({ workspaceId: "ws-1", id: entry.id }))?.title, entry.title);
     });
 

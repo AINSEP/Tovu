@@ -1,3 +1,4 @@
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -11,8 +12,6 @@ import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { importEntry, VersionConflictError } from "@jini-ai/cms/entries";
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import { SqliteEntryRepo } from "../../repo.sqlite.js";
-
 /**
  * @file Entry compare-and-set (wm S3) on a REAL Postgres server, two pooled kernels = two
  * connections: writer A's conditional UPDATE holds the row lock inside an open transaction, writer B's
@@ -56,8 +55,8 @@ async function untilALockWaits(kernel: ContentKernel): Promise<void> {
 }
 
 test("postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict", async () => {
-  const repoA = new SqliteEntryRepo({ store: first });
-  const repoB = new SqliteEntryRepo({ store: second });
+  const repoA = entryRepoFor({ store: first });
+  const repoB = entryRepoFor({ store: second });
   await repoA.save(entry());
 
   let releaseA!: () => void;
@@ -96,10 +95,10 @@ test("postgres: two import-as-creates of one id, B blocked on A's uncommitted in
   const aMayCommit = new Promise<void>((resolve) => (releaseA = resolve));
   let aInserted!: () => void;
   const aHoldsInsert = new Promise<void>((resolve) => (aInserted = resolve));
-  const writerA = importEntry({ deps: { ...base, entryRepo: new SqliteEntryRepo({ store: first }), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
+  const writerA = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: first }), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
 
   await Promise.race([aHoldsInsert, writerA.then((result) => Promise.reject(new Error(`writer A ended before holding its insert: ${JSON.stringify(result)}`)))]);
-  const writerB = importEntry({ deps: { ...base, entryRepo: new SqliteEntryRepo({ store: second }) }, input: input("Writer B") });
+  const writerB = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: second }) }, input: input("Writer B") });
   try {
     await untilALockWaits(first);
   } finally {

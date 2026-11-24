@@ -1,8 +1,7 @@
+import { createSubmissionIpRetentionRepo } from "#src/features/forms/submission-ip-retention";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import * as forms from "@jini-ai/cms/forms";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { createSubmissionIpRetentionRepo } from "#src/features/forms/repo.sqlite";
-
 const consoleLogger = createConsoleLogger({ prefix: "" });
 type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmissionIps;
 

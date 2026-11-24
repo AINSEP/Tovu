@@ -1,11 +1,12 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
 import { createNavMenuReadModel, NAV_DOC_TYPE, type NavMenuReadModel } from "@jini-ai/cms/navigation";
 import { buildMenuTrashFollowUpHooks } from "@jini-ai/cms/navigation/site/menu-trash-follow-ups";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
@@ -24,8 +25,8 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 /**
  * @file A `menu` moved to the Trash through the generic path (`moveToTrash`), seen from every
  * production render surface that reads a menu (T5, plan §2): the header location resolver, the docs
- * sidebar slug lookup, and the menu-as-widget read model. Real SQLite, the real `SqliteMenuRepo`/
- * `SqliteNavLocationBindingRepo`, the real `NavMenuReadModel` — nothing here is a double of the thing
+ * sidebar slug lookup, and the menu-as-widget read model. Real SQLite, the real `SqlMenuRepo`/
+ * `SqlNavLocationBindingRepo`, the real `NavMenuReadModel` — nothing here is a double of the thing
  * under test. Mirrors `form-trash-flow.test.ts`'s harness shape, plus the follow-up-hook wiring
  * `widget-trash-flow.test.ts` demonstrates for a type with its own hooks.
  */
@@ -40,8 +41,8 @@ interface Harness {
   db: ContentDb;
   registry: TrashRegistry;
   trash: TrashPort;
-  menuRepo: SqliteMenuRepo;
-  bindingRepo: SqliteNavLocationBindingRepo;
+  menuRepo: SqlMenuRepo;
+  bindingRepo: SqlNavLocationBindingRepo;
   readModel: NavMenuReadModel;
   events: DomainEvent[];
 }
@@ -53,8 +54,8 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });
-  const menuRepo = new SqliteMenuRepo({ store: db });
-  const bindingRepo = new SqliteNavLocationBindingRepo({ store: db });
+  const menuRepo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: db }), tables: NAVIGATION_TABLES }, {});
+  const bindingRepo = new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: db }), tables: NAVIGATION_TABLES }, {});
 
   const events: DomainEvent[] = [];
   const unreachable = (name: string) => async () => {

@@ -1,16 +1,17 @@
+import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { buildPublishContentCatalog, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import { seededWorkspace, seededPosts, seededPresentation } from "#src/server/runtime/configuration/seed";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -45,7 +46,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
     await prepareContentStore({ kernel: contentKernel({ store: seedDb }) }, { seed: {
       workspace: seededWorkspace, posts: [{ ...page, kind: "page" }], presentation: seededPresentation,
     } });
-    await new SqliteMenuRepo({ store: seedDb }).save({
+    await new SqlMenuRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: NAVIGATION_TABLES }, {}).save({
       id: "menu-header-nav", workspaceId: WORKSPACE, slug: "header-nav", title: "Header Nav",
       status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [],
       updatedAt: clock.nowIso(), version: 1,
@@ -57,7 +58,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
   const livePath = join(dir, "content.db");
   copyFileSync(seedPath, livePath);
   const db = liveDb = openContentDb(livePath);
-  const menuRepo = new SqliteMenuRepo({ store: db });
+  const menuRepo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: db }), tables: NAVIGATION_TABLES }, {});
   const liveDeps: PublishContentDeps = {
     workspaceId: WORKSPACE,
     clock,

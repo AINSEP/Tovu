@@ -1,4 +1,4 @@
-import { FORMS_TABLES } from "#src/features/forms/repo.sqlite";
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

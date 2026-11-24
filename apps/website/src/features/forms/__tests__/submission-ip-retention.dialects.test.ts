@@ -1,8 +1,8 @@
+import { createSubmissionIpRetentionRepo } from "#src/features/forms/submission-ip-retention";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createSubmissionIpRetentionRepo } from "#src/features/forms/repo.sqlite";
 import { toSubmissionRecord } from "@jini-ai/cms/forms/sql";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { KyselyKernel } from "@jini-ai/db/kernel";

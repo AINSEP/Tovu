@@ -226,7 +226,7 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
     growthClass: "unbounded",
     rationale:
       "append-only entry-revision log — one row per gated entry save, written exclusively by " +
-      "features/entries/repo.sqlite.ts. Posts are a structurally distinct repo (features/post/repo.sqlite.ts) " +
+      "@jini-ai/cms/entries/sql. Posts are a structurally distinct repo (features/post/repo.sqlite.ts) " +
       "and never write here — corrected 2026-08-12 (audit LOW #12) after a prior version of this rationale " +
       "claimed posts wrote here too.",
   },
@@ -309,7 +309,7 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
  * `ORDER BY ...::timestamptz` on the identical two rows.
  *
  * This app sorts these columns by plain string collation at multiple call sites — confirmed at
- * `features/entries/repo.sqlite.ts`'s `.orderBy(... entries.updatedAt)` or `desc(entries.updatedAt)`,
+ * `@jini-ai/cms/entries/sql`'s `.orderBy(... entries.updatedAt)` or `desc(entries.updatedAt)`,
  * and other `.orderBy()`/raw `ORDER BY` calls over `*_at` text columns follow the same pattern — none
  * of which cast to `timestamptz` first.
  *

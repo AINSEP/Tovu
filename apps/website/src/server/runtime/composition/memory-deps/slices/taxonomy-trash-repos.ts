@@ -1,8 +1,10 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import type { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
-import { SqliteTermRepo, SqliteTaxonomyRevisionRepo, SqliteTaxonomyRepo, SqliteEntryTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 
@@ -17,12 +19,12 @@ export function composeTaxonomyTrashRepos(required: { taxonomyDb: ContentDb; wor
     )
   );
   const trashRepo = new InMemoryTrashRepo({});
-  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyFollowUpTermRepo = new SqlTermRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
+  const taxonomyFollowUpRevisions = new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db: taxonomyDb, workspaceId });
-  const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyRepo = new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
+  const termRepo = new SqlTermRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
+  const entryTermRepo = new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
+  const taxonomyRevisionRepo = new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: taxonomyDb }), tables: TAXONOMY_TABLES, workspaceId }, {});
   return { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo };
 }

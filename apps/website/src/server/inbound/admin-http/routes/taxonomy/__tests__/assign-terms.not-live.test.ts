@@ -1,3 +1,6 @@
+import { SqlTaxonomyRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +9,6 @@ import type { NextFunction, Request, Response } from "express";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminTaxonomyAssignTermsRoute } from "#src/server/runtime/composition/modules/taxonomy";
 import type { TaxonomyRouteDeps } from "../deps.js";
@@ -27,8 +29,8 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"], jsonBodies: unknown[]
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z"), nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
-    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: "ws-1" }),
-    termRepo: new SqliteTermRepo({ db, workspaceId: "ws-1" }),
+    taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
+    termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
     postRepo,
     stampWatermark: async () => {},
   };

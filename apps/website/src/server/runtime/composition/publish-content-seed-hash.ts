@@ -1,9 +1,15 @@
+import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo } from "@jini-ai/cms/taxonomy/sql";
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { existsSync, readFileSync } from "node:fs";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { inMemoryReadableBytes } from "@jini-ai/db/transfer";
 
-import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
@@ -12,10 +18,6 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
-import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
@@ -103,21 +105,21 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
         blobStore: unusedBySeedInspect({ label: "media.blobStore" }),
         contentTypeStore: unusedBySeedInspect({ label: "media.contentTypeStore" }),
       },
-      menu: { repo: new SqliteMenuRepo({ store: seedDb }), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
+      menu: { repo: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: NAVIGATION_TABLES }, {}), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
       redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
       ...buildContentPublishPorts({
-        formDefinitionRepo: new SqliteFormDefinitionRepo({ store: seedDb }),
-        contentTypeRepo: new SqliteContentTypeRepo({ store: seedDb }),
+        formDefinitionRepo: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: seedDb }), tables: FORMS_TABLES }),
+        contentTypeRepo: contentTypeRepoFor({ store: seedDb }),
         contentTypeIndexProvisioner: unusedBySeedInspect({ label: "contentTypeIndexProvisioner" }),
         workspaceId,
         postRepo: seedPostRepo,
-        taxonomyRepo: new SqliteTaxonomyRepo({ db: seedDb, workspaceId }),
-        termRepo: new SqliteTermRepo({ db: seedDb, workspaceId }),
+        taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+        termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: TAXONOMY_TABLES, workspaceId }, {}),
         // Read by post/page/entry `inspect()` for their `termIds`.
-        entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
+        entryTermRepo: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: seedDb }), tables: TAXONOMY_TABLES, workspaceId }, {}),
         taxonomyRevisionRepo: unusedBySeedInspect({ label: "taxonomyRevisionRepo" }),
         stampWatermark: () => unusedBySeedInspect<{ call: never }>({ label: "stampWatermark" }).call,
-        entryRepo: new SqliteEntryRepo({ store: seedDb }),
+        entryRepo: entryRepoFor({ store: seedDb }),
         entryRefsRepo: unusedBySeedInspect({ label: "entryRefsRepo" }),
         widgetBindingRepo: unusedBySeedInspect({ label: "widgetBindingRepo" }),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.

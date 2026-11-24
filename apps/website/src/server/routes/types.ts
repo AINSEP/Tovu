@@ -357,12 +357,12 @@ export interface ContentTaxonomyDeps {
   /**
    * Assignment persistence with by-term enumeration for gated merge, counts for
    * guarded taxonomy/term deletion, unassignment, and publish-content term-id reads.
-   * Both roots wire `SqliteEntryTermRepo`, which implements these capabilities.
+   * Both roots wire `SqlEntryTermRepo`, which implements these capabilities.
    */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort & UnassignableEntryTermRepoPort & EntryTermReadPort;
   /**
    * Optional public-render read port for terms assigned to a post/page. The real
-   * root shares its `SqliteEntryTermRepo` instance with `entryTermRepo`; the hermetic
+   * root shares its `SqlEntryTermRepo` instance with `entryTermRepo`; the hermetic
    * composition leaves this slot unset. Consumers degrade to no terms rather than
    * throwing; see `resolveAssignedTermsForRender`.
    */

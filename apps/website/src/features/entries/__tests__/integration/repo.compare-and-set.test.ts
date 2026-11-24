@@ -1,3 +1,5 @@
+import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -7,7 +9,6 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "@jini-ai/cms/entries";
 import type { EntryRecord, EntryRevisionInput  } from "@jini-ai/cms/entries";
 import type { EntryRepoPort } from "@jini-ai/cms/entries";
-import { SqliteEntryRepo } from "../../repo.sqlite.js";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 
@@ -159,7 +160,7 @@ runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
   };
   return { repo, trash: (row) => repo.saveAny({ ...row, deletedAt: NOW }), revisionCount: async () => revisions.length };
 });
-for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: new SqliteEntryRepo({ store: kernel }) }) })) {
+for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: entryRepoFor({ store: kernel }) }) })) {
   runCompareAndSetSuite(`SqlEntryRepo ${each.name}`, () => {
     const { kernel, repo } = each.make();
     return {

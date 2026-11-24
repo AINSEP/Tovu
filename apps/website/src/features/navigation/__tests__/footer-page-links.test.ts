@@ -1,3 +1,6 @@
+import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -8,7 +11,6 @@ import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds"
 import { migrateFooterPageLinks } from "../migrate-footer-page-links.js";
 import { resolveMenuDoc, type NavMenuDoc } from "@jini-ai/cms/navigation";
 import { createMenuPageTargetResolver } from "../page-target-resolver.js";
-import { SqliteMenuRepo } from "../repo.sqlite.js";
 import { toAdminMenuResponse } from "@jini-ai/cms/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
 import { postSearchFor } from "#src/features/post/search-index";
@@ -38,7 +40,7 @@ test("footer repair counts no conversion or watermark when the database refuses 
   await kernel.run(db => sql`CREATE TRIGGER refuse_footer_repair BEFORE UPDATE ON menus
     WHEN OLD.id = 'menu-footer-nav' BEGIN SELECT RAISE(IGNORE); END`.execute(db));
   assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark({ kernel }), kernel }, { now: () => "2026-10-17T12:00:00.000Z" }), { converted: 0 });
-  const row = await new SqliteMenuRepo({ store: kernel }).findById({ workspaceId: "ws", id: "menu-footer-nav" });
+  const row = await new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}).findById({ workspaceId: "ws", id: "menu-footer-nav" });
   assert.deepEqual(row?.doc, doc);
   assert.equal(row?.version, 1);
   assert.equal((await kernel.run(db => db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirstOrThrow())).value, 7);
@@ -78,7 +80,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     ].map(row => ({ ...row, workspace_id: "ws", title: row.slug, status: "published", locations_json: "[]", updated_at: "2026-10-04", version: 1 }))).execute());
     const now = "2026-10-17T12:00:00.000Z";
     assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark({ kernel }), kernel }, { now: () => now }), { converted: 2 });
-    const repo = new SqliteMenuRepo({ store: kernel });
+    const repo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
     assert.deepEqual((await repo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))?.doc, {
       ...doc, items: doc.items.map(item => item.id === "menu-item-2"
         ? { ...item, target: { kind: "entryRef", entryId: "contact-page", entryType: "page", lastKnownHref: "/contact" } }
@@ -127,7 +129,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     const pageTarget = { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" };
     assert.deepEqual(converted.items[0], { ...doc.items[0], target: pageTarget });
     assert.deepEqual(JSON.parse(rows.find((row) => row.slug === "footer-resources")!.doc_json).items[0].children[0].target, pageTarget);
-    const menuRepo = new SqliteMenuRepo({ store: kernel });
+    const menuRepo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
     const readMenu = await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" });
     assert.ok(readMenu);
     await menuRepo.save(readMenu);

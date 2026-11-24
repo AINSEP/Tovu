@@ -1,3 +1,6 @@
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,8 +15,6 @@ import {
   type NavMenuDoc,
   type NavMenuEntry,
 } from "@jini-ai/cms/navigation";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
-
 /**
  * @file Shared contract-test suites for `MenuRepoPort` and
  * `NavLocationBindingRepoPort` (ADR-PIPE-012 D-5, C-008a/C-008b, T015/T016).
@@ -136,7 +137,7 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
 }
 
 runMenuRepoContractSuite("InMemoryMenuRepo", () => new InMemoryMenuRepo({}));
-const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqliteMenuRepo({ store: kernel }) }) });
+const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}) }) });
 for (const each of menuDialects) {
   runMenuRepoContractSuite(`SqlMenuRepo ${each.name}`, () => each.make().repo);
 }
@@ -162,7 +163,7 @@ for (const each of menuDialects) {
     const row = sampleMenu();
     await repo.save(row);
     const failure = new Error("storage unavailable");
-    const unavailable = new SqliteMenuRepo({ store: { ...kernel, run: async () => { throw failure; } } });
+    const unavailable = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: { ...kernel, run: async () => { throw failure; } } }), tables: NAVIGATION_TABLES }, {});
     await assert.rejects(unavailable.save({ ...row, title: "Must not persist" }), error => error === failure);
     assert.deepEqual(await repo.findById({ workspaceId: row.workspaceId, id: row.id }), row);
   });
@@ -294,7 +295,7 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
 }
 
 runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo({}));
-const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqliteNavLocationBindingRepo({ store: kernel }) });
+const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}) });
 for (const each of bindingDialects) {
   runBindingRepoContractSuite(`SqlNavLocationBindingRepo ${each.name}`, each.make);
 }

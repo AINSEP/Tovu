@@ -192,7 +192,7 @@ test("every autoincrement identity column is covered by identity reseeding, inde
 
 test("entry_revisions.seq's rationale correctly scopes to entries, not posts — features/post/repo.sqlite.ts never writes entry_revisions (LOW #12 correction)", () => {
   const rationale = REVIEWED_INTEGER_ID_COLUMNS["entry_revisions.seq"]?.rationale ?? "";
-  assert.ok(rationale.includes("features/entries/repo.sqlite.ts"), "rationale should name the actual writer");
+  assert.ok(rationale.includes("@jini-ai/cms/entries/sql"), "rationale should name the actual writer");
   assert.ok(!/entry\/post save/.test(rationale), "rationale must not repeat the false 'every entry/post save' claim");
 });
 

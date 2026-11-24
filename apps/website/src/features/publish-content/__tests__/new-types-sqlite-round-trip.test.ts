@@ -1,3 +1,9 @@
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
+import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { FORMS_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -5,13 +11,9 @@ import test from "node:test";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
 import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { contributeFormPublish } from "#src/features/forms/publish-content";
-import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
-import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import { createWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -32,11 +34,11 @@ const at = "2026-09-01T00:00:00.000Z";
 function instance(name: string) {
   const db = openContentDb(":memory:");
   const repos = {
-    forms: new SqliteFormDefinitionRepo({ store: db }),
-    contentTypes: new SqliteContentTypeRepo({ store: db }),
-    entries: new SqliteEntryRepo({ store: db }),
+    forms: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
+    contentTypes: contentTypeRepoFor({ store: db }),
+    entries: entryRepoFor({ store: db }),
     entryRefs: new SqliteEntryRefsRepo({ store: db }),
-    bindings: new SqliteWidgetRegionBindingRepo(db),
+    bindings: widgetRegionBindingRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: WIDGETS_TABLES }),
   };
   const widget = { entries: repos.entries, contentTypes: repos.contentTypes, entryRefs: repos.entryRefs, bindings: repos.bindings, forms: repos.forms };
   let n = 0;

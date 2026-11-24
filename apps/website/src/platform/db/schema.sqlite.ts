@@ -417,8 +417,8 @@ export const settingValuesUser = sqliteTable(
  * Menus (ADR-PIPE-012 D-5 — rule-of-two SQLite adapter for `MenuRepoPort`).
  * Mirrors the `posts` table shape: id/workspaceId/slug/title/status +
  * JSON-text columns for the tree (`docJson`) and location assignments
- * (`locationsJson`), + updatedAt/version for OCC. `SqliteMenuRepo`
- * (`apps/website/src/features/navigation/repo.sqlite.ts`) is the adapter that reads/writes this
+ * (`locationsJson`), + updatedAt/version for OCC. `SqlMenuRepo`
+ * (`@jini-ai/cms/navigation/sql`) is the adapter that reads/writes this
  * table; the in-memory adapter (`InMemoryMenuRepo`, `repo.memory.ts`) is the
  * other rule-of-two half, unchanged by this table's existence.
  */
@@ -446,7 +446,7 @@ export const menus = sqliteTable(
  * D-5/D-8). `UNIQUE(workspace_id, location_key)` is the DB-level enforcement
  * of INV-02 (never two menus bound to the same location) — a genuine
  * strengthening over the in-memory adapter's single-threaded-only guarantee
- * (see `SqliteNavLocationBindingRepo.upsert`'s `onConflictDoUpdate`).
+ * (see `SqlNavLocationBindingRepo.upsert`'s `onConflictDoUpdate`).
  */
 export const navLocationBindings = sqliteTable(
   "nav_location_bindings",

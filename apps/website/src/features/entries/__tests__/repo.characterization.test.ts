@@ -1,3 +1,4 @@
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -6,8 +7,6 @@ import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-k
 import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
-import { SqliteEntryRepo } from "../repo.sqlite.js";
-
 /**
  * @file S2b T0: the entry repo's write-completion contract on the unmoved code, before its query body moves to Jini
  * `@jini-ai/cms/entries/sql`. After every `save` and every `transaction`, success OR failure, the media access-evidence
@@ -25,7 +24,7 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache(kernel = recordingKernel().kernel) {
-  const repo = new SqliteEntryRepo({ store: kernel });
+  const repo = entryRepoFor({ store: kernel });
   const cache = getMediaAccessEvidenceCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();
