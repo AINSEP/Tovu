@@ -78,6 +78,7 @@ export function buildRenderUiRegistrations(
       tool: renderUiAgentToolCatalog[0]!,
       exchanges: surfaces.surfaceExchanges,
       parseAgentMessage: parseAgentToRendererMessage,
+      // The catalog every surface this tool creates is validated against (same catalog the chat renderer builds).
       catalog: createLabCatalog({}),
       displayOnlyProperty: A2UI_DISPLAY_ONLY_PROPERTY,
       copy: RENDER_UI_COPY,

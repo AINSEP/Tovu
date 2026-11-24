@@ -13796,6 +13796,58 @@
     {
       "id": "5fca575c680e",
       "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/held-back.ts (Jini 48f2aeca5), reworded neutral; the Tovu file no longer holds the route spec these comments explained."
+    },
+    {
+      "id": "4b0036ec1fa1",
+      "reason": "Header moved to Jini packages/platform/src/secrets/legacy-codecs.ts (Jini 32c257cef, which holds the same site_assistant_credentials AAD rationale reworded to name the sibling legacy-codecs.ts); Tovu's apps/website/src/server/runtime/composition/vault-legacy-codecs.ts was deleted outright by f58cb893d, so the code it explained no longer exists here."
+    },
+    {
+      "id": "8cd102526786",
+      "reason": "Header moved to Jini packages/platform/src/secrets/legacy-codecs.ts (Jini 32c257cef, which holds the same admin_execution_credentials AAD rationale reworded to name the sibling legacy-codecs.ts); Tovu's apps/website/src/server/runtime/composition/vault-legacy-codecs.ts was deleted outright by f58cb893d, so the code it explained no longer exists here."
+    },
+    {
+      "id": "c352c539f21b",
+      "reason": "Header moved to Jini packages/platform/src/secrets/legacy-codecs.ts (Jini 32c257cef, which holds the same external_mcp_servers (two-builder / domain-separation) AAD rationale reworded to name the sibling legacy-codecs.ts); Tovu's apps/website/src/server/runtime/composition/vault-legacy-codecs.ts was deleted outright by f58cb893d, so the code it explained no longer exists here."
+    },
+    {
+      "id": "bd85bcedeb20",
+      "reason": "Header moved to Jini packages/platform/src/secrets/legacy-codecs.ts (Jini 32c257cef, which holds the same media_provider_credentials AAD rationale reworded to name the sibling legacy-codecs.ts); Tovu's apps/website/src/server/runtime/composition/vault-legacy-codecs.ts was deleted outright by f58cb893d, so the code it explained no longer exists here."
+    },
+    {
+      "id": "ac1ad75db349",
+      "reason": "Header moved to Jini packages/platform/src/secrets/legacy-codecs.ts (Jini 32c257cef, which holds the same database_transfer_destinations AAD rationale reworded to name the sibling legacy-codecs.ts); Tovu's apps/website/src/server/runtime/composition/vault-legacy-codecs.ts was deleted outright by f58cb893d, so the code it explained no longer exists here."
+    },
+    {
+      "id": "8f2f2d6dbd62",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/held-back.ts (Jini 48f2aeca5): `refusalFor`/`refusing` and the HeldBackFailureDeps doc ('a service or approval refusal as the route's own response, or the error unchanged'; anything neither family claims is rethrown as an ERR- reference) now own this mapping; Tovu's sendHeldBackFailure was deleted by 30aadbe78."
+    },
+    {
+      "id": "dfc4d19eca6a",
+      "reason": "Explained helper `allowed` (workspace guard + principal + one permission) was deleted by 30aadbe78; the same job is now done by the shared admin JSON route mount, and `mountOptions` in the same Tovu file ('RBAC answers directly') plus Jini held-back.ts `requirePrincipal` carry the why."
+    },
+    {
+      "id": "55993848a173",
+      "reason": "The Tovu test file agent-daemon-deps.plugin-activation-poll.test.ts and its console.warn capture helper were deleted by 693e0d4f7; polling moved to Jini packages/plugins/src/host (activation-polling.ts, Jini 32c257cef) which logs through an injected logger port, documented at activation-polling.unit.test.ts ('A logger port for these tests')."
+    },
+    {
+      "id": "636324323151",
+      "reason": "The cast this explained (`deps.httpClient as unknown as MailProviderCallContext[\"httpClient\"]`) was deleted by 604afc515 (B284); the surviving `toEngineHttpClient` doc in mail-provider-catalog.ts states the same fact (Tovu's positional send(request, opts) becomes Jini's send({ request }, opts)), and the call site comment says it too."
+    },
+    {
+      "id": "9f5949f7acec",
+      "reason": "The `\"user-local\"` placeholder this explained was deleted by 47a0aa2e8 (B236): owner/creator now come from the signed-in operator, and the replacement comment at the same lines records that dev auth's session still stamps `\"user-local\"`."
+    },
+    {
+      "id": "2cde55f1eb43",
+      "reason": "The KNOWN GAP this explained was closed by 632349d1f (B109): Jini's handler now receives the host Soon list through the `hostMaturity` port (host-tool-ports.ts); the comment at the same lines was updated in place to say so instead of keeping a gap claim that is no longer true."
+    },
+    {
+      "id": "327123ba7d8d",
+      "reason": "The captured-handler invocation and its `setImmediate` flush were deleted by 22857af65: the test now drives the production route over real HTTP via startMcpUiToolCallsServer, which awaits the response, so there is no unreturned handler promise to wait out; the replacement comment explains the new shape."
+    },
+    {
+      "id": "58fb9fa45c08",
+      "reason": "The `@jini-ai/cms/publish/content/dialog` path this comment named no longer exists: 8d589429f repointed the test at `publish/content/ui`, and the comment at the same lines was updated in place with the same rationale (admin and the server tool import from the package; guard its SOURCE folder)."
     }
   ]
 }
