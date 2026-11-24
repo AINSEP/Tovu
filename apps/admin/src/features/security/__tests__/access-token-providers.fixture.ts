@@ -1,5 +1,7 @@
 import type { AdminSourceControlProviderDescriptor } from "@jini-ai/admin/source-control/api/source-control-api.types";
-import { accessTokenProviders } from "../access-token-providers";
+import { accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";
+import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 
 /**
@@ -43,4 +45,4 @@ export const SOURCE_CONTROL_TEST_DESCRIPTORS: readonly AdminSourceControlProvide
   },
 ];
 
-export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders({ publishTargets: PUBLISH_TARGETS }, { sourceControlProviders: SOURCE_CONTROL_TEST_DESCRIPTORS });
+export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders({ publishTargets: PUBLISH_TARGETS, copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: sourceControlProviderInfoFromDescriptor }, { sourceControlProviders: SOURCE_CONTROL_TEST_DESCRIPTORS });

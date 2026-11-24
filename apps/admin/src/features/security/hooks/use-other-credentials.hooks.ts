@@ -10,7 +10,8 @@ import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { tSecurity as defaultT } from "../../../lib/i18n-common";
 import { accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "../other-credential-stores";
-import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, type AccessTokenCategoryId } from "../rules";
+import { ACCESS_TOKENS_RESOURCE } from "../rules";
+import { accessTokenCategoryMatches, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 

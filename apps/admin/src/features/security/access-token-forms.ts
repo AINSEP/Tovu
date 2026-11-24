@@ -1,26 +1,12 @@
-import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "./custom-credential-forms";
+import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "@jini-ai/admin/security/custom-credential-forms";
 import type { AdminPublishConnectionInput, AdminPublishCredentialProviderId } from "@jini-ai/admin/security/api/security-api.types";
 import type { AdminSourceControlConnectionInput } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { ApiError } from "../../lib/admin-http/request";
 import { buildCredentialConnectionInput, fieldNameHandleSegment, requiredFieldsFilled } from "../deployment/rules";
 import { buildSourceControlConnectionInput } from "../source-control/rules";
-import { type AccessTokenProviderRef, type AccessTokenProviderInfo } from "./access-token-providers";
+import type { AccessTokenFormFields, AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { SOURCE_CONTROL } from "./rules";
 import { type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
-/** One token form's fields, kept together as one shape so {@link buildAccessTokenConnectionInput}
- *  and {@link accessTokenRowReadyToSave} share a single parameter type — mirrors
- *  `SourceControlCredentialFormFields`'s role, plus `name` (the one genuinely new field this page
- *  introduces — see `AccessTokenRow.name`'s own doc) and `values`, the draft of the provider's
- *  {@link AccessTokenProviderInfo.extraFields} keyed by field name. */
-export interface AccessTokenFormFields {
-  readonly worksFor?: string[];
-  readonly ref: AccessTokenProviderRef;
-  readonly name: string;
-  readonly token: string;
-  readonly values: Readonly<Record<string, string>>;
-  readonly username: string;
-}
-
 /** Whether the provider's required extra fields are filled. @complexity O(f). */
 function accessTokenRequiredFieldsFilled(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
   return requiredFieldsFilled({ fields: info.extraFields, values: fields.values });
