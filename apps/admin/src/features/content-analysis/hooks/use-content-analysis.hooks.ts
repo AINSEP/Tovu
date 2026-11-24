@@ -1,6 +1,7 @@
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentAnalysis, type ContentAnalysisController, type ContentAnalysisTarget } from "@jini-ai/admin/screens/content-analysis/hooks/use-content-analysis.hooks";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { defaultContentAnalysisPort } from "./content-analysis-dependencies.hooks";
 
 /**
@@ -10,11 +11,11 @@ import { defaultContentAnalysisPort } from "./content-analysis-dependencies.hook
  */
 
 /**
- * Binds the real preview status and preview route and the resolved `useAdminLocale()` value — the
+ * Binds the real preview status and preview route and the resolved `useAdminLocale()` value, plus the host's query/mutation hooks that the screen requires injected — the
  * zero-dependency half of the pair, so `ContentAnalysisCard.tsx` composes this and a test composes
  * {@link useContentAnalysis} with `createFakeContentAnalysisPort`.
  */
 export function useWiredContentAnalysis(props: ContentAnalysisTarget): ContentAnalysisController {
   const locale = useAdminLocale();
-  return useContentAnalysis(props, { port: defaultContentAnalysisPort, locale });
+  return useContentAnalysis(props, { port: defaultContentAnalysisPort, locale, useFetchQuery, useFetchMutation });
 }

@@ -1,6 +1,7 @@
 import { act, waitFor } from "@testing-library/react";
 import { renderHook } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
@@ -39,7 +40,7 @@ function target(overrides: Partial<ContentAnalysisTarget> = {}): ContentAnalysis
 }
 
 function mount(port: ContentAnalysisPort, initial: ContentAnalysisTarget = target(), locale = "en") {
-  return renderHook((props: ContentAnalysisTarget) => useContentAnalysis(props, { port, locale }), { wrapper, initialProps: initial });
+  return renderHook((props: ContentAnalysisTarget) => useContentAnalysis(props, { port, locale, useFetchQuery, useFetchMutation }), { wrapper, initialProps: initial });
 }
 
 describe("showing the card", () => {
