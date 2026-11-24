@@ -13,7 +13,8 @@
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { MediaStillReferencedError } from "@jini-ai/cms/media";
-import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 
 export const MEDIA_ENTITY_TYPE = "media";
 

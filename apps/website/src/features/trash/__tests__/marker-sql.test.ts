@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { flipMarker, lazyKernel } from "../adapters/marker-sql.js";
+import { flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
 
 // F2.5: the injected content kernel is the port; adapter creation must not query its connection.
 test("lazy kernel preserves the supplied kernel without querying its connection", (t) => {

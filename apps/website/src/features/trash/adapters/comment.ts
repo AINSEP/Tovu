@@ -15,7 +15,8 @@
 // re-deriving the table name here instead would put the same string in two files.
 import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { compareAndDelete, flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 
 export const COMMENT_ENTITY_TYPE = "comment";
 
