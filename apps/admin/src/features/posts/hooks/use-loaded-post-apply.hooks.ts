@@ -34,7 +34,7 @@ function isLoadedBodyInEditor(
   { loadedRow, appliedRow, editor }: { loadedRow: LoadedPostRow | null; appliedRow: AppliedRow | null; editor: Editor | null },
   _options: Record<string, never> = {},
 ): boolean {
-  return loadedRow !== null && appliedRow?.row === loadedRow && appliedRow.editor === editor && isLiveEditor(editor);
+  return loadedRow !== null && appliedRow?.row === loadedRow && appliedRow.editor === editor && isLiveEditor({ editor });
 }
 
 /**
@@ -81,14 +81,16 @@ export function useLoadedPostApply(
   }
   function takeLoadedRow(row: LoadedPostRow): void {
     setLoadedRow(row);
-    if (isLiveEditor(latestEditor.current)) applyRowTo({ row, editor: latestEditor.current });
+    const latest = { editor: latestEditor.current };
+    if (isLiveEditor(latest)) applyRowTo({ row, editor: latest.editor });
   }
   const applyNow = useRef(applyRowTo);
   applyNow.current = applyRowTo;
   useEffect(() => {
-    if (loadedRow === null || !isLiveEditor(editor)) return;
-    if (attemptedApply.current?.row === loadedRow && attemptedApply.current.editor === editor) return;
-    applyNow.current({ row: loadedRow, editor });
+    const target = { editor };
+    if (loadedRow === null || !isLiveEditor(target)) return;
+    if (attemptedApply.current?.row === loadedRow && attemptedApply.current.editor === target.editor) return;
+    applyNow.current({ row: loadedRow, editor: target.editor });
   }, [loadedRow, editor]);
 
   return { takeLoadedRow, clearLoadedRow: () => setLoadedRow(null), bodyReady: isLoadedBodyInEditor({ loadedRow, appliedRow, editor }) };

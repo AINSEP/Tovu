@@ -1,4 +1,5 @@
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
+import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useJiniMediaPicker } from "@jini-ai/admin/shell/components/MediaPickerDialog/JiniMediaPicker.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ApiError } from "../../lib/admin-http/request";
@@ -159,6 +160,7 @@ export const jiniMediaPickerHostArgs = {
   port: defaultMediaPickerPort,
   errorRedaction: TOVU_ERROR_REDACTION_OPTIONS,
   errorIdOf: (cause: unknown) => cause instanceof ApiError && typeof cause.body?.errorId === "string" ? cause.body.errorId : undefined,
+  useCachedLoader,
 };
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */

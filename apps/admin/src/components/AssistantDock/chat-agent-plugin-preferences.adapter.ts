@@ -1,4 +1,5 @@
 /** Bind the plugin preference to the same per-person ledger and live feed as chat display. */
+import { useFetchQuery, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
 import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
 import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
@@ -40,5 +41,5 @@ export const chatAgentPluginsPreferencePort: ChatAgentPluginsPort = createChatAg
 
 /** Composition hook used by the dock; the controller itself only receives an injected port. */
 export function useChatAgentPluginsPreference(): ChatAgentPluginsController {
-  return useChatAgentPlugins({ port: chatAgentPluginsPreferencePort, namespace: CHAT_DISPLAY_NAMESPACE });
+  return useChatAgentPlugins({ port: chatAgentPluginsPreferencePort, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate });
 }

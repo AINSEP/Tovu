@@ -136,10 +136,10 @@ describe("isLiveEditor", () => {
   it("is false for a missing editor and for a destroyed one, true for a working one", async () => {
     const { result } = mount(createFakePostEditorPort({ post: POST }));
     const editor = result.current.editor!;
-    expect(isLiveEditor(null)).toBe(false);
-    expect(isLiveEditor(editor)).toBe(true);
+    expect(isLiveEditor({ editor: null })).toBe(false);
+    expect(isLiveEditor({ editor })).toBe(true);
     act(() => { editor.destroy(); });
-    expect(isLiveEditor(editor)).toBe(false);
+    expect(isLiveEditor({ editor })).toBe(false);
   });
 });
 

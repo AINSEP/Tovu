@@ -84,7 +84,7 @@ describe("rows", () => {
     expect(radios.map((radio) => [radio.type, radio.getAttribute("role"), radio.getAttribute("aria-checked"), radio.checked, radio.labels?.[0]?.textContent])).toEqual([
       ["radio", "menuitemradio", "true", true, "Shown"], ["radio", "menuitemradio", "false", false, "Hidden"],
     ]);
-    const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".row-menu-item"));
+    const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".jini-row-menu-item"));
     expect(rows.map((row) => [row.getAttribute("role"), row.getAttribute("aria-checked"), Boolean(row.querySelector(".jini-dock-settings-menu-check"))])).toEqual([
       ["menuitemcheckbox", "false", true], ["menuitem", null, false], ["menuitem", null, false],
     ]);
@@ -92,7 +92,7 @@ describe("rows", () => {
 
   it("marks only disabled rows aria-disabled and describes only rows with their own tooltip", () => {
     renderMenu(PLACED);
-    const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".row-menu-item"));
+    const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".jini-row-menu-item"));
     expect(rows.map((row) => row.getAttribute("aria-disabled"))).toEqual([null, null, "true"]);
     expect(rows.map((row) => row.getAttribute("aria-describedby")?.endsWith("-wrap") ?? null)).toEqual([true, null, null]);
   });

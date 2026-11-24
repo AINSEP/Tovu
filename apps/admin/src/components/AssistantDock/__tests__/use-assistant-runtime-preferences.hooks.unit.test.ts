@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, type AssistantRuntimePreferences } from "../assistant-runtime-preferences";
@@ -27,7 +28,7 @@ describe("reply length through the runtime preferences hook", () => {
   it("defaults to Normal, loads stored Detailed, and applies and saves Short immediately", async () => {
     const { port, refresh } = fakePort();
     refresh({ replyLength: "detailed", preferSubagents: false });
-    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES }));
+    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, useFetchQuery, useInvalidate }));
     expect(result.current.preferences.replyLength).toBe("normal");
     await waitFor(() => expect(result.current.preferences.replyLength).toBe("detailed"));
     const previous = result.current.preferences;
@@ -41,7 +42,7 @@ describe("reply length through the runtime preferences hook", () => {
     const { port, refresh } = fakePort();
     // Simulate a successful save whose effective read is briefly stale.
     port.save = vi.fn(async () => {});
-    const { result, unmount } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES }));
+    const { result, unmount } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, useFetchQuery, useInvalidate }));
     // TanStack batches query notifications on timers. Empty act() calls can let the Detailed
     // refresh overtake the Short acknowledgement, so the hook never sees stored values agree.
     const flush = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
@@ -67,7 +68,7 @@ describe("reply length through the runtime preferences hook", () => {
     const { port } = fakePort();
     const pending: (() => void)[] = [];
     port.save = vi.fn(() => new Promise<void>(resolve => pending.push(resolve)));
-    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES }));
+    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, useFetchQuery, useInvalidate }));
     await act(async () => {});
     act(() => {
       result.current.update({ replyLength: "short" });
@@ -84,7 +85,7 @@ describe("reply length through the runtime preferences hook", () => {
   it("keeps the chosen length for the session and reports save failures", async () => {
     const { port } = fakePort();
     port.save = vi.fn(async () => { throw new Error("write failed"); });
-    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES }));
+    const { result } = renderHook(() => useAssistantRuntimePreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, useFetchQuery, useInvalidate }));
     await act(async () => {});
     await act(async () => result.current.update({ replyLength: "short" }));
     expect(result.current.preferences.replyLength).toBe("short");

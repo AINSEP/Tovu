@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { ChatSettingsDialog, ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -131,14 +132,14 @@ function fakePort(stored: ChatAgentPlugins = "auto"): FakePort {
 describe("useChatAgentPlugins", () => {
   it("is Auto until the stored mode arrives, then follows it", async () => {
     const port = fakePort("off");
-    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     expect(result.current.mode).toBe("auto");
     await waitFor(() => expect(result.current.mode).toBe("off"));
   });
 
   it("applies a choice at once and saves the diff for this person", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     await waitFor(() => expect(port.stored).toBe("auto"));
     act(() => result.current.update("off"));
     expect(result.current.mode).toBe("off");
@@ -151,7 +152,7 @@ describe("useChatAgentPlugins", () => {
   it("keeps the choice and reports a failed save", async () => {
     const port = fakePort("auto");
     port.failSaves = true;
-    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     act(() => result.current.update("ask"));
     await waitFor(() => expect(result.current.saveFailed).toBe(true));
     expect(result.current.mode).toBe("ask");
@@ -159,7 +160,7 @@ describe("useChatAgentPlugins", () => {
 
   it("re-reads when another surface saves", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     await waitFor(() => expect(result.current.mode).toBe("auto"));
     port.stored = "ask";
     act(() => port.refresh());

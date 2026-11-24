@@ -267,11 +267,11 @@
      right/bottom edges), never `left`, regardless of where on screen the FAB was dropped. */
   transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
 }
-/* While a row ⋮ menu is open (portaled to <body>, `.row-menu-popup` at 70 in styles.css), the FAB
+/* While a row ⋮ menu is open (portaled to <body>, `.row-menu-popup`/`.jini-row-menu-popup` at 70 in styles.css/jini-media.css), the FAB
    drops just under it: a menu opened near the bottom-right corner (the Themes card menu on a 390px
    phone) had its "Delete theme…" item under the FAB (Chrome check, 2026-10-11). The menu is
    transient and the operator just opened it; the FAB is back on top the moment it closes. */
-body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
+body:has(> .row-menu-popup, > .jini-row-menu-popup) .chat-fab { z-index: 69; }
 
 /* Desktop open state: the composer is pinned to the dock's bottom edge, which is exactly where the
    FAB rests, so the FAB covered Send. Reserving an 84px strip under the composer for it left the
@@ -503,12 +503,14 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
 
 /* A "coming soon" row in a portaled row menu (the dock gear's): visibly inert, no hover fill. */
 .row-menu-item[aria-disabled="true"],
-.row-menu-item[aria-disabled="true"]:hover {
+.row-menu-item[aria-disabled="true"]:hover,
+.jini-row-menu-item[aria-disabled="true"],
+.jini-row-menu-item[aria-disabled="true"]:hover {
   background: transparent;
   color: var(--muted);
   cursor: default;
 }
-.row-menu-item[aria-disabled="true"]:focus-visible { background: var(--surface-2); }
+.row-menu-item[aria-disabled="true"]:focus-visible, .jini-row-menu-item[aria-disabled="true"]:focus-visible { background: var(--surface-2); }
 
 /* The dock gear's settings menu (`DockSettingsMenu`, owner 2026-10-11): a muted heading per group,
    a divider between groups, and a check-mark column that is always laid out (hidden when off) so a
@@ -519,7 +521,7 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
    separators would collapse to nothing). */
 .jini-dock-settings-menu > * { flex-shrink: 0; }
 .jini-dock-settings-menu-row { display: flex; align-items: center; }
-.jini-dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
+.jini-dock-settings-menu-row > .jini-row-menu-item { flex: 1; min-width: 0; }
 .jini-dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
 /* A radio group's one ⓘ (`groupOptionTooltips`) follows its heading's text. */
 .jini-dock-settings-menu-heading-row { display: flex; align-items: center; }
@@ -534,11 +536,11 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
 /* Tool calls / Agent plugins: the Chat settings dialog's segmented pill, inset to the rows' text. */
 .jini-dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
 .jini-dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
-.jini-dock-settings-menu .row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
-.jini-dock-settings-menu .row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.jini-dock-settings-menu .jini-row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.jini-dock-settings-menu .jini-row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .jini-dock-settings-menu-check { flex: 0 0 14px; display: inline-flex; visibility: hidden; color: var(--fg); }
-.jini-dock-settings-menu .row-menu-item[aria-checked="true"] .jini-dock-settings-menu-check { visibility: visible; }
-.jini-dock-settings-menu .row-menu-item[aria-checked="true"] { color: var(--fg); }
+.jini-dock-settings-menu .jini-row-menu-item[aria-checked="true"] .jini-dock-settings-menu-check { visibility: visible; }
+.jini-dock-settings-menu .jini-row-menu-item[aria-checked="true"] { color: var(--fg); }
 .jini-dock-settings-menu-notice {
   max-width: 14rem;
   margin: var(--space-1) 0 0;

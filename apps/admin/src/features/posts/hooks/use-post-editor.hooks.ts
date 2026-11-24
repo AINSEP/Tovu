@@ -1134,8 +1134,9 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function restoreRecoveredDraft(): void {
     const draft: (NonNullable<typeof autosave.recoverableDraft> & { author?: string | null; showAuthor?: boolean }) | null = autosave.recoverableDraft;
-    if (!draft || draft.bodyJson === undefined || !isLiveEditor(editor)) return;
-    editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
+    const target = { editor };
+    if (!draft || draft.bodyJson === undefined || !isLiveEditor(target)) return;
+    target.editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
     setTitle(draft.title);
     setSlug({ value: draft.slug });
     if (draft.author !== undefined) setAuthor(draft.author ?? "");
@@ -1164,7 +1165,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function setTitleAndSyncEditor({ next }: { next: string }, _options: Record<string, never> = {}): void {
     setTitle(next);
-    if (isLiveEditor(editor)) editor.commands.setPostTitleText({ text: next });
+    const target = { editor };
+    if (isLiveEditor(target)) target.editor.commands.setPostTitleText({ text: next });
   }
 
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
