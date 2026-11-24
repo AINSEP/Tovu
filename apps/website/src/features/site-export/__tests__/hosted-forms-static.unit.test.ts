@@ -10,7 +10,8 @@ import type { JsonObject } from '@jini-ai/core/primitives';
 import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
 import { exportHtml } from '../export-html-policy.js';
-import { downloadForms } from '#src/features/site-backup/static-download-html';
+import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
+import * as sourceEdits from '#src/platform/html/source-edits';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';
 import { createShareArchiveReader } from '../../site-backup/import-archive-reader.js';
 
@@ -34,7 +35,7 @@ test('the packaged hosted form keeps the same consent and fallback markup throug
   assert.equal(plan.kind, 'embed');
   const live = widget(plan);
   const html = exportHtml({ html: `<!doctype html><html><head></head><body>${live}</body></html>` });
-  const download = downloadForms({ html, page: '/contact' });
+  const download = downloadForms({ html, page: '/contact', sourceEdits });
   assert.deepEqual(download.removed, []);
   assert.ok(download.html.includes(live));
   assert.doesNotMatch(live, /<iframe[^>]*\ssrc=/);
@@ -63,7 +64,7 @@ test('the same packaged plan delivers ordinarily in explicit consent-off mode', 
   const html = widget(plan, true);
   assert.ok(html.includes(`<iframe src="${publicUrl}?embedded=true"`));
   assert.match(html, /If this form does not open, open it on Google or contact the site owner\./);
-  assert.ok(downloadForms({ html, page: '/contact' }).html.includes(html));
+  assert.ok(downloadForms({ html, page: '/contact', sourceEdits }).html.includes(html));
 });
 
 
@@ -77,7 +78,7 @@ test('two static form exports agree when time and occurrence identifiers are con
     const native = renderWidgetIr({ componentId: 'contact-form', props: { slug: 'native', fields: [
       { id: 'message', type: 'textarea', label: 'Message', required: true },
     ] } });
-    const html = downloadForms({ html: exportHtml({ html: `<!doctype html><html><head></head><body>${native}${widget(plan)}</body></html>` }), page: '/contact' }).html;
+    const html = downloadForms({ html: exportHtml({ html: `<!doctype html><html><head></head><body>${native}${widget(plan)}</body></html>` }), page: '/contact', sourceEdits }).html;
     const archive = await buildStaticSiteZip({ copy: {
       filename: 'repeat-static.zip', siteSlug: 'fixture',
       metadata: { exportedAt: new Date().toISOString(), theme: 'fixture', routes: ['/contact'], failed: { routes: [], assets: [] }, skipped: { routes: [], assets: [], references: [] } },

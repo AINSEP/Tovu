@@ -35,7 +35,7 @@ import { createSiteShareBackend } from "../../share-backend.js";
 import { createSiteImportBackend } from "../../import-backend.js";
 import { SiteShareRegistry } from "../../share-registry.js";
 import { prepareShareContent } from "../../share-preparation.js";
-import { SAVED_KEYS_PATH } from "../../saved-keys-port.js";
+import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { importFixture, MEDIA, OWNER_PASSWORD, reader } from "../import.fixture.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { rebuildImportDatabase } from "../../../../server/runtime/composition/site-portability.js";

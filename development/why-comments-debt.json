@@ -5468,6 +5468,62 @@
     {
       "id": "1ef200a805e2",
       "reason": "Moved to Jini @jini-ai/admin/source-control/source-control-i18n.ts (admin6 source-control-i18n), reworded neutral: `lib/credential-submit-error.ts` now cited as the host's own file."
+    },
+    {
+      "id": "513191333627",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/saved-keys-port (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "8547c258d054",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/saved-keys-port (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "5973282d53c1",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "8b112d320d55",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "936c300b6995",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "a99d0ae548bd",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "95a4a61fd9e2",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "e2e82d3f2e69",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "11e4ba09f2d1",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "367f9291ccae",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "eb85e56180a5",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "481eff0d6852",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "7c636e4a7f9e",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), verbatim."
+    },
+    {
+      "id": "ae9b5b494419",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), reworded: the @example now passes the injected sourceEdits editor; rationale unchanged."
     }
   ]
 }
