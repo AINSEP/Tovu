@@ -60,7 +60,7 @@ async function serve(t: test.TestContext) {
   const base = await startTestServer(app, t);
   const call = async (method: string, suffix: string, init: { body?: unknown; type?: string; workspace?: string } = {}): Promise<Wire> => {
     const url = `${base}${ROOT.replace("/ws/", `/${init.workspace ?? "ws"}/`)}${suffix}`;
-    const body = init.body === undefined ? undefined : Buffer.isBuffer(init.body) ? init.body : JSON.stringify(init.body);
+    const body = init.body === undefined ? undefined : Buffer.isBuffer(init.body) ? new Uint8Array(init.body) : JSON.stringify(init.body);
     const headers = body === undefined ? undefined : { "content-type": init.type ?? "application/json" };
     const response = await fetch(url, { method, headers, body });
     return { status: response.status, type: response.headers.get("content-type"), cache: response.headers.get("cache-control"), body: normalize(await response.text()) };

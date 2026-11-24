@@ -97,7 +97,7 @@ test("authenticateBeforeWorkspace on a same-origin spec is refused at registrati
   // check after authenticate would silently reorder it too. No hand-written route needed both.
   const mounted = await serve({ authenticateBeforeWorkspace: true, requireSameOrigin: true }).catch((error: unknown) => error);
   if (!(mounted instanceof Error)) {
-    await mounted.close();
+    await (mounted as Awaited<ReturnType<typeof serve>>).close();
     assert.fail("the mount accepted authenticateBeforeWorkspace on a same-origin spec");
   }
   assert.match(mounted.message, /authenticateBeforeWorkspace.*same-origin/);

@@ -113,7 +113,7 @@ test("an authorization check without an entity type sends no entityType key", as
 test("deferMissingPrincipal together with sessionCredentialOnly is refused at registration", async () => {
   const mounted = await serve({ sessionCredentialOnly: gate, deferMissingPrincipal: true }).catch((error: unknown) => error);
   if (!(mounted instanceof Error)) {
-    await mounted.close();
+    await (mounted as Awaited<ReturnType<typeof serve>>).close();
     assert.fail("the mount accepted deferMissingPrincipal with sessionCredentialOnly");
   }
   assert.match(mounted.message, /deferMissingPrincipal.*sessionCredentialOnly/);
