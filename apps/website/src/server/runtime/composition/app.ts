@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { createNavMenuReadModel } from "@jini-ai/cms/navigation";
 
 import { assembleMemoryRouteDeps } from "./memory-deps/route-deps/assemble.js";
@@ -206,7 +207,9 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
   const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink({});
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
-  const postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts });
+  // The ONE evidence store of this memory root: the post and entry repos clear it, the media-rendition route reads it.
+  const mediaAccessEvidence = createMediaAccessEvidence();
+  const postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts, mediaAccessEvidence });
   const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });
   const settingsRepo = new InMemorySettingsRepo();
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
@@ -236,16 +239,16 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
     }),
     ...inMemoryPluginRuntimeOptions({ options }),
   });
-  return { toolAttemptAuditSink, workspaceRepo, postRepo, presentationRepo, settingsRepo, clock, idGen, pluginActivationRepo, pluginRuntime };
+  return { toolAttemptAuditSink, mediaAccessEvidence, workspaceRepo, postRepo, presentationRepo, settingsRepo, clock, idGen, pluginActivationRepo, pluginRuntime };
 }
 
 function createMemoryFoundation(runtime: ReturnType<typeof createMemoryRuntime>, deferred: Pick<Parameters<typeof composeMemoryTrash>[0],
   "formDefinitionRepo" | "entryRefsRepo" | "menuRepo" | "navLocationBindingRepo" | "routeDeps">) {
-  const { clock, idGen, settingsRepo, pluginRuntime, pluginActivationRepo, postRepo } = runtime;
+  const { clock, idGen, settingsRepo, pluginRuntime, pluginActivationRepo, postRepo, mediaAccessEvidence } = runtime;
   const { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady } = composeIdentitySettings({ clock, idGen, settingsRepo });
   const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
   const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
-  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos();
+  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos({ mediaAccessEvidence });
   const { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo } = composeTaxonomyTrashRepos({ taxonomyDb, workspaceId, outbox, clock, idGen });
   const { trash, trashAdapters, formTrashEntry, removePlugin } = composeMemoryTrash({ pluginRuntime, pluginActivationRepo, trashRegistry, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, outbox, clock, idGen, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, ...deferred });
 

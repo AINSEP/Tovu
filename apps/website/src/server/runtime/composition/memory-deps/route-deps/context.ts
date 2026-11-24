@@ -1,3 +1,4 @@
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { composeMemoryTrash } from "../slices/memory-trash.js";
 import type { composeTaxonomyTrashRepos } from "../slices/taxonomy-trash-repos.js";
 import type { composeMemoryRepos } from "../slices/repos.js";
@@ -53,6 +54,7 @@ export type MemoryRootContext = {
   pluginActivationRepo: ReturnType<typeof followProviderActivations>;
   pluginExports: ReturnType<typeof createPluginExportRuntime>;
   pluginRuntime: ReturnType<typeof composePluginRuntime>;
+  mediaAccessEvidence: MediaAccessEvidence;
   postRepo: InMemoryPostRepo;
   presentationRepo: InMemoryPresentationSettingsRepo;
   publishContentApplyPort: ReturnType<typeof memoryPublishContentApplyPort>;

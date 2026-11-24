@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
@@ -160,7 +161,7 @@ runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
   };
   return { repo, trash: (row) => repo.saveAny({ ...row, deletedAt: NOW }), revisionCount: async () => revisions.length };
 });
-for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: entryRepoFor({ store: kernel }) }) })) {
+for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: entryRepoFor({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }) }) })) {
   runCompareAndSetSuite(`SqlEntryRepo ${each.name}`, () => {
     const { kernel, repo } = each.make();
     return {

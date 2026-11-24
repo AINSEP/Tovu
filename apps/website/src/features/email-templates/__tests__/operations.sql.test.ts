@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -22,7 +23,7 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
   test("create births an html row through the store; edit is version-conditioned and ledgered", async () => {
     const kernel = makeKernel();
     const clock = createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" });
-    const postRepo = postRepoFor(kernel);
+    const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     let n = 0;
     const deps: EmailTemplateDeps = {
       workspaceId: WS,

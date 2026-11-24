@@ -1,6 +1,6 @@
 import { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import { ENTRY_TABLES } from "../../platform/db/content-tables.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -12,7 +12,7 @@ import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
  */
 
 /** The entry repo for the connection's kernel, or the content db handle it is derived from. */
-export function entryRepoFor({ store }: { store: ContentKernel | ContentDb }, _optional: Record<string, never> = {}): SqlEntryRepo {
+export function entryRepoFor({ store, mediaAccessEvidence }: { store: ContentKernel | ContentDb; mediaAccessEvidence: MediaAccessEvidence }): SqlEntryRepo {
   const kernel = contentKernel({ store });
   return new SqlEntryRepo({
     kernel: schemaErasedKernel({ store: kernel }),

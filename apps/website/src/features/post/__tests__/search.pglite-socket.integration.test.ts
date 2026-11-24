@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import fs from "node:fs";
@@ -43,7 +44,7 @@ before(async () => {
   const base = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
   kernel = base as ContentKernel;
   await migrateContentDatabase({ kernel: base });
-  const repo = postRepoFor(kernel);
+  const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
   for (const post of EVAL_POSTS) {
     await createPost({
       deps: { repo, clock },

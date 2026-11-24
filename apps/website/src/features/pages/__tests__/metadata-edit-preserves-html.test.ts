@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -141,7 +142,7 @@ test("updatePost: a doc-format Page is unaffected — the fix must not widen the
 describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revisions"], make: (kernel) => kernel }, (makeKernel) => {
   test("SQL metadata edit ignores the supplied document and keeps body_json NULL", async () => {
     const kernel = makeKernel();
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: "ws-1", postId: "page-sql" }, { kernel, clock });

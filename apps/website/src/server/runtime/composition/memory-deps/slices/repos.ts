@@ -7,13 +7,13 @@ import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetRenditionRepo } from "#src/features/media/index";
 import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { type ContentDb, openContentDb } from "#src/platform/db/sqlite/content-db";
 import { type TrashDb } from "#src/features/trash/index";
 import { contentKernel } from '#src/platform/db/content-kernel';
 
-export function composeMemoryRepos(_required: Record<string, never> = {}, _optional = {}) {
+export function composeMemoryRepos({ mediaAccessEvidence }: { mediaAccessEvidence: MediaAccessEvidence }, _optional = {}) {
   const redirectRepo = new InMemoryRedirectRepo();
   const redirectHitSink = new RedirectHitSinkImpl();
   const outbox = new InMemoryOutbox();

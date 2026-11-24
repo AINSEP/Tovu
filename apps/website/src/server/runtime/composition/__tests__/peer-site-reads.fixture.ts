@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -76,7 +77,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule });
     await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
-    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES });
+    const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
     await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat({ seedHtml: `<main>${name} page</main>` });

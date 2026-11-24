@@ -207,6 +207,12 @@ export interface IdentityDeps {
  */
 export interface MediaDeps {
   /**
+   * The ONE access-evidence store of this server. Built once by the composition root; the public media-rendition
+   * route reads it, and the post repo, entry repo and trash service (constructed from the same instance) clear it
+   * on every write. A second instance anywhere would leave the reader serving stale access decisions.
+   */
+  mediaAccessEvidence: import("../../features/media/access-evidence.js").MediaAccessEvidence;
+  /**
    * Media persistence (ADR-027): the bespoke `MediaRecord` repo is not a frozen ADR
    * port. `assetBlobRepo`/`assetRenditionRepo` are core-owned sidecars (ADR-027 §2);
    * `blobStore` implements the ADR-027 §1 blob-store contract. The media module's

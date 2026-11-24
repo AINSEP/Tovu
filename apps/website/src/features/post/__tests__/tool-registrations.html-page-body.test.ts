@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -150,7 +151,7 @@ test("content_post_update: the real sqlite placeholder bodyJson, JSON-serialized
   // can't prove the guard's deep-equal matches what an agent actually sends. This one reads through
   // `SqlitePostRepo` (whose `toRecord` fills an html row's NULL `body_json` with the placeholder)
   // and round-trips that bodyJson through JSON, as the tool transport does.
-  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo({ store: openContentDb(":memory:") }));
+  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo({ store: openContentDb(":memory:"), mediaAccessEvidence: createMediaAccessEvidence() }));
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(deps, postRepo, generated);
   const registrations = registrationsFor(deps);

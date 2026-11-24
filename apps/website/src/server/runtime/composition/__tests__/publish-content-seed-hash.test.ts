@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
@@ -63,7 +64,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
     workspaceId: WORKSPACE,
     clock,
     idGen,
-    ports: { post: { repo: new SqlitePostRepo({ store: db }) }, menu: { repo: menuRepo, bindingRepo: undefined as never } },
+    ports: { post: { repo: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }) }, menu: { repo: menuRepo, bindingRepo: undefined as never } },
   };
   return { db, liveDeps, menuRepo, seedPath, handlers: buildPublishContentCatalog(liveDeps).handlerByType };
 }

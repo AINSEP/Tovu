@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -128,7 +129,7 @@ function harness(): Harness {
     taxonomies: taxonomyRepo,
     terms: termRepo,
     entryTerms: entryTermRepo,
-    posts: new SqlitePostRepo({ store: db }),
+    posts: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }),
     outbox,
   };
 }

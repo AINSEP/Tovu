@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -24,7 +25,7 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache(kernel = recordingKernel().kernel) {
-  const repo = entryRepoFor({ store: kernel });
+  const repo = entryRepoFor({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() });
   const cache = mediaAccessEvidence.getCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();

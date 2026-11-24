@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -44,7 +45,7 @@ function baseRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-autosave-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { repo: new SqlitePostRepo({ store: db }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { repo: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. `withRepo` hands the

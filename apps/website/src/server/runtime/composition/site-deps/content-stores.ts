@@ -3,20 +3,22 @@ import { SqliteAssetBlobRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
+import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
 
 interface ComposeContentStoresRequired {
   kernel: SiteStore["content"];
+  mediaAccessEvidence: MediaAccessEvidence;
 }
 
 export function composeContentStores(required: ComposeContentStoresRequired, _optional = {}) {
-  const { kernel } = required;
+  const { kernel, mediaAccessEvidence } = required;
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
   // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(kernel)` — both
   // are stateless wrappers over the shared kernel, so a second instance would behave
   // identically, but reusing one matches this root's existing single-instance convention (see
   // `outbox`/`settingsRepo` above).
-  const postRepo = new SqlitePostRepo({ store: kernel });
+  const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence });
 
   // Task 8 of the publish-content (Publish Content) feature — same "reuse one instance" convention
   // as `postRepo` just above: `publishContentApplyPort`'s own bundle/baseline reads must hit the

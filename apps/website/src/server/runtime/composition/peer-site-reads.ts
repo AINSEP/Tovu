@@ -6,6 +6,7 @@ import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { COMMENTS_TABLES, FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
@@ -252,7 +253,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}), termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     entryTermRepo: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}), taxonomyRevisionRepo: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     menuRepo: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}), navLocationBindingRepo: new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}),
-    entryRepo: entryRepoFor({ store: kernel }), contentTypeRepo: contentTypeRepoFor({ store: kernel }),
+    entryRepo: entryRepoFor({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), contentTypeRepo: contentTypeRepoFor({ store: kernel }),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
     // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
     presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),
@@ -297,7 +298,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
   await identity.identityReady;
-  const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo({ store: kernel });
+  const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), settingsRepo = new SqliteSettingsRepo({ store: kernel });
   const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
   const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });

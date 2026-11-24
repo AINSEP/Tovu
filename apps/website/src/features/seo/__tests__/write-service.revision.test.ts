@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { createSeoFeaturedImagePort, createSeoPostPort } from "../index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
@@ -105,7 +106,7 @@ test("setEntrySeoOverrides's revision chains after a prior revision, like any ot
 
 for (const adapter of ["memory", "sqlite"] as const) {
   test(`setEntrySeoOverrides: ${adapter} transaction rolls the row and ledger back when revision append fails`, async () => {
-    const postRepo = adapter === "memory" ? new InMemoryPostRepo({}) : new SqlitePostRepo({ store: openContentDb(":memory:") });
+    const postRepo = adapter === "memory" ? new InMemoryPostRepo({}) : new SqlitePostRepo({ store: openContentDb(":memory:"), mediaAccessEvidence: createMediaAccessEvidence() });
     const original = seedPost({ seoExtJson: JSON.stringify({ description: "Original description" }) });
     await postRepo.save(original);
     await postRepo.appendRevision({ postId: ENTRY_ID, workspaceId: WORKSPACE, seq: 1, op: "create",

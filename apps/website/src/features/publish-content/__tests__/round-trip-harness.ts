@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
@@ -133,8 +134,8 @@ export function sqliteContentSite() {
   const workspaceId = WORKSPACE_ID;
   const repos = {
     db,
-    posts: new SqlitePostRepo({ store: db }),
-    entries: entryRepoFor({ store: db }),
+    posts: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }),
+    entries: entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }),
     contentTypes: new InMemoryContentTypeRepo(),
     taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),

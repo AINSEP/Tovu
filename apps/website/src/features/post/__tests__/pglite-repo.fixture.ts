@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
@@ -9,5 +10,5 @@ import { postRepoFor } from "../repo.js";
  * after another and each makes its repo before using it.
  */
 export function makePglitePostRepo(): { repo: PostRepoPort; teardown: () => void } {
-  return { repo: postRepoFor(emptiedPgContentKernel(["posts", "post_revisions"])), teardown: () => {} };
+  return { repo: postRepoFor(emptiedPgContentKernel(["posts", "post_revisions"]), { mediaAccessEvidence: createMediaAccessEvidence() }), teardown: () => {} };
 }

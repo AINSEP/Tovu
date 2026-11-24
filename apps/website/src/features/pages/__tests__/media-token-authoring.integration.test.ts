@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -13,7 +14,7 @@ test('page writers refuse unresolved Media widget tokens before saving a broken 
   const clock = { nowMs: () => Date.parse('2026-11-02T00:00:00Z') };
   const original = '<section data-agent-element="photo"><p>Visit us</p></section>';
   await kernel.run(q => q.insertInto('posts').values({ id: 'visit', workspace_id: 'site', title: 'Visit', slug: 'visit-us', kind: 'page', body_format: 'html', body_html: original, body_json: null, status: 'published', updated_at: '2026-11-02T00:00:00Z', version: 1, ext: '{}' }).execute());
-  const tools = buildPagesRegistrations({ workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel), pagesHtmlStore: scope => new SqlPagesHtmlDocumentStore(scope, { kernel, clock }) });
+  const tools = buildPagesRegistrations({ workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), pagesHtmlStore: scope => new SqlPagesHtmlDocumentStore(scope, { kernel, clock }) });
   for (const name of ['pages_write_html', 'pages_write_region']) {
     const tool = tools.find(entry => entry.descriptor.id === name)!;
     for (const photo of ['<img src="{{media:pastry-counter-3}}">', '<img src="&#123;{media:pastry-counter-3}}">', '<template><img src="{{media:pastry-counter-3}}"></template>', '<p>{{media:pastry-counter-3}}</p>']) {

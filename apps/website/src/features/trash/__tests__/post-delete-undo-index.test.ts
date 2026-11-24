@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -79,7 +80,7 @@ function harness(): Harness {
 
   return {
     client,
-    postRepo: new SqlitePostRepo({ store: db }),
+    postRepo: new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }),
     trashRepo,
     outbox: recordingOutbox(),
     removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

@@ -34,7 +34,7 @@ export type MediaRouteRegistrar = (required: { app: Express; deps: MediaRouteDep
  * `pages.ts`/`get-by-slug.ts` already use.
  */
 export type MediaRenditionRouteDeps = MediaRouteDeps &
-  Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> &
+  Pick<RouteDeps, "postRepo" | "mediaAccessEvidence" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> &
   Partial<Pick<RouteDeps, "entryRepo">>;
 
 export type MediaRenditionRouteRegistrar = (required: { app: Express; deps: MediaRenditionRouteDeps }, optional?: Record<string, never>) => void;

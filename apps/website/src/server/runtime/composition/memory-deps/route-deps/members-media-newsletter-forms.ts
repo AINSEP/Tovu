@@ -45,6 +45,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     assetBlobRepo,
     assetRenditionRepo,
     blobStore,
+    mediaAccessEvidence,
     mediaContentTypeStore,
     mediaRepo,
     memberRepo,
@@ -58,6 +59,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     transformDefinitionRepo,
   } = required;
   return {
+    mediaAccessEvidence,
     redirectRepo,
     redirectHitSink,
     originRegistry,

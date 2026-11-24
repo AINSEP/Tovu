@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
@@ -37,7 +38,7 @@ function entry(overrides: Partial<EntryRecord> & { id: string; slug: string }): 
 
 async function instance() {
   const db = openContentDb(":memory:");
-  const entries = entryRepoFor({ store: db });
+  const entries = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const contentTypes = new InMemoryContentTypeRepo();
   await contentTypes.save({
     workspaceId: WORKSPACE_ID,

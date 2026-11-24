@@ -55,8 +55,8 @@ async function untilALockWaits(kernel: ContentKernel): Promise<void> {
 }
 
 test("postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict", async () => {
-  const repoA = entryRepoFor({ store: first });
-  const repoB = entryRepoFor({ store: second });
+  const repoA = entryRepoFor({ store: first, mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoB = entryRepoFor({ store: second, mediaAccessEvidence: createMediaAccessEvidence() });
   await repoA.save(entry());
 
   let releaseA!: () => void;
@@ -95,10 +95,10 @@ test("postgres: two import-as-creates of one id, B blocked on A's uncommitted in
   const aMayCommit = new Promise<void>((resolve) => (releaseA = resolve));
   let aInserted!: () => void;
   const aHoldsInsert = new Promise<void>((resolve) => (aInserted = resolve));
-  const writerA = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: first }), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
+  const writerA = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: first, mediaAccessEvidence: createMediaAccessEvidence() }), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
 
   await Promise.race([aHoldsInsert, writerA.then((result) => Promise.reject(new Error(`writer A ended before holding its insert: ${JSON.stringify(result)}`)))]);
-  const writerB = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: second }) }, input: input("Writer B") });
+  const writerB = importEntry({ deps: { ...base, entryRepo: entryRepoFor({ store: second, mediaAccessEvidence: createMediaAccessEvidence() }) }, input: input("Writer B") });
   try {
     await untilALockWaits(first);
   } finally {

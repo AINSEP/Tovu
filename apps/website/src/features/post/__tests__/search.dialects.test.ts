@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import { before, test } from "node:test";
@@ -44,7 +45,7 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
 
   before(async () => {
     kernel = make();
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     for (const post of EVAL_POSTS) {
       await createPost({
         deps: { repo, clock },
@@ -73,7 +74,7 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
   });
 
   test("search filters workspace, trash, kind and status independently on every dialect", async () => {
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     for (const [id, workspaceId, kind, status] of [
       ["visibility-live", WS, "page", "published"], ["visibility-foreign", "foreign-ws", "page", "published"],
@@ -92,7 +93,7 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
   });
 
   test("indexed text updates, trash, restore and hard deletion stay correct on every dialect", async () => {
-    const repo = postRepoFor(kernel);
+    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     const outbox = new InMemoryOutbox();
     const deps = { repo, clock, outbox, remove: removeVia(repo) };
     const { post } = await createPost({ deps, input: { workspaceId: WS, id: "lifecycle", title: "Oldword", bodyJson: body("Oldbody"), status: "published" } });
