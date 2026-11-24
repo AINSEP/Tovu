@@ -35,7 +35,7 @@ const controls = {
   note(event: string) { this.events.push(event); changed.emit("change"); },
   events: [] as string[],
   launches: [] as daemon.AgentExecutorRunInput[],
-  failures: [] as Parameters<typeof sessions.failRunBeforeStart>[0][],
+  failures: [] as Parameters<typeof coordination.failRunBeforeStart>[0][],
   overlays: new Map<string, string>(),
   refresh: undefined as ReturnType<typeof gate> | undefined,
   write: undefined as ReturnType<typeof gate> | undefined,
