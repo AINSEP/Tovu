@@ -1,4 +1,4 @@
-import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
+import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";

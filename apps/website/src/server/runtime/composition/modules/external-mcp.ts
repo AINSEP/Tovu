@@ -11,7 +11,7 @@ import {
   EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
   EXTERNAL_MCP_OAUTH_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
-import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
+import { ToolAccessLoweringError } from "#src/contracts/core/tool-access-change";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { describeExternalMcpOwnership, isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
