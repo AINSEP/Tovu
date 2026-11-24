@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
@@ -203,7 +203,7 @@ test("a missing site key is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({
     siteAssistantSecretKeyring: brokenKeyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: brokenKeyring }),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

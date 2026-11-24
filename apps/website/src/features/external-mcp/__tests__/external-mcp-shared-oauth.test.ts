@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { createApiConnectionVault } from '../../api-connections/vault-stores.js';
 import { createSharedOAuthOwnerStorage } from '../../api-connections/shared-owner.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
@@ -27,7 +27,7 @@ async function harness() {
   const clock = { nowMs: () => now, nowIso: () => new Date(now).toISOString() };
   const ownerRepo = new InMemoryVaultRepo({});
   const ownerKeyring = new InMemoryKeyring();
-  const ownerSealer = new AesGcmSecretSealer(ownerKeyring);
+  const ownerSealer = new AesGcmSecretSealer({ keyring: ownerKeyring });
   const owner = createSharedOAuthOwnerStorage({ scope: { workspaceId: 'project', repo: ownerRepo, keyring: ownerKeyring, sealer: ownerSealer }, clock });
   const originalAttachments = fakeAttachments();
   let beforeAttach: (() => Promise<void>) | undefined;
@@ -52,7 +52,7 @@ async function harness() {
   async function site(siteId: string, clientId = 'original-client', grant: ExternalMcpOAuthGrant = 'authorization_code') {
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
+    const sealer = new AesGcmSecretSealer({ keyring });
     const siteVaultRepo = new InMemoryVaultRepo({});
     const bindings = createSiteOAuthBindings({ repo: siteVaultRepo, workspaceId: 'workspace-local', vault: createApiConnectionVault({ repo: siteVaultRepo, workspaceId: 'workspace-local', keyring, sealer, clock }) });
     await saveExternalMcpServer({ repo, keyring, sealer, clock }, { workspaceId: 'workspace-local', serverId: 'server', label: 'Shared fixture', transport: 'streamable_http',

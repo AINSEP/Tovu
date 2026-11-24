@@ -9,7 +9,7 @@ import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 import { createCredentialLeakAudit, type CredentialLeakAudit } from "../support/credential-card-leak-audit.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { FixedSiteKeyKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
-import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 /** PLAN.md's 2026-10-07 localhost journey (steps 1–6), using the existing pin-site owner.
  * No browser routes, SSE, tools, sealing or chat persistence are mocked. @real-service selects
@@ -104,7 +104,7 @@ async function assertSavedMailchimpCanary({ page, audit, site, contentDb, baseli
   expect(row.label).toBe("mailchimp");
   expect(row.sealed_alg).toBe("aes-256-gcm");
   const manifest = JSON.parse(await readFile(site.manifestPath, "utf8")) as { env: { TOVU_SITE_KEY: string } };
-  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: manifest.env.TOVU_SITE_KEY }, { keyId: row.sealed_key_id }));
+  const sealer = new AesGcmSecretSealer({ keyring: new FixedSiteKeyKeyring({ hex: manifest.env.TOVU_SITE_KEY }, { keyId: row.sealed_key_id }) });
   const opened = JSON.parse(await sealer.open({ sealed: {
     keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg,
   } }, { aad: buildVaultAad({ workspaceId: WS, id: row.id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })) as { token: string };

@@ -14,8 +14,8 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../custom-credentials/store.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
 import type { SiteBackupPlanContent } from "../plan-content.js";
@@ -175,7 +175,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const sourceControlRepo = new InMemorySourceControlCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const github = new FakeGitHub();
   const dbOps = new FakeDbOps(site.parent);
   let allow = options.allow ?? (() => true);
@@ -585,7 +585,7 @@ test("two saved GitHub credentials are CREDENTIAL_AMBIGUOUS until one is named",
 
 test("a credential saved under a different Site key is CREDENTIAL_UNREADABLE, not CREDENTIAL_NOT_FOUND, and touches neither GitHub nor the database", async (t) => {
   // Sealed with the harness keyring, opened with a sealer over a DIFFERENT keyring: the real failure.
-  const h = harness(t, { openSealer: () => new AesGcmSecretSealer(new InMemoryKeyring()) });
+  const h = harness(t, { openSealer: () => new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }) });
   await h.seed();
 
   const result = await plan(h);
@@ -1326,7 +1326,7 @@ test("a saved source-control username is retained in the backup's authorization 
   assert.ok(row?.sealed);
   const { buildVaultAad } = await import("@jini-ai/platform/secrets/credential-sets");
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const sealed = await sealer.seal({ plaintext: JSON.stringify({ token: TOKEN, username: "backup-user" }), key: await keyring.activeKey(), aad: buildVaultAad(row) });
   await h.sourceControlRepo.vault.put({ expectedRevision: row.revision, record: { ...row, sealed, revision: row.revision + 1 } });
   const result = await call(overriddenTool(h, "site_backup_plan", { siteAssistantSecretSealer: sealer }), PLAN_INPUT) as Result;

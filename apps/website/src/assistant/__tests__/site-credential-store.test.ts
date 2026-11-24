@@ -2,8 +2,8 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer, SecretOpenError } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import {
@@ -34,7 +34,7 @@ const clock = { nowMs: () => Date.parse("2026-08-04T00:00:00.000Z"), nowIso: () 
 function makeDeps() {
   const repo = new InMemorySiteAssistantCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -201,7 +201,7 @@ test("a rotation (second apiKey) fully replaces the first — the old key no lon
 test("a missing site key fails CLOSED with a distinct error, and writes nothing", async () => {
   const { repo, sealer } = makeDeps();
   const brokenKeyring = new BrokenKeyring();
-  const brokenSealer = new AesGcmSecretSealer(brokenKeyring); // sealer over the broken keyring
+  const brokenSealer = new AesGcmSecretSealer({ keyring: brokenKeyring }); // sealer over the broken keyring
   void sealer; // unused — deliberately shadowed by the broken one below
 
   await assert.rejects(
@@ -221,7 +221,7 @@ test("a non-Error seal failure still fails CLOSED and names the thrown value", a
   const stringThrowingKeyring = new BrokenKeyring();
   stringThrowingKeyring.activeKey = async () => { throw "keyring offline"; };
   stringThrowingKeyring.derive = async () => { throw "keyring offline"; };
-  const sealer = new AesGcmSecretSealer(stringThrowingKeyring);
+  const sealer = new AesGcmSecretSealer({ keyring: stringThrowingKeyring });
 
   await assert.rejects(
     () => setSiteAssistantCredential({ repo, sealer, keyring: stringThrowingKeyring, clock }, { workspaceId: WORKSPACE, apiKey: "would-be-a-real-key" }),
@@ -303,7 +303,7 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row 
   // A sealer over a DIFFERENT site key than the one that sealed the row — simulates a rotated or
   // reset site key. `open()` must reject (wrong key -> auth tag mismatch), and the resolver
   // must swallow that into `null`, never propagate it to the caller.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "different-generation" }) });
   let warned = 0;
   const resolved = await resolveSiteAssistantApiKey(
     { deps: { repo, sealer: otherSealer },
@@ -321,7 +321,7 @@ test("resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op �
   const { deps, repo } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "some-key" });
 
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "different-generation" }) });
   const resolved = await resolveSiteAssistantApiKey({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");

@@ -2,8 +2,8 @@ import { exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import {
@@ -47,7 +47,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
   let counter = 0;
   return {
     repo: new InMemorySourceControlCredentialSetRepo(),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `src-cred-${(counter += 1)}` },
@@ -80,7 +80,7 @@ test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather 
   const deps = makeDeps();
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "example-git", token: "fixture_real_secret" } } });
 
-  const wrongKeyDeps = { ...deps, sealer: new AesGcmSecretSealer(new InMemoryKeyring()) };
+  const wrongKeyDeps = { ...deps, sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }) };
   await assert.rejects(() => resolveDefaultForSourceControl(wrongKeyDeps, { workspaceId: WORKSPACE, providerId: "example-git" }));
 });
 
@@ -101,7 +101,7 @@ test("resolveDefaultForSourceControl converts a decrypt failure (missing site ke
 
   // Same saved row, but a keyring that cannot derive the key to open it — simulates the live scenario:
   // the row already exists, the CURRENT process just has no site key.
-  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
 
   await assert.rejects(
     () => resolveDefaultForSourceControl(brokenDeps, { workspaceId: WORKSPACE, providerId: "example-git" }),

@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { CredentialProjectHalf } from "../../vendor-credentials/project-scope.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
@@ -45,13 +45,13 @@ const noNetwork: HttpClientPort = { send: async () => { throw new Error("no netw
 
 function projectHalf(): CredentialProjectHalf<SourceControlCredentialSetRepoPort> {
   const keyring = new InMemoryKeyring();
-  return { workspaceId: "project", repo: new InMemorySourceControlCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  return { workspaceId: "project", repo: new InMemorySourceControlCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
 }
 
 let ids = 0;
 function site(project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>): SourceControlCredentialWriteDeps & { clock: ReturnType<typeof createFakeClock> } {
   const keyring = new InMemoryKeyring();
-  return { repo: new InMemorySourceControlCredentialSetRepo({}, project ? { project } : {}), sealer: new AesGcmSecretSealer(keyring), keyring,
+  return { repo: new InMemorySourceControlCredentialSetRepo({}, project ? { project } : {}), sealer: new AesGcmSecretSealer({ keyring }), keyring,
     clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }), idGen: { newId: () => `sc-${++ids}` },
     httpClient: noNetwork, loadSourceControlProviders: exampleProviders };
 }

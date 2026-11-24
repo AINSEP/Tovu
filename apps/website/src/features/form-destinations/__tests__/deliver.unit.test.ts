@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FormDeliveryError, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRecord, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
@@ -154,7 +154,7 @@ test("a refused fetch carries only the safe code, non-retryable, outcome not-app
 function credentialDeps(repo: InMemoryCustomCredentialSetRepo = new InMemoryCustomCredentialSetRepo()): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let n = 0;
-  return { repo, sealer: new AesGcmSecretSealer(keyring), keyring,
+  return { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring,
     clock: createFakeClock({ startIso: "2026-10-20T00:00:00.000Z" }), idGen: { newId: () => `cred-unit-${++n}` } };
 }
 

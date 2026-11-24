@@ -4,8 +4,8 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
@@ -63,7 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let allow = options.allow ?? true;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new TrackingSecretSealer(new AesGcmSecretSealer(keyring));
+  const sealer = new TrackingSecretSealer(new AesGcmSecretSealer({ keyring }));
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   const deps: CustomCredentialsToolDeps = {

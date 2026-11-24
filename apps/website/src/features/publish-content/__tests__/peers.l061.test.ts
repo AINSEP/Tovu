@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createPublishContentPeer, updatePublishContentPeer, InMemoryPublishContentPeerRepo, PublishContentPeerDuplicateLabelError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerNotFoundError, VaultPublishContentPeerRepo, type PublishContentPeerWriteDeps } from "../peers.js";
 
 function fixture(_required = {}, _options = {}) {
   const repo = new InMemoryPublishContentPeerRepo();
   const keyring = new InMemoryKeyring();
   let id = 0;
-  const deps: PublishContentPeerWriteDeps = { repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock: { nowMs: () => 0 }, idGen: { newId: () => `peer-${++id}` } };
+  const deps: PublishContentPeerWriteDeps = { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => 0 }, idGen: { newId: () => `peer-${++id}` } };
   const input = { workspaceId: "ws", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: ["fixture", "credential"].join("-") };
   return { deps, repo, input };
 }

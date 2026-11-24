@@ -11,8 +11,8 @@ import { loadSourceControlProviderRegistryFromSource } from '../../../../apps/we
 import { createSourceControlCredential } from '../../../../apps/website/src/features/source-control/store.ts';
 import { buildSourceControlRegistrations } from '../../../../apps/website/src/features/source-control/tool-registrations.ts';
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
-import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';
-import { AesGcmSecretSealer } from '../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts';
+import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.env.ts';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 // Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
@@ -26,7 +26,7 @@ test('with no gitAdapter override, a confirmed commit reaches the real GitHub ad
   t.after(() => rmSync(exportDir, { recursive: true, force: true }));
   const keyring = new InMemoryKeyring();
   const repo = new InMemorySourceControlCredentialSetRepo();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const packageRoot = PLUGIN_ROOT;
   const loadSourceControlProviders = () => loadSourceControlProviderRegistryFromSource({ pluginId: 'github', packageRoot });
   await createSourceControlCredential({ deps: {

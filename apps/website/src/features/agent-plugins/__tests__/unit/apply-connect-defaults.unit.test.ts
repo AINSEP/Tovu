@@ -13,8 +13,8 @@ import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connec
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
@@ -66,7 +66,7 @@ const tokenFetch = (async () =>
 async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean; agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout>; isPluginOffByOperator?: (pluginId: string) => Promise<boolean> }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse("2026-09-27T12:00:00.000Z"), nowIso: () => "2026-09-27T12:00:00.000Z" };
 
   await saveExternalMcpServer(

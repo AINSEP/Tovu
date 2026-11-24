@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { rosterRefusalFor } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpRevocationReason } from "@jini-ai/core/contracts/hosted-mcp";
@@ -73,7 +73,7 @@ async function storedRecord(input: { authMode: "none" | "oauth"; allowed: string
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = { nowMs: () => Date.parse("2026-09-02T00:00:00.000Z"), nowIso: () => "2026-09-02T00:00:00.000Z" };
-  await saveExternalMcpServer({ repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock }, {
+  await saveExternalMcpServer({ repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock }, {
     workspaceId: "workspace-1", serverId: "srv", label: "Search", transport: "streamable_http", authMode: input.authMode,
     enabled: true, command: "", url: "https://mcp.example.test/v1", args: "",
     allowedToolNames: input.allowed, writeAllowedToolNames: input.writeAllowed, principalId: "owner",

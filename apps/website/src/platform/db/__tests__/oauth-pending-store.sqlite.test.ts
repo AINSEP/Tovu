@@ -8,8 +8,8 @@ import test from "node:test";
 import { and, eq } from "drizzle-orm";
 import type { Clock } from "@jini-ai/core/primitives";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { oauthDeviceAuthorizations, workspaces } from "../schema.sqlite.js";
 import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 import { createSqliteDeviceAuthorizationStore } from "../sqlite/oauth-pending-store.sqlite.js";
@@ -53,7 +53,7 @@ test("THE FIX (device grant) — a device authorization begun through one store 
   const workspaceId = randomUUID();
   insertWorkspace(dbProcessA, workspaceId);
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = createTestClock();
 
   const storeInProcessA = createSqliteDeviceAuthorizationStore({ db: dbProcessA, workspaceId, clock, sealer, keyring });
@@ -85,7 +85,7 @@ test("deviceCode is sealed at rest — the raw row never carries the plaintext d
   const workspaceId = randomUUID();
   insertWorkspace(db, workspaceId);
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const store = createSqliteDeviceAuthorizationStore({ db, workspaceId, clock: createTestClock(), sealer, keyring });
 
   await store.put("higgsfield", {
@@ -115,7 +115,7 @@ test("device store put() overwrites a connection's own previous attempt, matchin
   const workspaceId = randomUUID();
   insertWorkspace(db, workspaceId);
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const store = createSqliteDeviceAuthorizationStore({ db, workspaceId, clock: createTestClock(), sealer, keyring });
 
   await store.put("higgsfield", {
@@ -157,7 +157,7 @@ test("device get/delete isolate the same server id in two workspaces", async () 
   insertWorkspace(db, workspaceA);
   insertWorkspace(db, workspaceB);
   const keyring = new InMemoryKeyring();
-  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
   const storeA = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceA });
   const storeB = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceB });
   const first = {
@@ -183,7 +183,7 @@ test("device ciphertext transplanted across workspace or server identity fails a
   insertWorkspace(db, workspaceA);
   insertWorkspace(db, workspaceB);
   const keyring = new InMemoryKeyring();
-  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
   const storeA = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceA });
   const storeB = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceB });
   const authorization = {

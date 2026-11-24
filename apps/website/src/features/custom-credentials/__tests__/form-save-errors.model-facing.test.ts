@@ -30,8 +30,8 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 const CREATE_TOOL_ID = "credential_save";
@@ -91,7 +91,7 @@ interface HarnessOptions {
 async function buildHarness(options: HarnessOptions = {}) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const seedKeyring = new InMemoryKeyring();
-  const realSealer = new AesGcmSecretSealer(seedKeyring);
+  const realSealer = new AesGcmSecretSealer({ keyring: seedKeyring });
   let counter = 0;
   const idGen = { newId: () => `cred-${++counter}` };
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
@@ -112,7 +112,7 @@ async function buildHarness(options: HarnessOptions = {}) {
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: options.repo ? options.repo(repo) : repo,
-    siteAssistantSecretSealer: options.sealer ? options.sealer(realSealer) : options.keyring ? new AesGcmSecretSealer(keyring) : realSealer,
+    siteAssistantSecretSealer: options.sealer ? options.sealer(realSealer) : options.keyring ? new AesGcmSecretSealer({ keyring }) : realSealer,
     siteAssistantSecretKeyring: keyring,
     idGen,
     customCredentialsHttpClient: new ExplodingHttpClient(),

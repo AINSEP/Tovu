@@ -9,8 +9,8 @@ import type { SurfaceEmission, ToolRegistration } from '@jini-ai/core';
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, type SurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createFakeClock } from '#src/__tests__/support/fake-clock';
 import type { ProjectKeysPort } from '../../project-keys/service.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { InMemoryCustomCredentialSetRepo } from '../repo.memory.js';
 import type { CustomCredentialsToolDeps } from '../tool-registrations.js';
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations } from '../tool-registrations.js';
@@ -58,7 +58,7 @@ export function credentialToolDeps({ authorizeCalls }: { authorizeCalls: Record<
     publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: 'ws-c2p2', clock: createFakeClock({ startIso: '2026-11-09T00:00:00Z' }),
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring,
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring,
     idGen: { newId: () => { next += 1; return `cred-${next}`; } },
     customCredentialsHttpClient: { send: async () => { throw new Error('no network in this pin'); } },
     authorize: async (params: Record<string, unknown>) => { authorizeCalls.push(params); return { allowed: true, reason: 'fixture' }; },

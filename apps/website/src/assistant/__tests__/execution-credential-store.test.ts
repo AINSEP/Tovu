@@ -2,8 +2,8 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer, SecretOpenError } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import {
@@ -34,7 +34,7 @@ const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () 
 function makeDeps() {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -184,7 +184,7 @@ test("a rotation (second apiKey) fully replaces the first — the old key no lon
 test("a missing site key fails CLOSED with a distinct error, and writes nothing", async () => {
   const { repo } = makeDeps();
   const brokenKeyring = new BrokenKeyring();
-  const brokenSealer = new AesGcmSecretSealer(brokenKeyring);
+  const brokenSealer = new AesGcmSecretSealer({ keyring: brokenKeyring });
 
   await assert.rejects(
     () =>
@@ -274,7 +274,7 @@ test("resolveExecutionCredential's onDecryptFailure defaults to a silent no-op �
   const { deps, repo } = makeDeps();
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "different-generation" }) });
   const resolved = await resolveExecutionCredential({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
@@ -305,7 +305,7 @@ test("resolveExecutionCredential returns null (not a throw) when the sealed row 
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
   // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "different-generation" }) });
   let warned = 0;
   const resolved = await resolveExecutionCredential(
     { deps: { repo, sealer: otherSealer },
@@ -525,7 +525,7 @@ test("a non-Error seal failure still fails closed with the distinct error, carry
   const keyring = new NonErrorKeyring();
   await assert.rejects(
     () => setExecutionCredential(
-      { repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock },
+      { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock },
       { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "would-be-a-real-key" }
     ),
     (error: unknown) => error instanceof ExecutionCredentialSecretStoreUnconfiguredError && /keyring offline/.test(error.message),

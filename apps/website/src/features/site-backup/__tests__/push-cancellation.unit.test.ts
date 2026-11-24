@@ -12,8 +12,8 @@ import { pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../bac
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { type LoadSourceControlProviders } from "../../source-control/provider-registry.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
@@ -65,7 +65,7 @@ type Fixture = Awaited<ReturnType<typeof fixture>>;
 
 async function serviceDeps(required: { f: Fixture }): Promise<SiteBackupToolDeps> {
   const { f } = required, repo = new InMemoryCustomCredentialSetRepo();
-  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer({ keyring });
   await createCustomCredential({ repo, keyring, sealer,
     clock: { nowMs: () => Date.parse(f.plan.createdAt) }, idGen: { newId: () => "cancel-credential" } }, {
     workspaceId: "ws", label: "github", category: "source-control", baseUrl: f.baseUrl, additionalHosts: [], connection: { token: "fixture-token" },

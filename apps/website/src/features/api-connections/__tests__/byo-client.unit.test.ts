@@ -12,8 +12,8 @@ import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
 
 import { loadPluginContributionsFromSource } from "../../agent-plugins/lifecycle.js";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { byoClientLabel } from "@jini-ai/integrations/api-connections";
 import { resolveByoClient } from "../byo-client.js";
 import { loadDeclaredApiConnections } from "../contribution.js";
@@ -36,13 +36,13 @@ test("label: derived from the plugin and connection ids", () => {
 test("a saved client this site cannot open is refused with a next step and without its secret", async () => {
   const repo = new InMemoryCustomCredentialSetRepo();
   const savedKeyring = new InMemoryKeyring({}, { keyId: "v1" });
-  await createCustomCredential({ repo, sealer: new AesGcmSecretSealer(savedKeyring), keyring: savedKeyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => "00000000-0000-4000-8000-0000000000c3" } }, {
+  await createCustomCredential({ repo, sealer: new AesGcmSecretSealer({ keyring: savedKeyring }), keyring: savedKeyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => "00000000-0000-4000-8000-0000000000c3" } }, {
     workspaceId: "ws-1", label: byoClientLabel({ pluginId: "acme-office", connectionId: "account" }), category: "general",
     baseUrl: "https://auth.acme.test/token", connection: { token: secret, username: "byo-client-id" },
   });
   // Another site key: the sealed row exists but cannot be opened here.
   const otherKeyring = new InMemoryKeyring({}, { keyId: "v1" });
-  const resolved = await resolveByoClient({ credentials: { repo, sealer: new AesGcmSecretSealer(otherKeyring), keyring: otherKeyring }, workspaceId: "ws-1", connection: await fixtureConnection() });
+  const resolved = await resolveByoClient({ credentials: { repo, sealer: new AesGcmSecretSealer({ keyring: otherKeyring }), keyring: otherKeyring }, workspaceId: "ws-1", connection: await fixtureConnection() });
   assert.ok(resolved instanceof ApiConnectionError);
   assert.equal(resolved.code, "descriptor-invalid");
   assert.equal(resolved.message, 'Acme Office cannot use your own OAuth client: the saved credential "acme-office/account OAuth client" could not be read on this site. Edit it under Admin > Access Tokens, then retry.');

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
@@ -20,7 +20,7 @@ const NOW = "2026-11-17T12:00:00.000Z";
 function harness() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const deps = { repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: { nowMs: () => Date.parse(NOW) } };
+  const deps = { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: { nowMs: () => Date.parse(NOW) } };
   const form = (overrides: Partial<SaveExternalMcpServerInput> = {}): SaveExternalMcpServerInput => ({ workspaceId: WORKSPACE, serverId: SERVER, label: "Linear", transport: "streamable_http",
     authMode: "none", enabled: true, command: "", url: "https://mcp.example/mcp", args: "", allowedToolNames: "read", writeAllowedToolNames: "", principalId: "owner", ...overrides });
   const row = async () => (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER }))!;

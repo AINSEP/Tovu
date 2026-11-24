@@ -17,10 +17,10 @@ C=$(wc -l < "$HITS" | tr -d ' '); echo "old-name hits: $C"; [ "$C" -eq 0 ] || { 
 # exit silently before the count diagnostics. Actual grep errors (rc 2) still fail the pipeline.
 grep_ok() { xargs -0 sh -c 'grep "$@"; rc=$?; [ "$rc" -eq 0 ] || [ "$rc" -eq 1 ]' sh "$@" < "$LIST"; }
 count_marker() { grep_ok -hIc "$1" | paste -sd+ - | bc; }
-# Frozen: 4 lines whose bytes are the HKDF extraction salt (keyring.env.ts, keyring.memory.ts, the
+# Frozen: 3 lines whose bytes are the HKDF extraction salt (keyring.env.ts, the
 # keyring.env.test.ts known-answer doc line, and the sealing-wire-format pinned test's independent
 # derivation). The plan said 3; the pinned test needs the literal to stay an independent check.
-F=$(count_marker 'site-key-''frozen:'); echo "frozen: $F"; [ "$F" -eq 4 ] || { echo "frozen=$F want 4"; exit 1; }
+F=$(count_marker 'site-key-''frozen:'); echo "frozen: $F"; [ "$F" -eq 3 ] || { echo "frozen=$F want 3"; exit 1; }
 L=$(count_marker 'site-key-''legacy:'); echo "legacy: $L"; [ "$L" -eq "${SITE_KEY_LEGACY_EXPECTED:-13}" ] || { echo "legacy=$L"; exit 1; }
 P=$(grep_ok -lI "TOVU_SITE_KEY" | wc -l | tr -d ' '); [ "$P" -gt 0 ] || { echo "positive control failed"; exit 1; }
 echo OK

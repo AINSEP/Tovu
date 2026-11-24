@@ -5,8 +5,8 @@ import * as engine from "@jini-ai/platform/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { loadMailAdapterRegistryFromSource } from "#src/features/agent-plugins/mail-adapter-registry";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { HttpClientPort, HttpRequest } from "#src/platform/http/index";
 import type { MailerSendOptions } from "@jini-ai/platform/mail";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
@@ -50,7 +50,7 @@ function fakeGuardedHttp(required: { calls: HttpRequest[] }, _optional = {}): Ht
 async function fixture(required: { setting: engine.MailProviderSetting | null }, _optional = {}) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const adapters = await loadMailAdapterRegistryFromSource({ pluginId: "resend",
     packageRoot: agentPluginSourceDir({ pluginId: "resend" }) });

@@ -14,8 +14,8 @@ import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headles
 import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
 import { ensureMailProviderSettings, readMailProviderSetting, writeMailProviderSetting } from "@jini-ai/cms/settings/site/mail-provider";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createSiteMailer, type SiteMailerRequired } from "../site-mailer.js";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
@@ -46,7 +46,7 @@ async function rig(optional: { capture?: MailCapturePort; testMode?: unknown } =
   const keyring = new InMemoryKeyring();
   const required: SiteMailerRequired = {
     resolve: {
-      workspaceId: WS, mode: "local", customCredentialRepo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring),
+      workspaceId: WS, mode: "local", customCredentialRepo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }),
       httpClient: { send: async () => { throw new Error("unused"); } }, loadMailAdapters: async () => ({ list: () => [], refusals: [] }), log: (line) => lines.push(line),
     },
     settings: { repo: settingsRepo, deps: { clock, ids, principals }, systemPrincipalId: "system", authorize: async ({ principalId }) => ({ allowed: principalId === "owner", reason: principalId === "owner" ? "grant" : "no_grant" }) },

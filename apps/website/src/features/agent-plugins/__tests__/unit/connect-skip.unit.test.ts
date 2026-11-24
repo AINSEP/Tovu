@@ -5,8 +5,8 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from '../../connect-tool.js';
@@ -21,7 +21,7 @@ test('Skip on an OAuth sign-in card lets the assistant continue without stopping
   const emissions: SurfaceEmission[] = [];
   const deps: AgentPluginConnectToolDeps = {
     workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/chat-skip-fixture' }), authorize: async () => ({ allowed: true, reason: 'test' }),
-    mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock }),
+    mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock }),
     credentials: { loadSafe: async () => [] }, pollIntervalMs: 5, waitTimeoutMs: 50,
     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
     externalMcpOAuth: { beginConnect: async () => ({ kind: 'redirect_required', authorizationUrl: 'https://example.test/sign-in', expiresAt: '2099-01-01T00:00:00Z' }), isSignInRefusal: () => false },
@@ -63,7 +63,7 @@ test('Skip also releases a plugin API-connection wait and aborts only that wait'
   };
   const deps: AgentPluginConnectToolDeps = {
     workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/chat-skip-fixture' }), authorize: async () => ({ allowed: true, reason: 'test' }),
-    mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock }), credentials: { loadSafe: async () => [] },
+    mcp: mcpTestPort({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock }), credentials: { loadSafe: async () => [] },
     resolveInstalledPlugin: async () => ({ servers: {} }), apiConnections,
   };
   const signal = new AbortController().signal;

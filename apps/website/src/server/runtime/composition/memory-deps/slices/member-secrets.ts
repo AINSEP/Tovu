@@ -1,8 +1,8 @@
 import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/subscriber-directory";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemorySiteAssistantCredentialRepo } from "../../../../../assistant/index.js";
 import { InMemoryExternalMcpServerRepo } from "../../../../../features/external-mcp/external-mcp-store.memory.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
@@ -26,7 +26,7 @@ export function composeMemberSecrets(_required: Record<string, never> = {}, _opt
   // here at all), so a second `InMemoryKeyring` is just the same rule-of-two test double, kept
   // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
   const siteAssistantSecretKeyring = new InMemoryKeyring();
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  const siteAssistantSecretSealer = new AesGcmSecretSealer({ keyring: siteAssistantSecretKeyring });
   const siteAssistantCredentialRepo = new InMemorySiteAssistantCredentialRepo();
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one

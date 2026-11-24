@@ -6,8 +6,8 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { ToolExecutionContext } from '@jini-ai/core';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryCustomCredentialSetRepo } from '../repo.memory.js';
 import { createCustomCredential, resolveCustomCredentialByLabel } from '../store.js';
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from '../tool-registrations.js';
@@ -31,7 +31,7 @@ async function fixture({ rotate, status = 200, probe = true, abort = false, tran
 }, _options = {}) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const inner = new AesGcmSecretSealer(keyring);
+  const inner = new AesGcmSecretSealer({ keyring });
   const clock = createSystemClock(); const idGen = createRandomUuidGenerator();
   const workspaceId = 'probe-workspace';
   const writeDeps = { repo, sealer: inner, keyring, clock, idGen };

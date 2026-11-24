@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import {
@@ -63,7 +63,7 @@ function makeDeps(overrides: Partial<PublishCredentialWriteDeps> = {}): PublishC
   let counter = 0;
   return {
     repo: new InMemoryVendorCredentialSetRepo({}),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
@@ -198,7 +198,7 @@ test("resolveForPublish converts a decrypt failure (missing site key) into the t
   // Same repo (the same saved row), but a keyring that cannot derive the key to open it — simulates
   // exactly the live scenario: the row already exists, the CURRENT process just has no site key.
   const brokenKeyring = new BrokenKeyring();
-  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(brokenKeyring), loadDeployTargets: workingDeps.loadDeployTargets };
+  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer({ keyring: brokenKeyring }), loadDeployTargets: workingDeps.loadDeployTargets };
 
   await assert.rejects(
     () => resolveForPublish(brokenDeps, { workspaceId: WORKSPACE, id: created.id }),
@@ -1146,7 +1146,7 @@ test("a blank-secret update whose stored payload cannot be reopened refuses with
     let reads = 0;
     // The first two reads are updatePublishCredential's own existence lookups; the third is the reopen.
     if (breakIt === "missing") deps.repo.vault!.find = async input => { reads += 1; return reads <= 2 ? find(input) : null; };
-    else deps.sealer = new AesGcmSecretSealer(new BrokenKeyring());
+    else deps.sealer = new AesGcmSecretSealer({ keyring: new BrokenKeyring() });
     await assert.rejects(
       updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", token: "" } }),
       PublishCredentialSecretStoreUnconfiguredError,

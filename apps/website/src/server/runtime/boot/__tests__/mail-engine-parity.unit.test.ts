@@ -8,8 +8,8 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
 import { readMailDomain, credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";
@@ -33,7 +33,7 @@ function innerMailer(required: { send?: MailerPort["send"] } = {}, _options = {}
 async function resolver(required: { rejected?: boolean; send?: MailerPort["send"] } = {}, _options = {}) {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryCustomCredentialSetRepo();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await createCustomCredential({ repo, sealer, keyring, clock: createFakeClock({ startIso: AT }), idGen: { newId: () => "cred-parity" } }, {
     workspaceId: "ws", label: "Parity key", category: "ops", baseUrl: "https://api.example", connection: { token: "saved-value" },
   });

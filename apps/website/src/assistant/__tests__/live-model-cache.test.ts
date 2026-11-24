@@ -4,8 +4,8 @@ import { createServer, type Server, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
 import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "../live-model-cache.js";
@@ -38,7 +38,7 @@ const TTL_MS = 5 * 60_000;
 function makeDeps({ nowMs = Date.now, discover = fetchLiveClaudeModels }: { nowMs?: () => number; discover?: typeof fetchLiveClaudeModels } = {}, _options = {}) {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const discovery = createLiveModelDiscovery({ repo, sealer, clock: { nowMs }, discover });
   return { discovery, deps: { repo, keyring, sealer, clock } };
 }

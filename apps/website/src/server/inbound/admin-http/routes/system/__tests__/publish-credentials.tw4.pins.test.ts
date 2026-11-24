@@ -3,8 +3,8 @@ import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observabili
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { createPublishCredential, describeCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
@@ -16,7 +16,7 @@ const path = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:
 async function fixture({ accountLabel }: { accountLabel?: string } = {}, _options = {}) {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryVendorCredentialSetRepo({});
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const cache = new InMemoryPublishCredentialVerificationCache();
   let probes = 0, id = 0, allowed = true;
   const target: LoadedDeployTarget = { pluginId: "pin", descriptor: { id: "fixture", label: "Fixture", module: "fixture.mjs", configFields: [],

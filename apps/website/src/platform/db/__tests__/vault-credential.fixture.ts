@@ -1,8 +1,8 @@
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/core/contracts/vault";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { seedPrincipals } from "../kernel/__tests__/content-seeds.js";
 import type { ContentKernel } from "../content-kernel.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
@@ -11,7 +11,7 @@ export const WS = "ws-recovery";
 export const NOW = "2026-10-11T00:00:00.000Z";
 export function keyPair() {
   const keyring = new InMemoryKeyring();
-  return { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 export function vaultRepo(kernel: ContentKernel) {
   return new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });

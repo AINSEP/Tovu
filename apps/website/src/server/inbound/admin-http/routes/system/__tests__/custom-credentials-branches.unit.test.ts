@@ -11,8 +11,8 @@ import { registerAdminCustomCredentialsRoutes } from "#src/server/runtime/compos
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 /**
  * @file Branches of the custom-credentials routes that `custom-credentials-route.test.ts` (which runs
@@ -119,7 +119,7 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
 test("custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed", async (t) => {
   const { app, deps } = setup({ withTargets: false });
   const keyring = new InMemoryKeyring();
-  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
   const shared = { ...deps, customCredentialSetRepo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }) };
   const projectApp = express();
   projectApp.use(express.json());

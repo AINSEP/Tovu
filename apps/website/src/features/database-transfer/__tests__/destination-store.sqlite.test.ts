@@ -11,8 +11,8 @@ import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/cred
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { DestinationUnreadableError, SealedDatabaseDestinationStore, type SavedDatabaseDestination } from "../destination-store.js";
 import { DatabaseDestinationRepo } from "../destination-repo.js";
 import { CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
@@ -47,7 +47,7 @@ async function fixture(t: test.TestContext): Promise<{ db: ContentDb; keyring: I
     db.$client.close();
     db = openContentDb(path.join(dir, "content.db"));
   };
-  const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), sealer: new AesGcmSecretSealer(keyring), keyring });
+  const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), sealer: new AesGcmSecretSealer({ keyring }), keyring });
   return { get db() { return db; }, keyring, open, reopen };
 }
 
@@ -107,16 +107,16 @@ test("a destination sealed under another site key does not open", async (t) => {
   const { db } = await fixture(t);
   const other = new InMemoryKeyring({}, { keyId: "v1" });
   const repo = new DatabaseDestinationRepo(contentKernel({ store: db }));
-  await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(other), keyring: other }).save("ws-1", DESTINATION);
+  await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer({ keyring: other }), keyring: other }).save("ws-1", DESTINATION);
   const mine = new InMemoryKeyring({}, { keyId: "v1" });
-  await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(mine), keyring: mine }).get("ws-1"), DestinationUnreadableError);
+  await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer({ keyring: mine }), keyring: mine }).get("ws-1"), DestinationUnreadableError);
 });
 
 test("an unnormalized legacy vault row is refused before attempting decryption", async (t) => {
   const { db, open, keyring } = await fixture(t);
   await open().save("ws-1", DESTINATION);
   db.$client.prepare("UPDATE secrets_vault SET meta = json_set(meta, '$.legacyAad', json('{}')) WHERE workspace_id = 'ws-1'").run();
-  const realSealer = new AesGcmSecretSealer(keyring);
+  const realSealer = new AesGcmSecretSealer({ keyring });
   let opens = 0;
   const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), keyring, sealer: {
     seal: input => realSealer.seal(input),
@@ -162,7 +162,7 @@ for (const concurrent of ["replacement", "deletion", "metadata"] as const) {
     }
     const repo = new RacingRepo({});
     const keyring = new InMemoryKeyring();
-    const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer(keyring) });
+    const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }) });
     await store.save("ws-1", DESTINATION);
     const old = (await repo.findDefault({ workspaceId: "ws-1", kind: "database-destination", ownerKey: "tovu", principalId: null, provider: null }))!;
     const replacement = { ...DESTINATION, connectionString: "postgres://new-user@new-host/new-db", description: { host: "new-host", port: "5432", database: "new-db", user: "new-user" } };
@@ -204,7 +204,7 @@ for (const payload of [null, {}, { connectionString: 123 }]) {
   test(`an envelope without a string address is reported as unreadable: ${JSON.stringify(payload)}`, async () => {
     const repo = new InMemoryVaultRepo({});
     const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
+    const sealer = new AesGcmSecretSealer({ keyring });
     const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer }, {});
     await store.save("ws-1", DESTINATION);
     const existing = (await repo.findOne({ workspaceId: "ws-1", kind: "database-destination" }))!;
@@ -244,7 +244,7 @@ for (const failure of [new Error("repository unavailable"), new VaultError({ cod
     }
     const repo = new FailingRepo({});
     const keyring = new InMemoryKeyring();
-    const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer(keyring) });
+    const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }) });
     const previous = { copied: false as const, snapshotAt: "earlier", code: "COPY_FAILED", message: "previous failure" };
     await store.save("ws-1", DESTINATION);
     await store.recordRun("ws-1", previous);
@@ -269,7 +269,7 @@ test("a concurrent destination with a new identity is not stamped with the old r
   }
   const repo = new RacingRepo({});
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer });
   await store.save("ws-1", DESTINATION);
   const old = (await repo.findOne({ workspaceId: "ws-1", kind: "database-destination" }))!;

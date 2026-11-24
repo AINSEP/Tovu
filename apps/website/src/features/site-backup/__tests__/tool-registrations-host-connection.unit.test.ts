@@ -20,8 +20,8 @@ import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.m
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
 import * as sourceControlStore from "../../source-control/store.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { FakeGitHub } from "./fixtures/fake-github.js";
 
 /** A database port the plan must never reach in this scenario. */
@@ -47,7 +47,7 @@ test("an unexpected host-connection lookup failure propagates unchanged and take
     workspaceId: "ws-site-backup",
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     customCredentialsHttpClient: new FakeGitHub(),
     loadSourceControlProviders: githubFromSource,
     dbOps,

@@ -6,7 +6,7 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
@@ -59,7 +59,7 @@ export function siteSecretSealer(
   const keyring = new EnvOrFileKeyring({
     sources: siteKeySources({ mode: resolveRuntimeMode({ env }), env, home: env.HOME ?? env.USERPROFILE ?? homedir(), cwd: env.TOVU_SITE_PROCESS_CWD ?? process.cwd(), siteKeyId }),
   }, { env: () => env });
-  return { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 
 /**

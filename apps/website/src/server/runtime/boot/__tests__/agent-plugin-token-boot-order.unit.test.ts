@@ -8,8 +8,8 @@ import path from "node:path";
 import { InMemoryExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../../features/external-mcp/external-mcp-store.js";
 import { openExternalMcpOAuthPayload } from "../../../../features/external-mcp/external-mcp-store.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { PENDING_AGENT_PLUGIN_TOKENS_FILENAME } from "../../composition/pending-agent-plugin-tokens.js";
 
@@ -65,7 +65,7 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   process.env[envName] = "ambient-account-token";
   t.after(() => { if (previous === undefined) delete process.env[envName]; else process.env[envName] = previous; });
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const repo = new InMemoryExternalMcpServerRepo();
   const clock = { nowMs: () => 0, nowIso: () => "2026-09-29T00:00:00.000Z" };
   const servers: Record<string, McpServerConfig> = {

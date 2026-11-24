@@ -13,7 +13,7 @@ import { duplicateSite } from "../../duplicate-site.js";
 import { InitDirNotEmptyError, InternalError, SiteDirInvalidError, ValidationError } from "../../errors.js";
 import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readSiteDir } from "../../read-site-dir.js";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
@@ -212,7 +212,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     // `server/runtime/composition/deps.ts` uses for the credential sealer (EnvOrFileKeyring with
     // `sources`, never auto-generating).
     const sourceKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: source.siteId }) });
-    const sealer = new AesGcmSecretSealer(sourceKeyring);
+    const sealer = new AesGcmSecretSealer({ keyring: sourceKeyring });
     const key = await sourceKeyring.activeKey();
     const plaintext = "a real vendor api token, never stored in the clear";
     const sealed = await sealer.seal({ plaintext, key, aad: "row-1" });
@@ -249,7 +249,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     // The actual proof: decrypt the copied row under the DUPLICATE's own, independently
     // constructed keyring — nothing here reuses the source's in-memory keyring instance.
     const targetKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: targetMeta.siteKeyId }) });
-    const targetSealer = new AesGcmSecretSealer(targetKeyring);
+    const targetSealer = new AesGcmSecretSealer({ keyring: targetKeyring });
     const copyDb = new Database(resolveSiteDatabasePaths({ dir: targetDir }).contentDbPath, { readonly: true });
     let copiedRow: { sealed_ciphertext: string; nonce: string; alg: string; key_id: string } | undefined;
     try {
@@ -276,7 +276,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     try {
       const row = secondDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as NonNullable<typeof copiedRow>;
       assert.deepEqual(row, copiedRow);
-      assert.equal(await new AesGcmSecretSealer(secondKeyring).open({ sealed: { keyId: row.key_id, ciphertext: row.sealed_ciphertext, nonce: row.nonce, alg: row.alg } }, { aad: "row-1" }), plaintext, "a second-generation duplicate must still decrypt the original credential");
+      assert.equal(await new AesGcmSecretSealer({ keyring: secondKeyring }).open({ sealed: { keyId: row.key_id, ciphertext: row.sealed_ciphertext, nonce: row.nonce, alg: row.alg } }, { aad: "row-1" }), plaintext, "a second-generation duplicate must still decrypt the original credential");
     } finally {
       secondDb.close();
     }

@@ -8,8 +8,8 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { assistantVaultContext, assistantVaultId, assistantVaultRepo, createAssistantVault, readAssistantVault } from "../assistant-vault.js";
 
@@ -21,7 +21,7 @@ const API_KEY = "sk-test-ABCDEFGHIJKLMNOP9876";
 /** Seals one singleton through the real vault lifecycle and returns the stored row. */
 async function seed(required: { repo: InMemoryVaultRepo; context: VaultContext; payload?: Record<string, string>; keyring?: KeyringPort }): Promise<VaultRecord> {
   const keyring = required.keyring ?? new InMemoryKeyring();
-  const vault = createAssistantVault({ repo: required.repo, context: required.context, keyring, sealer: new AesGcmSecretSealer(keyring), clock });
+  const vault = createAssistantVault({ repo: required.repo, context: required.context, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock });
   await vault.put({ ...required.context, expectedRevision: null, provider: "google", label: "", meta: {}, payload: required.payload ?? { apiKey: API_KEY } });
   return (await required.repo.findOne(required.context))!;
 }
@@ -76,7 +76,7 @@ test("createAssistantVault without a sealer refuses to open a stored envelope", 
 
 test("createAssistantVault maps a non-Error storage failure to invalid-record", async () => {
   const keyring = new ThrowingKeyring();
-  const vault = createAssistantVault({ repo: new InMemoryVaultRepo({}), context: SITE, keyring, sealer: new AesGcmSecretSealer(keyring), clock });
+  const vault = createAssistantVault({ repo: new InMemoryVaultRepo({}), context: SITE, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock });
   await assert.rejects(vault.put({ ...SITE, expectedRevision: null, provider: "google", label: "", meta: {}, payload: { apiKey: API_KEY } }),
     { name: "VaultError", code: "invalid-record" });
 });
@@ -84,7 +84,7 @@ test("createAssistantVault maps a non-Error storage failure to invalid-record", 
 test("createAssistantVault hands crypto failures to onSealFailure", async () => {
   const keyring = new ThrowingKeyring();
   const seen: unknown[] = [];
-  const vault = createAssistantVault({ repo: new InMemoryVaultRepo({}), context: SITE, keyring, sealer: new AesGcmSecretSealer(keyring), clock },
+  const vault = createAssistantVault({ repo: new InMemoryVaultRepo({}), context: SITE, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock },
     { onSealFailure: ({ error }, _optional = {}) => { seen.push(error); throw new Error("site key unconfigured"); } });
   await assert.rejects(vault.put({ ...SITE, expectedRevision: null, provider: "google", label: "", meta: {}, payload: { apiKey: API_KEY } }),
     { message: "site key unconfigured" });
@@ -99,7 +99,7 @@ test("readAssistantVault opens the stored envelope and derives the token hint", 
   const repo = new InMemoryVaultRepo({});
   const keyring = new InMemoryKeyring();
   const stored = await seed({ repo, context: SITE, keyring });
-  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer(keyring) });
+  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer({ keyring }) });
   assert.deepEqual(read.record, stored);
   assert.deepEqual(read.tokenHint, { last4: "9876", length: API_KEY.length });
 });
@@ -123,7 +123,7 @@ test("readAssistantVault refuses a row whose identity is outside the requested s
 test("readAssistantVault keeps settings but drops the hint when the envelope cannot be opened", async () => {
   const repo = new InMemoryVaultRepo({});
   const stored = await seed({ repo, context: SITE });
-  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "v2" })) });
+  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "v2" }) }) });
   assert.deepEqual(read, { record: stored, tokenHint: null });
 });
 
@@ -131,13 +131,13 @@ test("readAssistantVault gives no hint when the opened payload has no string api
   const repo = new InMemoryVaultRepo({});
   const keyring = new InMemoryKeyring();
   await seed({ repo, context: SITE, payload: { other: "value" }, keyring });
-  assert.equal((await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer(keyring) })).tokenHint, null);
+  assert.equal((await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer({ keyring }) })).tokenHint, null);
 });
 
 test("readAssistantVault does not open a keyless row", async t => {
   const repo = new InMemoryVaultRepo({});
   const stored = await seed({ repo, context: SITE });
-  const sealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const sealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const open = t.mock.method(sealer, "open");
   assert.deepEqual(await readAssistantVault({ repo, context: SITE, sealer }, { record: { ...stored, sealed: null } }),
     { record: { ...stored, sealed: null }, tokenHint: null });

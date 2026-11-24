@@ -3,8 +3,8 @@ import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { VaultError } from '@jini-ai/core/contracts/vault';
 import { SealedDatabaseDestinationStore } from '../destination-store.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 
 const destination = { connectionString: 'postgres://owner@db.example.test/db', savedAt: '2026-10-01T00:00:00.000Z',
   description: { host: 'db.example.test', port: '5432', database: 'db', user: 'owner' } };
@@ -23,7 +23,7 @@ function fixture(_required = {}, _options = {}) {
   }
   const repo = new RacingRepo({});
   const keyring = new InMemoryKeyring();
-  const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer(keyring) });
+  const store = new SealedDatabaseDestinationStore({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }) });
   return { repo, store };
 }
 

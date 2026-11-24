@@ -1,15 +1,15 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 
 const keyring = new InMemoryKeyring();
-const deps = { keyring, sealer: new AesGcmSecretSealer(keyring) };
+const deps = { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 const IDENTITY = { workspaceId: "ws-1", serverId: "srv-1" };
 
 function serverRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpServerRecord {

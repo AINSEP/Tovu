@@ -10,8 +10,8 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { ExternalMcpValidationError, externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
@@ -65,7 +65,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const repo = options.repo ?? new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
 
   const deps: ExternalMcpToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,

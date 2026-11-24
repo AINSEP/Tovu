@@ -3,8 +3,8 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
@@ -30,7 +30,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
   let counter = 0;
   return {
     repo: new InMemoryVendorCredentialSetRepo({}),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },

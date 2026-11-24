@@ -22,8 +22,8 @@ import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { ToolInputError } from "@jini-ai/core";
@@ -56,7 +56,7 @@ const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://m
 function makeStoreDeps() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer, clock: CLOCK };
 }
 

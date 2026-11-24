@@ -5,8 +5,8 @@ import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
 import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -205,7 +205,7 @@ describeEachDialect(
     test("vault persistence retains safe hints, origin restrictions and username clears through the public store", async () => {
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
-      const sealer = new AesGcmSecretSealer(keyring);
+      const sealer = new AesGcmSecretSealer({ keyring });
       const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) }, idGen: { newId: () => "public-store" } };
       const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "original", category: "hosting",
         baseUrl: "https://api.name.com/v1", additionalHosts: ["https://other.example.com/path"],

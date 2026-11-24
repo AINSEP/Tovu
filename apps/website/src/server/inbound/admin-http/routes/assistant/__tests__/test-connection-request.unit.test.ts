@@ -5,8 +5,8 @@ import test from "node:test";
 import express from "express";
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminAssistantTestConnectionRoute } from "#src/server/runtime/composition/modules/assistant-execution";
 
@@ -15,7 +15,7 @@ test("test-connection returns a validation error for an absent or null request b
   registerAdminAssistantTestConnectionRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     workspaceId: "workspace-test",
     authorize: async () => ({ allowed: true, reason: "granted" }),
   } });
@@ -38,7 +38,7 @@ function buildConnectionRoute(overrides: Partial<Parameters<typeof registerAdmin
   registerAdminAssistantTestConnectionRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     workspaceId: "workspace-test",
     authorize: async () => ({ allowed: true, reason: "granted" }),
     ...overrides,

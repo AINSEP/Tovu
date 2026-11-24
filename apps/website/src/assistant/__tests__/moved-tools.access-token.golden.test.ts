@@ -26,8 +26,8 @@ import { saveAgentPluginToken, type AgentPluginAccessTokenToolDeps } from '../..
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 import { InMemoryExternalMcpServerRepo } from '../../features/external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../features/external-mcp/external-mcp-store.js';
-import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
-import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../features/webhooks/keyring.env.js';
 import type { HttpRequest, HttpResponse } from '../../platform/http/index.js';
 
 const GOLDEN_URL = new URL('./fixtures/moved-tools.access-token.golden.json', import.meta.url);
@@ -56,7 +56,7 @@ const card = (resource: UIResource) => {
 async function setup(options: { servers?: Readonly<Record<string, McpServerConfig>> | null; respond?: () => HttpResponse } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse('2026-11-07T00:00:00.000Z'), nowIso: () => '2026-11-07T00:00:00.000Z' };
   const requests: HttpRequest[] = [];
   const http = { send: async (request: HttpRequest): Promise<HttpResponse> => {

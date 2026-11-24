@@ -13,8 +13,8 @@ import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credential
 import { loadFixtureAuthSchemes } from "#src/features/custom-credentials/__tests__/fixture-auth-schemes.fixture";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/store";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
@@ -90,7 +90,7 @@ interface Harness {
 async function buildHarness(): Promise<Harness> {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   let seq = 0;
   const idGen = { newId: () => `cred-${++seq}` };

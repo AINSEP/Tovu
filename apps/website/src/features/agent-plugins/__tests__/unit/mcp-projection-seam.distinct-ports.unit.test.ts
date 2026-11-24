@@ -6,8 +6,8 @@ import path from 'node:path';
 import { ToolInputError } from '@jini-ai/core';
 import { createSystemClock } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { applyExternalMcpAccess } from '@jini-ai/mcp/federation/hosted';
@@ -53,7 +53,7 @@ async function store(t: { after(callback: () => unknown): void }, options: { all
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = createSystemClock();
-  const storeDeps = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
+  const storeDeps = { repo, keyring, clock, sealer: new AesGcmSecretSealer({ keyring }) };
   await saveExternalMcpServer(storeDeps, {
     workspaceId: 'site', serverId: 'media', label: 'Media', transport: 'streamable_http', url: 'https://media.example.test/mcp',
     authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: options.allowed ?? 'existing', writeAllowedToolNames: '',

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FormDeliveryError, type FormDeliveryJob } from "@jini-ai/cms/forms";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, updateCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
@@ -28,7 +28,7 @@ const token = (tag: string) => `${tag}-${"t".repeat(20)}`;
 function credentialDeps(repo = new InMemoryCustomCredentialSetRepo()): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let n = 0;
-  return { repo, sealer: new AesGcmSecretSealer(keyring), keyring,
+  return { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring,
     clock: createFakeClock({ startIso: "2026-10-20T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
 }
 

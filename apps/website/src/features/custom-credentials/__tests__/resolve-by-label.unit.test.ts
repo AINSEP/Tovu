@@ -4,8 +4,8 @@ import test from "node:test";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
@@ -55,7 +55,7 @@ function makeWriteDeps(overrides: Partial<CustomCredentialWriteDeps> = {}): Cust
   const keyring = new InMemoryKeyring();
   return {
     repo: new InMemoryCustomCredentialSetRepo(),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: "2026-08-31T00:00:00.000Z" }),
     idGen: (() => {
@@ -110,7 +110,7 @@ test("a metadata-only custom edit preserves its hints/envelope with an unavailab
   const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "original", category: "ops",
     baseUrl: "https://example.com", connection: { token: "original-token-1234", username: "operator" } });
   const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
-  const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
   const changed = await updateCustomCredential(broken, { workspaceId: WORKSPACE, id: created.id, label: "renamed", username: null, connection: { token: "" } });
   assert.deepEqual(changed.tokenHint, created.tokenHint);
   assert.equal("username" in changed, false);
@@ -200,7 +200,7 @@ test("resolveCustomCredentialByLabel throws CustomCredentialSecretStoreUnconfigu
     connection: { token: "app-password", username: "mailer@example.com" },
   });
 
-  const brokenResolveDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const brokenResolveDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
   await assert.rejects(
     () => resolveCustomCredentialByLabel(brokenResolveDeps, { workspaceId: WORKSPACE, label: "Tovu Mail — SMTP Server" }),
     (err: unknown) => {

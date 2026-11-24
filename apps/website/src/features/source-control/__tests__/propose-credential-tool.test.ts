@@ -10,8 +10,8 @@ import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from '@jin
 /** Context fields a test call may override, plus the surface channel the handler receives separately. */
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { InMemorySourceControlCredentialSetRepo } from '../repo.memory.js';
 import { listSourceControlCredentials, resolveDefaultForSourceControl } from '../store.js';
 import { buildSourceControlCredentialHandler, buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk } from '../tool-registrations.js';
@@ -80,7 +80,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
 });
 function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof createSurfaceExchangeStore>[1]> = {}) {
   const repo = new InMemorySourceControlCredentialSetRepo(); const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring); const auth: unknown[] = [];
+  const sealer = new AesGcmSecretSealer({ keyring }); const auth: unknown[] = [];
   const deps = { workspaceId: 'ws-t10', sourceControlCredentialSetRepo: repo, siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential-t10' },
     sourceControlExportRootDir: '/unused', exportSiteBound: async () => assert.fail('setup must not export'),

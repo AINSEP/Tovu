@@ -31,8 +31,8 @@ import { installSupportingFilesFixture } from '../../features/agent-plugins/__te
 import { InMemoryExternalMcpServerRepo } from '../../features/external-mcp/external-mcp-store.memory.js';
 import { listExternalMcpServerViews } from '../../features/external-mcp/external-mcp-store.js';
 import { sealExternalMcpVaultPayload } from '../../features/external-mcp/external-mcp-vault.js';
-import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../features/webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { createAgentPluginStateStore } from '../../features/api-connections/plugin-state.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 
@@ -130,7 +130,7 @@ async function approvals() {
 async function counters() {
   const opens = { calls: 0, bytes: 0 };
   const keyring = new InMemoryKeyring();
-  const real = new AesGcmSecretSealer(keyring);
+  const real = new AesGcmSecretSealer({ keyring });
   const sealer = { seal: real.seal.bind(real), open: async (input: Parameters<typeof real.open>[0], optional?: Parameters<typeof real.open>[1]) => {
     opens.calls += 1; opens.bytes += Buffer.byteLength(input.sealed.ciphertext); return real.open(input, optional); } };
   const repo = new InMemoryExternalMcpServerRepo();

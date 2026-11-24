@@ -8,9 +8,9 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
@@ -93,7 +93,7 @@ function makeClock(startIso = "2026-08-25T12:00:00.000Z") {
 async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: string; clientAuth?: OAuthProviderDescriptor['clientAuth']; rejectReplayedCodes?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = makeClock();
   const http = scriptedFetch(options.script ?? [], options);
 

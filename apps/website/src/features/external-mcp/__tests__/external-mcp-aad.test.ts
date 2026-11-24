@@ -8,7 +8,7 @@ import test from "node:test";
 process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 
@@ -22,7 +22,7 @@ import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExterna
  */
 
 const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
-const sealer = new AesGcmSecretSealer(keyring);
+const sealer = new AesGcmSecretSealer({ keyring });
 const deps = { sealer, keyring };
 
 const WORKSPACE = "workspace-1";

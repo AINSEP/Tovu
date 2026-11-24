@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
 
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds, PENDING_AGENT_PLUGIN_TOKENS_FILENAME, sealPendingAgentPluginTokensForNewSite } from "../pending-agent-plugin-tokens.js";
 import { siteSecretSealer } from "../storage-secret.js";
@@ -27,7 +27,7 @@ let keyring: InMemoryKeyring;
 beforeEach(() => {
   siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "pending-tokens-"));
   keyring = new InMemoryKeyring();
-  sealer = new AesGcmSecretSealer(keyring);
+  sealer = new AesGcmSecretSealer({ keyring });
 });
 
 afterEach(() => fs.rmSync(siteDir, { recursive: true, force: true }));
@@ -109,7 +109,7 @@ test("an import that throws keeps only that token for the next boot, still seale
 });
 
 test("a token that will not open with this site's key is dropped with a warning, never imported", async () => {
-  await writePending({ supabase: TOKEN }, new AesGcmSecretSealer(new InMemoryKeyring()));
+  await writePending({ supabase: TOKEN }, new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }));
   const { logs, log } = recorder();
   const calls: string[] = [];
   await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => (calls.push(id), "saved"), log });

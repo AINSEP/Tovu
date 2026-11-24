@@ -3,8 +3,8 @@ import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-s
 import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from "@jini-ai/mcp/federation/hosted";
 import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -56,7 +56,7 @@ async function fixture(t: { after(callback: () => unknown): void }) {
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [{ id: 'word-count', name: 'Word Count', version: '1.0.0', source: 'built-in', status: 'valid', errors: [], manifest: WORD_COUNT_MANIFEST }, ...extraSitePlugins],
     listInstalledAgentPlugins: async ({ workspaceRoot }) => { listedRoots.push(workspaceRoot); return installed; },
-    mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
+    mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock }),
     preferences: { locale: async () => "en" },
     providerFaces: composePluginProviderFaces({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
   };
@@ -347,7 +347,7 @@ for (const separatelyConfigured of [false, true]) test(`a signed-in connection r
     const workspaceRoot = ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: ctx.deps.workspaceId }).root;
     // Signed in while the operator had the plugin off (the sign-in grant skipped it), then switched on in chat.
     const keyring = new InMemoryKeyring();
-    await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
+    await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: ctx.deps.clock }, {
       workspaceId: ctx.deps.workspaceId, serverId: 'media', label: 'media-fixture · media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
       command: '', url: 'https://mcp.media.example/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' },
       principalId: 'operator', provisionedByPluginId: separatelyConfigured ? undefined : 'media-fixture' });

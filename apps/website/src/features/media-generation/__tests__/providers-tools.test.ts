@@ -14,8 +14,8 @@ import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/da
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
 import { createMediaProviderRegistry } from '@jini-ai/integrations/media-providers';
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '../../media/provider-credential-store.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { buildMediaGenerationRegistrations, type MediaGenerationToolDeps } from '../tool-registrations.js';
 import { saveMediaCredential, buildMediaProviderRegistrations, contributeMediaProviderTools, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '../providers-tools.js';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
@@ -80,7 +80,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
 function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof createSurfaceExchangeStore>[1]> = {}) {
   const repo = new InMemoryMediaProviderCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const auth: unknown[] = [];
   const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createMediaProviderRegistry(),
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },

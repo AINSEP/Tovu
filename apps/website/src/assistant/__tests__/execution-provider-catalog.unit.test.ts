@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 import * as catalog from '@jini-ai/integrations/media-providers/catalog';
-import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
-import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../features/webhooks/keyring.env.js';
 import { InMemoryAdminExecutionCredentialRepo } from '../execution-credential-store.memory.js';
 import { setExecutionCredential } from '../execution-credential-store.js';
 import type { EnsureExecutionSettingDefinitionsDeps } from '../execution-mode-settings.js';
@@ -26,7 +26,7 @@ test('live model discovery uses the provider catalog when a saved key has no cus
   const { createLiveModelDiscovery } = await import('../live-model-cache.js');
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => 0, nowIso: () => '2026-11-02T00:00:00.000Z' };
   await setExecutionCredential({ repo, sealer, keyring, clock }, {
     workspaceId: 'workspace', principalId: 'admin', protocol: 'anthropic', apiKey: 'test-key',

@@ -1,4 +1,4 @@
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/subscriber-directory";
 import { SqliteMemberRepo } from "#src/features/members/repo.sqlite";
@@ -181,6 +181,6 @@ export function composeSiteKeysMembers(required: ComposeSiteKeysMembersRequired,
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({
     sources: siteKeySourcesList,
   });
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  const siteAssistantSecretSealer = new AesGcmSecretSealer({ keyring: siteAssistantSecretKeyring });
   return { runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer };
 }

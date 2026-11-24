@@ -32,8 +32,8 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
@@ -70,7 +70,7 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
   const allow = options.allow ?? true;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const realSealer = new AesGcmSecretSealer(keyring);
+  const realSealer = new AesGcmSecretSealer({ keyring });
   let counter = 0;
   const idGen = { newId: () => `cred-${++counter}` };
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };

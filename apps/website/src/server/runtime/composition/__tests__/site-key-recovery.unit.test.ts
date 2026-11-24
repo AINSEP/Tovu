@@ -10,7 +10,7 @@ import { secretSealerContractViolations } from "@jini-ai/platform/secrets/testin
 import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -36,7 +36,7 @@ const C = mintSiteKeyHex();
 
 function keyed(hex: string) {
   const keyring = new FixedSiteKeyKeyring({ hex });
-  return { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 
 function siteDir(t: TestContext): string {

@@ -8,8 +8,8 @@ import { openExternalMcpOAuthPayload } from "../../external-mcp-store.js";
 import type { SurfaceEmission } from "@jini-ai/core";
 import type { ExternalMcpToolDeps } from "../../deps.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { buildExternalMcpRegistrations, contributeExternalMcpTools } from "../../tool-registrations.js";
 import { externalMcpAgentToolCatalog } from "../../external-mcp-host-copy.js";
 import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "@jini-ai/mcp/external/save-form";
@@ -28,7 +28,7 @@ for (const transport of ["streamable_http", "stdio"]) test(`static ${transport} 
 test("hosted static token entered through the form is sealed, used as bearer auth and kept on a blank update", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: "ws-n04-token", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
   const regs = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} });
@@ -75,7 +75,7 @@ for (const [env, message] of [
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
+  const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring };
   const save = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === "external_mcp_save")!;
   let surface: unknown;
   const pending = invokeFixtureHandler(save, { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "local", transport: "stdio", command: "node", authMode: "static_env" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
@@ -98,7 +98,7 @@ function invokeFixtureHandler(
 }
 
 test('a rejected saved static token returns a secure update-card diagnostic', async () => {
-  const repo = new InMemoryExternalMcpServerRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer(keyring);
+  const repo = new InMemoryExternalMcpServerRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer({ keyring });
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: 'ws-static-recovery', authorize: async () => ({ allowed: true, reason: 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-07T00:00:00Z'), nowIso: () => '2026-10-07T00:00:00Z' },
@@ -134,7 +134,7 @@ function cardFixture(repo = new InMemoryExternalMcpServerRepo()) {
     scheduler: { schedule: ({ callback }) => { timers.add(callback); return () => { timers.delete(callback); }; } },
   });
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const deps: ExternalMcpToolDeps = { workspaceId: "ws-card-branches", authorize: async () => ({ allowed: true, reason: "matched" }), clock,
     externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
   const emissions: SurfaceEmission[] = [];
@@ -258,7 +258,7 @@ test("an enabled connection that fails resolution returns the resolver's actiona
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "broken", transport: "streamable_http", authMode: "static_env", enabled: true,
     url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", accessToken: "test-static-token",
   });
-  f.deps.siteAssistantSecretSealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  f.deps.siteAssistantSecretSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   assert.deepEqual(await f.call("external_mcp_test_connection", { id: "broken" }), { ok: false, reason: "its stored access token could not be decrypted — re-enter it in Settings → External MCP" });
 });
 

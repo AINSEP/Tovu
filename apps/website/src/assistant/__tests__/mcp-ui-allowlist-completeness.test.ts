@@ -101,8 +101,6 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
 // Match the complete reviewed call and file: a different argument or receiver still fails closed.
 const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
-  // 9abe6503d: the Tovu sealer opens through a per-call Jini sealer that wraps its keyring.
-  ["features/webhooks/secret-sealer.aesgcm.ts", new Set(["new JiniSecretSealer({ keyring }).open(input, optional)"])],
   // The import-local CLI opens a bounded archive FILE with fs.promises.open; nothing to do with an exchange.
   ["cli/commands/import-local.ts", new Set([`fsp.open(file, "r")`])],
   ["features/plugin-runtime/source-tools.ts", new Set(["port.open({ id: pluginId }, {})"])],
@@ -327,17 +325,17 @@ test("the federated card adapter permits only its reviewed dynamic spec expressi
   ]);
 });
 
-test("the sealer adapter exemption leaves other unresolved open calls visible", () => {
-  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "features/webhooks/secret-sealer.aesgcm.ts"), text: `
-    new JiniSecretSealer({ keyring }).open(input, optional);
-    new JiniSecretSealer({ keyring }).open(otherInput, optional);
+test("a reviewed sealer exemption leaves other unresolved open calls visible", () => {
+  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "features/vendor-credentials/vault-adapter.ts"), text: `
+    required.sealer.open(input, options);
+    required.sealer.open(otherInput, options);
     store.open({ binding, emit });
   ` }, { file: path.join(SRC_ROOT, "fixture.ts"), text: `
     this.sealer.open(input, optional);
   ` }]);
   assert.deepEqual(fixture.unresolved, [
-    "features/webhooks/secret-sealer.aesgcm.ts:3: otherInput",
-    "features/webhooks/secret-sealer.aesgcm.ts:4: binding",
+    "features/vendor-credentials/vault-adapter.ts:3: otherInput",
+    "features/vendor-credentials/vault-adapter.ts:4: binding",
     "fixture.ts:2: input",
   ]);
 });

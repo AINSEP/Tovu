@@ -3,8 +3,8 @@ import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
@@ -54,7 +54,7 @@ function makeClock() {
 async function harness(fetchFn?: typeof fetch) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = makeClock();
 
   await saveExternalMcpServer(

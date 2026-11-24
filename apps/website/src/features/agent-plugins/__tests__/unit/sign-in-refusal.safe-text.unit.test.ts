@@ -5,8 +5,8 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { composeAgentPluginMcp } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
 import { runAgentPluginConnect } from '../../connect-tool.js';
 import { validatedAgentPluginToolGrant } from '../../enable-access.js';
@@ -22,7 +22,7 @@ function harness(fault: unknown, refusal: boolean) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = createSystemClock();
-  const mcp = composeAgentPluginMcp({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock });
+  const mcp = composeAgentPluginMcp({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock });
   const seen: unknown[] = [];
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const emissions: SurfaceEmission[] = [];

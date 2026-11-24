@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { InMemoryExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../../features/external-mcp/external-mcp-store.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -21,7 +21,7 @@ const baseUrl = "https://api.vendor.example.com";
 async function harness(options: { owner?: string; enabled?: boolean; authMode?: string; missingRow?: boolean; baseUrl?: string } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   if (!options.missingRow) {
     await saveExternalMcpServer({ repo, keyring, sealer, clock: { nowMs: () => 0 } }, {
       workspaceId, serverId, provisionedByPluginId: options.owner ?? pluginId,

@@ -7,8 +7,8 @@ import path from "node:path";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 import { grantDeclaredToolsAtBoot } from "../../grant-signed-in-defaults.js";
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from "../../lifecycle.js";
@@ -48,7 +48,7 @@ async function bootWith(input: { activation: Activation; signedIn?: boolean; wri
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const clock = { nowMs: () => Date.parse("2026-11-04T12:00:00.000Z"), nowIso: () => "2026-11-04T12:00:00.000Z" };
-    await saveExternalMcpServer({ repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock }, {
+    await saveExternalMcpServer({ repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock }, {
       workspaceId: WORKSPACE, serverId: "media", label: `${PLUGIN} · media`, transport: "streamable_http", authMode: "oauth", enabled: false,
       command: "", url: URL_, args: "", allowedToolNames: "", writeAllowedToolNames: "", oauth: { grant: "authorization_code" },
       principalId: "operator-1", provisionedByPluginId: PLUGIN,

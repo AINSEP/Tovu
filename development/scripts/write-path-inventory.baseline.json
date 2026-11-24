@@ -1625,15 +1625,6 @@
   },
   {
     "source": "port",
-    "contractMethod": "KeyringPort.activeKey",
-    "implementingClass": "InMemoryKeyring",
-    "caller": "(no caller found in project)",
-    "file": "src/features/webhooks/keyring.memory.ts",
-    "line": 25,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
     "contractMethod": "SecretSealerPort.seal",
     "caller": "(no implementation found in project)",
     "file": "src/features/webhooks/ports.ts",

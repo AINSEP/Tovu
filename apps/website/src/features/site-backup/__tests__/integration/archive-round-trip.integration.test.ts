@@ -6,8 +6,8 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 import { createCustomCredential } from "../../../custom-credentials/store.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { githubFromSource } from "../../../source-control/__tests__/fixtures/github-from-source.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { planSiteBackup, pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../../backup-service.js";
@@ -33,7 +33,7 @@ function write(required: { root: string; file: string; bytes: Buffer }): void {
 async function repositoryHarness(required: { h: ImportHarness }) {
   const { h } = required, siteDir = path.join(h.root, "source");
   const github = new FakeGitHub(), repo = new InMemoryCustomCredentialSetRepo();
-  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer({ keyring });
   const provider = (await githubFromSource({ workspaceId: "ws" })).get({ providerId: "github" });
   assert.ok(provider);
   await createCustomCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.parse(stamp) }, idGen: { newId: () => "backup-credential" } }, {

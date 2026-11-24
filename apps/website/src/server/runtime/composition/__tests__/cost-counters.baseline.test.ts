@@ -24,8 +24,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
@@ -133,7 +133,7 @@ const MESSAGE = { workspaceId: MAIL_WORKSPACE, to: { email: "a@example.com" }, f
 async function countingMailer(initial: MailProviderSetting) {
   const counts = { settingReads: 0, credentialLists: 0, credentialRows: 0, catalogLoads: 0, credentialOpens: 0, providerCalls: 0 };
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const repo = new InMemoryCustomCredentialSetRepo();
   let n = 0;
   await createCustomCredential({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-11-07T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } },

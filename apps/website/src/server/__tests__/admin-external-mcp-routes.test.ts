@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
@@ -221,7 +221,7 @@ test("an unconfigured secret store fails closed with 503 rather than storing a p
   const keyring = new BrokenKeyring();
   const { app, deps } = buildTestApp({
     siteAssistantSecretKeyring: keyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

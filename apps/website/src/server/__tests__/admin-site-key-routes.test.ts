@@ -15,7 +15,7 @@ import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedSiteKeyKeyring, fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { readSealedConnectionString, writeSealedConnectionString } from "../runtime/composition/storage-secret.js";
 
@@ -784,7 +784,7 @@ function createCredentialTable(siteDir: string): void {
 async function sealCredentialRow(siteDir: string, id: string, hex: string): Promise<void> {
   createCredentialTable(siteDir);
   const keyring = new FixedSiteKeyKeyring({ hex });
-  const sealed = await new AesGcmSecretSealer(keyring).seal({
+  const sealed = await new AesGcmSecretSealer({ keyring }).seal({
     plaintext: JSON.stringify({ token: `secret-${id}` }),
     key: await keyring.activeKey(),
     aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }),
@@ -805,7 +805,7 @@ async function openCredentialRow(siteDir: string, id: string, hex: string): Prom
   db.close();
   if (row === undefined) return undefined;
   try {
-    return JSON.parse(await new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex })).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })).token as string;
+    return JSON.parse(await new AesGcmSecretSealer({ keyring: new FixedSiteKeyKeyring({ hex }) }).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })).token as string;
   } catch {
     return undefined;
   }
@@ -913,7 +913,7 @@ test("import: a database connection sealed under the wrong key meanwhile is move
   writePerSiteKey("pg-unlock-site", wrongHex);
   writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "pg-unlock-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: originalHex }) }));
   const wrongKeyring = new FixedSiteKeyKeyring({ hex: wrongHex });
-  await writeSealedConnectionString({ siteDir: deps.siteBinding.dir, connectionString: "postgres://site" }, { sealer: new AesGcmSecretSealer(wrongKeyring), keyring: wrongKeyring });
+  await writeSealedConnectionString({ siteDir: deps.siteBinding.dir, connectionString: "postgres://site" }, { sealer: new AesGcmSecretSealer({ keyring: wrongKeyring }), keyring: wrongKeyring });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
   const res = await postJson(baseUrl, `${BASE}/import`, cookie, { siteKey: originalHex });
@@ -922,7 +922,7 @@ test("import: a database connection sealed under the wrong key meanwhile is move
   const body = (await res.json()) as { outcome: string; resealed: number };
   assert.equal(body.outcome, "unlocked");
   assert.equal(body.resealed, 1);
-  const opened = await readSealedConnectionString({ siteDir: deps.siteBinding.dir }, { sealer: new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: originalHex })) });
+  const opened = await readSealedConnectionString({ siteDir: deps.siteBinding.dir }, { sealer: new AesGcmSecretSealer({ keyring: new FixedSiteKeyKeyring({ hex: originalHex }) }) });
   assert.equal(opened, "postgres://site");
 });
 

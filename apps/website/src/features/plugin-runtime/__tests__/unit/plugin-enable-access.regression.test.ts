@@ -58,8 +58,8 @@ test('a declined enable remains a choice when a seeded-off plugin signs in later
   const { previewAgentPluginEnableAccess } = await import('../../../agent-plugins/enable-access.js');
   const { InMemoryExternalMcpServerRepo } = await import('../../../external-mcp/external-mcp-store.memory.js');
   const { saveExternalMcpServer } = await import('../../../external-mcp/external-mcp-store.js');
-  const { InMemoryKeyring } = await import('../../../webhooks/keyring.memory.js');
-  const { AesGcmSecretSealer } = await import('../../../webhooks/secret-sealer.aesgcm.js');
+  const { InMemoryKeyring } = await import('../../../webhooks/keyring.env.js');
+  const { AesGcmSecretSealer } = await import('@jini-ai/platform/secrets');
   const { WORKSPACE_ID } = await import('../fixtures/plugins-tool-harness.js');
   const fixture = createTempSiteLayoutFixture({});
   t.after(fixture.cleanup);
@@ -70,7 +70,7 @@ test('a declined enable remains a choice when a seeded-off plugin signs in later
   const keyring = new InMemoryKeyring();
   const clock = { nowMs: () => Date.parse('2026-11-05T12:00:00Z') };
   const servers = { media: { type: 'streamable-http' as const, url: 'https://media.example.test/mcp', authMode: 'oauth' as const, defaultTools: { allow: ['read'], write: [] } } };
-  await saveExternalMcpServer({ repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) }, {
+  await saveExternalMcpServer({ repo, keyring, clock, sealer: new AesGcmSecretSealer({ keyring }) }, {
     workspaceId: WORKSPACE_ID, serverId: 'media', label: 'Media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
     url: servers.media.url, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', provisionedByPluginId: input.pluginId,
   });

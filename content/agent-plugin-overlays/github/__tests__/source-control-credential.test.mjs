@@ -6,8 +6,8 @@ import { parseSourceControlProvidersFile, loadSourceControlProviderRegistryFromS
 import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { createSourceControlCredential, resolveDefaultForSourceControl } from '../../../../apps/website/src/features/source-control/store.ts';
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
-import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';
-import { AesGcmSecretSealer } from '../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts';
+import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.env.ts';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 // Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
@@ -48,7 +48,7 @@ test('GitHub credential admission needs only the token and probes through the in
   const repo = new InMemorySourceControlCredentialSetRepo();
   const calls = [];
   const deps = {
-    repo, keyring, sealer: new AesGcmSecretSealer(keyring),
+    repo, keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock: { nowIso: () => '2026-10-22T00:00:00.000Z', nowMs: () => 0 },
     idGen: { newId: () => 'github-credential' },
     loadSourceControlProviders: () => loadSourceControlProviderRegistryFromSource({ pluginId: 'github', packageRoot }),

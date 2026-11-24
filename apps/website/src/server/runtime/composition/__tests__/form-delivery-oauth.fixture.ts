@@ -22,8 +22,8 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
-import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer as CustomCredentialSealer } from "@jini-ai/platform/secrets";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
@@ -189,7 +189,7 @@ export async function createOAuthDeliverySite(required: {
   const jobs = new Map<string, FormDeliveryQueuedJob>();
   // Saved custom credentials use the site-assistant sealer types, as in the site composition.
   const customKeyring = new CustomCredentialKeyring();
-  const customSealer = new CustomCredentialSealer(customKeyring);
+  const customSealer = new CustomCredentialSealer({ keyring: customKeyring });
   const deliver = composeFormDeliveryDeliverer({
     apiConnections: connections.apiConnections, kit: required.kit, credentials: { repo: customCredentialRepo, sealer: customSealer },
     loadRegistry: ({ workspaceId }) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: required.loadContributions }),

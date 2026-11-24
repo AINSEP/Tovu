@@ -24,8 +24,8 @@ import {
 import { agentPluginActivations } from "../../features/agent-plugins/activation-effects.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
@@ -162,7 +162,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   let counter = 0;
 
   const deps = testSiteLayoutContext({

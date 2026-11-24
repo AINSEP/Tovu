@@ -12,8 +12,8 @@ import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../.
 import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
 import { loadDeployOpsRegistry } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
 import { runDeploy, runDeployOps } from "../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
-import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.env.ts";
 import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
 import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
 import { API, TARGET, RUN, SERVICE, AT, context, response } from "./fixtures.mjs";
@@ -33,7 +33,7 @@ test("installed Render deploys and observes the returned ID through the guarded 
     const registry = await loadDeployOps({ workspaceId });
     assert.deepEqual(registry.refusals, []); assert.equal(typeof registry.get("render")?.module.deploy, "function");
     const repo = new InMemoryCustomCredentialSetRepo(); const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring); const clock = { nowMs: () => Date.parse(AT) };
+    const sealer = new AesGcmSecretSealer({ keyring }); const clock = { nowMs: () => Date.parse(AT) };
     await createCustomCredential({ repo, keyring, sealer, clock, idGen: { newId: () => "credential-one" } }, { workspaceId, label: "Render API", category: "ops", baseUrl: API, connection: { token: "simulated-private-token" } });
     const fake = context([{ url: `${API}/services/${TARGET}`, json: SERVICE }, { method: "POST", url: `${API}/services/${TARGET}/deploys`, body: {}, response: response({ id: RUN }, 201) }, { url: `${API}/services/${TARGET}/deploys/${RUN}`, json: { id: RUN, status: "live" } }]);
     const deps = { workspaceId, authorize: async () => ({ allowed: true, reason: "matched" }), customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, clock, loadAuthSchemes: async () => [], loadDeployOps, deployOpsHttpClient: { send: async request => {

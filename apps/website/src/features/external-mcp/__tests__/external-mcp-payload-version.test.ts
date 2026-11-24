@@ -5,7 +5,7 @@ import test from "node:test";
 
 process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultMeta } from "@jini-ai/core/contracts/vault";
@@ -23,7 +23,7 @@ import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION } from "@jini-ai/mcp/federation/host
  */
 
 const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
-const sealer = new AesGcmSecretSealer(keyring);
+const sealer = new AesGcmSecretSealer({ keyring });
 const deps = { sealer, keyring };
 
 const WORKSPACE = "workspace-1";

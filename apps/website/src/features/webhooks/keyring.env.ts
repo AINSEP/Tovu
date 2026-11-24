@@ -5,6 +5,7 @@ import {
   fingerprintRootKeyHex as fingerprintKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
   generateFileRootKey as generateKeyFile, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring as PlatformInMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -91,6 +92,14 @@ import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, 
  */
 
 export const HKDF_EXTRACTION_SALT = "tovu-integrations-root-key-hkdf-v1"; // site-key-frozen: never change (every sealed row depends on these bytes)
+
+/** Ephemeral keyring with this host's frozen salt: hermetic route composition and tests run the real
+ * signer/HKDF path over one random in-memory site key, never an env var or the filesystem. */
+export class InMemoryKeyring extends PlatformInMemoryKeyring {
+  constructor(_required: Record<string, never> = {}, optional: { keyId?: string } = {}) {
+    super({ hkdfSalt: HKDF_EXTRACTION_SALT }, optional);
+  }
+}
 const SITE_KEY_LENGTH_BYTES = 32;
 
 export interface EnvOrFileKeyringOptions {

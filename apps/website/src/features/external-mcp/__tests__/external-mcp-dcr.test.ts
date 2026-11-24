@@ -5,8 +5,8 @@ import test from "node:test";
 import { OAuthError } from "@jini-ai/oauth";
 
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../platform/oauth/__tests__/helpers.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
@@ -60,7 +60,7 @@ interface SaveOptions {
 function makeStore() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = makeClock();
   return { repo, keyring, sealer, clock, deps: { repo, sealer, keyring, clock } };
 }

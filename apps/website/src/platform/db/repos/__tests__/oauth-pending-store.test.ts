@@ -2,8 +2,8 @@ import type { Clock } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { OAuthError } from "#src/platform/oauth/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -42,7 +42,7 @@ function makeFixture(base: ContentKernel): Fixture {
   );
   const kernel: ContentKernel = { ...base, run: async (fn) => (await seeded, base.run(fn)), transaction: async (fn) => (await seeded, base.transaction(fn)) };
   const keyring = new InMemoryKeyring();
-  return { kernel, clock: createTestClock(), keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { kernel, clock: createTestClock(), keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 
 describeEachDialect(

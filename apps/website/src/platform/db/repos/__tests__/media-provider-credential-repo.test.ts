@@ -4,8 +4,8 @@ import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
 import type { MediaProviderCredentialRecord } from "#src/features/media/provider-credential-store";
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "#src/features/media/provider-credential-store";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaProviderCredentialRepo } from "../../../../features/media/media-provider-credential-repo.js";
@@ -77,7 +77,7 @@ describeEachDialect(
     test("a non-default media singleton resolves with one exact-provider query and one open", async () => {
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
-      const sealer = new AesGcmSecretSealer(keyring);
+      const sealer = new AesGcmSecretSealer({ keyring });
       const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
       await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "real-media-token-1234" } } });
       const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
@@ -268,7 +268,7 @@ describeEachDialect(
     test("a metadata-only SQL save preserves a rotation committed while its other key was sealing", async () => {
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
-      const sealer = new AesGcmSecretSealer(keyring);
+      const sealer = new AesGcmSecretSealer({ keyring });
       const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
       await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } });
       let release!: () => void;

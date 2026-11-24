@@ -1,5 +1,5 @@
-import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.env.ts";
 import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
 import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
 import { InMemoryCredentialedRequestAuditLog } from "../../../../apps/website/src/features/custom-credentials/credentialed-request.ts";
@@ -15,7 +15,7 @@ export async function fixture(optional = {}) {
   const { labels = ["ops"], host = "https://api.machines.dev", additionalHosts = ["https://api.fly.io"] } = optional;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse(AT) };
   let id = 0;
   for (const label of labels) await createCustomCredential({ repo, keyring, sealer, clock, idGen: { newId: () => String(++id) } }, { workspaceId: "ws", label, category: "ops", baseUrl: host, additionalHosts, connection: { token: "saved-private-token" } });

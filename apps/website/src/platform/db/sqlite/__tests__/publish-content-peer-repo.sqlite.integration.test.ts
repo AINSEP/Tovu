@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import {
   createPublishContentPeer,
   deletePublishContentPeer,
@@ -63,7 +63,7 @@ function makeDeps(dbPath: string, idPrefix: string) {
   const keyring = new InMemoryKeyring();
   return {
     repo: new SqlitePublishContentPeerRepo(contentKernel({ store: openContentDb(dbPath) })),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
     idGen: { newId: () => `${idPrefix}-${++n}` },
@@ -192,7 +192,7 @@ test("credential rotation and moving or removing a connected destination preserv
   const keyring = new InMemoryKeyring();
   const deps = {
     repo: new SqlitePublishContentPeerRepo(contentKernel({ store: db })),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
     idGen: { newId: () => `peer-${++nextId}` },

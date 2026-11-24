@@ -8,8 +8,8 @@ import Database from "better-sqlite3";
 
 import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentPeer, InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -71,7 +71,7 @@ async function backstopDeps(overrides: Partial<PublishContentRouteDeps> = {}): P
   const deps = routeDeps({
     ownerPrincipalId: Promise.resolve("owner"),
     publishContentPeerRepo: new InMemoryPublishContentPeerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     siteAssistantSecretKeyring: keyring,
     idGen: { newId: () => (serial++ === 0 ? "peer-1" : `id-${serial}`) },
     publishContentPeerHttpClient: fakePeer(),
@@ -294,7 +294,7 @@ test("send whose saved live key can no longer be opened answers the secret-store
   await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord() });
   const deps = await backstopDeps({ contentKernel: kernel });
   // The site key changed after the live key was saved: the sealed key no longer opens.
-  const app = routeApp(registerPublishBackstopRoutes, { ...deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()) });
+  const app = routeApp(registerPublishBackstopRoutes, { ...deps, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }) });
   const result = await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, SEND_BODY);
   assert.equal(result.status, 503, JSON.stringify(result.body));
   assert.equal((result.body as { code: string }).code, "SECRET_STORE_UNCONFIGURED");

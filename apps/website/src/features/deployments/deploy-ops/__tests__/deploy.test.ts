@@ -46,9 +46,9 @@ test("send refuses hosts outside the platform, credential-host mismatches and no
   const narrowed = await withDeploy(async ctx => { await ctx.send({ method: "POST", url: "https://logs.example-host.dev/v1/ingest", body: {} }); return accepted(); });
   const { InMemoryCustomCredentialSetRepo } = await import("../../../custom-credentials/repo.memory.js");
   const { createCustomCredential } = await import("../../../custom-credentials/store.js");
-  const { InMemoryKeyring } = await import("../../../webhooks/keyring.memory.js");
-  const { AesGcmSecretSealer } = await import("../../../webhooks/secret-sealer.aesgcm.js");
-  const repo = new InMemoryCustomCredentialSetRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer(keyring);
+  const { InMemoryKeyring } = await import("../../../webhooks/keyring.env.js");
+  const { AesGcmSecretSealer } = await import("@jini-ai/platform/secrets");
+  const repo = new InMemoryCustomCredentialSetRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer({ keyring });
   await createCustomCredential({ repo, keyring, sealer, clock: narrowed.deps.clock, idGen: { newId: () => "1" } }, { workspaceId: "ws", label: "ops", category: "ops", baseUrl: "https://api.example-host.dev", additionalHosts: [], connection: { token: "saved-private-token" } });
   await assert.rejects(runDeploy({ deps: { ...narrowed.deps, customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer }, input: { platform: "example-host", target: "shop" } }), { name: "ToolInputError", message: "Credential 'ops' does not allow host 'logs.example-host.dev'. Add that host to the saved credential or choose another credentialLabel." });
   assert.deepEqual([...f.calls, ...plain.calls, ...method.calls, ...narrowed.calls], []);

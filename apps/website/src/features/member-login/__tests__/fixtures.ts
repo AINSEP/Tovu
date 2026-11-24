@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
 import type { LoginProvider } from "@jini-ai/user-management/server";
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
@@ -16,7 +16,7 @@ export const provider: LoginProvider = { id: "google", label: "Google", pluginId
 export function cryptoFixture() {
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const keyring = new InMemoryKeyring();
-  return { clock, keyring, sealer: new AesGcmSecretSealer(keyring), randomBytesFn: ({ byteLength }: { byteLength: number }) => randomBytes(byteLength) };
+  return { clock, keyring, sealer: new AesGcmSecretSealer({ keyring }), randomBytesFn: ({ byteLength }: { byteLength: number }) => randomBytes(byteLength) };
 }
 
 /** The stock OAuth/AAD implementations and app identity the host composition injects into OidcLoginDeps. */

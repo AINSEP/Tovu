@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError } from "#src/features/custom-credentials/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
@@ -53,7 +53,7 @@ function control(describe: () => Promise<MailProviderConfigurationReport>, optio
 function credentials(): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let n = 0;
-  return { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
+  return { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
 }
 
 /** describe() over the real store, so the saved row's presence is what the next read reports. */

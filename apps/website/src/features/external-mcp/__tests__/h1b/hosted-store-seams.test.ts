@@ -10,15 +10,15 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../external-mcp-store.js";
 import * as vaultShim from "../../external-mcp-vault.js";
 import { ExternalMcpConnectionRevokedError } from "../../external-mcp-revocation.js";
 
 const keyring = new InMemoryKeyring();
-const inner = new AesGcmSecretSealer(keyring);
+const inner = new AesGcmSecretSealer({ keyring });
 const counts = { seal: 0, open: 0 };
 const sealer = {
   seal: (...args: Parameters<typeof inner.seal>) => { counts.seal += 1; return inner.seal(...args); },

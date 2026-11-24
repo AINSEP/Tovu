@@ -22,8 +22,8 @@ import { agentPluginGuidanceCatalog } from "../../automatic-agent-plugins.js";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import { grantDeclaredToolsToSignedInRows } from "../../grant-signed-in-defaults.js";
@@ -658,7 +658,7 @@ test("the registered connect handler resolves a real installed plugin and reuses
     await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_A }).root, pluginId: "supabase", enabled: true, actor: "test" });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
+    const sealer = new AesGcmSecretSealer({ keyring });
     const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z") };
     const plugin = await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_A, pluginId: "supabase", agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout });
     assert.ok(plugin);
