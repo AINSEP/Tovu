@@ -1,12 +1,15 @@
 /**
- * @file Binds `RouteDeps.siteUpdateRuntime` for a self-hosted site from the environment. Opt-in on every axis:
- * no `TOVU_UPDATE_FEED_URL` (the release feed, no built-in default), no `TOVU_UPDATE_HOST=self-hosted`, or no
- * `TOVU_VERSION`/`TOVU_IMAGE_TAG` means no runtime, so the update tools are not registered and nothing touches the network.
+ * @file Binds `RouteDeps.siteUpdateRuntime` from the environment, for a self-hosted site or a desktop-launched one.
+ * Opt-in on every axis: no `TOVU_UPDATE_FEED_URL` (the release feed, no built-in default), no `TOVU_UPDATE_HOST`
+ * naming the host kind, or (self-hosted) no `TOVU_VERSION`/`TOVU_IMAGE_TAG` / (desktop) no hand-off port to the
+ * desktop main means no runtime, so the update tools are not registered and nothing touches the network.
  */
+import type { DesktopAppUpdaterPort, SiteDataRestorePort, SiteHealthPort } from "@jini-ai/devops/deploy";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { HttpClientPort, IdGenerator } from "@jini-ai/core/primitives";
 import { composeConfiguredSiteUpdateRuntime } from "#src/features/site-update/configured-runtime";
 import { createRestorePointBackup } from "#src/features/site-update/restore-point-backup";
+import type { SiteUpdateHost } from "#src/features/site-update/host-runtime";
 import { createSelfHostedUpdateHost, type SelfHostedHostOptional } from "#src/features/site-update/self-hosted-host";
 import type { SiteUpdateRuntime } from "#src/features/site-update/tools";
 
@@ -29,14 +32,31 @@ function runningVersionFrom(env: SiteUpdateBindingRequired["env"]): string | nul
 }
 
 /**
- * @returns The runtime, or null unless this is explicitly a self-hosted site with a feed URL and a known version.
- * @complexity O(1); builds ports without calling them.
+ * The desktop main's side of an update, reached over the desktop hand-off channel. The site process never holds the
+ * app updater: `app` and `health` call back into the main that spawned it, so stage and install happen only there.
  */
-export function bindSiteUpdateRuntime({ env, dbOps, ids, getJson, recordTargetTag }: SiteUpdateBindingRequired, optional: SelfHostedHostOptional = {}): SiteUpdateRuntime | null {
+export interface DesktopHandoffPorts {
+  app: DesktopAppUpdaterPort;
+  health: SiteHealthPort;
+}
+
+export interface SiteUpdateBindingOptional extends SelfHostedHostOptional {
+  /** Absent (a desktop-launched site whose main never handed the channel over) means a desktop host cannot update. */
+  desktop?: DesktopHandoffPorts | undefined;
+}
+
+/** The host plus the running version for the environment's host kind, or null when that kind cannot update here. */
+function resolveHost({ env, getJson, recordTargetTag }: SiteUpdateBindingRequired, { desktop, ...selfHosted }: SiteUpdateBindingOptional, { data }: { data: SiteDataRestorePort }): { host: SiteUpdateHost; runningVersion: () => Promise<string> } | null {
+  if (env["TOVU_UPDATE_HOST"] === "desktop") {
+    if (!desktop) return null;
+    // The app swap relaunches the desktop, and the new version runs its own migrations on that boot; the restore
+    // point is taken before `migrate` is reached (backup precedes apply), so the only data step is the restore.
+    const migrate = { migrate: async () => undefined, restore: data.restore };
+    return { host: { kind: "desktop", app: desktop.app, migrate, health: desktop.health }, runningVersion: () => desktop.app.currentVersion({}) };
+  }
   const version = runningVersionFrom(env);
   if (env["TOVU_UPDATE_HOST"] !== "self-hosted" || version === null) return null;
   const healthUrl = env["TOVU_UPDATE_HEALTH_URL"]?.trim() ?? "";
-  const { backup, readiness, data } = createRestorePointBackup({ dbOps });
   const host = createSelfHostedUpdateHost({
     runningTag: env["TOVU_IMAGE_TAG"]?.trim() || version, recordTargetTag,
     readHealth: async () => {
@@ -44,8 +64,21 @@ export function bindSiteUpdateRuntime({ env, dbOps, ids, getJson, recordTargetTa
       const body = await getJson({ url: healthUrl }) as { status?: unknown; version?: unknown } | null;
       return { ok: body?.status === "ok", version: typeof body?.version === "string" ? body.version : undefined };
     },
-  }, { data, ...optional });
-  return composeConfiguredSiteUpdateRuntime({ config: { feedUrl: env["TOVU_UPDATE_FEED_URL"] }, host, shared: { backup, readiness, ids, runningVersion: async () => version }, getJson });
+  }, { data, ...selfHosted });
+  return { host, runningVersion: async () => version };
+}
+
+/**
+ * @returns The runtime, or null unless the host kind is named, the feed URL is configured, and (self-hosted) the
+ *   version is known or (desktop) the main handed over its update channel.
+ * @complexity O(1); builds ports without calling them.
+ */
+export function bindSiteUpdateRuntime(required: SiteUpdateBindingRequired, optional: SiteUpdateBindingOptional = {}): SiteUpdateRuntime | null {
+  const { env, dbOps, ids, getJson } = required;
+  const { backup, readiness, data } = createRestorePointBackup({ dbOps });
+  const resolved = resolveHost(required, optional, { data });
+  if (resolved === null) return null;
+  return composeConfiguredSiteUpdateRuntime({ config: { feedUrl: env["TOVU_UPDATE_FEED_URL"] }, host: resolved.host, shared: { backup, readiness, ids, runningVersion: resolved.runningVersion }, getJson });
 }
 
 /** JSON GET over the guarded outbound client: a non-2xx or non-JSON answer throws, so a check says "could not check". */
