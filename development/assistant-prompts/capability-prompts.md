@@ -717,7 +717,7 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `settings_set_value` | W | `apps/website/src/features/settings/tool-registrations.ts` |
 | `site_backup_plan` | R | `apps/website/src/features/site-backup/tool-registrations.ts:96` |
 | `site_backup_push` | W | `apps/website/src/features/site-backup/tool-registrations.ts` |
-| `site_collect_page_evidence` | R | `apps/website/src/features/site-evidence/agent-tools.ts:35` |
+| `site_collect_page_evidence` | R | `@jini-ai/diagnostics/web-evidence/agent-tools` (Jini `packages/diagnostics/src/web-evidence/agent-tools.ts`) |
 | `site_describe_capabilities` | R | `apps/website/src/features/site-inspection/tool-registrations.ts:147` |
 | `site_get_profile` | R | `apps/website/src/features/site-inspection/tool-registrations.ts:134` |
 | `sites_duplicate_site` | W | `apps/website/src/features/sites/tool-registrations.ts:157` |
