@@ -109,6 +109,9 @@
       ]
     },
     "apps/site-chat": {
+      "ignoreDependencies": [
+        "@mcp-ui/client"
+      ],
       "entry": [
         "src/main.tsx",
         "src/loader-entry.ts",
