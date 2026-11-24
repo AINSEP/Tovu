@@ -24,7 +24,7 @@ browser.
 (`createMergeTermSectionPort`, `createNewTaxonomyFormPort`, `createNewTermFormPort`,
 `createTermPickerPort` with the auth client's `me`, and `createTaxonomyPort` over the Trash client)
 as module-level singletons, plus `taxonomyHostKit` — this host's `taxonomy-i18n` translator,
-`ApiError`/`describeApiError` and admin failure channel — and `createTaxonomyBlockedError` (the real
+`ApiError`/`describeApiError`, admin failure channel and the shell's `useContentRefreshSubscription` — and `createTaxonomyBlockedError` (the real
 `ApiError` the fake taxonomy port throws for a blocked delete). `taxonomy-wired.hooks.ts` binds each
 `@jini-ai/admin` taxonomy hook to `useAdminLocale()`, its live port and the kit (`useWiredX`);
 `Taxonomy.tsx` mounts those. The Categories & Tags box is `@jini-ai/admin/screens/taxonomy/TermPicker`;

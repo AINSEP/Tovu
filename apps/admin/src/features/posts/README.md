@@ -10,6 +10,8 @@ The Posts list and the Post editor — the two screens behind the sidebar's **Co
 
 ## Wiring
 
+- `hooks/use-post-editor.hooks.ts` passes the shell's `unchangedSaveHandlers`
+  (`@jini-ai/admin/shell/lib/unchanged-save-warning`) into `usePostEditorUi`.
 - `PostSettingsDialog` comes from `@jini-ai/admin/posts/PostSettingsDialog` (it binds Core's
   `agentHandle` into `PostAuthorFields`/`PostPublishAtField` itself). `hooks/use-post-editor-screen.hooks.ts`
   passes `hooks: { useTabBarKeyboard }` from `@jini-ai/ui/tab-strip`; `PostEditor.tsx` loads
