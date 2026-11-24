@@ -86,7 +86,6 @@ import { RenderServiceError } from "@jini-ai/desktop-host";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { DOMAIN_DNS_EGRESS_POLICY, DOMAIN_DNS_PUBLIC_NAMES, bindDomainDnsChecks, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";

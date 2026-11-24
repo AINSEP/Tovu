@@ -7,7 +7,9 @@ import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
+import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { composeFormDelivery } from "../form-delivery.js";

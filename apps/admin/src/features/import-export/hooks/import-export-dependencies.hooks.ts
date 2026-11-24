@@ -3,7 +3,9 @@ import { useCallback } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { isDesktopAdmin } from "@/features/settings/ai-agent-presentation";
-import { sitesTranslator, useSitesSnapshot } from "../../sites";
+import { sitesTranslator } from "../../sites";
+import { useSitesSnapshot } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
+import { SITES_LISTING } from "@/features/sites/hooks/sites-dependencies.hooks";
 import {
   useImportExportTranslate,
   useSitesSectionAvailable,
@@ -23,7 +25,7 @@ export const IMPORT_EXPORT_TRANSLATE_HOST: ImportExportTranslateHost = { useLoca
 
 export const SITES_SECTION_HOST: SitesSectionAvailabilityHost = {
   isDesktop: () => isDesktopAdmin({}),
-  useSitesSnapshot: ({ enabled }) => useSitesSnapshot({ port: sitesApi }, { enabled }),
+  useSitesSnapshot: ({ enabled }) => useSitesSnapshot({ port: sitesApi, listing: SITES_LISTING }, { enabled }),
 };
 
 /** The panel's `t`, bound to this admin's resolved locale. */

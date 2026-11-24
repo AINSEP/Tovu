@@ -18,7 +18,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
  */
 import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

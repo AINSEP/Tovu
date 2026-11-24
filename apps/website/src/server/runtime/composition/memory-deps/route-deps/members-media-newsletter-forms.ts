@@ -1,4 +1,5 @@
 import { membersMailTransport } from "#src/features/members/mail-transport";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";

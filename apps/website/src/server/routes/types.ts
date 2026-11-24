@@ -451,7 +451,7 @@ export interface MembersDeps {
   /** Feedback setup's persisted product-prefixed signing-secret labels (`features/mail/index.ts`). */
   mailWebhookSecretLabels: typeof import("../../features/mail/index.js").mailWebhookSecretLabels;
   /** Mail readiness's Newsletter launch gate (`@jini-ai/platform/mail/use-readiness`): the one gate the send path runs. */
-  evaluateNewsletterLaunchGate: typeof import("../../features/newsletter/index.js").evaluateLaunchGate;
+  evaluateNewsletterLaunchGate: typeof import("@jini-ai/user-management/newsletter/launch-gate").evaluateLaunchGate;
 }
 
 /**

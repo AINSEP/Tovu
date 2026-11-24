@@ -4,9 +4,9 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
-import type { OutboundEmail } from "@jini-ai/platform/mail";
   InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import type { MemberRecord } from "@jini-ai/user-management/members/types";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";

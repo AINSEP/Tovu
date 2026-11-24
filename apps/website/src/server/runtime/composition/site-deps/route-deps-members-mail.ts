@@ -1,4 +1,5 @@
 import { executeCommand } from "@jini-ai/cms/core";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
 import { membersMailTransport } from "#src/features/members/mail-transport";

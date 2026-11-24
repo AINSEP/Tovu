@@ -12,7 +12,7 @@ import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreview
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { ADMIN_BASE, adminHref } from "@jini-ai/admin/shell/lib/router";
 import { t as pageEditorT } from "../pages/page-editor-i18n";
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { Chip, Loaded } from "./EmailParts";
 import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";

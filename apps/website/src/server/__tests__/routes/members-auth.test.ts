@@ -7,7 +7,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import type { MemberRecord } from "@jini-ai/user-management/members/types";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";

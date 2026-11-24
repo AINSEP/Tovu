@@ -14,7 +14,7 @@ import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
 import { type MemberRecord } from "@jini-ai/user-management/members/types";
-import { type OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import {
   createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP,
