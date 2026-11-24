@@ -20,6 +20,11 @@ import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "../..");
 
+/** Translator factories whose `commonDictionary` option is the sanctioned COMMON_I18N binding: the shared
+ *  one, and Jini feature translators that layer a host dictionary over the package's and take the host's
+ *  common dictionary through the same option (`@jini-ai/admin/source-control/source-control-i18n`). */
+const TRANSLATOR_FACTORIES = new Set(["createDictionaryTranslator", "createSourceControlTranslator"]);
+
 /** Indexed lookups that are allowed, each with its reason. Keep this list short. */
 const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
@@ -163,7 +168,7 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
         const call = ts.isPropertyAssignment(parent) && ts.isObjectLiteralExpression(parent.parent)
           ? parent.parent.parent : parent;
         const translator = ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
-          call.expression.text === "createDictionaryTranslator" &&
+          TRANSLATOR_FACTORIES.has(call.expression.text) &&
           (call.arguments[0] === node || (ts.isPropertyAssignment(parent) &&
             parent.initializer === node &&
             ((parent.name.getText(f.ast) === "featureDictionary" && call.arguments[0] === parent.parent) ||
