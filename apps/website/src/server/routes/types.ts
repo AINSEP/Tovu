@@ -685,7 +685,7 @@ export interface SettingsDeps {
    */
   assistantSettingsReady: Promise<void>;
   /** One management owner for page and chat; absent roots fail closed. */
-  visitorToolsManagement?: import("#src/contracts/site-assistant/visitor-tools-management").VisitorToolsManagementPort;
+  visitorToolsManagement?: import("@jini-ai/core/contracts/site/site-assistant-visitor-tools-management").VisitorToolsManagementPort;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
