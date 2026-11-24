@@ -11,4 +11,7 @@ import { createExportRunner } from "@jini-ai/devops/deploy/site/export-run";
  * OS process and therefore gets its own instance — the cross-process gap the runner's own header
  * discloses.
  */
-export const { getExportRunSnapshot, startExportRun, assertExportNotRunning, diagnoseStaticExport } = createExportRunner({});
+export const { getExportRunSnapshot, startExportRun, assertExportNotRunning, diagnoseStaticExport } = createExportRunner({
+  // The errored snapshot keeps the caught message verbatim, as before the move.
+  describeError: ({ error }) => (error instanceof Error ? error.message : String(error)),
+});
