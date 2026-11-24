@@ -4819,6 +4819,13 @@
     {"id": "681f1f558a88", "reason": "Moved with the function to Jini `packages/admin/src/shell/components/AssistantDock/hooks/open-mcp-ui-link.ts` (`openMcpUiLink` doc, w5-admin)."},
     {"id": "9997fb58724e", "reason": "Moved with the hook to Jini `packages/admin/src/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (`useChatDisplayPreferences` doc, w5-admin)."},
     {"id": "117d8cecfcaf", "reason": "Moved with `sharedPort` to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (w5-admin)."},
-    {"id": "dd1ac8c6c4ba", "reason": "Moved with the action wrapper to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (`useAssistantChats`, w5-admin)."}
+    {"id": "dd1ac8c6c4ba", "reason": "Moved with the action wrapper to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (`useAssistantChats`, w5-admin)."},
+    {"id": "272200c69b07", "reason": "Moved to Jini `packages/admin/src/security/access-token-categories.ts` (`sortAccessTokenGroups`: the category rank now derives from the injected category table; w5-admin)."},
+    {"id": "7db92d7ff4f9", "reason": "Moved to Jini `packages/admin/src/security/access-token-categories.ts` (`accessTokenCategoryLabel`, w5-admin)."},
+    {"id": "25d2ad89cdb9", "reason": "Moved to Jini `packages/admin/src/security/custom-credential-forms.ts` (`CustomCredentialFormFields.additionalHosts`, w5-admin)."},
+    {"id": "3cec53f4ba5d", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort test helper, w5-admin)."},
+    {"id": "19f9f65f4319", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."},
+    {"id": "fb17c84314b8", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."},
+    {"id": "9f08114a8563", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."}
   ]
 }
