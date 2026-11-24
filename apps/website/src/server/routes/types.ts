@@ -5,7 +5,7 @@ import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
-import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
+import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
 import type { ExportReport } from "#src/contracts/core/export-report";
@@ -138,7 +138,7 @@ import type { PublishTrustRevocationPort } from "#src/features/publish-trust/rev
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
-import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
+import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
@@ -1205,7 +1205,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   publishContentApplyPort: PublishContentApplyPort;
   /**
    * D1 (publish-types-plan §6) — this destination's seed-version lookup
-   * (`features/publish-content/seed-hash.ts`): the hash an entity had in the stock
+   * (`@jini-ai/cms/publish/content/seed-hash`): the hash an entity had in the stock
    * `content.seed.db` this instance was hydrated from. Passed to BOTH the import route's planner and
    * `publishContentApplyPort`'s apply-time re-verification, so they agree on what counts as
    * "untouched since seed". Real seed-backed lookup in `composition/deps.ts`;

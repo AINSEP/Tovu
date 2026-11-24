@@ -3,7 +3,7 @@ import type { CredentialTokenHint, CredentialConnection } from '@jini-ai/platfor
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";
-import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.js";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 
 /** Source-control identities are separate from deploy targets: they carry authentication,
  * never a repository, owner or branch. The store seals the complete connection as one blob.

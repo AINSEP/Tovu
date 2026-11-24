@@ -1,6 +1,6 @@
 import type { Selectable } from "kysely";
 
-import type { PublishContentRunRecord, PublishContentRunRepoPort } from "#src/features/publish-content/run-repo";
+import type { PublishContentRunRecord, PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishContentRunsTable } from "../content-database.generated.js";
 

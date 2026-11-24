@@ -28,7 +28,7 @@ import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
-import { NO_PUBLISH_CONTENT_SEED_HASH } from "#src/features/publish-content/seed-hash";
+import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
 import { randomUUID } from "node:crypto";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { InMemoryPostRepo } from "#src/features/post/index";

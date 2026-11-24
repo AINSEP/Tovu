@@ -12,7 +12,7 @@ import test from "node:test";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { CredentialProjectHalf } from "../../vendor-credentials/project-scope.js";
+import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
 import type { HttpClientPort } from "#src/platform/http/index";

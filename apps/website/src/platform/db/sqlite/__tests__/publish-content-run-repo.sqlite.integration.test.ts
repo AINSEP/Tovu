@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { getPublishContentRunStatus, type PublishContentRunRecord } from "#src/features/publish-content/run-repo";
+import { getPublishContentRunStatus, type PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
