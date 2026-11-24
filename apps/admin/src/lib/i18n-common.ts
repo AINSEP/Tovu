@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createSettingsCapabilitiesDictionary } from "@jini-ai/admin/screens/settings/settings-capabilities-i18n";
 
 /**
  * @file Cross-feature UI-chrome words shared by every `*-i18n.ts` dictionary in this app.
@@ -69,3 +70,12 @@ export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEn
     return [locale, { ...jiniEntries, [OLDER_DESTINATION_KEY]: olderDestination }];
   }),
 );
+
+/** The Settings dialog's "no backend yet" capability notes. They name this product (and the product
+ *  its Skills note contrasts with), so Jini keeps the words with placeholders and this app binds
+ *  its names once; the bound translator rides on the same common fallback as every other dictionary. */
+export const { t: tSettingsCapabilities } = createSettingsCapabilitiesDictionary({
+  commonDictionary: COMMON_I18N,
+  productName: "Tovu",
+  referenceProductName: "Open Design",
+});
