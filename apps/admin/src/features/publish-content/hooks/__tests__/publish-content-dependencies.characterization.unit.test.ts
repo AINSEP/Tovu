@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PublishContentReport } from "@tovu/publish-content-ui";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/ui";
 import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
 
 const report: PublishContentReport = {

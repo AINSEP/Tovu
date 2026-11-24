@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import type { PublishContentReport, PublishScope } from "@tovu/publish-content-ui";
+import type { PublishContentReport, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import { createFakePublishContentPort, defaultPublishContentPort } from "../hooks/publish-content-dependencies.hooks";
 

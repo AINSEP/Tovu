@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 
-import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
+import type { PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import {
   usePublishContentConfirm,

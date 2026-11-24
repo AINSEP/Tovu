@@ -1,4 +1,4 @@
-import type { PublishContentPeerSummary } from "@tovu/publish-content-ui";
+import type { PublishContentPeerSummary } from "@jini-ai/cms/publish/content/ui";
 
 /** Mirrors `PublishDestinationView` in `src/server/inbound/admin-http/routes/publish-content/
  *  destination.ts` — the zero-setup connect action's own response shape. Defined here rather than

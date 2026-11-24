@@ -8,11 +8,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "../index.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/ui";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/ui";
 import {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,
-  encodePublishCriteriaToQuery,
   parsePublishContentToolInput,
   toPublishReportRows,
 } from "../index.js";

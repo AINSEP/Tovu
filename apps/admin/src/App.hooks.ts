@@ -35,12 +35,8 @@ import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
-import {
-  parsePublishContentToolInput,
-  PUBLISH_CONTENT_CAPABILITY,
-  type PublishCriteria,
-  type PublishRequestResult,
-} from "@tovu/publish-content-ui";
+import { parsePublishContentToolInput, PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
+import { type PublishCriteria, type PublishRequestResult } from "@jini-ai/cms/publish/content/ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

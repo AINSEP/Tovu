@@ -2,7 +2,7 @@ import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables
 
 /**
  * @file The content database's persisted table names, the host schema every Jini `@jini-ai/cms/<feature>/sql`
- * repo is constructed with. Tovu owns these names; the Jini repos take them as required injected values.
+ * repo is constructed with. Tovu owns the persisted table names; the Jini repos take them as required injected values.
  */
 
 /** Plugin-owned comments tables (`p_comments__*` are the data module's, created by its install). */

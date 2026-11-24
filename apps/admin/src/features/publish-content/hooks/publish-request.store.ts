@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
+import type { PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import { isPublishToLiveAvailable } from "./publish-availability.store";
 

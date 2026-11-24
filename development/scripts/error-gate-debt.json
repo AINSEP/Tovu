@@ -830,11 +830,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/publish-content/ui/publish-order.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/publish-trust/handshake-client.ts",
     "rule": "failure-text-from-catalog",
     "value": 1

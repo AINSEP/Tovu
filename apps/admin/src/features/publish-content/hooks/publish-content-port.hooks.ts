@@ -1,10 +1,4 @@
-import type {
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentPeerSummary,
-  PublishContentPlanResult,
-  PublishScope,
-} from "@tovu/publish-content-ui";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 

@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "../index.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/ui";
 import { entityKey } from "../../plan-rows.js";
 import {
   addressHeldByOther,
@@ -26,8 +26,8 @@ import {
   publishRowDisposition,
   selectableRowKeys,
   summarizePublishReport,
-  toPublishReportRows,
-} from "../index.js";
+} from "@jini-ai/cms/publish/content/ui";
+import { toPublishReportRows } from "../index.js";
 import { friendlyPublishReason } from "../host-binding.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {

@@ -22,44 +22,6 @@
  *
  * `__tests__/ui-stays-client-safe.boundary.test.ts` enforces both rules.
  */
-export type {
-  CriteriaSelection,
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentOutcomeKind,
-  PublishContentOutcomeRow,
-  PublishContentPeerSummary,
-  PublishContentNotSupportedByLive,
-  PublishContentPhase,
-  PublishContentPlanResult,
-  PublishContentReport,
-  PublishCriteria,
-  PublishOrderGroup,
-  PublishOrderKey,
-  PublishReportRow,
-  PublishReportSummary,
-  PublishRequestResult,
-  PublishRowDisposition,
-  PublishScope,
-} from "@jini-ai/cms/publish/content/ui";
-export {
-  canConfirmPlan,
-  canRequestPlan,
-  confirmationTokenFor,
-  countSelectedPublishing,
-  encodePublishCriteriaToQuery,
-  overwriteReplanIsConsistent,
-  planOnScreen,
-  publishOrderComparator,
-  PublishPlanDriftError,
-  publishRowDisposition,
-  reportOnScreen,
-  rowPublishesWithSelection,
-  selectableRowKeys,
-  sortPublishReportRows,
-  summarizePublishReport,
-} from "@jini-ai/cms/publish/content/ui";
-
 export {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,

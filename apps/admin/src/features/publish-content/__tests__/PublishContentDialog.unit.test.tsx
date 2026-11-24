@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
+import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { t as dashboardT } from "../../dashboard/dashboard-i18n";

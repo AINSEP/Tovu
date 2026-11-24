@@ -4701,6 +4701,274 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "8b83d6d2a60d",
+      "reason": "Moved with the screen to Jini packages/admin/src/screens/collections/CollectionEntries.tsx (comment kept; only the host class name `.btn-primary` reworded neutrally)."
+    },
+    {
+      "id": "25ec377b89bd",
+      "reason": "Moved with the screen to Jini packages/admin/src/screens/collections/Collections.tsx (comment kept; the host package reference dropped)."
+    },
+    {
+      "id": "46df8d4b4b87",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/collections/collections-i18n/create-collections-dictionary.ts (same fallback explanation, `commonDictionary` instead of the host's `COMMON_I18N`)."
+    },
+    {
+      "id": "c062ad99bf9a",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/screens/media/media-i18n/create-media-dictionary.ts header (reworded for the split into slices)."
+    },
+    {
+      "id": "370511803024",
+      "reason": "Subject deleted: the per-locale spread over add-on tables is replaced by mergeLocaleOverlays; the 'a locale absent from one overlay contributes nothing' guarantee is documented on it in Jini packages/core/src/text/merge-locale-overlays.ts and in create-media-dictionary.ts ('so a locale absent from one of them still merges cleanly')."
+    },
+    {
+      "id": "be625ca98a88",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx @file doc and packages/admin/src/screens/menus/MenuItemFields.tsx @file doc (the NavItemAttrs disclosure paragraph); reworded for the split into row/field/tab/header files."
+    },
+    {
+      "id": "94c5c0bf0801",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemFields.tsx (named `?? \"\"` helper comment; `{@link targetForKind}` reference dropped)."
+    },
+    {
+      "id": "24ba87799706",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemFields.tsx (MenuItemTargetFields comment; 'now re-exported from rules' dropped as host-specific)."
+    },
+    {
+      "id": "e04db493dec9",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemRow.tsx (label audit comment; the host `.visually-hidden`/`.a11y-label-wrap` stylesheet references reworded since the host styles the `jini-*` classes)."
+    },
+    {
+      "id": "ac26c2bb49a2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemRow.tsx (remove-confirmation audit comment)."
+    },
+    {
+      "id": "d6b5a6b10fe4",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuModeTabs.tsx (tab list and literal-keys comments; the host tab-strip helper is now the injected `tabStrip` prop)."
+    },
+    {
+      "id": "0eec8757a92a",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuModeTabs.tsx (tab list and literal-keys comments; the host tab-strip helper is now the injected `tabStrip` prop)."
+    },
+    {
+      "id": "a30fa3a762a2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditorHeader.tsx (`jini-page-header-split` idiom and unsaved-edits guard comments; host router/stylesheet names reworded)."
+    },
+    {
+      "id": "a7504a2d4b51",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditorHeader.tsx (`jini-page-header-split` idiom and unsaved-edits guard comments; host router/stylesheet names reworded)."
+    },
+    {
+      "id": "cc781b8030f4",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx (title/slug row and secondary Add-item comments; host stylesheet references reworded)."
+    },
+    {
+      "id": "ed561c1157da",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx (title/slug row and secondary Add-item comments; host stylesheet references reworded)."
+    },
+    {
+      "id": "91c0fe8c84fd",
+      "reason": "Moved with the test to Jini packages/admin/src/screens/menus/__tests__/MenuEditor.unit.test.tsx."
+    },
+    {
+      "id": "64a58e8af595",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/menus/menus-i18n/create-menus-dictionary.ts (`commonDictionary` instead of the host's `common_i18n`)."
+    },
+    {
+      "id": "3d8e656fcf74",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/menus/menus-i18n/create-menus-dictionary.ts (`commonDictionary` instead of the host's `common_i18n`)."
+    },
+    {
+      "id": "aee652dea3f1",
+      "reason": "Moved with the file to Jini packages/admin/src/posts/post-editor-route-key.ts (comment kept; the host-only `panels.tsx` reference dropped)."
+    },
+    {
+      "id": "f805ec56f3d0",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/posts/posts-i18n/create-posts-dictionary.ts @file doc, posts-trash-dialog-i18n.ts (the `Move` prefix and kindLabel-variant notes) and posts-list-i18n.ts (the `Unpublish` note)."
+    },
+    {
+      "id": "973d4e6669f7",
+      "reason": "Per-locale section label moved as the slice headers of Jini packages/admin/src/posts/posts-i18n/posts-editor-header-i18n.ts and posts-toolbar-{marks,blocks,style}-i18n.ts (the 16 repeated labels are the slice boundaries)."
+    },
+    {
+      "id": "f90a07773e03",
+      "reason": "Moved with the code to Jini packages/admin/src/posts/posts-i18n/create-posts-dictionary.ts (createPostsDictionary doc; `commonDictionary` instead of `common_i18n`)."
+    },
+    {
+      "id": "6cb2763f7196",
+      "reason": "Moved to Jini packages/admin/src/posts/posts-i18n/posts-template-preview-i18n.ts @file doc ('shared Page/Post preview copy')."
+    },
+    {
+      "id": "d57dfba24233",
+      "reason": "Subject deleted: the Object.assign/indexed-write augmentation is replaced by mergeLocaleOverlays; the dictionary-lookup-sinks guard rationale is kept in Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/create-taxonomy-dictionary.ts (and the posts/forms/comments/widgets equivalents) and packages/core/src/text/merge-locale-overlays.ts."
+    },
+    {
+      "id": "ebf85ad31ffb",
+      "reason": "Subject deleted: the Object.assign/indexed-write augmentation is replaced by mergeLocaleOverlays; the dictionary-lookup-sinks guard rationale is kept in Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/create-taxonomy-dictionary.ts (and the posts/forms/comments/widgets equivalents) and packages/core/src/text/merge-locale-overlays.ts."
+    },
+    {
+      "id": "468373f7a697",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/taxonomy-term-picker-i18n.ts @file doc."
+    },
+    {
+      "id": "fe7db227fc18",
+      "reason": "Moved with the helper to Jini packages/core/src/text/merge-locale-overlays.ts (MergedLocaleDictionary doc, reworded 'caller-owned')."
+    },
+    {
+      "id": "a26445072761",
+      "reason": "Moved with the adapter to Jini packages/cms/src/comments/site/builtin-provider.ts (header kept, product name dropped)."
+    },
+    {
+      "id": "3c374002f1e4",
+      "reason": "Moved with the settings wiring to Jini packages/cms/src/comments/site/settings.ts @file doc (host path to seo/settings.ts reworded)."
+    },
+    {
+      "id": "5b630e14443e",
+      "reason": "Kept in Tovu: the sentence now heads apps/website/src/platform/db/content-tables.ts (shared by all five deleted repo.sqlite.ts files)."
+    },
+    {
+      "id": "250b3682c9f9",
+      "reason": "Kept in Tovu: relocated to the schemaErasedKernel doc in apps/website/src/platform/db/content-kernel.ts, the one place the schema-erasing cast now lives."
+    },
+    {
+      "id": "dc7cf40239ba",
+      "reason": "Subject deleted: SqliteCommentRepo (a subclass that only bound a kernel and the plugin table names) is gone; composition calls Jini's commentRepoFor with COMMENTS_TABLES (content-tables.ts) and schemaErasedKernel, whose docs carry the remaining rationale."
+    },
+    {
+      "id": "4b85997fe3cc",
+      "reason": "Subject deleted: SqliteCommentRepo (a subclass that only bound a kernel and the plugin table names) is gone; composition calls Jini's commentRepoFor with COMMENTS_TABLES (content-tables.ts) and schemaErasedKernel, whose docs carry the remaining rationale."
+    },
+    {
+      "id": "4a0b692fb61b",
+      "reason": "Subject deleted: SqliteContentTypeRepo (a named subclass kept for old call sites) is gone; features/content-types/content-type-repo.ts (contentTypeRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "7d54e47dd2a7",
+      "reason": "Subject deleted: SqliteContentTypeRepo (a named subclass kept for old call sites) is gone; features/content-types/content-type-repo.ts (contentTypeRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "ed2b58b62523",
+      "reason": "Subject deleted: SqliteEntryRepo (a named subclass kept for old call sites) is gone; features/entries/entry-repo.ts (entryRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "c3e4029e46d3",
+      "reason": "Subject deleted: SqliteEntryRepo (a named subclass kept for old call sites) is gone; features/entries/entry-repo.ts (entryRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "471cd53957e8",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "3138afd63486",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "e9f93fdafaf2",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "23b8113e7acf",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "26a438c66763",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "cff85654ec8f",
+      "reason": "Kept in Tovu with the module path updated: 'Project-first (`@jini-ai/integrations/vendor-credentials/project-scope`); \"site\" = only for this site.' in source-control/store.ts and deployments/publish-credentials/store.ts (import-only edit; vendor-credentials/project-scope.ts moved to Jini)."
+    },
+    {
+      "id": "a01c3222bd89",
+      "reason": "Subject deleted: the SqlitePostSearchIndex re-export it annotated is gone from features/post/index.ts; in Jini the SQLite adapter (cms/src/posts/sql/search-index.sqlite.ts) imports nothing from search-index.ts, so no module cycle remains to explain."
+    },
+    {
+      "id": "adb06a65607a",
+      "reason": "Moved with the code to Jini packages/cms/src/posts/post-import.ts (the 'third function' rationale kept; host `features/media/import-media-entity.ts` path reworded)."
+    },
+    {
+      "id": "dfc38542ec21",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.postgres.ts (host `tovu_search` configuration name now injected)."
+    },
+    {
+      "id": "749b80b8ee1e",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.postgres.ts (host `tovu_search` configuration name now injected)."
+    },
+    {
+      "id": "6894d5d3e2df",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.sqlite.ts @file doc (product name dropped)."
+    },
+    {
+      "id": "4840f757d9f6",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "854f086b8cb4",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "557a014dee85",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "c934b1f29010",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "3d8ba61fc60a",
+      "reason": "Moved with the port bag to Jini packages/core/src/contracts/site/publish-ports.ts @file doc (generic over the host's bag; host file lists and 'this site's' wording reworded neutrally)."
+    },
+    {
+      "id": "3f136a1ad0b8",
+      "reason": "Moved to Jini packages/cms/src/redirects/publish-ports.ts (host path reworded)."
+    },
+    {
+      "id": "14df7b5631ee",
+      "reason": "Moved to Jini packages/cms/src/publish/content/publish-ports.ts (factory-built types and host-hooks comments; host composition paths reworded)."
+    },
+    {
+      "id": "f85ba7a70c29",
+      "reason": "Moved to Jini packages/cms/src/publish/content/publish-ports.ts (factory-built types and host-hooks comments; host composition paths reworded)."
+    },
+    {
+      "id": "4c578a803601",
+      "reason": "Moved to Jini packages/cms/src/widgets/publish-ports.ts."
+    },
+    {
+      "id": "19a73b4c2627",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "08d1a7f95e5a",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "b9c361ab47b6",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "9d2472b1466f",
+      "reason": "Moved with the contract to Jini packages/cms/src/publish/content/ui/contract.ts @file doc."
+    },
+    {
+      "id": "14ebb47750c3",
+      "reason": "Moved with the contract to Jini packages/cms/src/publish/content/ui/criteria.ts @file doc; the capability-typing paragraph stays with PUBLISH_CONTENT_CAPABILITY in apps/website/src/features/publish-content/ui/policy.ts."
+    },
+    {
+      "id": "3fd9ac05307a",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/criteria.ts (parser docs; {@link} targets reworded)."
+    },
+    {
+      "id": "43f33f7362a0",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/criteria.ts (parser docs; {@link} targets reworded)."
+    },
+    {
+      "id": "91c377a40a74",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts."
+    },
+    {
+      "id": "8ba488396f4a",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts."
     }
   ]
 }

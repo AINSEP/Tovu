@@ -8,16 +8,18 @@ import { planPublishToPeer } from "./push-plan.js";
 import { confirmPeerImport, executePeerImport } from "./peer-transport.js";
 import {
   applyPublishCriteria,
-  canConfirmPlan,
-  overwriteReplanIsConsistent,
   parsePublishContentToolInput,
   preparePublishConfirmation,
-  selectableRowKeys,
   toPublishReportRows,
+} from "./ui/index.js";
+import {
+  canConfirmPlan,
+  overwriteReplanIsConsistent,
+  selectableRowKeys,
   type PublishContentPlanResult,
   type PublishContentReport,
   type PublishCriteria,
-} from "./ui/index.js";
+} from "@jini-ai/cms/publish/content/ui";
 
 /** Strict tool boundary: misspelled filters must never widen an autonomous publish. */
 function readCriteria(input: Record<string, unknown>): PublishCriteria & { readonly excludeItems?: readonly string[] } {
