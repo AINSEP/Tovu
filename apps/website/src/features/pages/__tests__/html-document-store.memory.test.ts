@@ -337,3 +337,36 @@ test("read refuses a stored HTML record whose body is absent", async () => {
   await assert.rejects(store.read(), PageNotFoundError);
   assert.equal(store.capturedVersion(), null);
 });
+
+// B224: a widget marker authored by slug is stored with the widget's id, so where-used and safe-delete see it.
+const WIDGET_ID = "11111111-1111-4111-8111-111111111111";
+const widgetSlugLookup = { findBySlug: async ({ slug, type }: { slug: string; type: string }) => (slug === "contact-form" && type === "widget" ? { id: WIDGET_ID } : null) } as never;
+const SLUG_MARKER = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+
+test("B224: write() stores the widget's id next to a slug-only widget marker", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
+  await store.read();
+  await store.write({ html: SLUG_MARKER });
+  const stored = (await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml ?? "";
+  assert.ok(stored.includes(WIDGET_ID), `expected the widget id in ${stored}`);
+  assert.ok(stored.includes("contact-form"), "the author's slug is kept");
+});
+
+test("B224: the seed written by ensureHtmlFormat gets the widget id too", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  await store.ensureHtmlFormat({ seedHtml: SLUG_MARKER });
+  assert.ok(((await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml ?? "").includes(WIDGET_ID));
+});
+
+test("B224: an unknown widget slug is stored exactly as authored", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  const unknown = `<div data-embed-config='{"type":"widget","slug":"no-such-widget"}'></div>`;
+  await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
+  await store.read();
+  await store.write({ html: unknown });
+  assert.equal((await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml, unknown);
+});

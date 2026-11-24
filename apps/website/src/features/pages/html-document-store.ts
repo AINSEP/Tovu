@@ -9,7 +9,8 @@ import { type OutboxPort } from "@jini-ai/core/contracts/events";
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
+import { extractHtmlEntryRefs, normalizeWidgetSlugMarkers, type WidgetSlugLookupPort } from "@jini-ai/cms/widgets";
+import type { UUID } from "@jini-ai/core/primitives";
 import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed-ref-warning.js";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
@@ -81,6 +82,8 @@ export class PageConcurrentEditError extends Error {}
 
 export interface PagesHtmlDocumentStoreDeps {
   validatePluginEmbeds?: (input: { workspaceId: string; html: string }) => Promise<readonly PluginEmbedDiagnostic[]>;
+  /** B224: widget lookup by slug; when supplied, a slug-only widget marker is stored with the widget's id. */
+  widgetSlugLookup?: WidgetSlugLookupPort;
   /** The content database: one Kysely query body for every dialect (storage plan §4, ADR-066). */
   kernel: ContentKernel;
   /** Each surface selects its own kinds; Pages defaults to page only. */
@@ -233,6 +236,13 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
   embedWarnings(): readonly PluginEmbedDiagnostic[] { return this.pluginWarnings; }
 
+  /** B224: gives a slug-only widget marker its widget id before the HTML is stored (a no-op without `widgetSlugLookup`). */
+  private async withWidgetIds(html: string, _options = {}): Promise<string> {
+    const entryRepo = this.deps.widgetSlugLookup;
+    if (!entryRepo) return html;
+    return normalizeWidgetSlugMarkers({ deps: { entryRepo }, input: { workspaceId: this.scope.workspaceId as UUID, html } });
+  }
+
   private async validatePluginEmbeds(input: { html: string }, _options = {}): Promise<void> {
     this.pluginWarnings = await this.deps.validatePluginEmbeds?.({ workspaceId: this.scope.workspaceId, html: input.html }) ?? [];
   }
@@ -377,7 +387,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    */
   async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
+    const seedHtml = await this.withWidgetIds(normalizeEmbedMarkerQuoting({ html: authoredSeedHtml }));
     const row = await this.deps.kernel.run((db) =>
       this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_format", "version"]).limit(1).executeTakeFirst()
     );
@@ -549,11 +559,12 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    */
   async write({ html: authoredHtml }: { html: string }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
+    const quoted = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }
     const expectedVersion = this.lastReadVersion;
+    const html = await this.withWidgetIds(quoted);
     // Preserve this call's read basis across asynchronous plugin validation (CIC-1).
     await this.validatePluginEmbeds({ html });
     const nextVersion = expectedVersion + 1;
