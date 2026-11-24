@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { toApiKeyIssueResponse, toApiKeyPrincipalResponse } from "../api-keys.js";
-import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionResponse } from "@jini-ai/cms/admin-http/http/integrations";
-import { toAdminMediaListResponse, toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
-import { toAdminMemberResponse } from "@jini-ai/cms/admin-http/http/members";
-import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "@jini-ai/user-management/admin-http/http/users";
-import { toAdminWorkspaceResponse } from "../workspace.js";
+import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionResponse } from "../integrations.js";
+import { toAdminMediaListResponse, toAdminMediaResponse } from "../media.js";
+import { toAdminMemberResponse } from "../members.js";
+import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "../users.js";
+import { toAdminWorkspaceResponse } from "@jini-ai/cms/admin-http/http/workspace";
 
 // F1.2/F4.1: independent literal wire contracts; adding a record spread or dropping a field
 // must fail. Extra internal fields deliberately make a passthrough distinguishable.
@@ -156,7 +156,7 @@ test("role and policy projections retain built-in and frozen flags without inter
 
 test("workspace projection includes creation time and emits only the public identity fields", () => {
   const workspace = { id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z", version: 1, internal: "hidden" };
-  assert.deepEqual(toAdminWorkspaceResponse(workspace), {
+  assert.deepEqual(toAdminWorkspaceResponse({ workspace }), {
     id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z", version: 1,
   });
 });

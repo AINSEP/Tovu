@@ -76,7 +76,7 @@ import {
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
 import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
+import { registerAdminChatAttachmentReadRoute } from "./assistant-attachment-read.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
@@ -717,7 +717,7 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
   // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
   // had, so until now bytes could be uploaded and never fetched again and the admin's preview
   // modal could only show attachments from the current session out of a client-side `File`
-  // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
+  // cache. See `@jini-ai/cms/admin-http/routes/assistant/get-chat-attachment` (bound in `assistant-attachment-read.ts`) for the security model and
   // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
   // attachment with no recorded owner is readable by nobody).
   //

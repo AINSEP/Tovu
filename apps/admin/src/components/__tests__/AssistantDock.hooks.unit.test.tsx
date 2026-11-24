@@ -89,11 +89,11 @@ vi.mock("../../hooks/use-assistant-chats.hooks", async (importOriginal) => {
 
 // `useFolderDropBridge` (SPEC-053) only wires `useFolderDrop`'s return value to a callback prop —
 // its own logic (composer insertion, custom-root set/retry/dismiss) is `useFolderDrop`'s, already
-// covered directly by `features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts`. Mocked
+// covered directly by `@jini-ai/admin`'s own `use-folder-drop.hooks.unit.test.ts`. Mocked
 // here, by the SAME specifier `AssistantDock.hooks.tsx` itself imports it through, so this suite can
 // assert the bridging in isolation without re-driving every `useFolderDrop` branch.
 const mockUseFolderDrop = vi.hoisted(() => vi.fn());
-vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
+vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 

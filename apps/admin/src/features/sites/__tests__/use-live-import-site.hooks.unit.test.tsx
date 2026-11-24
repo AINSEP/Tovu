@@ -1,9 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminLocalSiteState, AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
+import type { AdminLocalSiteState, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { ApiError } from "@/lib/admin-http/request";
 import { liveImportAdminUrl, liveImportSiteName, useLiveImportSite } from "../hooks/use-live-import-site.hooks";
+import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 
 /**
  * @file "From a live website" on the web admin makes a NEW site (owner, 2026-11-10): the Sites

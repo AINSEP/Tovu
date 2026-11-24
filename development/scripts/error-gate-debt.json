@@ -220,11 +220,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -940,11 +935,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/site-inspection/live-url.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/sites/site-admin.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1013,16 +1003,6 @@
     "file": "apps/website/src/features/vendor-credentials/vault-adapter.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 3
   },
   {
     "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",

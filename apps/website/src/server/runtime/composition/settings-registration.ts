@@ -7,7 +7,8 @@ import { ensureCommentsProviderDefinition } from '#src/features/comments/provide
 import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
 import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
-import { ensureSettingsUiTabDefinitions, ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
+import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
+import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
 import { ensureCommentsSettingDefinitions } from "#src/features/comments/index";
 import { ensureAnalyticsSettingDefinitions } from "@jini-ai/analytics/site/config.settings";
 

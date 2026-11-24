@@ -2,7 +2,7 @@
  * @file The admin's half of the desktop Import hand-off (owner, 2026-11-10). `window.tovuImport` is
  * exposed by `apps/desktop/src/speech/preload-speech.cts` on admin pages only, beside `tovuFiles`: it
  * exists ONLY inside the desktop app, never in a plain browser tab or a hosted install. Its presence
- * IS the capability gate, the same shape as `folder-drop-port.ts` and `voice-input-port.ts`.
+ * IS the capability gate, the same shape as `@jini-ai/admin/screens/fs-files/folder-drop-port` and `voice-input-port.ts`.
  *
  * Inside the desktop app this admin can't make a new site, so "From a live website" asks the app to
  * open its own Import tab, which makes the site, with the address typed in.

@@ -51,3 +51,12 @@ any width, including the 390px Skills tab.
 
 - `@jini-ai/admin/screens/webmcp/admin-page-tools` holds `registerAdminPageWebMcpTools`. `App.hooks.ts` (and the WebMCP tests here) spread `adminPageToolCollaborators` (`admin-page-tool-collaborators.ts`) into its first argument: `@jini-ai/agentic`'s `PAGE_CAPABILITIES`, `executePageCapability`, `toWebMcpTool` and `getAgentModelContext`, `@tovu/headless`'s `directPageAction` policy, the browser-agent preference (`isBrowserAgentEnabled`, default for `isEnabled`) and the `[admin] WebMCP registration failed` warning (`reportRegistrationError`, default for `onError`).
 - `@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel` is mounted by `features/settings/SettingsUi.tsx`, which injects its required `useBrowserAgentSettingsHook` prop (`useBrowserAgentSettings` from `browser-agent-settings.hooks.ts`, which stays here: it owns the `tovu.admin.webmcp.enabled` storage key). Its `jini-toggle-row*`/`jini-settings-*` classes are already styled by the host. Its dictionary is `@jini-ai/admin/screens/webmcp/webmcp-i18n`.
+The settings copy (`WEBMCP_DICT`/`WEBMCP_KEYS`), the preference port/hook
+(`createBrowserAgentSettingsPort`, `useBrowserAgentSettings`) and `BrowserAgentSettingsPanel` live in
+Jini at `@jini-ai/admin/screens/webmcp/*`. `browser-agent-settings.hooks.ts` here binds the admin's
+storage key (`WEBMCP_PREFERENCE_KEY`) into the one shared port and exports the bound hook
+`useAdminBrowserAgentSettings`, which `SettingsUi.tsx` injects into the panel. The page-tool WebMCP
+adapter (`registerAdminPageWebMcpTools`) lives in Jini at `@jini-ai/agentic/dom/admin-page-tools`
+(tests beside it). `App.hooks.ts` binds its required collaborators: `directPageAction` from
+`@tovu/headless`, `isEnabled` from `browserAgentSettingsPort` here, and the `[admin]` warning
+`onError`. `__tests__/admin-page-action-policy.unit.test.ts` stays here as the host policy-table proof.

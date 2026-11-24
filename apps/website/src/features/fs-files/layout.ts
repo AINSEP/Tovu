@@ -2,7 +2,7 @@
 // `error`-severity (`.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`), and `resolveProductRoot`
 // was added to the barrel (`platform/site-dir/index.ts`) alongside this file for exactly this import.
 import { resolveProductRoot } from "../../platform/site-dir/index.js";
-import { getCustomFsRoot } from "./custom-root-store.js";
+import { getCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 
 /**
  * @file Filesystem layout for the `fs_list_files`/`fs_read_file` agent-tool domain

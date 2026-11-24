@@ -8,7 +8,7 @@ import { authenticatedAdminUrl } from "@/lib/admin-http/urls";
 /**
  * @file The Export Site / Import Site tabs' port onto the committed share and import routes
  * (`admin-http/routes/system/site-shares.ts`, `site-imports.ts`). Same `useX(dependencies)` split as
- * `SitesPort` (`@jini-ai/core/contracts/site/hooks-sites-port-hooks`); one port for both tabs because they move the same thing, a site archive.
+ * `@jini-ai/admin/screens/sites/sites-port.hooks`; one port for both tabs because they move the same thing, a site archive.
  */
 
 /** One export of this site (`SiteShareView`). `url` is the recipient link, `null` when no link host

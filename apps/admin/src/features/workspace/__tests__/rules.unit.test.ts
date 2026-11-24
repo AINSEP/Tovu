@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { describeApiError, isWorkspaceDirty } from "../rules";
+import { describeApiError } from "../rules";
 import { t } from "../workspace-i18n";
 
 /**
@@ -10,13 +9,6 @@ import { t } from "../workspace-i18n";
  * override table and the rename form's dirty-state derivation. `features/workspace` had 0%
  * coverage and no test file at all before this pass.
  */
-
-const WORKSPACE: AdminWorkspace = {
-  id: "w1",
-  name: "My Site",
-  slug: "my-site",
-  createdAt: "2026-08-01T00:00:00.000Z",
-};
 
 describe("describeApiError", () => {
   it.each([
@@ -88,22 +80,4 @@ describe("workspace-i18n — C4 keys", () => {
       });
     }
   }
-});
-
-describe("isWorkspaceDirty", () => {
-  it("is false when the draft matches the persisted workspace exactly", () => {
-    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "My Site", slug: "my-site" })).toBe(false);
-  });
-
-  it("is true when the draft name differs", () => {
-    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "New Name", slug: "my-site" })).toBe(true);
-  });
-
-  it("is true when the draft slug differs", () => {
-    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "My Site", slug: "new-slug" })).toBe(true);
-  });
-
-  it("is true when both differ", () => {
-    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "New Name", slug: "new-slug" })).toBe(true);
-  });
 });

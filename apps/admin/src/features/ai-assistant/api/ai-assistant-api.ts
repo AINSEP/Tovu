@@ -1,10 +1,9 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { ApiError, authenticatedAdminRequest, fetchOrThrowUnreachable } from "../../../lib/admin-http/request";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch, AdminExecutionDetectedAgent, PublicAssistantSettings, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import type {
   AssistantListModelsResponseDto, AssistantProbeVerdictDto, AssistantSettingsEnvelopeDto,
 } from "@jini-ai/core/contracts/site/cms-assistant";
-import type { AdminExecutionDetectedAgent, PublicAssistantSettings } from "./ai-assistant-api.types";
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
 /** The admin API calls of the ai-assistant feature. */
 export const aiAssistantApi = {

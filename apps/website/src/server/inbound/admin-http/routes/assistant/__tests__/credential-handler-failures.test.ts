@@ -14,13 +14,11 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantGetExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantPutExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantDeleteExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantGetSiteCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantDeleteSiteCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantGetSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
-import { registerAdminAssistantPutSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import {
+  registerAdminAssistantGetExecutionCredentialRoute, registerAdminAssistantPutExecutionCredentialRoute,
+  registerAdminAssistantDeleteExecutionCredentialRoute, registerAdminAssistantGetSiteCredentialRoute,
+  registerAdminAssistantDeleteSiteCredentialRoute, registerAdminAssistantGetSettingsRoute, registerAdminAssistantPutSettingsRoute,
+} from "#src/server/runtime/composition/modules/assistant-settings";
 
 // Canonical Jini clocks read `nowMs`; `nowIso` formats it with toISOString(), so NOW keeps millis.
 const NOW = "2026-09-15T01:02:03.000Z";

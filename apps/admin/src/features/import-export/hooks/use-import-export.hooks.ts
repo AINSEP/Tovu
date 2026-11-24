@@ -3,8 +3,10 @@ import { useCallback } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { isDesktopAdmin } from "@/features/settings/ai-agent-presentation";
-import { sitesTranslator, useSitesSnapshot } from "../../sites";
-import { t as dictionaryT } from "@jini-ai/admin/screens/import-export/import-export-i18n";
+import { sitesTranslator } from "../../sites";
+import { useSitesSnapshot } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
+import { SITES_LISTING } from "@/features/sites/hooks/sites-dependencies.hooks";
+import { t as dictionaryT } from "../import-export-i18n";
 
 import { type Translate } from '@jini-ai/core/text';
 /** This panel's `t`, bound to the admin's resolved locale — the one place it reads the locale, same
@@ -35,6 +37,6 @@ export function useSitesSectionAvailable(
   _required: Record<string, never> = {},
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): boolean {
-  const snapshot = useSitesSnapshot({ port: sitesApi }, { enabled: !desktop });
+  const snapshot = useSitesSnapshot({ port: sitesApi, listing: SITES_LISTING }, { enabled: !desktop });
   return !desktop && !snapshot.error && snapshot.data?.switchingEnabled === true;
 }

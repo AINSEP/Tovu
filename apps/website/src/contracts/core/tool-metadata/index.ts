@@ -60,7 +60,7 @@ import { toolMetadata as web } from './web.js';
 import { toolMetadata as web_screenshot } from './web-screenshot.js';
 import { toolMetadata as webhooks } from './webhooks.js';
 import { toolMetadata as widgets } from './widgets.js';
-import { toolMetadata as workspace } from './workspace.js';
+import { toolMetadata as workspace } from '@jini-ai/core/tool-metadata/workspace';
 
 /** Owner policy: classify the action rather than the input's write-shaped fields.
  * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which

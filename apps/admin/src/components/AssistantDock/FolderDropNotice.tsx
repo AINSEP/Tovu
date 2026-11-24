@@ -1,7 +1,7 @@
 import { FolderDropConfirmation } from "./FolderDropConfirmation";
 import { FolderDropError } from "./FolderDropError";
 import { FolderDropPathHint } from "./FolderDropPathHint";
-import type { FolderDropNotice as FolderDropNoticeState } from "../../features/fs-files/hooks/use-folder-drop.hooks";
+import type { FolderDropNotice as FolderDropNoticeState } from "@jini-ai/admin/screens/fs-files/folder-drop.rules";
 
 /**
  * @file Picks between `FolderDropConfirmation`, `FolderDropError` and `FolderDropPathHint` (or none) from

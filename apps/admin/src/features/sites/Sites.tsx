@@ -1,21 +1,19 @@
-import { SiteTrashTab } from "./SiteTrashTab";
-import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
+import { AllSitesTab, SiteTrashTab } from "./sites-list-tabs";
+import { LocalSiteConfirmDialog } from "@jini-ai/admin/screens/sites/LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { describeApiError } from "../../lib/admin-http/request";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { AllSitesTab } from "./AllSitesTab";
 import { SitesHomeSetting } from "./SitesHomeSetting";
 import type { ReactNode } from "react";
 import { CreateSiteOnboarding } from "./CreateSiteOnboarding";
 import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.hooks";
 import type { ActivationOutlook } from "./rules";
-import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
-import type { SiteListPrefsController } from "@jini-ai/ui/site-card";
+import { useReturnToSiteListOnCreate, type SiteListPrefsController } from "@jini-ai/ui/site-card";
 import { useWiredSiteListPrefs } from "./hooks/use-site-list-prefs.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -53,7 +51,7 @@ import { type Translate } from '@jini-ai/core/text';
  * just rendered inside the tab instead of on a page of its own.
  *
  * A successful create returns to "All sites" with the new site's card showing — her requirement,
- * wired through `useReturnToSiteListOnCreate` (`hooks/use-created-site-return.hooks.ts`), and the
+ * wired through `useReturnToSiteListOnCreate` (`@jini-ai/ui/site-card`), and the
  * confirmation line moved with it, onto the tab where the new card actually is.
  *
  * `?tab=all|new` deep-linking runs through the shared `resolveActiveTabId` guard (ADR-063), the

@@ -1,12 +1,3 @@
-/** Machine-local config, shared with desktop. Runtime env overrides are displayed explicitly. */
-export interface SitesUserConfig {
-  sitesHome: string; siteRoots: string[]; databases: "inSite" | "appData";
-  configPath: string; appData: string;
-  overrides: { sitesHome: boolean; siteRoots: boolean };
-  warning: { provider: string; message: string; localHome: string } | null;
-}
-export type SitesUserConfigPatch = Partial<Pick<SitesUserConfig, "sitesHome" | "siteRoots" | "databases">>;
-
 /**
  * The runtime list of site-key states — the values `GET .../system/site-key`'s `state` field can
  * carry. The type lives in Core as `AdminSiteKeyState` (`@jini-ai/core/contracts/site/site-key`),

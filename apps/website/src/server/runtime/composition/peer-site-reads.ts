@@ -36,7 +36,8 @@ import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-them
 import { LocalFsBlobStore } from '#src/features/media/index';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
-import { SqliteWorkspaceRepo } from '#src/features/workspace/index';
+import { SqliteWorkspaceRepo } from '@jini-ai/cms/workspace/site/repo.sqlite';
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from '#src/features/forms/repo.sqlite';
 import { createSiteFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-binding';
 import { SqliteTaxonomyRepo, SqliteTermRepo, SqliteEntryTermRepo, SqliteTaxonomyRevisionRepo } from '#src/features/taxonomy/repo.sqlite';
@@ -239,7 +240,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
       put: unavailable({ field: 'blobStore.put' }), putIfAbsent: unavailable({ field: 'blobStore.putIfAbsent' }), delete: unavailable({ field: 'blobStore.delete' }),
     },
     // The existing factories borrow their connection; construction/get/history reads never write.
-    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel }), chatHistory: createChatStoreFactory({ store: chat }),
+    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel, kernelFor: schemaErasedKernel }), chatHistory: createChatStoreFactory({ store: chat }),
     formDefinitionRepo: new SqliteFormDefinitionRepo({ store: kernel }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: kernel }),
     // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
     // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
