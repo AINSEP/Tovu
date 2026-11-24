@@ -5,7 +5,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
