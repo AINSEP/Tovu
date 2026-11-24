@@ -10,7 +10,7 @@ import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
 import { awaitSiteBootReadiness } from "../../server/runtime/boot/site-boot-readiness.js";
-import { isLoopbackHost } from "../../server/runtime/boot/bind-host.js";
+import { isLoopbackHost } from "@jini-ai/devops/local-dev";
 import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { RunServeCommandInput, RunServeCommandOptional, ServeOwnership } from "./serve.js";

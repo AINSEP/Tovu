@@ -1,7 +1,7 @@
 import { postJsonToDaemon, readPromptFromFlags } from "@jini-ai/cli";
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { ValidationError } from "#src/platform/site-dir/index";
-import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
+import { isLoopbackHost } from "@jini-ai/devops/local-dev";
 import { isIP } from "node:net";
 
 /** Thin CLI adapter to the SAME authenticated import route, never a second restore lifecycle.

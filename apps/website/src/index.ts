@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
-import { pinDefaultSiteRoot } from "./platform/site-dir/index.js";
+import { pinDefaultSiteRoot, ValidationError } from "./platform/site-dir/index.js";
 import { claimSiteRunning } from "./platform/site-dir/site-running.js";
 import { resumeLocalSitesForHost, shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
@@ -9,7 +9,8 @@ import { resolve as resolvePath } from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./platform/dev-host/dev-tls.js";
-import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "./server/runtime/composition/deps.js";
+import { defaultContentDbPath, siteDir } from "./server/runtime/composition/site-paths.js";
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
@@ -32,8 +33,7 @@ import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
 import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
-import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
-import { reserveBootListener } from "@jini-ai/devops/local-dev";
+import { resolveBindHost, reserveBootListener } from "@jini-ai/devops/local-dev";
 import { pinSiteListenerOrigin } from "./server/runtime/boot/site-listener-origin.js";
 import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-listener.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
@@ -61,7 +61,7 @@ const useMemory = process.env.TOVU_DB === "memory";
 // interface; Docker, compose and every container host run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
-const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined });
+const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
 
 // Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
 // from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd

@@ -29,7 +29,7 @@ import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
-import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
+import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "@jini-ai/devops/local-dev";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { serveListening } from "./serve-listen.js";
 
@@ -351,7 +351,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST });
+  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
   pinSiteListenerOrigin({ scheme: "http", host, port });
 
   await prepareSiteKey({ target });

@@ -1,7 +1,8 @@
 /** CMS local-launch admission. Reuses listener/deployment policy and Jini token comparison. */
 import { timingSafeEqual } from "node:crypto";
 import { timingSafeTokenMatch } from "@jini-ai/core";
-import { isLoopbackHost, resolveBindHost } from "./bind-host.js";
+import { isLoopbackHost, resolveBindHost } from "@jini-ai/devops/local-dev";
+import { ValidationError } from "../../../platform/site-dir/index.js";
 import { detectDeploymentSignals } from "./boot-readiness-warnings.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
@@ -83,7 +84,7 @@ function localLauncherListenerRefusal(
   const launcherPid = Number(desktop ? env.TOVU_DESKTOP_OWNER_PID : env.TOVU_DEV_SUPERVISOR_PID ?? env.TOVU_LOCAL_SITE_OWNER_PID);
   if (!Number.isSafeInteger(launcherPid) || launcherPid < 1) return "no local dev launcher";
   try {
-    if (!isLoopbackHost({ host: resolveBindHost({ raw: env.TOVU_HOST, fallback: undefined }) })) return "listener is not loopback-only";
+    if (!isLoopbackHost({ host: resolveBindHost({ raw: env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) }) })) return "listener is not loopback-only";
   } catch { return "listener address is invalid"; }
   return undefined;
 }
