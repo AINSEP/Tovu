@@ -1,4 +1,4 @@
-import { useGitBackup, type GitBackupController } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
+import { useGitBackup, type GitBackupController, type GitBackupHost } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import type { GitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 
 import { sourceControlApi } from "@/features/source-control/api/source-control-api";
@@ -22,7 +22,13 @@ export const defaultGitBackupPort: GitBackupPort = {
   push: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/push`, body: input }),
 };
 
-/** The Git backup controller the panel's mount injects: the live port and `describeApiError`. */
+/** This admin's collaborator for the package's Git backup hook: its API-error wording. Module-level,
+ *  so the field keeps its identity. */
+export const GIT_BACKUP_HOST: GitBackupHost = {
+  describeError: (required) => describeApiError(required),
+};
+
+/** The Git backup controller the panel's mount injects: the live port and this admin's host. */
 export function useWiredGitBackup({ t }: { t: Translate }): GitBackupController {
-  return useGitBackup({ port: defaultGitBackupPort, t, describeApiError });
+  return useGitBackup({ port: defaultGitBackupPort, t, host: GIT_BACKUP_HOST });
 }

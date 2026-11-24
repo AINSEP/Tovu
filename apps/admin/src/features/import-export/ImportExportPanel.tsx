@@ -1,4 +1,5 @@
 import { ImportExport, type ImportExportProps } from "@jini-ai/admin/screens/import-export/ImportExport";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { SiteExportTab, SiteImportTab } from "../sites";
@@ -9,7 +10,7 @@ import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
  * @file The Import & Export panel's mount: renders `@jini-ai/admin`'s `ImportExport` with this app's
  * wiring (see `README.md` `## Wiring`) — the locale-bound translators, the live Git backup
  * controller, the Sites availability rule, the Sites screen's own Export/Import tabs, the admin
- * router's `navigate`, and the
+ * router's `navigate`, Core's `agentHandle`, and the
  * tabs' agent labels, which name this product's `.tovu.zip` archive. Any of them can be overridden
  * (tests inject doubles), as the screen's own defaults could be before it moved.
  */
@@ -30,6 +31,7 @@ export function ImportExportPanel(overrides: Partial<ImportExportProps> = {}) {
       SiteImportTab={SiteImportTab}
       handleLabels={IMPORT_EXPORT_HANDLE_LABELS}
       navigate={navigate}
+      agentHandle={agentHandle}
       {...overrides}
     />
   );

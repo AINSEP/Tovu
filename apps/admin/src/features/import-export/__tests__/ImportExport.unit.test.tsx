@@ -5,6 +5,7 @@ import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/ho
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { SiteExportTab, SiteImportTab } from "@/features/sites";
 import { IMPORT_EXPORT_HANDLE_LABELS, ImportExportPanel } from "../ImportExportPanel";
 import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
@@ -17,7 +18,7 @@ import { SITES_RESOURCE } from "@/features/sites/rules";
  */
 
 /** The Git backup card on a fake port with no connection, so no test here reaches the network. */
-const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate, describeApiError });
+const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate, host: { describeError: describeApiError } });
 const identity = () => (key: string) => key;
 
 /** Export and Import read their lists over `fetch`; answer every read with empty lists. */
@@ -28,7 +29,7 @@ function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAv
   return render(
     <ImportExport
       tabId={tabId} useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={() => sitesAvailable}
-      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS} navigate={navigate}
+      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS} navigate={navigate} agentHandle={agentHandle}
     />,
   );
 }
