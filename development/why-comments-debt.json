@@ -5860,6 +5860,146 @@
     {
       "id": "3354f298e373",
       "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "b642acdee52a",
+      "reason": "Moved with the code to Jini @jini-ai/desktop-host/shell/find-menu (DT-desktop-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "bf9c1279b6a6",
+      "reason": "Moved with the code to Jini @jini-ai/desktop-host/shell/find-menu (DT-desktop-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b5963ee99faa",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/deploy-ops (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "169a1337533a",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/deployments (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "39e7a828f458",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/domain-dns (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "e5e400eb9fac",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/site-backup (K5-site-backup-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "63160ba22ffc",
+      "reason": "Moved with the code to Jini @jini-ai/core/tool-metadata/source-control (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "10b943e749b5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/deploy-targets/types (the type-only forwarder was deleted; its one-line purpose is restated there) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "66b2a08257bd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/deploy-targets/types (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "05ceb57527f1",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/dockerfile (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "87b618b70a74",
+      "reason": "Moved with the code to Jini nothing: the barrel re-export block it annotated was removed and its consumers import @jini-ai/devops/deploy/site/* directly (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "cfd29dcb9763",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/__tests__/execution-mode.test.ts (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "8323784a45bd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/execution-mode (env var name now host-supplied) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "dfecad85f740",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/publish-credentials/execution-mode (env var name now host-supplied) (K5-deployments-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "260c038ef1d4",
+      "reason": "Moved with the code to Jini @jini-ai/devops/deploy/site/static-publish/types (K5-deployments-2); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "5163a149b5d5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3797f043e79b",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "2fdfe048b574",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/dns-tools (validators injected) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "e9e5d29daffe",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "6f8efbb9107b",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "31b7af1fa53e",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b6331d643997",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "35f56cfb81dd",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "55436cd6eadb",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "24c34903f0a7",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "90153a1312c5",
+      "reason": "Moved with the code to Jini @jini-ai/devops/dns/site/tools (diagnostics checks and validators injected; permission binding is the host deps) (K5-domain-dns-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3be75a29f16c",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/grant (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "d97e1fd0af41",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/grant (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "99d1dcd16310",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning-status (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "28c87eb8a778",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning.node-io (repo-root resolution stays in the host publish-trust/host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "36e5359332f3",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "b62f9fb790a1",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "fec7d3403f10",
+      "reason": "Moved with the code to Jini @jini-ai/cms/publish/trust/provisioning (env var name and repo paths stay in the host host-settings.ts) (P-publish-trust-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "2690fa100329",
+      "reason": "Moved with the code to Jini @jini-ai/devops/source-control/site/provider-module (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "3c39ec11d85f",
+      "reason": "Moved with the code to Jini @jini-ai/devops/source-control/site/provider-module (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
     }
   ]
 }
