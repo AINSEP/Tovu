@@ -3,6 +3,7 @@
  * subset of them (`Pick<CreateAppOptions, ...>`) do not import `app.ts`, which imports them (an import cycle).
  */
 
+import type { Express } from "express";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
 
@@ -36,4 +37,7 @@ export interface CreateAppOptions {
   themeIdOverride?: string;
   /** Internal local-render audit only; no HTTP input can set this option. */
   consentAudit?: true;
+  /** The dev-only CORS policy `createApp` installs on its express app; defaults to the admin-dev-server allow-list in
+   *  `inbound/shared/dev-cors.ts`. A host or test hands in its own so the middleware never hard-codes one. */
+  applyDevCors?: (app: Express) => void;
 }
