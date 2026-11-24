@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../PushToTalkMicButton";
-import type { PushToTalkCapture } from "../hooks/mic-capture";
+import type { PushToTalkCapture } from "@jini-ai/admin/screens/voice-input/hooks/mic-capture";
 import type { VoiceInputPort } from "../voice-input-port";
 
 /**
