@@ -1,7 +1,7 @@
 import { readMediaStoreEnvChoice, selectMediaBlobStore, type BlobStorePort, type MediaObjectStorePorts as JiniMediaObjectStorePorts, type MediaStoreEnvChoice } from "@jini-ai/cms/media";
-import { createLocalFsObjectStore } from "@jini-ai/platform/object-store";
-
-import type { ObjectStoreEnvDeclaration, ObjectStoreHost } from "./registry.js";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
+import { createLocalFsObjectStore, type ObjectStoreEnvDeclaration } from "@jini-ai/platform/object-store";
+import type { SiteObjectStoreProvider } from "@jini-ai/platform/object-store/site/registry";
 
 /**
  * @file Tovu's binding of `selectMediaBlobStore` (`@jini-ai/cms/media`): the one seam behind
@@ -16,6 +16,14 @@ import type { ObjectStoreEnvDeclaration, ObjectStoreHost } from "./registry.js";
 
 export const MEDIA_OBJECT_STORE_ENV = "TOVU_MEDIA_BLOB_STORE";
 const MEDIA_OBJECT_STORE_SETTING = "core.storage.mediaObjectStore";
+
+/** What a plain-JS provider module cannot import: SigV4 signing, plus optional request tracing. */
+export interface ObjectStoreHost {
+  readonly createSigV4Client: DeployHostKit["createSigV4Client"];
+  readonly wrapFetch?: (fetchFn: typeof fetch) => typeof fetch;
+}
+
+export type TovuObjectStoreProvider = SiteObjectStoreProvider<ObjectStoreHost>;
 
 /** The boot ports, bound to Tovu's object-store host (SigV4 signing + optional request tracing). */
 export type MediaObjectStorePorts = JiniMediaObjectStorePorts<ObjectStoreHost>;

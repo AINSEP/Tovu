@@ -1,12 +1,14 @@
-import { type MediaObjectStorePorts } from "#src/features/object-storage/media-store";
+import { type MediaObjectStorePorts, type ObjectStoreHost, type TovuObjectStoreProvider } from "#src/features/object-storage/media-store";
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import { createMediaBlobStore } from "#src/features/object-storage/media-store";
-import { loadBundledObjectStoreRegistry } from "#src/features/object-storage/registry";
-import { loadObjectStoreRegistry } from "#src/features/object-storage/registry";
+import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readBundledObjectStoreEnvDeclarations } from "@jini-ai/platform/object-store/site/registry";
+import { contributeProviders, defineProviderContribution } from "@jini-ai/agent-plugins/lifecycle";
+import type { ObjectStoreDescriptor } from "@jini-ai/platform/object-store";
+import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
+import { loadPluginContributionsFromSource } from "#src/features/agent-plugins/lifecycle";
 import { mediaUploadsDir } from "../site-paths.js";
-import { readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/registry";
 import { getEffective } from "@jini-ai/core/settings";
 import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { storeBoundServicesFor } from "../store-bound-services.js";
@@ -29,6 +31,12 @@ interface ComposeMediaStorageRequired {
   dbPath: string;
 }
 
+/** The agent-plugins contribution seam the Jini object-store registry loaders take, pinned to Tovu's host. */
+const objectStoreContributionPorts = {
+  defineProviderContribution: defineProviderContribution<ObjectStoreDescriptor, TovuObjectStoreProvider>,
+  contributeProviders: contributeProviders<TovuObjectStoreProvider>,
+};
+
 export function composeMediaStorage(required: ComposeMediaStorageRequired, _optional = {}) {
   const { overrides, resolvedSiteBinding, observability, workspaceId, agentPluginLifecycle, settingsRepo, store, dbPath } = required;
   // `observability` comes from provider plugins, initialized below once the site vault is
@@ -46,8 +54,8 @@ export function composeMediaStorage(required: ComposeMediaStorageRequired, _opti
   const mediaCredentials = new Promise<ReturnType<typeof composePublishCredentialSource>>((done) => { provideMediaCredentials = done; });
   const mediaStorePorts = (): MediaObjectStorePorts => ({
     host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: observability() }) },
-    loadBundledRegistry: () => loadBundledObjectStoreRegistry({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir() }),
-    loadSiteRegistry: () => loadObjectStoreRegistry({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadBundledRegistry: () => loadBundledObjectStoreRegistry<ObjectStoreHost, ReturnType<typeof objectStoreContributionPorts.defineProviderContribution>>({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir(), bundledContributionSources, loadPluginContributionsFromSource, ...objectStoreContributionPorts }),
+    loadSiteRegistry: () => loadObjectStoreRegistry<ObjectStoreHost, ReturnType<typeof objectStoreContributionPorts.defineProviderContribution>>({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions, ...objectStoreContributionPorts }),
     readSetting: () => readMediaObjectStoreSetting({ settingsRepo: settingsRepo(), workspaceId: workspaceId(), getEffective }),
     resolveSharedCredential: async ({ providerId }) => {
       // Provider ids use underscores; the saved connection is keyed by the deploy target's hyphenated id.
@@ -57,7 +65,7 @@ export function composeMediaStorage(required: ComposeMediaStorageRequired, _opti
       return { fields, secret: token };
     },
   });
-  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: bundledAgentPluginsDir() }) });
+  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: bundledAgentPluginsDir(), bundledContributionSources }) });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor({ store, dbPath });

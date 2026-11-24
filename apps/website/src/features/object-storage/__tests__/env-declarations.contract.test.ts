@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
-import { readBundledObjectStoreEnvDeclarations } from "../registry.js";
+import { readBundledObjectStoreEnvDeclarations as readDeclarations } from "@jini-ai/platform/object-store/site/registry";
+import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
+
+// Tovu's binding, as `site-deps/media-storage.ts` composes it.
+const readBundledObjectStoreEnvDeclarations = (required: { sourceRoot: string }) => readDeclarations({ ...required, bundledContributionSources });
 
 const env = { selector: "example", settings: { bucket: "EXAMPLE_BUCKET" }, credentialFields: {}, secret: "EXAMPLE_SECRET", required: ["EXAMPLE_BUCKET", "EXAMPLE_SECRET"] };
 const entry = { id: "example-store", module: "provider.mjs", env };

@@ -11,7 +11,8 @@ import { createObjectStoreRegistry, type ObjectStore, type ObjectStoreCreateInpu
 import { providerOk, providerRejected } from "@jini-ai/core/provider-registry";
 
 import { createMediaBlobStore as createMediaBlobStoreFromDeclarations, MEDIA_OBJECT_STORE_ENV, readMediaStoreEnv as readMediaStoreEnvFromDeclarations, type MediaObjectStorePorts } from "../media-store.js";
-import type { LoadedObjectStoreRegistry, ObjectStoreHost, TovuObjectStoreProvider } from "../registry.js";
+import type { LoadedObjectStoreRegistry } from "@jini-ai/platform/object-store/site/registry";
+import type { ObjectStoreHost, TovuObjectStoreProvider } from "../media-store.js";
 
 /**
  * @file The media blob-store seam: env override precedence and its loud boot errors, the site
@@ -102,7 +103,7 @@ function recordingProvider(store: ObjectStore): TovuObjectStoreProvider & { read
   };
 }
 
-function registryWith(entries: Array<{ id: string; provider: TovuObjectStoreProvider }>, refusals: string[] = []): LoadedObjectStoreRegistry {
+function registryWith(entries: Array<{ id: string; provider: TovuObjectStoreProvider }>, refusals: string[] = []): LoadedObjectStoreRegistry<ObjectStoreHost> {
   return { registry: createObjectStoreRegistry<ObjectStoreHost>({}, { seed: entries }), refusals };
 }
 

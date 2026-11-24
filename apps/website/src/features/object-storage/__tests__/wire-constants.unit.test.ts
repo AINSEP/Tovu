@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MEDIA_OBJECT_STORE_ENV } from "../media-store.js";
-import { OBJECT_STORES_FILENAME } from "../registry.js";
+import { OBJECT_STORES_FILENAME } from "@jini-ai/platform/object-store/site/registry";
 import * as setting from "@jini-ai/platform/object-store/site/setting";
 
 /**
  * @file The wire names operators and plugins already depend on. The feature barrel that used to
  * carry these assertions was removed (no re-export shells): composition imports `media-store.ts`,
- * `registry.ts` and `artifact-provider.ts` directly, and the setting module from Jini.
+ * `artifact-provider.ts` directly, and the registry/setting modules from Jini.
  */
 
 test("object-storage keeps its operator env name, plugin manifest filename and setting keys", () => {

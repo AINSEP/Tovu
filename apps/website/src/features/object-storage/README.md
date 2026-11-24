@@ -11,8 +11,12 @@ There is no feature barrel; composition imports each owner directly.
   `core.storage.mediaObjectStore` to Jini's `selectMediaBlobStore` / `readMediaStoreEnvChoice`.
   Bound in `server/runtime/composition/site-deps/media-storage.ts` (type-only users:
   `boot-data.ts`, `trash-adapters.ts`, `trash-follow-up-hooks.ts`).
-- `registry.ts` binds Tovu's Agent Plugin loaders (`../agent-plugins/lifecycle.ts`,
-  `bundled-contribution-sources.ts`) to Jini's `defineProviderContribution` + object-store registry.
-  Bound in `site-deps/media-storage.ts`.
+- The object-store provider registry loaders live in Jini
+  (`@jini-ai/platform/object-store/site/registry`). `site-deps/media-storage.ts` injects Tovu's
+  Agent Plugin loaders (`../agent-plugins/lifecycle.ts` `loadPluginContributionsFromSource` /
+  `loadPluginContributions`, `bundled-contribution-sources.ts`) and the agent-plugins seam
+  (`defineProviderContribution` / `contributeProviders`, pinned to `TovuObjectStoreProvider`).
+- `media-store.ts` also owns Tovu's provider host type `ObjectStoreHost` (SigV4 signing + optional
+  request tracing) and `TovuObjectStoreProvider`.
 - `artifact-provider.ts` is bound in `site-deps/site-sharing.ts`.
 - The setting keys come from `@jini-ai/platform/object-store/site/setting`.

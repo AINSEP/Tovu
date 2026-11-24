@@ -2,7 +2,9 @@ import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 
 import type { DeployTargetCredential } from "@jini-ai/devops/deploy";
 
-import type { LoadedObjectStoreRegistry } from "./registry.js";
+import type { LoadedObjectStoreRegistry } from "@jini-ai/platform/object-store/site/registry";
+
+import type { ObjectStoreHost } from "./media-store.js";
 
 /**
  * @file Which object-store provider delivers backup shares: any registered provider that can also
@@ -34,7 +36,7 @@ export interface ArtifactStoreCapable {
  * @complexity O(n) registered providers, one credential lookup per capable provider until a hit.
  */
 export async function selectArtifactStoreProvider<C>(
-  required: { readonly loaded: LoadedObjectStoreRegistry; readonly preferredId: string; readonly resolveCredential: (required: { readonly id: string }) => Promise<C | undefined> },
+  required: { readonly loaded: LoadedObjectStoreRegistry<ObjectStoreHost>; readonly preferredId: string; readonly resolveCredential: (required: { readonly id: string }) => Promise<C | undefined> },
   optional: { readonly savedProvider?: string } = {}
 ): Promise<{ readonly id: string; readonly provider: ArtifactStoreCapable; readonly credential: C } | undefined> {
   const capable = required.loaded.registry.list().filter((entry) => typeof (entry.provider as Partial<ArtifactStoreCapable>).createArtifactStore === "function"
