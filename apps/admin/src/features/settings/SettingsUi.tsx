@@ -146,7 +146,8 @@ import { UserInterfaceSettingsPanel } from "@jini-ai/admin/screens/settings/User
 import "@jini-ai/admin/screens/settings/user-interface-settings.css";
 import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
 import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-memory-i18n";
-import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
+import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
+import { useBrowserAgentSettings } from "../webmcp/browser-agent-settings.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
@@ -419,7 +420,7 @@ export function SettingsUi({
       // controls govern site analytics rather than this operator's product-analytics consent.
       panel: (
         <div className="settings-ui-inert-wrap">
-          <BrowserAgentSettingsPanel locale={settingsLocale} />
+          <BrowserAgentSettingsPanel locale={settingsLocale} useBrowserAgentSettingsHook={useBrowserAgentSettings} />
           {/* The policy is said once, in PrivacyTab's footer; a second note above it said the same. */}
           <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy"
             labels={{ metricsLabel: t("Product analytics"), metricsHint: t("Usage events sent to your configured analytics provider."),

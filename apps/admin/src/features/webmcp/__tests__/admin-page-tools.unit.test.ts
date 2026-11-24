@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "../admin-page-tools";
+import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "@jini-ai/admin/screens/webmcp/admin-page-tools";
+import { adminPageToolCollaborators } from "../admin-page-tool-collaborators";
 import type { AgentModelContextRegisterToolOptions, AgentModelContextToolRegistration } from "@jini-ai/agentic/dom";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -19,7 +20,7 @@ function fixture(options: { isEnabled?: () => boolean; requestPageAction?: Reque
   const controller = new AbortController();
   const requestPageAction = vi.fn(options.requestPageAction ?? (async () => ({ clicked: "save" })));
   const onError = vi.fn();
-  registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
+  registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver, signal: controller.signal }, {
     modelContext: { registerTool }, requestPageAction, onError, isEnabled: options.isEnabled ?? (() => true),
   });
   const tool = (name: string) => tools.find(entry => entry.name === name)!;
@@ -59,7 +60,7 @@ describe("admin page WebMCP", () => {
     const f = fixture();
     vi.stubGlobal("document", undefined);
     vi.stubGlobal("navigator", undefined);
-    expect(() => registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal })).not.toThrow();
+    expect(() => registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal })).not.toThrow();
     expect(f.driver.findElements).not.toHaveBeenCalled();
   });
 
@@ -69,7 +70,7 @@ describe("admin page WebMCP", () => {
     const registerTool = vi.fn(async (tool: AgentModelContextToolRegistration) => { tools.push(tool); });
     vi.stubGlobal("document", host === "document" ? { modelContext: { registerTool } } : undefined);
     vi.stubGlobal("navigator", host === "navigator" ? { modelContext: { registerTool } } : undefined);
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { isEnabled: () => true });
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, { isEnabled: () => true });
     expect(tools.map(tool => tool.name)).toEqual(PAGE_CAPABILITIES.map(capability => capability.id));
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({ name: "page.find_elements" }), { signal: f.controller.signal });
     expect(await tools.find(tool => tool.name === "page.find_elements")!.execute({})).toMatchObject({ elements: [{ handle: "save" }], pages: [{ id: "pages" }] });
@@ -79,7 +80,7 @@ describe("admin page WebMCP", () => {
     const f = fixture();
     const failure = new Error("native registration unavailable");
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool: async () => { throw failure; } }, isEnabled: () => true,
     });
     await Promise.resolve(); await Promise.resolve();
@@ -93,7 +94,7 @@ describe("admin page WebMCP", () => {
       if (kind === "synchronous") { f.controller.abort(); throw failure; }
       return Promise.reject(failure);
     });
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool }, onError: f.onError, isEnabled: () => true,
     });
     f.controller.abort(); await Promise.resolve(); await Promise.resolve();
@@ -130,7 +131,7 @@ describe("admin page WebMCP", () => {
   it("refuses opaque effects without an authenticated chat confirmation channel", async () => {
     const f = fixture();
     const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } }, isEnabled: () => true,
     });
     await expect(tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" })).rejects.toThrow("authenticated chat confirmation channel");
@@ -167,7 +168,7 @@ describe("admin page WebMCP", () => {
     const f = fixture();
     const failure = new Error("registration failed");
     const registerTool = vi.fn().mockImplementationOnce(() => { throw failure; }).mockRejectedValue(failure);
-    expect(() => registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+    expect(() => registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool }, onError: f.onError, isEnabled: () => true,
     })).not.toThrow();
     await Promise.resolve(); await Promise.resolve();
@@ -176,10 +177,10 @@ describe("admin page WebMCP", () => {
 
   it("skips registration when access is disabled or the registration lifetime ended", () => {
     const f = fixture(); f.registerTool.mockClear();
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => false });
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => false });
     expect(f.registerTool).not.toHaveBeenCalled();
     f.controller.abort();
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => true });
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => true });
     expect(f.registerTool).not.toHaveBeenCalled();
   });
 });

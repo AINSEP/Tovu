@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "../admin-page-tools";
+import { registerAdminPageWebMcpTools } from "@jini-ai/admin/screens/webmcp/admin-page-tools";
+import { adminPageToolCollaborators } from "../admin-page-tool-collaborators";
 
 function fixture() {
   const registrations: WebMcpToolRegistration[] = [];
@@ -10,7 +11,7 @@ function fixture() {
   };
   const controller = new AbortController();
   const requestPageAction = vi.fn().mockResolvedValue({ clicked: "post-delete-confirm" });
-  registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
+  registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver, signal: controller.signal }, {
     requestPageAction, isEnabled: () => true,
     modelContext: { registerTool: async ({ tool }) => { registrations.push(tool as WebMcpToolRegistration); } },
   });

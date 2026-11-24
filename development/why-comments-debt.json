@@ -5904,6 +5904,54 @@
     {
       "id": "1e6ef7ce631f",
       "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts (the `core.mail.provider`/`testMode` registration comment): the definition moved to Jini packages/cms/src/settings/site/mail-provider.ts, so the cited path became `@jini-ai/cms/settings/site/mail-provider`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "b2dceec37943",
+      "reason": "Obsolete: documented the optional probe test seam defaulting to the Tovu fs-files api; the hook moved to Jini fs-files/hooks/use-native-folder-picker.hooks.ts where probe is a required host-bound input field documented there (w3-screens)."
+    },
+    {
+      "id": "74798eaed19e",
+      "reason": "Obsolete: documented the optional pick test seam defaulting to the Tovu fs-files api; in Jini fs-files/hooks/use-native-folder-picker.hooks.ts pick is a required host-bound input field documented there (w3-screens)."
+    },
+    {
+      "id": "2ace7e77e6be",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/fs-files/hooks/use-native-folder-picker.hooks.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d84f85410888",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/fs-files/hooks/use-native-folder-picker.hooks.ts (now via the injected isDialogAlreadyOpen; Tovu maps 409 in fs-files-api isFolderPickerBusyError) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9193e97cfced",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useTranslate doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "c89ae80a59ec",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useGitBackup doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "bf49905aa55a",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useTransferTranslate doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "cca16bb73f77",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useSitesAvailable doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "3418bbfa939e",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/import-export/__tests__/GitBackupCard.unit.test.tsx (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2d85855f8d8f",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/import-export/import-export-tabs.tsx (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "34cf28e9cfa8",
+      "reason": "Obsolete: header of the deleted import-export/index.ts barrel (no re-export files rule); importers point at the concrete Jini modules / ImportExportPanel (w3-screens)."
+    },
+    {
+      "id": "4d1179423d9f",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/skills/skills-i18n.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
     }
   ]
 }

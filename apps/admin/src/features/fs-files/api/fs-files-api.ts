@@ -1,5 +1,5 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
+import { ApiError, authenticatedAdminRequest } from "../../../lib/admin-http/request";
 
 /** The admin API calls of the fs-files feature. */
 export const fsFilesApi = {
@@ -19,3 +19,13 @@ export const fsFilesApi = {
   getFolderPicker: () => authenticatedAdminRequest<{ available: true }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
   pickFolder: () => authenticatedAdminRequest<{ path: string | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
 };
+
+/**
+ * `useNativeFolderPicker`'s `isDialogAlreadyOpen` binding: the folder-picker `POST` answers 409 while
+ * a dialog is already open (another tab). The button stays usable then; nothing failed.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function isFolderPickerBusyError({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
+  return error instanceof ApiError && error.status === 409;
+}

@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import type { ChatPane } from "@jini-ai/chat/react";
 
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
-import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
+import type { UseNativeFolderPicker } from "@jini-ai/admin/screens/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "./FolderPathButton";
 import { isDesktopAdmin } from "../../features/settings/ai-agent-presentation";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";

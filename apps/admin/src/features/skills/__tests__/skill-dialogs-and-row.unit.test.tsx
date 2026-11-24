@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useSkills } from "../use-skills.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import userEvent from "@testing-library/user-event";
-import { captureSkillDrop } from "../skill-drop";
+import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
 import { readFileSync } from "node:fs";
 import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";

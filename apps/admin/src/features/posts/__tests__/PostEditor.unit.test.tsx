@@ -19,7 +19,7 @@ vi.mock("../../taxonomy/TermPicker", () => ({
   ),
 }));
 // The Content analysis card reads the plugin list itself; its own branches live in
-// Jini `packages/admin/src/screens/content-analysis/__tests__/`. Stubbed for the same fetch-queue reason as TermPicker.
+// `features/content-analysis/__tests__/`. Stubbed for the same fetch-queue reason as TermPicker.
 vi.mock("@jini-ai/admin/screens/content-analysis/ContentAnalysisCard", () => ({
   ContentAnalysisCard: (props: { post: { id: string; version: number }; title: string; bodyJson: unknown }) => (
     <div data-testid="content-analysis">{`${props.post.id}@${props.post.version}:${props.title}:${JSON.stringify(props.bodyJson)}`}</div>

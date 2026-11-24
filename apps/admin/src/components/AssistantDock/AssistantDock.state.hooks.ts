@@ -1,5 +1,6 @@
 import { useConfirmRequest } from "@jini-ai/admin/react";
-import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
+import { useNativeFolderPicker } from "@jini-ai/admin/screens/fs-files/hooks/use-native-folder-picker.hooks";
+import { fsFilesApi, isFolderPickerBusyError } from "../../features/fs-files/api/fs-files-api";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
@@ -224,7 +225,10 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
   const folderDrop = useDropBridge({ input: { composerHandle: voiceInput.composerHandle }, onReady: onFolderDropCaptureReady }, { proposeSkillFiles: skillInstall.proposeFiles, onSkillDropError: skillInstall.fail });
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
-  const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
+  const folderPicker = useNativeFolderPicker({
+    onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint,
+    probe: fsFilesApi.getFolderPicker, pick: fsFilesApi.pickFolder, isDialogAlreadyOpen: isFolderPickerBusyError,
+  });
 
   return {
     composerCapabilities, selectedPluginRefIds, removePluginRef, selectedSkills, discoveryDraft, captureComposerClick,
