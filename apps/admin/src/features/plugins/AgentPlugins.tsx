@@ -1,4 +1,4 @@
-import { useAgentPluginConfirmation } from "./AgentPlugins.hooks";
+import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import {
   I18nProvider,

@@ -13,7 +13,8 @@ import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { tProviders as t, tIntegrations } from "../../lib/i18n-common";
-import { useProviders } from "./hooks/use-providers.hooks";
+import { useProviders, type ProvidersController as JiniProvidersController } from "@jini-ai/admin/screens/providers/hooks/use-providers.hooks";
+import { useExternalMcp, type ExternalMcpController } from "../settings/hooks/use-external-mcp.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
@@ -117,7 +118,7 @@ export interface ProvidersProps {
    *  `null` when the param is absent). See {@link resolveProvidersTabId}. */
   tabId?: string | null;
   /** DI seam for tests — same convention `SecurityProps.useAccessTokensHook` follows. */
-  useProvidersHook?: typeof useProviders;
+  useProvidersHook?: () => ProvidersController;
   /** DI seam for the Webhooks tab's own list/create/delete state — carried over from
    *  `DeveloperApiProps.useIntegrationsHook`, same convention. Threaded straight through to
    *  `Integrations` below; this component has no reason to see its return value itself. */
@@ -198,7 +199,15 @@ export type ProvidersHooks = typeof defaultProvidersHooks;
 
 /** Hook-calling shell. The screen body lives in {@link ProvidersView}, so these injected defaults
  *  are branches of this tiny function, not of the body's own complexity budget. */
-export function Providers({ useProvidersHook = useProviders, hooks = defaultProvidersHooks, ...props }: ProvidersProps & { hooks?: ProvidersHooks | undefined }) {
+/** The Providers page's controller, bound to the host's External MCP controller. */
+export type ProvidersController = JiniProvidersController<ExternalMcpController>;
+
+/** The real controller: Jini's composition over the host's own External MCP hook. */
+function useWiredProviders(): ProvidersController {
+  return useProviders({ useExternalMcp });
+}
+
+export function Providers({ useProvidersHook = useWiredProviders, hooks = defaultProvidersHooks, ...props }: ProvidersProps & { hooks?: ProvidersHooks | undefined }) {
   const themeBoundary = hooks.useAdminThemeBoundary({}, {});
   const locale = hooks.useAdminLocale();
   const p = useProvidersHook();
@@ -206,7 +215,7 @@ export function Providers({ useProvidersHook = useProviders, hooks = defaultProv
 }
 
 function ProvidersView(props: ProvidersProps & {
-  p: ReturnType<typeof useProviders>;
+  p: ProvidersController;
   locale: ReturnType<typeof useAdminLocale>;
   themeBoundary: ReturnType<typeof useAdminThemeBoundary>;
 }) {
