@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PageEditor } from "../PageEditor";
 import { usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
-import { createFakeThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";

@@ -9,7 +9,7 @@ import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types
 import type { AdminWorkspace } from '@/features/workspace/api/workspace-api.types';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';
-import { createFakeThemeCanvasPort } from '@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks';
+import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
 import { useMenuEditor } from '@/features/menus/hooks/use-menu-editor.hooks';
 import { createFakeMenusPort } from '@/features/menus/hooks/menus-dependencies.hooks';
 import { useWorkspace } from '@/features/workspace/hooks/use-workspace.hooks';

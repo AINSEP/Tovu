@@ -117,7 +117,7 @@ function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate })
 export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings, focused = false, hooks = { usePluginRowFocus } }: PluginRowProps) {
   const detailId = useId();
   const headingId = useId();
-  const rowRef = hooks.usePluginRowFocus({ focused });
+  const rowRef = hooks.usePluginRowFocus({ focused, summarySelector: ".plugin-row-summary" });
 
   return (
     <li ref={rowRef} className="plugin-row" data-enabled={plugin.enabled} data-focused={focused || undefined} aria-label={plugin.name}>

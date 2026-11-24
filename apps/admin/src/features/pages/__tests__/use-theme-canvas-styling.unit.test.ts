@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { createFakeThemeCanvasPort, ThemeServerResponseError } from "@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort, ThemeServerResponseError } from "../hooks/theme-canvas-dependencies.hooks";
 import {
   resolveCanvasTemplateChoice,
   templateMarkupUrl,
