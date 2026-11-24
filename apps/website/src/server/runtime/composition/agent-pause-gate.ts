@@ -49,6 +49,13 @@ export type AgentResumeResult =
   | { resumed: false; reason: "assistant-off" | "not-held" | Extract<HumanConfirmOutcome, { confirmed: false }>["reason"] };
 
 export interface AgentPauseGate {
+  /**
+   * Records the hold NOW if the switch is off, without waiting for a worker to ask. The composition
+   * calls it at boot: the switch is read once per process, so boot IS the off-transition, and the
+   * public reads filter on the hold row — an agent post scheduled before the first webhook tick
+   * must not slip live in the gap before something happens to call `isAgentWorkAllowed()`.
+   */
+  recordSwitchState(): Promise<void>;
   /** False while the switch is off (recording the hold) or while an unapproved hold remains. */
   isAgentWorkAllowed(): Promise<boolean>;
   /** Releases the hold only after `confirm` (the approval card) says yes, and only with the switch on. */
@@ -66,6 +73,9 @@ export function createAgentPauseGate(
 ): AgentPauseGate {
   const { store, workspaceId, assistantEnabled, clock } = required;
   return {
+    async recordSwitchState() {
+      if (!assistantEnabled()) await store.hold({ workspaceId, sinceIso: clock.nowIso() });
+    },
     async isAgentWorkAllowed() {
       if (!assistantEnabled()) {
         await store.hold({ workspaceId, sinceIso: clock.nowIso() });

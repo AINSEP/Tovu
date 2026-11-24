@@ -8,7 +8,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { sqlAgentPauseHoldStore } from "../../../server/runtime/composition/agent-pause-gate.js";
+import { createAgentPauseGate, sqlAgentPauseHoldStore } from "../../../server/runtime/composition/agent-pause-gate.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
 /**
@@ -55,5 +55,18 @@ describeEachDialect("post go-live under the agent-pause hold", {
     await store.release({ workspaceId: WS });
     assert.deepEqual(await goLive(), ["agent-live-before-pause", "agent-scheduled-in-pause", "owner-scheduled-in-pause"], "another workspace's hold does not apply");
     assert.deepEqual(await previews(), ["agent-live-before-pause", "agent-scheduled-in-pause", "agent-unscheduled", "owner-scheduled-in-pause"]);
+  });
+
+  test("switch off at boot records the hold with no worker tick: an agent post scheduled before the first webhook tick never goes live", async () => {
+    const { repo, kernel } = make();
+    for (const record of ROWS) await repo.save(record);
+    await kernel.execute(sql`UPDATE posts SET created_by_kind = 'agent' WHERE id IN (${sql.join(AGENT_MADE)})`);
+    const gate = createAgentPauseGate({ store: sqlAgentPauseHoldStore({ kernel }), workspaceId: WS, assistantEnabled: () => false, clock: { nowIso: () => HELD_SINCE } });
+
+    // The composition calls this once at boot; nothing ever calls isAgentWorkAllowed() in this test.
+    await gate.recordSwitchState();
+
+    const ids = async () => (await repo.listGoLiveCandidates({ workspaceId: WS, nowIso: NOW })).map((post) => post.id).sort();
+    assert.deepEqual(await ids(), ["agent-live-before-pause", "owner-scheduled-in-pause"]);
   });
 });
