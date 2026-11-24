@@ -5,7 +5,8 @@ import { commentsModerationActionRoutes, commentsPurgeRoute } from "@jini-ai/cms
 import { commentsModerationQueueRoute } from "@jini-ai/cms/admin-http/routes/comments/moderation-queue";
 import { commentsPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/comments/put-settings";
 import type { CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
-import { getCommentsSettings, setCommentsSettings } from "#src/features/comments/index";
+import { getCommentsSettings, setCommentsSettings } from "@jini-ai/cms/comments/site/settings";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -110,7 +111,7 @@ export const registerAdminCommentsPutSettingsRoute = ({ app, deps }: { app: Expr
     // The admin surface's outward copy for a classified domain error is that error's own message.
     outwardErrorMessage: ({ error }) => error.message,
     setCommentsSettings: (input) => setCommentsSettings(
-      { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo },
+      { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo, createPrincipalLookup: createSettingsPrincipalLookup },
       input,
     ),
   } }, directMountOptions("routes/comments/put-settings"));

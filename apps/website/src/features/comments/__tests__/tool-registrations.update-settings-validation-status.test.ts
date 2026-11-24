@@ -5,8 +5,8 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo } from "../../settings/index.js";
-import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "../../settings/index.js";
+import { ensureCommentsSettingDefinitions, getCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildCommentsRegistrations, contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentsDerivedRisk, createCommentHookRegistry } from "@jini-ai/cms/comments";
@@ -37,7 +37,7 @@ async function makeDeps(): Promise<CommentsToolDeps> {
   let id = 0;
   const clock = { nowIso: () => "2026-07-16T00:00:00.000Z", nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") };
   const idGen = { newId: () => `settings-test-${++id}` };
-  await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, clock, ids: idGen }, { workspaceId: "ws-settings", systemPrincipalId: "system" });
+  await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, createPrincipalLookup: createSettingsPrincipalLookup, clock, ids: idGen }, { workspaceId: "ws-settings", systemPrincipalId: "system" });
   const commentRepo = new InMemoryCommentRepo();
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,

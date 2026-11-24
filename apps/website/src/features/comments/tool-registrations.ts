@@ -10,15 +10,15 @@ import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildCommentsToolRegistrations, commentsDerivedRisk, type CommentRepoPort, type CommentsPackageToolDeps, type CommentWriteService } from "@jini-ai/cms/comments";
-import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
-import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
-import { getCommentsSettings, setCommentsSettings } from "./settings.js";
+import { ForbiddenError as SettingsForbiddenError, createSettingsPrincipalLookup, type SettingsRepoPort } from "../settings/index.js";
+import { getCommentsSettings, setCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 
 /**
  * The exact slice of the route-deps bag Comments' tool handlers read. Declared structurally
@@ -64,7 +64,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: CommentsToolDeps }, _optional
       // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
       // of this file uses. See settings.ts's own comment on that override for why.
       set: (input) => setCommentsSettings(
-        { settingsRepo: routeDeps.settingsRepo, clock: routeDeps.clock, ids: routeDeps.idGen, authorize: routeDeps.authorize, principals: routeDeps.principalRepo },
+        { settingsRepo: routeDeps.settingsRepo, clock: routeDeps.clock, ids: routeDeps.idGen, authorize: routeDeps.authorize, principals: routeDeps.principalRepo, createPrincipalLookup: createSettingsPrincipalLookup },
         input,
       ),
     },

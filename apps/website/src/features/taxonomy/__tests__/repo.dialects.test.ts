@@ -1,4 +1,3 @@
-import type { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import { test } from "node:test";

@@ -1,6 +1,6 @@
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
 import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
-import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
 import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";

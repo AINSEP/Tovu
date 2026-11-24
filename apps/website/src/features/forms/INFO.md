@@ -8,7 +8,7 @@ Tovu imports those owners directly. The original architecture notes below are hi
 | Tovu file | Host responsibility |
 | --- | --- |
 | `index.ts` | Permission/reserved-slug binding, authoring, email validation, SHA-256 attempts and background dispatch. |
-| `repo.sqlite.ts` | Site connection and unchanged definition/submission table names. |
+| `platform/db/content-tables.ts` | The unchanged definition/submission table names (host schema); repos are built with `@jini-ai/cms/forms/sql` `formDefinitionRepoFor`/`formSubmissionRepoFor`. |
 | `submission-ip-expiry-sweep.ts` | Boot pass, daily timer and shutdown. |
 | `publish-content.ts` | Tovu publication resource registration. |
 | `tool-registrations.ts`, `agent-tools.ts` | Tovu tool IDs, policy and model-facing catalog. |
@@ -86,7 +86,7 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 | `notify-subscriber.ts` | Outbox subscriber: `MailerPort.send()` per configured recipient. |
 | `@jini-ai/cms/forms/site/rate-limit-profile` | `FORMS_SUBMIT_PROFILE` (moved to Jini); the composite key builder is `@jini-ai/cms/forms`. |
 | `ports.ts` | `FormDefinitionRepoPort`, `FormSubmissionRepoPort` (rule-of-two). |
-| `repo.memory.ts` / `repo.sqlite.ts` | The two adapters. |
+| `repo.memory.ts` / `@jini-ai/cms/forms/sql` | The two adapters. |
 | `errors.ts` | Typed domain errors mapped 1:1 to `errors.spec.md` §2. |
 
 ## Out of Scope (this pass)

@@ -12,7 +12,9 @@ import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/ind
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { createCommentTargetLookup } from "@jini-ai/cms/comments/site/comment-targets";
-import { createCommentsCapability } from "#src/features/comments/provider-selection";
+import { createCommentsCapability } from "@jini-ai/cms/comments/site/provider-selection";
+import { createCommentsProviderRegistry } from "@jini-ai/capability-providers/comments";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
@@ -118,7 +120,8 @@ export function composeContentResolversComments(required: ComposeContentResolver
   }, {});
   const commentsCapability = createCommentsCapability({
     siteId: workspaceId, module: commentsModule, commentsReady: commentsReady, settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals, createPrincipalLookup: createSettingsPrincipalLookup },
+    createProviderRegistry: createCommentsProviderRegistry,
   });
   return { formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability };
 }

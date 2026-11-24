@@ -19,13 +19,14 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import {
   InMemorySettingsRepo,
+  createSettingsPrincipalLookup,
 } from "../../features/settings/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";
-import { ensureCommentsSettingDefinitions } from "../../features/comments/settings.js";
+import { ensureCommentsSettingDefinitions } from "@jini-ai/cms/comments/site/settings";
 import type { CommentRecord } from "@jini-ai/cms/comments";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
@@ -70,7 +71,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   // The real ledger write chokepoint requires a registered definition before `set()` can write a
   // value — mirrors what boot-time `commentsSettingsReady` does in the real server.
   await ensureCommentsSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: principalRepo },
+    { settingsRepo, clock, ids: idGen, principals: principalRepo, createPrincipalLookup: createSettingsPrincipalLookup },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: SYSTEM_PRINCIPAL_ID },
   );
 

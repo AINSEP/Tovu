@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { InMemorySettingsRepo } from '../../settings/index.js';
-import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from '../../settings/index.js';
+import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '@jini-ai/cms/comments/site/settings';
 import type { CommentRepoPort, CommentIngressPolicy, CommentWriteService } from '@jini-ai/cms/comments';
-import { createCommentsSelectionStore, ensureCommentsProviderDefinition, createCommentsCapability } from '../provider-selection.js';
+import { createCommentsSelectionStore, ensureCommentsProviderDefinition, createCommentsCapability } from '@jini-ai/cms/comments/site/provider-selection';
 
 async function fixture() {
   let nextId = 0; let allowed = true; let writes = 0;
   const settingsRepo = new InMemorySettingsRepo();
   const deps: SetCommentsSettingsDeps = { settingsRepo, clock: { nowIso: () => '2026-10-21T00:00:00.000Z' }, ids: { newId: () => `id-${++nextId}` },
     authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'denied' }),
-    principals: { findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => ({ workspaceId, id, status: 'active' }) } as unknown as SetCommentsSettingsDeps['principals'],
+    principals: { findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => ({ workspaceId, id, status: 'active' }) } as unknown as SetCommentsSettingsDeps['principals'], createPrincipalLookup: createSettingsPrincipalLookup,
   };
   await ensureCommentsSettingDefinitions(deps, { workspaceId: 's', systemPrincipalId: 'system' });
   await ensureCommentsProviderDefinition({ deps, systemPrincipalId: 'system' });
@@ -41,7 +42,7 @@ test('provider choice defaults to built-in, persists per site and CAS refuses a 
 
 test('built-in runtime gates route/tool mutations for provider disable and settings disable while keeping stored reads', async () => {
   const f = await fixture();
-  const args = { siteId: 's', module: f.module, commentsReady: Promise.resolve(), settingsReady: Promise.resolve(), settings: f.deps };
+  const args = { siteId: 's', module: f.module, commentsReady: Promise.resolve(), settingsReady: Promise.resolve(), settings: f.deps, createProviderRegistry: createCommentsProviderRegistry };
   const runtime = createCommentsCapability(args, {});
   const moderation = { workspaceId: 's', id: 'c', expectedVersion: 1, action: 'approve', toStatus: 'approved', actorPrincipalId: 'owner', note: null } as const;
   assert.deepEqual(await runtime.writeService.applyModeration(moderation), { ok: true });
@@ -79,7 +80,7 @@ test('boot guard: a stored provider that is not registered reads as built-in wit
   await store.compareAndSet({ siteId: 's', providerId: 'vendor-gone', expectedRevision: 0, actorPrincipalId: 'owner' });
   const raw = await store.read({ siteId: 's' });
   assert.equal(raw.providerId, 'vendor-gone');
-  const runtime = createCommentsCapability({ siteId: 's', module: f.module, commentsReady: Promise.resolve(), settingsReady: Promise.resolve(), settings: f.deps });
+  const runtime = createCommentsCapability({ siteId: 's', module: f.module, commentsReady: Promise.resolve(), settingsReady: Promise.resolve(), settings: f.deps, createProviderRegistry: createCommentsProviderRegistry });
   const active = await runtime.providers.active({ siteId: 's' });
   assert.deepEqual([active.providerId, active.revision, active.adapter?.kind], ['built-in', raw.revision, 'stored']);
   assert.equal((await store.read({ siteId: 's' })).providerId, 'vendor-gone', 'the guard never writes');

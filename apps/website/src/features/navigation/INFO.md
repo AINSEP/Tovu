@@ -6,7 +6,7 @@ index, and the resolved render model themes consume.
 
 The engine half lives in `@jini-ai/cms/navigation` (import it directly; this folder has no barrel).
 `importMenuEntity` and `repointMenuItems`/`menuHoldersReferencing` live in `@jini-ai/cms/navigation/site/{import-menu,repoint-menu-refs}`;
-only the host-bound adapters (`repo.sqlite.ts`, `publish-content.ts`, `reverters.ts`, `page-target-resolver.ts`, `migrate-footer-page-links.ts`, `tool-registrations.ts`) stay here.
+only the host-bound adapters (`publish-content.ts`, `reverters.ts`, `page-target-resolver.ts`, `migrate-footer-page-links.ts`, `tool-registrations.ts`) stay here.
 
 ## Responsibilities
 
@@ -78,7 +78,7 @@ only the host-bound adapters (`repo.sqlite.ts`, `publish-content.ts`, `reverters
 
 ## ADR-PIPE-012 (Menus remediation) additions
 
-- **`repo.sqlite.ts` (NEW)** — `SqliteMenuRepo`/`SqliteNavLocationBindingRepo`,
+- **Menu repos** — `SqlMenuRepo`/`SqlNavLocationBindingRepo` (`@jini-ai/cms/navigation/sql`),
   the rule-of-two SQLite adapter for both `MenuRepoPort` and
   `NavLocationBindingRepoPort` (D-5). Mirrors `SqlitePostRepo`'s
   `ContentDb`/Drizzle pattern; `doc`/`locations` are JSON-text columns. Certified
