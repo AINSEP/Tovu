@@ -5,7 +5,7 @@
  * "browser" consent step. Every outbound URL that is not the fake provider's host throws, so no
  * test can reach a real network. Callers close the harness in `after`.
  */
-import type { SharedApiConnectionDeps } from "@jini-ai/integrations/api-connections";
+import type { SharedApiConnectionDeps } from "@jini-ai/integrations/api-connections/shared-api";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

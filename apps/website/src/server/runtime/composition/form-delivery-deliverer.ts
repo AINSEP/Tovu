@@ -4,7 +4,7 @@ import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { FormDeliveryError, type FormDestinationKit, type FormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
-import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
+import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections/form-delivery-connection";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 
 /**

@@ -33,7 +33,7 @@ import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools"
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
-import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
+import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections/form-delivery-connection";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
 import { FormDeliveryError, type FormDestinationKit } from "@jini-ai/cms/forms";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";

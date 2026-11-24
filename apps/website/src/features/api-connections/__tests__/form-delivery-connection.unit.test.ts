@@ -14,7 +14,7 @@ import { after, before, test } from "node:test";
 import { FormDeliveryError } from "@jini-ai/cms/forms";
 
 import type { ApiConnectionHost } from "../host.js";
-import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
+import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections/form-delivery-connection";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, acmeFixtureCopy, connectHosted, startAcmeHarness, type AcmeHarness } from "./support/acme-harness.js";
 
 let harness: AcmeHarness;

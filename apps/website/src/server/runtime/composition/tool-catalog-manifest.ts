@@ -7,7 +7,7 @@ import { bundledContributionSources } from "#src/features/agent-plugins/bundled-
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
-import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
+import { deployConfigGenerators } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -394,7 +394,7 @@ export function installFirstPartyToolContributors(
     domain: "credential-copy", risk: credentialCopyDerivedRisk,
     build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
   } });
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
+  const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.

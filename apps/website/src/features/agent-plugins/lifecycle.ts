@@ -122,7 +122,7 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
       const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
-        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef() };
+        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef(), fromPluginId: "cloudflare-pages", toPluginId: "cloudflare", actor: "migration:cloudflare-plugin" };
         await carryCloudflareActivation(required);
       }
       return migration;

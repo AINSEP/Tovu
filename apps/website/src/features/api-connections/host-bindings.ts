@@ -12,7 +12,7 @@ import { API_CONNECTION_OAUTH_CALLBACK_PATH } from './browser-binding.js';
 import { createByoCredentials } from './byo-client.js';
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
 import { loadDeclaredApiConnections } from './contribution.js';
-import { createSharedApiConnections, type SharedApiConnectionDeps } from '@jini-ai/integrations/api-connections';
+import { createSharedApiConnections, type SharedApiConnectionDeps } from '@jini-ai/integrations/api-connections/shared-api';
 import { createRateLimiter } from '../../contracts/core/rate-limit/rate-limit.js';
 
 /**

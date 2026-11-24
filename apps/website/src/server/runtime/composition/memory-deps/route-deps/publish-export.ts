@@ -18,7 +18,7 @@ import { listPublishedPosts } from "#src/features/post/index";
 import { InMemoryPublishHistoryStore, InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
-import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
+import { deployConfigGenerators } from "#src/features/deployments/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadBundledSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailCredentialCards } from "../../../boot/mail-provider-catalog.js";
@@ -171,7 +171,7 @@ export function memoryDeployRegistryDeps(_required: MemoryRootContext, _optional
     // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
       loadBundledDeployTargetRegistry({ sourceRoot: bundledAgentPluginsDir() }),
-    loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: bundledAgentPluginsDir() }),
+    loadDeployWorkflowFiles: async () => deployConfigGenerators.readBundledDeployWorkflowFiles({ sourceRoot: bundledAgentPluginsDir() }),
     loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: bundledAgentPluginsDir() }),
     // Hermetic the same way: every bundled source-control declaration — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { runDeployConfigCommand } from "../../../../apps/website/src/cli/commands/deploy-config.ts";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
-import { loadDeployConfigGeneratorsFromSource } from "../../../../apps/website/src/features/deployments/deploy-config-registry.ts";
+import { deployConfigGenerators } from "../../../../apps/website/src/features/deployments/deploy-config-registry.ts";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
 
@@ -52,7 +52,7 @@ test("railway is a seeded-disabled package with its config and deploy-ops descri
   assert.equal(manifest.extensions.jini.displayName, "Railway");
   assert.deepEqual(manifest.extensions.jini.provides, ["deploy-config:railway", "deploy-ops:railway"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers, {});
-  const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot: PLUGIN_DIR });
+  const registry = await deployConfigGenerators.loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["railway"]);
   const packed = await packAgentPluginDirectory({ sourceDir: PLUGIN_DIR });

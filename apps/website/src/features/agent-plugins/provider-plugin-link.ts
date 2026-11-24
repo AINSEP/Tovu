@@ -14,8 +14,9 @@ export const providerFaceLifecycle = {
 };
 
 /** `followProviderActivations`' `warn` sink: the same `[agent-plugins]` server log line as before the move. */
-export function warnProviderFace(message: string): void {
-  console.warn(`[agent-plugins] ${message}`);
+export function warnProviderFace({ pluginId, error }: { readonly pluginId: string; readonly error: unknown }, _optional = {}): void {
+  const reason = error instanceof Error ? error.message : String(error);
+  console.warn(`[agent-plugins] the assistant face of '${pluginId}' could not follow it; the next start retries: ${reason}`);
 }
 
 /** A linked face was switched on its own. Nothing was written. */

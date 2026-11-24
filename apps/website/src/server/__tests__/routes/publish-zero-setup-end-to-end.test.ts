@@ -24,7 +24,7 @@ import {
   type ProvisioningFileIo,
 } from "#src/features/publish-trust/provisioning";
 import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
-import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
+import { deployConfigGenerators } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
@@ -254,7 +254,7 @@ test("the address to confirm comes from the deploy config the repo already carri
   // bundle the build composes (fly ships from @jini-ai/agent-plugins/fly since D-W4).
   const bundle = await composedBundledSourceRoot();
   t.after(() => bundle.dispose());
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundle.root });
+  const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundle.root });
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
   });

@@ -48,15 +48,8 @@ export {
 } from "./deploy-config.js";
 export {
   DEPLOY_CONFIGS_FILENAME,
-  readBundledDeployConfigDescriptors,
-  readBundledDeployConfigCandidatePaths,
-  readBundledDeployWorkflowFile,
-  readBundledDeployWorkflowFiles,
   loadDeployWorkflowFiles,
-  loadDeployConfigGeneratorsFromSource,
-  loadBundledDeployConfigGenerators,
-  readBundledDeployConfigTargetIds,
-  readDeployConfigTargetIdsFromSource,
+  deployConfigGenerators,
 } from "./deploy-config-registry.js";
 
 // publish-agent-tools stays a dedicated tool-registration seam instead of a general barrel export,

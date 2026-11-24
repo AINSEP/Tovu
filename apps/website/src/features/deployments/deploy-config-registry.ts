@@ -33,7 +33,27 @@ import { createDeployConfigGeneratorSource, type LoadDeployWorkflowContributions
 /** The file a plugin ships at its root to contribute deploy-config generators. */
 export const DEPLOY_CONFIGS_FILENAME = "jini-deploy-configs.json";
 
-const source = createDeployConfigGeneratorSource<TrustedPluginPackage, ReturnType<typeof defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>>>({
+/**
+ * Tovu's bound deploy-config generator source. Members:
+ * - `loadDeployConfigGeneratorsFromSource`: the generators a plugin's SOURCE directory declares, with no
+ *   install, activation or digest gate. Only for this product's own `content/agent-plugins/<id>/` (the
+ *   CLI, tests): never point it at anything an operator or a third party can write. O(g) generators,
+ *   one import each.
+ * - `readDeployConfigTargetIdsFromSource`: declared generator ids of one plugin source, without
+ *   importing modules. O(g).
+ * - `loadBundledDeployConfigGenerators`: all bundled generators in plugin-id order; refuse every
+ *   cross-package duplicate. O(p + generators), one contained import per generator.
+ * - `readBundledDeployConfigTargetIds`: sync CLI help uses the same source selection and duplicate
+ *   policy, without importing modules.
+ * - `readBundledDeployConfigDescriptors`: unambiguous bundled descriptors, without importing modules.
+ * - `readBundledDeployConfigCandidatePaths`: ordered deploy suggestions; app.json remains the core's
+ *   neutral convention.
+ * - `readBundledDeployWorkflowFile`: host supplies the single declared workflow to an ops adapter;
+ *   ambiguity never guesses.
+ * - `readBundledDeployWorkflowFiles`: hermetic roots use shipped sources; production uses
+ *   {@link loadDeployWorkflowFiles}. O(descriptors).
+ */
+export const deployConfigGenerators = createDeployConfigGeneratorSource<TrustedPluginPackage, ReturnType<typeof defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>>>({
   filename: DEPLOY_CONFIGS_FILENAME,
   contributionSources: (required) => bundledContributionSources(required),
   defineExecutableContribution: (spec, optional) => defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>(spec, optional),
@@ -41,32 +61,8 @@ const source = createDeployConfigGeneratorSource<TrustedPluginPackage, ReturnTyp
   warn: (line) => console.warn(line),
 });
 
-/**
- * The generators a plugin's SOURCE directory declares, with no install, activation or digest gate.
- * Only for this product's own `content/agent-plugins/<id>/` (the CLI, tests): never point it at
- * anything an operator or a third party can write.
- *
- * @complexity O(g) generators, one import each.
- */
-export const loadDeployConfigGeneratorsFromSource = source.loadDeployConfigGeneratorsFromSource;
-/** Declared generator ids of one plugin source, without importing modules. @complexity O(g). */
-export const readDeployConfigTargetIdsFromSource = source.readDeployConfigTargetIdsFromSource;
-/** All bundled generators in plugin-id order; refuse every cross-package duplicate.
- * @complexity O(p + generators), one contained import per generator. */
-export const loadBundledDeployConfigGenerators = source.loadBundledDeployConfigGenerators;
-/** Sync CLI help uses the same source selection and duplicate policy, without importing modules. */
-export const readBundledDeployConfigTargetIds = source.readBundledDeployConfigTargetIds;
-/** Unambiguous bundled descriptors, without importing modules. */
-export const readBundledDeployConfigDescriptors = source.readBundledDeployConfigDescriptors;
-/** Ordered deploy suggestions; app.json remains the core's neutral convention. */
-export const readBundledDeployConfigCandidatePaths = source.readBundledDeployConfigCandidatePaths;
-/** Host supplies the single declared workflow to an ops adapter; ambiguity never guesses. */
-export const readBundledDeployWorkflowFile = source.readBundledDeployWorkflowFile;
-/** Hermetic roots use shipped sources; production uses loadDeployWorkflowFiles. O(descriptors). */
-export const readBundledDeployWorkflowFiles = source.readBundledDeployWorkflowFiles;
-
 /** Installed workflow hints use the same active, trusted lifecycle as deploy ops, without imports. */
 export function loadDeployWorkflowFiles(required: { workspaceId: string; loadContributions: LoadPluginContributions }, _options = {}): Promise<readonly string[]> {
   const loadContributions: LoadDeployWorkflowContributions = (input, optional) => required.loadContributions(input, optional);
-  return source.loadDeployWorkflowFiles({ workspaceId: required.workspaceId, loadContributions });
+  return deployConfigGenerators.loadDeployWorkflowFiles({ workspaceId: required.workspaceId, loadContributions });
 }
