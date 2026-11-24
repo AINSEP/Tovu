@@ -1,7 +1,7 @@
 /** Tovu compatibility shim (A8 seam, A9 move). The portable body lives in `@jini-ai/agent-plugins/connect` and
  * requires the host's projection pair, trust rule and refusal copy; only these legacy entries, whose
  * frozen callers pass none of them, bind Tovu's: the pair via `agentPluginMcpPortsOf`, the trust rule
- * from `capability-projection.ts` and the copy below. A caller that already carries projections keeps
+ * from `@jini-ai/agent-plugins/lifecycle` and the copy below. A caller that already carries projections keeps
  * its own pair (same function and error identity). */
 import type { AgentPluginToolGrant, AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
 import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPluginToolGrant as validatedWithPorts, type AgentPluginEnableAccessMessages } from '@jini-ai/agent-plugins/connect';

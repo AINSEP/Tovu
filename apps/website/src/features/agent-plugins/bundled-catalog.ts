@@ -108,7 +108,7 @@ export function translateRetiredPluginRefs({ pluginRefIds }: { pluginRefIds: rea
  *  `features/agent-plugins/tool-registrations.ts`'s own `toAgentPluginToolId` mints for the same
  *  plugin, duplicated here as a one-line transform rather than imported: that function is private to
  *  a sibling module this file must not reach into (mirrors this codebase's own precedent for
- *  `humanize()`, duplicated three times across `capability-projection.ts` /
+ *  `humanize()`, duplicated three times across `@jini-ai/agent-plugins/lifecycle` /
  *  (the now-removed) `capability-source.ts` / `tool-registrations.ts`, each with the same "private
  *  formatting helper of a sibling module" reasoning). If the two ever drift, `resolve-agent-plugin-
  *  refs.unit.test.ts`'s pointer-mode tests assert against the REAL installed tool id, not this

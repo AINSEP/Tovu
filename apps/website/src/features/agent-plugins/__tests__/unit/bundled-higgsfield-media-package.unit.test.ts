@@ -81,10 +81,10 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
 
 /**
  * 2026-09-10: OWNER-OVERRULED. This test used to assert mcp.json declared ZERO servers, on the
- * premise that a plugin's own mcp.json was structurally inert (`capability-projection.ts`'s old
+ * premise that a plugin's own mcp.json was structurally inert (`@jini-ai/agent-plugins/lifecycle`'s old
  * unconditional `execute: { kind: "unavailable" }`) and that only an operator-typed Settings row
  * could express the real connection. That premise is gone — see
- * `capability-projection.ts`'s header for the full argument. This package now DECLARES the
+ * `@jini-ai/agent-plugins/lifecycle`'s header for the full argument. This package now DECLARES the
  * connection Higgsfield's own verified discovery metadata establishes (streamable-http,
  * `https://mcp.higgsfield.ai/mcp`, OAuth-only, no API key, a public client per its own
  * `token_endpoint_auth_methods_supported: [..., "none"]` — see

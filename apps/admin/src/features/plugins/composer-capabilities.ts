@@ -60,7 +60,7 @@ export type ComposerHostBinding =
 /**
  * A previewable capability's content, carried through the projection ahead of any UI that renders
  * it. Added reconciling the Agent Plugins adapter's candidate descriptor shape
- * (`src/features/agent-plugins/capability-projection.ts`'s `AgentPluginCapabilityPreview`) — a
+ * (`@jini-ai/agent-plugins/lifecycle`'s `AgentPluginCapabilityPreview`) — a
  * Skill's real markdown is genuinely previewable data today, even though `AssistantDock` has no
  * preview surface yet to show it in (debate 3's "previewable but structurally inert" applies to
  * execution, not to whether the data exists to preview).

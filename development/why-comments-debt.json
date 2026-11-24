@@ -4962,6 +4962,82 @@
     {
       "id": "e77b6042179c",
       "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-preservation (w5-webfeat); table name reworded as host-injected"
+    },
+    {
+      "id": "bd3ddebdf6c8",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/lifecycle/capability-projection.ts file header (w5-webfeat); reworded host-neutral (open standard distinct from a host's own package format; only plugin.json metadata authorizes operator reads; remote hints veto, never supply)"
+    },
+    {
+      "id": "fa7a744788ca",
+      "reason": "Moved to Jini @jini-ai/db/transfer schema-catalog.ts @file (never silently dropped; core vs introspected tables) and table-catalog.ts (SQLite affinity mapping, lone INTEGER PK -> identity, plain literal defaults) (w5-webfeat); Tovu file header keeps the host-binding summary"
+    },
+    {
+      "id": "740ba0539cb8",
+      "reason": "Forwarder deleted (w5-webfeat): note that the transfer types/DDL rationale live in @jini-ai/db/transfer described a re-export block that is gone; importers use @jini-ai/db/transfer directly"
+    },
+    {
+      "id": "6baf86291769",
+      "reason": "Moved to Jini @jini-ai/db/transfer schema-catalog.ts coreIndexes doc (w5-webfeat); reworded host-neutral"
+    },
+    {
+      "id": "91ac1501e386",
+      "reason": "Moved to Jini @jini-ai/db/transfer schema-catalog.ts coreIndexes (w5-webfeat); reworded host-neutral (ORM index rendering omits table qualifiers)"
+    },
+    {
+      "id": "80a4d9a45ebc",
+      "reason": "Moved to Jini @jini-ai/db/transfer schema-catalog.ts coreTableNames doc (w5-webfeat); reworded host-neutral"
+    },
+    {
+      "id": "a74fe538646f",
+      "reason": "Moved to Jini @jini-ai/db/transfer schema-catalog.ts planIntrospectedSnapshotTables (w5-webfeat); reworded host-neutral (owned transcript/session columns are data, not credentials)"
+    },
+    {
+      "id": "8a690dd2a9db",
+      "reason": "Forwarder deleted (w5-webfeat): note that the agent-tool wiring was re-exported as a thin shim of tool-registrations.ts described barrel re-exports that no longer exist (entries/navigation index.ts deleted)"
+    },
+    {
+      "id": "e2597bbd371f",
+      "reason": "Forwarder deleted (w5-webfeat): navigation/index.ts barrel header; Jini @jini-ai/cms/navigation owns menus, bindings and resolution, SQLite adapters stay host-bound in repo.sqlite.ts"
+    },
+    {
+      "id": "4275a83249c5",
+      "reason": "Moved to Jini @jini-ai/cms/navigation/href.ts (w5-webfeat): single href standard imported by hosts rather than hand-copied; the barrel re-export note is gone with the barrel"
+    },
+    {
+      "id": "5bc05b040fd5",
+      "reason": "Moved to Jini @jini-ai/cms/navigation/menu-service.ts MenuVersionConflictError doc (w5-webfeat): compare-and-set loss told apart from other MenuConflictErrors"
+    },
+    {
+      "id": "a001bb5cea5f",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-preservation.ts SiteTitlePreservationStorePort doc (w5-webfeat); reworded (SQL adapter)"
+    },
+    {
+      "id": "f5c26db3f561",
+      "reason": "Moved to Jini @jini-ai/search/site/__tests__/index-state-store.test.ts (w5-webfeat); reworded host-neutral"
+    },
+    {
+      "id": "4c217cfb2c97",
+      "reason": "Moved to Jini @jini-ai/search/site/__tests__/index-state-store.test.ts @file (w5-webfeat); reworded host-neutral"
+    },
+    {
+      "id": "d04d34028350",
+      "reason": "Moved to Jini @jini-ai/search/site/index-state-store.ts @file (w5-webfeat); reworded host-neutral"
+    },
+    {
+      "id": "2ea1fb37e4b4",
+      "reason": "Moved to Jini @jini-ai/search/site/index-state-store.ts SearchIndexDatabase doc (w5-webfeat); reworded host-neutral (host-managed raw-SQL tables)"
+    },
+    {
+      "id": "f29a8e43eb23",
+      "reason": "Moved to Jini @jini-ai/search/site/index-state-store.ts createSqlSearchIndexStore doc (w5-webfeat); @example now passes injected table names"
+    },
+    {
+      "id": "03da840e5cb5",
+      "reason": "Moved to Jini @jini-ai/search/site/index-state-store.ts createSqlSearchIndexStore body (w5-webfeat); reworded host-neutral (kernel re-typed for raw-SQL tables)"
+    },
+    {
+      "id": "5d0bf59d60b3",
+      "reason": "Reworded in place (w5-webfeat): development/scripts/check-tool-guides.ts absoluteOf doc now also names the @jini-ai/<pkg> linked-package ref form"
     }
   ]
 }
