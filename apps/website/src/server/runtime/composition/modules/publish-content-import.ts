@@ -14,7 +14,8 @@ import { executePublishContentImport } from "@jini-ai/cms/publish/content/execut
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
-import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
+import { buildBackstopPreview } from "@jini-ai/cms/publish/content/backstop-preview";
+import { BACKSTOP_RAW_POLICY } from "#src/features/publish-content/backstop-policy";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
@@ -96,7 +97,10 @@ async function backstopPreview({ deps, bundleId }: { deps: PublishContentRouteDe
   if (!staged || !backstop) return undefined;
   const entities = JSON.parse(staged.entitiesJson) as PackedEntity[];
   readBackstopMetadata({ entities });
-  return buildBackstopPreview({ entities, backstop, workspaceId: deps.workspaceId });
+  return buildBackstopPreview({
+    entities, backstop, workspaceId: deps.workspaceId, policy: BACKSTOP_RAW_POLICY,
+    warn: ({ message, detail }) => console.warn(`[publish-content] ${message}`, detail),
+  });
 }
 
 function planDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: Record<string, never> = {}): ImportPlanRouteDeps & AdminJsonRoutePortDeps {
