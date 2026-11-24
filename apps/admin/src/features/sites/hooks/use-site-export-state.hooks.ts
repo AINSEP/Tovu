@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { UserFacingError } from "@jini-ai/core";
 import { useFetchQuery as useFetchQueryHook, useInvalidate as useInvalidateHook } from "@jini-ai/ui/fetch-query";
 import { useAdminBootScope as useAdminBootScopeHook } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import { useExportPassword as useExportPasswordHook } from "./use-export-password.hooks";
+import { useExportPassword as useExportPasswordHook } from "@jini-ai/admin/sites/transfer/use-export-password.hooks";
+import { copyToClipboard } from "@jini-ai/ui";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useStaticExportSelection as useStaticExportSelectionHook } from "./use-static-export-selection.hooks";
 import { useShareCredentialGate as useShareCredentialGateHook } from "./use-share-credential-gate.hooks";
 import { SITE_TRANSFER_KEYS } from "./site-transfer-rules";
@@ -25,7 +27,14 @@ export function useSiteExportState(
 ) {
   const scope = useAdminBootScope();
   const canManageSavedKeys = useSavedKeysAccessHook({ port, scope });
-  const passwordDisplay = useExportPassword({ port, t, canManageSavedKeys, identity: scope.queryScope, clipboard });
+  const passwordDisplay = useExportPassword({
+    port,
+    labels: { revealFailed: t("Couldn't reveal the password."), copyFailed: t("Couldn't copy the password. Copy it manually.") },
+    canManageSavedKeys,
+    identity: scope.queryScope,
+    copyText: ({ text }, _optional = {}) => copyToClipboard({ text }, clipboard ? { clipboard: { writeText: ({ text: value }) => clipboard.writeText(value) } } : {}),
+    describeError: describeApiError,
+  });
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope], fetch: () => port.listShares() }, { enabled: !scope.checking });
   const staticSelection = useStaticExportSelection({ port, t });
   const invalidate = useInvalidate();
