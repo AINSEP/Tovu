@@ -339,6 +339,7 @@
     "mail_get_activity": "email send detail feedback timeline delivered bounced message id provider error",
     "mail_list_suppressions": "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
     "mail_remove_suppression": "email unblock remove suppression allow email again bounced complained do not send list",
+    "mail_clear_captured": "email clear delete captured test emails mail capture outbox test mode remove all",
     "mail_get_feedback_setup": "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin",
@@ -2009,6 +2010,10 @@
       "Let my site email this address again.",
       "Remove this address from the do-not-send list."
     ],
+    "mail_clear_captured": [
+      "Delete all the captured test emails.",
+      "Clear the test emails my site kept."
+    ],
     "mail_get_feedback_setup": [
       "Is bounce and complaint reporting set up for my email?",
       "What webhook URL do I give my mail provider?"
@@ -3622,6 +3627,10 @@
       "class": "escalation",
       "confirmation": "plan"
     },
+    "mail_clear_captured": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
     "mail_get_feedback_setup": {
       "class": "read",
       "confirmation": "direct"
@@ -3783,6 +3792,7 @@
     "consent_publish_settings",
     "mail_set_provider",
     "mail_remove_suppression",
+    "mail_clear_captured",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3885,6 +3895,7 @@
     "consent_publish_settings",
     "mail_set_provider",
     "mail_remove_suppression",
+    "mail_clear_captured",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3954,6 +3965,7 @@
     "consent_publish_settings",
     "mail_set_provider",
     "mail_remove_suppression",
+    "mail_clear_captured",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
