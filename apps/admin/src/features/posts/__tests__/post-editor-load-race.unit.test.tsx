@@ -8,6 +8,7 @@ import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hook
 import { handleFileDrop, handleFilePaste } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 /**
  * Client report (2026-11-21, Tovu desktop): opening a post showed "Cannot read properties of null
@@ -42,7 +43,7 @@ function gatedPort() {
 }
 
 function mount(port: ReturnType<typeof createFakePostEditorPort>) {
-  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (key: string) => key } }));
+  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: (key: string) => key } }));
 }
 
 afterEach(() => {

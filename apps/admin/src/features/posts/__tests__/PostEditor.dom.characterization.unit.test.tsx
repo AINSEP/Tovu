@@ -9,6 +9,7 @@ import { usePostEditor, type PostEditorController } from "../hooks/use-post-edit
 import { TOOLBAR_PRIMARY_RANKS } from "../hooks/use-post-editor-ui.hooks";
 import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "../rules";
 import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 /**
  * @file Characterization pins for the `PostEditor` screen, written BEFORE `PostEditor.tsx` is split
@@ -130,7 +131,7 @@ function harness(
   });
   const ctrl: Harness["ctrl"] = { current: null };
   const hook = ({ postId }: { postId: string }): PostEditorController => {
-    const real = usePostEditor({ postId, deps: { port, navigate, t } });
+    const real = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeys(), port, navigate, t } });
     ctrl.current = real;
     return { ...real, ...options.overrides };
   };

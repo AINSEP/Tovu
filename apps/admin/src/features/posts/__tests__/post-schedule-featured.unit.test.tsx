@@ -9,6 +9,7 @@ import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 /**
  * @file Scheduled publishing + featured image in the post editor (2026-10-05): the local-time
@@ -66,7 +67,7 @@ describe("usePostEditor — publishAt / featured image", () => {
   it("loads both fields, reports scheduled, and a save that did not touch them sends neither key", async () => {
     const stored = { ...POST, status: "published" as const, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" };
     const port = createFakePostEditorPort({ post: stored });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -85,7 +86,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("changing either field marks the editor dirty and saves the UTC time and the media id", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -105,7 +106,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("publishing with a future time reports it as scheduled for that local time, not published", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -119,7 +120,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("publishing with no time, or a past one, still says Published", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2001-01-01T00:00:00.000Z" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await act(async () => {
@@ -130,7 +131,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("clearing a stored schedule and image sends explicit nulls", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.featuredMediaId).toBe("m1"));
 

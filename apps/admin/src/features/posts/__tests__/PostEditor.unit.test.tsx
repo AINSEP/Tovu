@@ -9,6 +9,7 @@ import { usePostEditor, useWiredPostEditor, type PostEditorController } from "..
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -1867,7 +1868,7 @@ it("typing in a new post then clicking Save creates the edited document once", a
   const create = vi.spyOn(port, "createPost");
   const update = vi.spyOn(port, "updatePost");
   const navigate = vi.fn();
-  function useLocalEditor({ postId }: { postId: string }) { return usePostEditor({ postId, deps: { port, navigate, t: key => key } }); }
+  function useLocalEditor({ postId }: { postId: string }) { return usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeys(), port, navigate, t: key => key } }); }
   render(<PostEditor postId="" usePostEditorHook={useLocalEditor} />);
   const title = await screen.findByLabelText("Post title");
   expect(create).not.toHaveBeenCalled();

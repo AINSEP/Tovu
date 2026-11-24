@@ -11,6 +11,7 @@ import { readStandingDraftLocalBackup } from "../../lib/standing-draft-local-bac
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { withTitleNode } from "../../features/posts/rules";
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 const row: AdminPost = {
   id: "expiry-entry", workspaceId: "workspace-local", kind: "post", title: "Saved title", slug: "saved-title",
@@ -24,7 +25,7 @@ afterEach(() => localStorage.clear());
 it("a failed post Save preserves the exact working document before re-login", async () => {
   const fake = createFakePostEditorPort({ post: row });
   const port = { ...fake, getBackupPrincipalId: () => scope.principalId, updatePost: expired, putAutosave: expired };
-  const first = renderHook(() => usePostEditor({ postId: row.id, deps: { port, navigate: () => {}, t: key => key } }));
+  const first = renderHook(() => usePostEditor({ postId: row.id, deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(first.result.current.post).not.toBeNull());
   await waitFor(() => expect(first.result.current.editor).not.toBeNull());
   act(() => {
@@ -37,7 +38,7 @@ it("a failed post Save preserves the exact working document before re-login", as
   expect(readStandingDraftLocalBackup({ entryId: row.id }, scope)).toMatchObject({ title: "Unsaved post title", slug: "unsaved-post-slug", bodyJson: document });
   first.unmount();
   const restoredPort = { ...fake, getBackupPrincipalId: () => scope.principalId };
-  const second = renderHook(() => usePostEditor({ postId: row.id, deps: { port: restoredPort, navigate: () => {}, t: key => key } }));
+  const second = renderHook(() => usePostEditor({ postId: row.id, deps: { routeKeys: createPostEditorRouteKeys(), port: restoredPort, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(second.result.current.recoverableDraft?.title).toBe("Unsaved post title"));
   expect(second.result.current.title).toBe("Saved title");
   act(() => second.result.current.restoreRecoveredDraft());

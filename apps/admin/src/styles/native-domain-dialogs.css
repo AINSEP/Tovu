@@ -4,7 +4,7 @@
    in @jini-ai/admin 0.4.11); Tovu's own dialogs use it too. The old host-named alias was
    dropped once nothing emitted it (2026-10-14). */
 .jini-domain-dialog > .jini-dialog-close { display: none; }
-.settings-dialog.jini-domain-dialog {
+.settings-dialog.jini-domain-dialog, .jini-settings-dialog.jini-domain-dialog {
   border: 0; color: var(--fg); margin: auto;
   /* CustomSelect portals into this native dialog with viewport-fixed coordinates. Keep its
      shell unfiltered; the independently filtered ::backdrop supplies the frosted background. */

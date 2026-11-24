@@ -78,7 +78,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
+.btn-secondary, .jini-btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -1215,15 +1215,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary, .jini-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .jini-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .jini-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1231,7 +1231,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .jini-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); opacity: 1; }
@@ -1869,8 +1869,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    of its own to fall back on, so its border stays `--border-strong` (was already the left edge's
    color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
    reads as a slightly more emphatic box than a plain card, just without a directional rail. */
-.notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
-.notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.notice, .jini-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.notice.error, .jini-notice.jini-notice-error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
 /* Banner action pairs (2026-09-16) — the editors' notices put their buttons straight after the
@@ -3082,11 +3082,11 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
-.settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
+.settings-dialog, .jini-settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
   background-image: var(--jini-panel-texture, none);
 }
-.settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
-.settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
+.settings-dialog h2, .jini-settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.settings-dialog p, .jini-settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 
 /* `WidgetPickerDialog.tsx`'s "Place a {type} widget" modal — `.widget-picker-dialog`/`-body`/
    `-section`/`-footer` below all first-appear here; this modal had ZERO CSS anywhere for its own

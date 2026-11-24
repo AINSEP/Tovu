@@ -8,6 +8,7 @@ import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
 import { PostSettingsDialog } from "../PostSettingsDialog";
 import { PostCoverImage } from "../PostCoverImage";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 
 /**
  * @file The cover image above the title node (owner, 2026-10-10): the slot's eligibility rule, its
@@ -142,7 +143,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
   const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { port: mediaPort } });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {
-    const controller = usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } });
+    const controller = usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeys(), port, navigate: vi.fn(), t: fakeT } });
     onController(controller);
     return (
       <PostCoverImage

@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";
@@ -287,3 +288,6 @@ function createFakePostResources(
     },
   };
 }
+
+/** The host composition point's single route-key store, shared by the editor's save site and `panels.tsx`'s keying site. */
+export const defaultPostEditorRouteKeys = createPostEditorRouteKeys();

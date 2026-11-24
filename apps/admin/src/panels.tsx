@@ -6,7 +6,7 @@ import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { Members } from "@jini-ai/user-management/react";
 import { membersScreenProps } from "./features/members";
-import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
+import { defaultPostEditorRouteKeys } from "./features/posts/hooks/post-editor-dependencies.hooks";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
@@ -240,7 +240,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["content.read"],
     render: (ctx, _options = {}) => {
       // Query mode avoids reserving a real post slug such as "new".
-      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey({ segment: "" })} postId="" />;
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={defaultPostEditorRouteKeys.keyFor({ segment: "" })} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
@@ -251,8 +251,8 @@ const PANELS: readonly TovuAdminPanel[] = [
         // layer instead of one hand-rolled staleness ref per hook. `Jini packages/admin/src/seo/react/pages/SeoPage.tsx:443` already does this
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
         // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
-        // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-        return <PostEditor key={postEditorRouteKey({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
+        // record, so it keeps its key instead of remounting (see `createPostEditorRouteKeys` in `@jini-ai/admin/posts/post-editor-route-keys`).
+        return <PostEditor key={defaultPostEditorRouteKeys.keyFor({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
       }
       return <Posts />;
     },
