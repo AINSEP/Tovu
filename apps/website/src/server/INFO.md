@@ -125,6 +125,9 @@ with its render deps plus `entryListAttribute: ENTRY_LIST_ATTRIBUTE` (`features/
 `collaborators: COLLECTION_LIST_COLLABORATORS` (module constant bound once from the public cms `listing`, `widgets/markers`,
 `entries/site/public-list` and `widgets/date-label` subpaths). `routes/site/forms-multipart.ts`
 stays the Express adapter over `@jini-ai/platform/http/multipart` (callers import `parseFormMultipart` from the platform directly).
+The doc renderer's contract is `@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract` (w4-routes Q): `http/site/render/content-html.ts`
+binds `renderWidget` into `DocNodeRenderDeps` and builds the `WidgetDocRendering` the widget renderers receive; per-asset render
+metadata is `@jini-ai/core/contracts/site/cms-media`'s `MediaAssetRenderMeta` (resolved by `routes/site/pages/render-context/media-metadata.ts`).
 Commerce (`runtime/composition/modules/commerce.ts`) exports `registerAdminCommerceStatusRoute`, mounting the Jini
 `commerceStatusRoute` (`"direct"`, operation `routes/commerce/status`) with `readCommerceStatus` from `@jini-ai/commerce` bound
 to `deps.lipay` per request. Production leaves it unmounted, as before; only tests mount it.
