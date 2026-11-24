@@ -4890,6 +4890,26 @@
     {
       "id": "8608662d164a",
       "reason": "Moved to Jini @jini-ai/cms/media/site/public-urls (w5-webfeat)"
+    },
+    {
+      "id": "2fffbd364920",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/apply-retire (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "b4f0c7f722c6",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/apply-retire (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "6793a4d0d089",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/peers (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "6b971c122f5c",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/peers (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "da710843f623",
+      "reason": "Header of the deleted empty SqliteSiteTitlePreservationStore subclass; SqlSiteTitlePreservationStore header already documents the store (w5-webfeat)"
     }
   ]
 }
