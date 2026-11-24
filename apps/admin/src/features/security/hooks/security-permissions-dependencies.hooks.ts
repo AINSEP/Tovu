@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { authApi } from "@/features/auth/api/auth-api";
 import { useSecurityPermissions, type SecurityPermissionsController } from "@jini-ai/admin/security/host/hooks/use-security-permissions.hooks";
 import type { SecurityPermissionsPort } from "@jini-ai/admin/security/host/hooks/security-permissions-port.hooks";
@@ -17,5 +18,5 @@ export const defaultSecurityPermissionsPort: SecurityPermissionsPort = {
 /** The Security page's permissions hook wired to this host's auth request and its site-key
  *  management permission, which is host policy. */
 export function useWiredSecurityPermissions(): SecurityPermissionsController {
-  return useSecurityPermissions({ port: defaultSecurityPermissionsPort, permission: SITE_KEY_MANAGE_PERMISSION });
+  return useSecurityPermissions({ port: defaultSecurityPermissionsPort, permission: SITE_KEY_MANAGE_PERMISSION, useFetchQuery });
 }
