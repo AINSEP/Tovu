@@ -1,6 +1,6 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
-import type { AgentPluginApiConnectionsPort } from "../../service-ports.js";
+import type { AgentPluginApiConnectionsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps } from "../../../api-connections/connect.js";
 /**
  * @file `agent_plugin_connect`'s API-connection branch (C4b): a plugin that declares no OAuth MCP
@@ -41,7 +41,7 @@ function ctxFor(signal: AbortSignal = new AbortController().signal): ToolExecuti
  *  external-MCP store is real but stays empty: this branch never provisions an MCP row. */
 function depsFor(apiConnections: ApiConnectionConnectDeps | undefined, waitTimeoutMs: number | null = 5_000): AgentPluginConnectToolDeps {
   const keyring = new InMemoryKeyring();
-  const apiPort: AgentPluginApiConnectionsPort | undefined = apiConnections && {
+  const apiPort: AgentPluginApiConnectionsPort<import("../../../api-connections/contribution.js").DeclaredApiConnection> | undefined = apiConnections && {
     listConnections: (input, _options = {}) => apiConnections.host.listConnections(input),
     connect: (input, _options = {}) => runApiConnectionConnect({ ...input, deps: apiConnections }),
   };

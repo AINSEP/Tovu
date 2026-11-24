@@ -23,7 +23,7 @@ import { orFallback } from "@jini-ai/core/errors/idioms";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { TrustedPluginPackage, TrustedPluginVerdict } from "@jini-ai/agent-plugins/lifecycle";
-import type { AgentPluginPathsPort } from "./service-ports.js";
+import type { AgentPluginPathsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 /** One descriptor id the successor provides instead of the named packages. */
 export interface SupersededContribution {

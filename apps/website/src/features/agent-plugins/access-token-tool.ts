@@ -3,7 +3,7 @@
  * product copy ("this Tovu version"), the `credential_save` card lifecycle id and `ui://tovu` card
  * namespace, the credential token rule (R1: same validator, same error object), the installed-plugin
  * read and the saved-token switch. Bytes unchanged from the pre-seam body. */
-import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { credentialText, translateCredentialMessage } from '@tovu/contracts/credential-copy';

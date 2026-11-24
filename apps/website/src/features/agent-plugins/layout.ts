@@ -17,7 +17,7 @@ import { pluginStatePaths } from "@jini-ai/agent-plugins/persistent-state";
  */
 import path from "node:path";
 
-import type { AgentPluginPathsPort } from "./service-ports.js";
+import type { AgentPluginPathsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 /**
  * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no

@@ -5,7 +5,7 @@ import path from "node:path";
 import { parsePluginTokenMap, type TokenMapLimits } from "@jini-ai/agent-plugins/connect";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
-import type { AgentPluginPathsPort } from "./service-ports.js";
+import type { AgentPluginPathsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";

@@ -24,7 +24,7 @@ import type {
   CustomCredentialVerificationResult,
 } from "@jini-ai/integrations/credentialed-http";
 import type { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlProvider } from "../../source-control/provider-module.js";
-import type { bindCredentialedRequestPort } from "../credential-ports.js";
+import type { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
 import type { bindPublishCompatibility } from "../../deployments/publish-credentials/compatibility-port.js";
 import type { PublishCompatibilityPort } from "../publish-compatibility-port.js";

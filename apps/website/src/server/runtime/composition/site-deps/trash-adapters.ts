@@ -23,7 +23,7 @@ import { purgeMedia } from "#src/features/media/index";
 import { randomUUID } from "node:crypto";
 import { withFollowUps } from "@jini-ai/cms/trash";
 import type { composePluginRuntime } from "../plugin-runtime.js";
-import type { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import type { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import type { SiteStore } from "../open-site-store.js";
 import type { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";

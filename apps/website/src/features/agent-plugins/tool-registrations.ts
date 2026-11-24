@@ -17,7 +17,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.j
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
-import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
+import { deliverHostPluginGuidance, isHostPluginFileRequest } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
+import { agentPluginOverlaysDir, isFailsafeYamlMapping, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import {
@@ -77,7 +78,7 @@ export async function registerInstalledAgentPluginTools(
   await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),
     withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy }, { hostGuidance: {
     isFileRequest: ({ file }) => isHostPluginFileRequest({ file }),
-    deliver: (required, notice) => deliverHostPluginGuidance(required, { ...optional, ...notice }),
+    deliver: (required, notice) => deliverHostPluginGuidance({ ...required, overlaysDir: optional.overlaysDir ?? agentPluginOverlaysDir(), isYamlMapping: isFailsafeYamlMapping }, notice),
   } });
 }
 

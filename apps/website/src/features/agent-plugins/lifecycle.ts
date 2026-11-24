@@ -22,7 +22,8 @@ import { carryCloudflareActivation } from "@jini-ai/agent-plugins/site/deploy-sp
 import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
-import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
+import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
+import { agentPluginOverlaysDir, isFailsafeYamlMapping } from "./host-plugin-guidance.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
@@ -142,7 +143,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
   const request = splitHostPluginRefRequest({ options, defaultDeliveryMode: resolveAgentPluginDeliveryMode() });
   const result = await owner.resolveAgentPluginRefs(input, request.ownerOptions);
   if (!result.ok || input.pluginRefIds.length === 0) return result;
-  const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay }, { overlaysDir: optional.hostOverlaysDir });
+  const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay, overlaysDir: optional.hostOverlaysDir ?? agentPluginOverlaysDir() });
   if (!overlays.ok) return overlays;
   const installed = owner.preferBundledAgentPluginDigests({
     installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
@@ -155,7 +156,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
     return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
   }));
   const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
-  return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
+  return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix, isYamlMapping: isFailsafeYamlMapping }) };
 }
 
 /** Soon-lock and supersession policy wrapped around the owner's activation and contribution writers. */

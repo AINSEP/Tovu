@@ -8,7 +8,7 @@ import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPlugi
 import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import { classifyAgentPluginMcpServerTrust } from './capability-projection.js';
 import { tovuFederationMessages } from './federate-mcp.js';
-import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpContext } from '@jini-ai/agent-plugins/site/service-ports';
 import type { AgentPluginMcpProjectionPorts } from '@jini-ai/agent-plugins/connect';
 export { storedAgentPluginGrants } from '@jini-ai/agent-plugins/connect';
 

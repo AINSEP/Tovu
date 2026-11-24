@@ -12,9 +12,12 @@ import {
   CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
+  probeCredentialConnection,
+  resolveRequestTarget,
+  verifyCustomCredential,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
-import { bindCredentialedRequestPort } from "../credential-ports.js";
+import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 
 /**
@@ -56,7 +59,7 @@ async function seeded(httpClient: HttpClientPort) {
   sealer.openCalls = 0;
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps: CredentialedRequestDeps = { repo, sealer, httpClient, clock: writeDeps.clock, audit, loadAuthSchemes: async () => [] };
-  return { deps, sealer, audit, port: bindCredentialedRequestPort({ deps }) };
+  return { deps, sealer, audit, port: bindCredentialedRequestPort({ deps, operations: { makeCredentialedRequest, resolveRequestTarget, verifyCustomCredential, probeCredentialConnection } }) };
 }
 
 const REQUEST = { workspaceId: WORKSPACE, label: "api", method: "POST", url: "https://api.example.test/items" } as const;

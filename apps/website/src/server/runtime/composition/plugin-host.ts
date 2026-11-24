@@ -34,7 +34,7 @@ export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
   readonly clock: Clock;
-  readonly mcp: import("#src/features/agent-plugins/service-ports").AgentPluginMcpPort & import("#src/features/agent-plugins/service-ports").AgentPluginMcpContext;
+  readonly mcp: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpPort & import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpContext;
   readonly listInstalledAgentPlugins?: typeof listInstalledPlugins;
   readonly setAgentPluginEnabled?: typeof setAgentPluginEnabled;
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;

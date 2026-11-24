@@ -12,7 +12,8 @@ import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/h
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
 import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "@jini-ai/core/contracts/headless/plugin-host";
-import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../../../agent-plugins/provider-plugin-link.js";
+import { bindProviderFacePorts, linkedProviderOf } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { AgentPluginLinkedError, providerFaceLifecycle } from "../../../agent-plugins/provider-plugin-link.js";
 import type { PluginProviderFacesPort } from "../../service-ports.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
@@ -43,7 +44,7 @@ export function installedAgentPlugin(overrides: Partial<InstalledAgentPlugin> = 
 
 /** Bind the existing provider owner, including its error identity and safe message, for tool tests. */
 export function providerFacesFor({ workspaceRoot }: { workspaceRoot: () => string }, _optional = {}): PluginProviderFacesPort {
-  const ports = bindProviderFacePorts({ workspaceRoot });
+  const ports = bindProviderFacePorts({ workspaceRoot, ...providerFaceLifecycle });
   return {
     linkedProvider: (input) => linkedProviderOf({ ports, ...input }),
     describeLinkedFace: (input) => new AgentPluginLinkedError(input),

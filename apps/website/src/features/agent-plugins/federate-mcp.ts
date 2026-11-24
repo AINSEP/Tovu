@@ -13,7 +13,7 @@ import {
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
-import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
+import type { AgentPluginMcpContext, AgentPluginMcpPort } from "@jini-ai/agent-plugins/site/service-ports";
 
 /** Tovu's lifecycle owner, adapted to the portable object-argument reads (same functions, same order). */
 export const tovuInstalledMcpReads: AgentPluginInstalledMcpReads = {

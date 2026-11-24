@@ -3,7 +3,7 @@
  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "@jini-ai/agent-plugins/site/service-ports";
 import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import type { AgentToolDefinition, DerivedRiskByToolId } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
@@ -113,7 +113,7 @@ export interface AgentPluginConnectToolDeps {
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
   /** Plugin-declared OAuth API connections (`jini-connections.json`). Absent: only MCP servers connect. */
-  readonly apiConnections?: AgentPluginApiConnectionsPort;
+  readonly apiConnections?: AgentPluginApiConnectionsPort<DeclaredApiConnection>;
 }
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [

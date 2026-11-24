@@ -7,7 +7,7 @@ import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-gra
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
-import type { AgentPluginPreferencesPort } from './service-ports.js';
+import type { AgentPluginPreferencesPort } from '@jini-ai/agent-plugins/site/service-ports';
 import { resolveAgentPluginGuidance, rankInstalledAgentPlugins } from './lifecycle.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 

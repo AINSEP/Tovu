@@ -10,7 +10,7 @@ import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from '../../connect-tool.js';
-import type { AgentPluginApiConnectionsPort } from '../../service-ports.js';
+import type { AgentPluginApiConnectionsPort } from '@jini-ai/agent-plugins/site/service-ports';
 
 test('Skip on an OAuth sign-in card lets the assistant continue without stopping the run', async () => {
   const repo = new InMemoryExternalMcpServerRepo();
@@ -52,8 +52,8 @@ test('Skip also releases a plugin API-connection wait and aborts only that wait'
   const clock = createSystemClock();
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   let waitSignal: AbortSignal | undefined;
-  const apiConnections: AgentPluginApiConnectionsPort = {
-    listConnections: async () => [{ pluginId: 'example', descriptor: { connectionId: 'account' } } as Awaited<ReturnType<AgentPluginApiConnectionsPort['listConnections']>>[number]],
+  const apiConnections: AgentPluginApiConnectionsPort<import('../../../api-connections/contribution.js').DeclaredApiConnection> = {
+    listConnections: async () => [{ pluginId: 'example', descriptor: { connectionId: 'account' } } as Awaited<ReturnType<AgentPluginApiConnectionsPort<import('../../../api-connections/contribution.js').DeclaredApiConnection>['listConnections']>>[number]],
     connect: async ({ signal, showSignIn }) => {
       waitSignal = signal;
       await showSignIn({ signInUrl: 'https://example.test/sign-in' });

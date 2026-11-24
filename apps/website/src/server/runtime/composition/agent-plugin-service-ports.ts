@@ -13,10 +13,11 @@ import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential
 import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
-import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
+import { bindProviderFacePorts, linkedProviderOf } from '@jini-ai/agent-plugins/site/provider-plugin-link';
+import { AgentPluginLinkedError, providerFaceLifecycle } from '#src/features/agent-plugins/provider-plugin-link';
 import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
 import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
-import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
+import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
 
@@ -65,7 +66,7 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
 
 /** Fresh provider lookup and safe refusal copy come from the same lifecycle owner. O(1) to bind. */
 export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: () => string }, _options = {}): PluginProviderFacesPort {
-  const ports = bindProviderFacePorts({ workspaceRoot });
+  const ports = bindProviderFacePorts({ workspaceRoot, ...providerFaceLifecycle });
   return {
     linkedProvider: (input, _options = {}) => linkedProviderOf({ ...input, ports }),
     affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
@@ -83,7 +84,7 @@ export function composeAgentPluginConnectServices(required: {
   httpClient: HttpClientPort; loadCards?: LoadPluginCredentialCards;
   externalMcpOAuth?: Pick<ExternalMcpOAuthService, 'beginConnect'>;
   apiConnections?: { host: ApiConnectionHost };
-}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: (AgentPluginOAuthPort & AgentPluginSignInPort) | undefined; apiConnections: AgentPluginApiConnectionsPort | undefined } {
+}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: (AgentPluginOAuthPort & AgentPluginSignInPort) | undefined; apiConnections: AgentPluginApiConnectionsPort<import('#src/features/api-connections/contribution').DeclaredApiConnection> | undefined } {
   const { externalMcpOAuth, apiConnections } = required;
   return {
     credentials: composePluginCredentials(required),

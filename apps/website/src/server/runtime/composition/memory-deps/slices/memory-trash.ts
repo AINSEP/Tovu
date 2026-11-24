@@ -9,7 +9,7 @@ import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { randomUUID } from "node:crypto";
 import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 import { composePluginRuntime } from "../../plugin-runtime.js";
-import { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeTaxonomyTrashRepos } from "./taxonomy-trash-repos.js";

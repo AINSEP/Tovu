@@ -41,7 +41,8 @@ import { createTovuAgentPluginLifecycle, explicitRootSoonCatalog } from "./lifec
 import { assertAgentPluginReady } from "./soon-lock.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 export { AgentPluginNotReadyError } from "./soon-lock.js";
-import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "./provider-plugin-link.js";
+import { bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { AgentPluginLinkedError, providerFaceLifecycle } from "./provider-plugin-link.js";
 export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import type { SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
@@ -71,7 +72,7 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   readonly unlessOperatorDisabled?: boolean;
 } = {}): Promise<SetAgentPluginEnabledResult> {
   // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
-  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root });
+  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, ...providerFaceLifecycle });
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) {
     // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.

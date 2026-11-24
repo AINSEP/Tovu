@@ -73,7 +73,8 @@ import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-in
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
-import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { bindProviderFacePorts, followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { providerFaceLifecycle, warnProviderFace } from "#src/features/agent-plugins/provider-plugin-link";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
@@ -210,8 +211,8 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
   // Same one-switch rule as the SQLite composition (deps.ts): a provider plugin's linked agent plugin
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
-  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id,
-    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root }) });
+  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id, warn: warnProviderFace,
+    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root, ...providerFaceLifecycle }) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => references.routeDeps().pluginHost,
     workspaceId: seededWorkspace.id,

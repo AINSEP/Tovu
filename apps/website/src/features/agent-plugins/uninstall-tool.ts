@@ -6,7 +6,7 @@ import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/hu
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
-import type { AgentPluginPreferencesPort } from "./service-ports.js";
+import type { AgentPluginPreferencesPort } from "@jini-ai/agent-plugins/site/service-ports";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,

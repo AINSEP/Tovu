@@ -6,7 +6,7 @@ export { createCredentialSaveHandlers, createCredentialToolRegistrations };
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
-import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import { normalizeCredentialWorksFor, suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
@@ -38,11 +38,15 @@ import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
+  makeCredentialedRequest,
+  probeCredentialConnection,
+  resolveRequestTarget,
+  verifyCustomCredential,
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeps,
 } from "./credentialed-request.js";
 
-import { bindCredentialedRequestPort } from "./credential-ports.js";
+import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
@@ -112,6 +116,9 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
    *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
+
+/** Tovu's existing request adapter (`credentialed-request.ts`), which the request port forwards to. */
+const TOVU_CREDENTIALED_REQUEST_OPERATIONS = { makeCredentialedRequest, resolveRequestTarget, verifyCustomCredential, probeCredentialConnection };
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: customCredentialsAgentToolCatalog });
 
@@ -317,7 +324,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  *   `host.cardIdentity` names every card URI and app. The outcome replaces the same URI after the save.
  */
 export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
-  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }) }, cards: { defineSecretCardTool, askThenReport } });
+  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS }) }, cards: { defineSecretCardTool, askThenReport } });
 }
 
 /**
@@ -365,7 +372,7 @@ function credentialedRequestDeps(routeDeps: CustomCredentialsToolDeps): Credenti
  *  the ports existed (see `credential-ports.ts`). */
 function tovuCredentialToolPorts(routeDeps: CustomCredentialsToolDeps): CustomCredentialToolPorts {
   return {
-    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }),
+    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS }),
     sourceControlWrite: routeDeps.sourceControlWrite,
   };
 }
@@ -462,7 +469,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     },
     credentialCardForms: {
       buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
-      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES }),
+      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES, suggestWorksFor: suggestCredentialWorksFor }),
       createOutcome: required => buildCreateOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.createOutcome }),
       rotate: required => setTokenForm({ ...required, app: tovuCredentialCardIdentity.appNames.setToken, secretField: SECRET_FORM_CARD_DEFINITIONS.credential_save?.secretField }),
       rotateOutcome: required => setTokenOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.setTokenOutcome }),

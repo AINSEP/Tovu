@@ -8,3 +8,8 @@
   `process.platform` and `execFile` are the package defaults) and hands it to the admin route
   `server/inbound/admin-http/routes/fs-files/folder-picker.ts`, which owns the
   "own machine only" admission.
+
+## Wiring (document archive)
+
+- `__tests__/copy-library.test.ts` binds `@jini-ai/cms/media/site/document-archive` with the `yauzl` SDK and
+  agent-plugins' `createYauzlAgentPluginArchiveReader` (`documentArchiveDeps`).

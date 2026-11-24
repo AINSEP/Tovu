@@ -86,8 +86,8 @@ export interface CredentialsDeps {
    * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
   externalMcpAdmissions?: import("../../../features/external-mcp/operations-tools.js").ExternalMcpOperations["admissions"];
   bundledSourceRoot: string;
-  mcp: import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpPort & import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpContext;
-  preferences: import("../../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
+  mcp: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpPort & import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpContext;
+  preferences: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginPreferencesPort;
   providerFaces: import("../../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
   notifyRosterChanged: import("../../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
   /** Runtime-owned connections declared by the desktop host, independent of labels. */

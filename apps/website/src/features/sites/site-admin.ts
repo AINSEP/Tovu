@@ -131,7 +131,7 @@ export interface CreateSiteForOwnerRequired {
 
 export interface CreateSiteForOwnerPorts {
   bundledSourceRoot: string;
-  credentials?: Pick<import("../agent-plugins/service-ports.js").PluginCredentialsPort, "probe">;
+  credentials?: Pick<import("@jini-ai/agent-plugins/site/service-ports").PluginCredentialsPort, "probe">;
   tracker?: Tracker;
   createSite: CreateSitePort;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as

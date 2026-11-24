@@ -4,7 +4,7 @@
  * its own pair (same function and error identity). Every other export is the portable module's. */
 import { withAgentPluginMcpPorts } from './mcp-host-bindings.js';
 import { loadAgentPluginConnectionStatuses as loadWithPorts } from '@jini-ai/agent-plugins/connect';
-import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpContext } from '@jini-ai/agent-plugins/site/service-ports';
 export type { AgentPluginConnectionStatus } from '@jini-ai/agent-plugins/connect';
 
 export function loadAgentPluginConnectionStatuses(
