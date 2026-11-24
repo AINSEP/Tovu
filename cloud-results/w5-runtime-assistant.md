@@ -1,4 +1,4 @@
-__STATUS__
+PARTIAL 63a9b57b8 ef92ccbb6: 8 site-chat files STOPPED on prerequisites outside this lane (SiteAssistantWidget.tsx/.hooks.ts + site-assistant-errors.ts: codex/visitor-chat-tovu still held; loader-host.ts + SiteAssistantActivation.hooks.ts: BX-7/8 after the widget; tool-confirmation.ts + SiteToolConfirmation.hooks.ts + vanilla-tool-confirmation.ts: BX-9..12 Jini challenge lifecycle + BX-3/BX-11), run-start-context BX-31/32 injection remainder, fix 12 instance threading (follow-up). Every rv1123r assistant/runtime/db FIX is applied (12 partly), every DISAGREE file is moved/split, the held vocabulary file is moved, generated plugin state is dropped; no new red.
 
 # w5-runtime-assistant — wave-5 lane (2026-11-24, unattended cloud run)
 
@@ -74,12 +74,12 @@ Not applied here: fixes 6–10 (admin-shell lane) and the `KEEP_RULES` suggestio
 | admin tsc / site-chat tsc | 0 / — | 0 / 0 |
 | Tovu check:boundaries | 0 errors / 130 warnings | 0 errors / 130 warnings |
 | Tovu check:errors / check:hooks | 0 / 0 | 0 / 0 |
-| Tovu check:why-comments (`--other-root` Jini) | 78 | 78. 21 moved comments were recorded, each verified present at its Jini destination; the fix-16 row was repointed. |
+| Tovu check:why-comments (`--other-root` Jini) | 78 | 78. 26 rows were added: 21 moved comments, each verified present at its Jini destination, and 5 obsolete fake-handler test comments, explained. The fix-16 row was repointed. |
 | desktop `npm run gates` | 4 FAIL (tests, typecheck, coverage, complexity) | the same 4. Same `component-catalog-tool.ts(65)` error (unchanged since base), same 3 renderer complexity rows, same 5 failing desktop tests by name (2108/3 + 912/2 both). |
 
 **Tests:**
 - **Jini:** every changed or added test file is green: agentic 8, chat 11, cms 2, daemon 16, db 30, infra 9, platform 15, sidecar 14. Full suites are green: core 3060/3060 and agent-runtime 4566 + 1 skipped. Builders also ran the package folders they touched, e.g. platform `src/fs` 928, cms `src/media` 608, sidecar 442.
-- **Tovu node:** 366 test files (every changed test plus every test directly importing a changed module), 2 workers, 5-min watchdog each. __TOVU_TESTS__
+- **Tovu node:** 366 test files (every changed test plus every test directly importing a changed module), 2 workers, 5-min watchdog each. 347 green. The other 19 are red with **pass/fail counts identical to the clean base** (re-run there): outbox-worker, forms-notification-retry/-restart, outbox-retry-policies, serve-command-wiring, visitor-isolation (AST of `site-assistant.ts`), site-assistant-transport (react/react-dom link mismatch), domain-no-direct-tool-registration, 4 postgres files (no server), init-site-branches, forms-submit, site-chat-stream.golden, bundled-inactive-gating, deps-provider-plugin-boot, wiring-identity, assistant-byok.inputs-pin. The first run found 4 NEW reds (propose-credential-tool, set-token-agent-tool, providers-tools, settings-write-tools: they faked `app.post`, which fix 20 removed). They were repaired to drive the real mounted route with every assertion unchanged, and are back at base counts 23/26/36/105.
 - **Admin vitest:** `VisitorToolsPanel.unit` 39/39 (`--maxWorkers=2`).
 
 ## FILES LEFT (`plans/P9-data/tools/scan.mjs` + `plan.mjs`)
