@@ -77,12 +77,11 @@ import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/r
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
-import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
-import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { bindProviderFacePorts, followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { providerFaceLifecycle, warnProviderFace } from "#src/features/agent-plugins/provider-plugin-link";
+import { BUILT_IN_RUNTIME_SOURCES } from "./built-in-plugin-sources.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
@@ -229,7 +228,7 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
     activationRepo: pluginActivationRepo,
     // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
     // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
-    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE, RECHARTS_RUNTIME_SOURCE],
+    sources: BUILT_IN_RUNTIME_SOURCES,
     browserProviderApprovals: [RECHARTS_BROWSER_APPROVAL],
     bundledEnabledIds: [RECHARTS_RUNTIME_SOURCE.manifest.id],
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,

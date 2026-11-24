@@ -1,9 +1,8 @@
 import type { SqlContentTypeRepo } from "@jini-ai/cms/content-types/sql";
-import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { RECHARTS_BROWSER_APPROVAL } from "../charts-recharts-source.js";
 import { RECHARTS_RUNTIME_SOURCE } from "../charts-recharts-source.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "../core-extension-claims.js";
-import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { BUILT_IN_RUNTIME_SOURCES } from "../built-in-plugin-sources.js";
 import { composePluginRuntime } from "../plugin-runtime.js";
 import { createDeclaredContentTypePorts } from "../declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
@@ -36,7 +35,7 @@ export function composeSitePluginRuntime(required: ComposeSitePluginRuntimeRequi
     activationRepo: pluginActivationRepo,
     // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
     // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
-    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE, RECHARTS_RUNTIME_SOURCE],
+    sources: BUILT_IN_RUNTIME_SOURCES,
     browserProviderApprovals: [RECHARTS_BROWSER_APPROVAL],
     bundledEnabledIds: [RECHARTS_RUNTIME_SOURCE.manifest.id],
     // Reachability fix: previously omitted entirely, so `discoverPlugins()` only ever scanned the
