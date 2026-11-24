@@ -6,7 +6,8 @@ import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
@@ -46,7 +47,7 @@ export function composeAgentPluginBootstrap(required: ComposeAgentPluginBootstra
     mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps() }),
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
-  const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });
+  const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir, host: SKILL_SITE_HOST });
   const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir, siteRoot: resolvedSiteBinding.dir });
   return { assistantAgentInventory, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir };

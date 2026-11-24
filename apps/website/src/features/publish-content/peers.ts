@@ -6,7 +6,7 @@ import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token"
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 /**

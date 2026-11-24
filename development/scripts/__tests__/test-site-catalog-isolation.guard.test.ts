@@ -7,7 +7,8 @@ import test from "node:test";
 import ts from "typescript";
 
 import { resolveAgentPluginLayout } from "../../../apps/website/src/features/agent-plugins/layout.js";
-import { resolveSkillLayout } from "../../../apps/website/src/features/skills/layout.js";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "../../../apps/website/src/features/skills/site-host.js";
 
 /**
  * @file Test-site isolation guard. Since the shared sites home (1cffdf3cf), `resolveSiteRoot`
@@ -82,7 +83,7 @@ test("every test that resolves a site layout without an explicit root isolates t
 test("with the home catalog isolated, a temp-cwd layout stays inside its temp dir", (t) => {
   const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-catalog-guard-")));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  for (const root of [resolveAgentPluginLayout({ siteDir: cwd }, { env: {} }).root, resolveSkillLayout({ cwd, env: {} }).root]) {
+  for (const root of [resolveAgentPluginLayout({ siteDir: cwd }, { env: {} }).root, resolveSkillLayout({ cwd, env: {}, host: SKILL_SITE_HOST }).root]) {
     assert.ok(root.startsWith(cwd + path.sep), `${root} escaped ${cwd}`);
   }
 });

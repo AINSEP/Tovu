@@ -19,7 +19,8 @@
 import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { EventBusPort } from "@jini-ai/core/contracts/events";
-import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
+import { mailSenderIdentityFor } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {

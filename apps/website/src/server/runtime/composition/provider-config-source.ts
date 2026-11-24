@@ -8,7 +8,7 @@ import type { ProviderConfigSource, ProviderPluginConfig, ProviderSettingsView }
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 export type { ProviderConfigSource, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/plugins/host";
 import type { KeyAttachments, ProjectKeyTransaction } from "#src/features/project-keys/attachments";
-import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 /**

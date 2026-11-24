@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
-import { createMailSuppressionRepo } from "../suppression.repo.js";
-import { createMailSuppressionAdminRepo } from "../suppression-admin.repo.js";
+import { createMailSuppressionRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSuppressionAdminRepo } from "@jini-ai/platform/mail/sql";
 
 /**
  * @file The suppression admin repo (migration 0030) on SQLite and PGlite: list/search/filter/page,

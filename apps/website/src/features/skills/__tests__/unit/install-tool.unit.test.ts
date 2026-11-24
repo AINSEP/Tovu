@@ -8,8 +8,8 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
-import { installSkill, listManagedSkills } from "../../install-service.js";
-import { buildRegistrations, catalog, contributeSkillsInstallTools, derivedRisk, SKILLS_INSTALL_TOOL_ID, type SkillsInstallToolDeps } from "../../install-tool.js";
+import { installSkill, listManagedSkills } from "@jini-ai/agentic/skills/site/install-service";
+import { buildRegistrations, catalog, contributeSkillsInstallTools, derivedRisk, SKILLS_INSTALL_TOOL_ID, type SkillsInstallToolDeps } from "@jini-ai/agentic/skills/site/install-tool";
 
 const PRINCIPAL = "principal-1";
 const WORKSPACE = "workspace-local";

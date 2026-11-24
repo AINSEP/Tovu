@@ -58,3 +58,18 @@ If restoring a replaced version fails, the installer retains its old bytes in st
 Implementation reference: `ADS-memory/.local-artifacts/terra-runs/sol/plugin-install-plan.md`
 (owner-approved 2026-09-22; SHA-256 `568b1fd6ddc9bbab348e89931baa976eda51fa11432de5c54f3abb319424c608`).
 Tests were written but not executed in the dispatched worker; validation belongs to the coordinator.
+
+## Wiring
+
+- Leaves now owned by `@jini-ai/admin/screens/plugins/*`: `add-plugin-tab-soon`, `agent-plugins-visuals`,
+  `plugins-memory-i18n`, `hooks/use-linked-lock-tip.hooks`, `hooks/agent-plugin-surfaces-port.hooks`.
+- This app injects `translateAdminNavLabel` (`lib/admin-nav-i18n.ts`) into the tab-tag helpers from
+  `Plugins.tsx` and `AgentPlugins.tsx`; the glyphs and padlock tip read the kit mounted in `main.tsx`
+  (`integrations/jini-kits.ts`), so tests rendering them wrap in `AdminKitProvider`.
+- `styles.css` styles the moved chevron by `.jini-agent-plugin-chevron-glyph`.
+- `composer-capabilities.ts` keeps only the host half: the bundled catalog
+  (`createBundledComposerCapabilitySource`) and `resolveTovuComposerDiscoveryRoute`. The contract,
+  projection and ranking are owned by `@jini-ai/admin/screens/plugins/composer-capabilities`
+  (Tovu files alias `ComposerCapability` as `TovuComposerCapability` at the import);
+  `AssistantDock/hooks/composer-discovery.hooks.ts` passes the bundled and installed-skills sources
+  into `projectComposerCapabilities({ sources })`.

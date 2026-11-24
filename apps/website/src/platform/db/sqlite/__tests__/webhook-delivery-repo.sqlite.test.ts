@@ -5,15 +5,17 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
-import { processDueDeliveries } from "#src/features/webhooks/delivery";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import { processDueDeliveries } from "@jini-ai/integrations/webhooks/site/delivery";
+import { TOVU_WEBHOOK_HEADERS } from "#src/features/webhooks/wire-headers";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
-import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
-import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore, WebhookDeliveryRepoPort } from "@jini-ai/integrations/webhooks";
+import type { HttpClientPort } from "#src/platform/http/ports";
 import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "@jini-ai/integrations/webhooks";
 
 /**
@@ -390,7 +392,7 @@ async function prepareWebhookReplay() {
   const dbPath = join(dir, "content.db");
   const time = { iso: "2026-07-10T00:00:00.000Z" };
   const clock = { nowIso: () => time.iso };
-  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   for (const id of ["sub-1", "sub-2"]) {
     await createSubscription({
       deps: { repo: subscriptionRepo, clock, idGenerator: { newId: () => id }, isAllowedTarget: async () => true },
@@ -419,7 +421,7 @@ test("an accepted webhook POST replays after lost settlement with a stable ID an
     return { status: 204, headers: {}, bodyText: "" };
   } };
   const deps = { deliveryRepo: repo, envelopeStore: repo, subscriptionRepo: rig.subscriptionRepo,
-    signer: rig.signer, clock: rig.clock, httpClient };
+    signer: rig.signer, headers: TOVU_WEBHOOK_HEADERS, clock: rig.clock, httpClient };
   try {
     try {
       await repo.enqueue({ record: makeDelivery() }, { envelope: makeEnvelope() });

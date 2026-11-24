@@ -56,7 +56,10 @@ const { closeSqliteConnection } = await load("platform/db/kernel/drivers/sqlite.
 const { ensureVaultRepoFixture } = await load("platform/db/repos/__tests__/vault-repo.fixture.ts");
 const { SqlExternalMcpServerRepo } = await load("features/external-mcp/external-mcp-repo.ts");
 const { readEnabledExternalMcpConfigs, openExternalMcpOAuthPayload } = await load("features/external-mcp/external-mcp-store.ts");
-const { createExternalMcpOAuthService, createDeviceAuthorizationStore } = await load("features/external-mcp/external-mcp-oauth.ts");
+const { createExternalMcpOAuthService, ...legacyOAuth } = await load("features/external-mcp/external-mcp-oauth.ts");
+// The device store moved to `@jini-ai/integrations/api-connections/hosted-mcp`; the pre-move baseline tree still exports it from here.
+const createDeviceAuthorizationStore = legacyOAuth.createDeviceAuthorizationStore
+  ?? (await import("@jini-ai/integrations/api-connections/hosted-mcp")).createDeviceAuthorizationStore;
 const { createTovuOAuthGuard } = await load("platform/oauth/endpoint-safety.ts");
 const { EnvOrFileKeyring } = await load("features/webhooks/keyring.env.ts");
 const { AesGcmSecretSealer } = await load("features/webhooks/secret-sealer.aesgcm.ts");

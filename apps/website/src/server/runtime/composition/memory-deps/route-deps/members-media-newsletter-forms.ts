@@ -1,14 +1,18 @@
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "#src/features/members/index";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
-import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/index";
+import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
 import { InMemoryImageTransformer } from "#src/features/media/index";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { seededWorkspace } from "../../../configuration/seed.js";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
+import { evaluateLaunchGate } from "#src/features/newsletter/index";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "#src/features/newsletter/repo.memory";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
@@ -57,14 +61,14 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     // SPEC-022 REQ-09/REQ-10 — see deps.ts's identical wiring for the rationale. This hermetic
     // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
     // inert here — existing tests are unaffected (INV-06).
-    mailer: wrapMailerWithPurposeGate({
+    mailer: wrapPositionalMailerWithPurposeGate({
       inner: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: logConsoleMail }).create({ credential: { token: "" }, kit: {} as never }) }),
       mode: resolveRuntimeMode(),
       durableOutboxReady: () => false,
     }),
     menuRepo,
     navLocationBindingRepo,
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     // ADR-PIPE-015 Phase 1 T017: the real createKeyringBackedSigner code path, backed by an
     // in-memory KeyringPort so this hermetic test/dev composition never touches a real file or
@@ -106,6 +110,11 @@ export function memoryNewsletterFormsDeps(required: MemoryRootContext, _optional
     trash,
   } = required;
   return {
+    // Feedback setup (`@jini-ai/platform/mail/feedback-setup`): the credential lister and the persisted secret labels.
+    listCustomCredentials,
+    mailWebhookSecretLabels,
+    // Mail readiness (`@jini-ai/platform/mail/use-readiness`): Newsletter's own launch gate.
+    evaluateNewsletterLaunchGate: evaluateLaunchGate,
     // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
     // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `apps/website/src/server/runtime/composition/deps.ts`'s
     // real fire-and-forget install. `membersConsentCapability` stays `null` (unbound) — see that

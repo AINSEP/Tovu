@@ -9,7 +9,7 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhoo
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 

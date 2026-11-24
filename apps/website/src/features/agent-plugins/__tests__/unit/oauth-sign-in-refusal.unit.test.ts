@@ -5,13 +5,11 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { OAuthError } from '@jini-ai/oauth';
-import { ExternalMcpValidationError } from '../../../external-mcp/external-mcp-store.js';
+import { ExternalMcpValidationError, externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '@jini-ai/mcp/federation/hosted';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { composeAgentPluginMcp, composeAgentPluginConnectServices } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
-import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from '@jini-ai/mcp/federation/hosted';
-import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '@jini-ai/mcp/federation/hosted';
 import { runAgentPluginConnect } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 

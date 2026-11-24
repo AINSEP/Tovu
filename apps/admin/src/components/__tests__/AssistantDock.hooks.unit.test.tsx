@@ -124,8 +124,8 @@ import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 import {
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
-} from "../../features/plugins/composer-capabilities";
-import type { TovuComposerCapability } from "../../features/plugins/composer-capabilities";
+} from "@jini-ai/admin/screens/plugins/composer-capabilities";
+import type { ComposerCapability as TovuComposerCapability } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);

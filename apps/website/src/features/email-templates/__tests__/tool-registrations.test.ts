@@ -4,8 +4,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/index.js";
-import { emailTemplatesAgentToolCatalog } from "../agent-tools.js";
-import { buildEmailTemplatesRegistrations, contributeEmailTemplatesTools, emailTemplatesDerivedRisk } from "../tool-registrations.js";
+import { buildEmailTemplatesRegistrations, contributeEmailTemplatesTools, emailTemplatesAgentToolCatalog, emailTemplatesDerivedRisk } from "../tool-registrations.js";
 
 const WS = "ws-1";
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p>Hello {{name}}</p></body></html>';

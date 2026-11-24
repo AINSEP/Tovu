@@ -5,7 +5,7 @@ import test from "node:test";
 import { providerInputOf } from "../provider-plugins.js";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
-import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 

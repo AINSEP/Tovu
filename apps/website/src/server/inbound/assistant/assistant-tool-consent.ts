@@ -3,7 +3,8 @@ import type { RuntimeAgentDef } from '@jini-ai/core/contracts/agents';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
-import { requireHumanConfirm, type HumanConfirmSpec } from '#src/contracts/core/human-confirm';
+import { requireHumanConfirm } from '#src/contracts/core/human-confirm';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 const CAPABILITY_NAMES: Readonly<Record<string, string>> = {
   enabled: 'Full CLI access', shell: 'Bash/shell', fileWrite: 'File edit/write', userMcp: 'Personal MCP servers',

@@ -27,7 +27,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import {
   buildPluginsRegistrations,

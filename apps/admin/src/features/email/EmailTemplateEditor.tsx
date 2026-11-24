@@ -1,4 +1,4 @@
-import { createEmailPageTranslator } from "./EmailTemplateEditor.hooks";
+import { createEmailPageTranslator } from "@jini-ai/admin/screens/email/EmailTemplateEditor.hooks";
 import { useEffect } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
@@ -13,9 +13,10 @@ import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePrevie
 import { ADMIN_BASE, adminHref } from "@jini-ai/admin/shell/lib/router";
 import { t as pageEditorT } from "../pages/page-editor-i18n";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
-import { t } from "./email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { Chip, Loaded } from "./EmailParts";
-import { useWiredEmailTemplateEditor, type EmailTemplateEditorController } from "./hooks/use-email-template-editor.hooks";
+import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
+import { useWiredEmailTemplateEditor } from "./email-hooks-host";
 import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "./hooks/use-email-template-view.hooks";
 import "./email.css";
 
@@ -147,7 +148,7 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
 /** HTML | Preview tabs (Pages' segmented tablist and keyboard contract), device widths, As sent. */
 function Toolbar({ useTabBarKeyboardHook = useTabBarKeyboard, ...props }: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string; useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
   const { controller, view, locale } = props;
-  const pageT = createEmailPageTranslator({ locale });
+  const pageT = createEmailPageTranslator({ locale, pageEditorT });
   const { onKeyDown } = useTabBarKeyboardHook({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
   return (
     <div className="page-editor-toolbar">

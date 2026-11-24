@@ -9,7 +9,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, refuseUnexpectedKeys, type HumanConfirmSpec } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 import {
   FS_FILES_READ_PERMISSION,

@@ -6,7 +6,7 @@ import { AdminSurfaceActionError, type AdminSurfaceDeliveryBindingDraft } from "
 import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
-import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
+import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "@jini-ai/agent-plugins/site/admin-surfaces/delivery-bindings";
 import { ensureFormDeliverySettings, FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "../index.js";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { workspaces } from "#src/platform/db/schema.sqlite";
@@ -67,7 +67,7 @@ async function fixture(required: { t: TestContext; initial?: readonly FormDelive
   const panel = () => createSurfaceDeliveryBindings({
     workspaceId: WORKSPACE, siteWorkspaceId: WORKSPACE, pluginId: PLUGIN, principalId: "admin",
     declaredConnectionIds: async () => ["account"], contributedAdapterIds: async () => [ADAPTER],
-    forms: { list: async () => [] }, bindings, newBindingId: () => ids.newId(),
+    forms: { list: async () => [] }, bindings, newBindingId: () => ids.newId(), deriveConnectionRef: deriveApiConnectionKey,
   });
   return { repo, read, write, panel, pauseNextRead() {
     const paused = { captured: barrier(), resume: barrier() };

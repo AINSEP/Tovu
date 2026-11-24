@@ -33,7 +33,7 @@ import type {
   SubscriptionRow,
 } from "./types.js";
 
-export type { MailerPort } from "../../platform/mail/index.js";
+export type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 
 /* ------------------------------------------------------------------------------------------------
  * SubscriberDirectoryPort — the Members seam (READ-only; Members owns the write side)

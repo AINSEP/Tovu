@@ -26,10 +26,8 @@ import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { ReactNode } from "react";
 import { publishAssistantDockState, resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
-import {
-  createBundledComposerCapabilitySource,
-  emptyComposerCapabilityProjection,
-} from "../../../features/plugins/composer-capabilities";
+import { createBundledComposerCapabilitySource } from "../../../features/plugins/composer-capabilities";
+import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
 /**
  * @file Regression coverage for the 2026-08-21 owner decision to stop projecting the live

@@ -21,7 +21,8 @@ import { buildAssistantToolRegistrations } from "#src/assistant/tool-registratio
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { MEDIA_OBJECT_STORE_KEY, STORAGE_SETTINGS_NAMESPACE } from "@jini-ai/platform/object-store/site/setting";
 import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
@@ -95,7 +96,7 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   assert.equal(sources.themesDir, deps.themesDir);
   assert.equal(sources.mediaUploadsDir, process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : mediaUploadsDir({ siteDir: siteBinding.dir }));
   assert.equal(sources.agentPlugins.root, resolveAgentPluginLayout({ siteDir: siteBinding.dir }).root);
-  assert.equal(sources.skillsDir, resolveSkillLayout({ siteDir: siteBinding.dir }).root);
+  assert.equal(sources.skillsDir, resolveSkillLayout({ siteDir: siteBinding.dir, host: SKILL_SITE_HOST }).root);
   // The product root, not cwd: package.json sits at the repo root since the apps/ restructure.
   const productVersion = (JSON.parse(fs.readFileSync(path.join(resolveProductRoot({}), "package.json"), "utf8")) as { version: string }).version;
   assert.equal(sources.tovuVersion, productVersion);

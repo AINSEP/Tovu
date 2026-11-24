@@ -2,13 +2,11 @@
  * entries bind Tovu's credential token rule (R1). */
 import type { PluginCredentialsPort } from "./service-ports.js";
 import { tovuTokenValidator } from "./access-token-tool.js";
-import type { ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import type { InstalledAgentPluginServers } from "./import-access-token.js";
+import type { ResolvedAgentPluginForConnect, InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import {
   listTokenSignInPlugins as listWithPorts, checkAgentPluginAccessToken as checkWithPorts,
   type TokenSignInPlugin, type TokenCheckOutcome,
 } from "@jini-ai/agent-plugins/connect";
-export type { TokenSignInPlugin, TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
 
 /** Lists token sign-in choices using the injected plugin reader. */
 export function listTokenSignInPlugins(

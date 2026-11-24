@@ -12,10 +12,9 @@ import {
   type CustomCredentialSetRepoPort,
   type CustomCredentialWriteDeps,
 } from "#src/features/custom-credentials/index";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
-import type { MailProviderSetting } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, MailerSendResult, MailProviderSetting } from "@jini-ai/platform/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
 

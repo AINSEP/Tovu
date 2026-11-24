@@ -2,7 +2,6 @@ import { ApiConnectionError, resolveByoClient as resolveConnectionByoClient, typ
 import type { KeyringPort, SecretSealerPort } from '@jini-ai/core/contracts/vault';
 import { allowedOriginsFor, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from '../custom-credentials/index.js';
 import type { DeclaredApiConnection } from './contribution.js';
-export { byoClientLabel, type ByoClient } from '@jini-ai/integrations/api-connections';
 
 /** What opening a saved custom credential needs (the site's vault repo, sealer and keyring). */
 export interface ByoClientCredentials {

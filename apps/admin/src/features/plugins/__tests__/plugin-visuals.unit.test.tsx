@@ -1,12 +1,21 @@
-import { render } from "@testing-library/react";
+import { render as renderPlain } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { adminKit } from "@/integrations/jini-kits";
 import { expect, it } from "vitest";
 import {
   AGENT_PLUGIN_GLYPHS, ChevronIcon, DocumentIcon, EyeIcon, InstalledIcon, MarketplaceIcon,
   PackageIcon, PaletteIcon, PlugIcon, RocketIcon, ShieldCheckIcon, TrashIcon,
-} from "../agent-plugins-visuals";
+} from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import {
   DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginChevronIcon, PluginPackageIcon, PluginTrashIcon,
 } from "../plugins-visuals";
+
+/** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
+ *  mounts once at its root; each render here mounts the app's own kit the same way. */
+function render(ui: ReactElement) {
+  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}>{children}</AdminKitProvider> });
+}
 
 it.each([
   ["installed agent", InstalledIcon, 16], ["marketplace agent", MarketplaceIcon, 16],

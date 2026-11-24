@@ -17,7 +17,7 @@ import {
 } from "@jini-ai/daemon/surface-exchanges";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

@@ -5,7 +5,8 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createSubscription, pauseSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
@@ -31,7 +32,7 @@ function makeDeps(options: { allow?: boolean } = {}): IntegrationsToolDeps {
   let idCounter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     originRegistry: { isAllowedEgressTarget: async () => true },
     clock: { nowIso: () => NOW },

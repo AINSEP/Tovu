@@ -14,10 +14,10 @@ import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../configuration/seed
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { SITE_BACKUP_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
-import { createMailCaptureRepo } from "#src/features/mail/index";
-import { createMailSendLedgerRepo } from "#src/features/mail/index";
-import { createMailSuppressionRepo } from "#src/features/mail/index";
+import { createMailAttemptObserver } from "@jini-ai/platform/mail/sql";
+import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSendLedgerRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSuppressionRepo } from "@jini-ai/platform/mail/sql";
 import { createPluginAccountTokenResolver } from "../../boot/mail-plugin-account-token.js";
 import { createSiteMailer } from "../site-mailer.js";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";

@@ -19,7 +19,7 @@ import {
   type EventBusPort,
   type OutboxPort,
 } from "@jini-ai/core/contracts/events";
-import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";

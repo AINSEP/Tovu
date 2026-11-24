@@ -51,7 +51,7 @@ import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
 import { toolMetadata as sites } from './sites.js';
-import { toolMetadata as skills } from './skills.js';
+import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
 import { toolMetadata as source_control } from './source-control.js';
 import { toolMetadata as taxonomy } from '@jini-ai/cms/taxonomy/site/tool-metadata';
 import { toolMetadata as theme } from './theme.js';

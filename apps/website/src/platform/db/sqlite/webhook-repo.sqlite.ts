@@ -9,6 +9,10 @@ import type { ContentDb } from "./content-db.js";
  * Jini `@jini-ai/integrations/webhooks/sql`, S6b), kept as named classes so the call sites that build
  * them from the content db handle stay as they are. The binding supplies this site's table names and
  * the optimistic-concurrency collaborator the subscription repo finishes a conditional save with.
+ *
+ * This adapter is deliberately NOT re-exported from any feature barrel: re-exporting it would put the
+ * `integrations -> db` edge (the architecture SCC cut of 2026-08-17) back. The composition root
+ * (`server/runtime/composition/deps.ts`) imports it directly, as it does every other outer-layer SQLite adapter.
  */
 
 /** This site's webhook table names (the Jini adapters have no default). */

@@ -12,7 +12,7 @@ const loadedPages: string[] = [];
 const EAGER_BRIDGES = ["comments", "redirects", "seo", "widgets"];
 const EAGER_MODULES = [...EAGER_BRIDGES, "forms"];
 const ROUTE_FEATURES = [
-  { modulePath: "../../features/skills/Skills", moduleId: "skills", exports: ["Skills"] },
+  { modulePath: "../../features/skills/SkillsPage", moduleId: "skills", exports: ["Skills"] },
   { modulePath: "../../features/themes", moduleId: "themes", exports: ["Themes", "ThemeExplore"] },
   { modulePath: "../../features/admin-ui", moduleId: "admin-ui", exports: ["AdminUi"] },
   { modulePath: "../../features/dashboard", moduleId: "dashboard", exports: ["Dashboard"] },

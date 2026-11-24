@@ -8,7 +8,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/platform/mail";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headless/plugin-host";
 
 import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
@@ -112,8 +112,8 @@ test("a successful switch drops the cached status at once; a refused one leaves 
 
 test("production mail bindings share provider/credential/settings/sender/test-mode and readiness owners", async () => {
   const { createCustomCredential } = await import("#src/features/custom-credentials/index");
-  const { planMailTestSend, runMailTestSend } = await import("#src/features/mail-status/test-send");
-  const { readMailUseReadiness } = await import("#src/features/mail-status/use-readiness");
+  const { planMailTestSend, runMailTestSend } = await import("@jini-ai/platform/mail/test-send");
+  const { readMailUseReadiness } = await import("@jini-ai/platform/mail/use-readiness");
   const { required, release, settingsRepo, keyring } = await rig({ capture: { capture: async () => ({ id: "bound" }) } });
   const actualDestinations: string[] = [];
   required.resolve.mode = "production";
@@ -144,7 +144,7 @@ test("production mail bindings share provider/credential/settings/sender/test-mo
 });
 
 test("production binding settings and credential-store failures fail closed through public operations", async () => {
-  const { planMailTestSend } = await import("#src/features/mail-status/test-send");
+  const { planMailTestSend } = await import("@jini-ai/platform/mail/test-send");
   const { required, release } = await rig(); release(); await required.settingsReady;
   const base = required.settings.repo;
   required.settings.repo = Object.assign(Object.create(base), { findActiveDefinition: async () => { throw new Error("settings unavailable"); } });

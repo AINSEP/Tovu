@@ -1,5 +1,5 @@
 import { memoryText } from "@jini-ai/agent-plugins/site/memory-i18n";
-import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 import type { AgentPluginUninstallPreview } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 

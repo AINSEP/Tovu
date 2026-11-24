@@ -2,7 +2,6 @@
 import type { MailAdapterCredential, MailAdapterModule as JiniMailAdapterModule } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "../http/index.js";
 import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
-export type { MailAdapterCredential } from "@jini-ai/platform/mail";
 
 /** Hosted providers live in Agent Plugins, keeping vendor dependencies out of core; boot loads
  * their modules with saved credentials and this kit. SMTP remains the core fallback. */

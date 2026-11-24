@@ -27,7 +27,8 @@ import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHand
 import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
-import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
+import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "@jini-ai/agent-plugins/site/admin-surfaces/delivery-bindings";
+import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import { createSurfaceForms } from "@jini-ai/agent-plugins/site/admin-surfaces/forms";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
@@ -144,7 +145,7 @@ function createConnectionHost(required: AgentPluginConnectionsRequired, optional
 function deliveryBindingsPortFor(required: { readonly delivery: AgentPluginDeliveryBindingsDeps; readonly host: ReturnType<typeof createConnectionHost>["host"]; readonly workspaceId: string; readonly loadContributions: LoadPluginContributions }, _optional = {}) {
   const { delivery, host, workspaceId, loadContributions } = required;
   return (scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string }) => createSurfaceDeliveryBindings({
-    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }),
+    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }), deriveConnectionRef: deriveApiConnectionKey,
     declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
     contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()
       .filter((destination) => destination.pluginId === pluginId).map((destination) => destination.descriptor.id),

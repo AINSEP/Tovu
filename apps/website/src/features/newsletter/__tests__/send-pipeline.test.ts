@@ -39,7 +39,7 @@ import { installNewsletterDataModule } from "../data-module-manifest.js";
 import { processUnsubscribe } from "../unsubscribe.js";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

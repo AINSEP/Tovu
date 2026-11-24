@@ -20,7 +20,7 @@ import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../
 import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpOAuthStatus } from "@jini-ai/core/contracts/hosted-mcp";
-import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 
 /**
  * @file The in-chat re-auth NOTICE for one external MCP connection — the surface half of the flow

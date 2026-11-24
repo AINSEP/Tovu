@@ -6,7 +6,7 @@ import { AgentPluginMaturity, SOON_PLUGIN_TIP } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "./agent-plugins-visuals";
+import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
 
 import { type Translate } from '@jini-ai/core/text';

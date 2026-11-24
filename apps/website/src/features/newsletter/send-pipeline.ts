@@ -15,7 +15,7 @@ import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/core/contra
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
-import type { MailerPort } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { transitionCampaignStatus } from "./campaign.js";
 import {
   NewsletterCampaignNotEditableError,

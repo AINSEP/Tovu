@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { requireInputRecord, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 
-import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
+import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm } from '../human-confirm.js';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

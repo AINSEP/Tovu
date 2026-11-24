@@ -1,4 +1,7 @@
 import { executeCommand } from "@jini-ai/cms/core";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
+import { evaluateLaunchGate } from "#src/features/newsletter/index";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
 import type { composeEventsOrigin } from "./events-origin.js";
@@ -29,8 +32,8 @@ import { SqliteWebhookDeliveryRepo } from "#src/platform/db/sqlite/webhook-repo.
 import { SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
-import { createMailActivityRepo } from "#src/features/mail/activity.repo";
-import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
+import { createMailActivityRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSuppressionAdminRepo } from "@jini-ai/platform/mail/sql";
 import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
@@ -38,7 +41,7 @@ import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/doc
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import * as importYauzl from "yauzl";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
-import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 
@@ -109,7 +112,7 @@ export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _op
     // ahead of this object literal) is the boot-time-resolved real-or-console adapter — see
     // `resolve-mailer.ts`'s own header for the hosted-API/SMTP/console resolution order and the
     // disclosed startup race.
-    mailer: wrapMailerWithPurposeGate({
+    mailer: wrapPositionalMailerWithPurposeGate({
       inner: resolvedMailer.mailer,
       mode: runtimeMode,
       durableOutboxReady: mailDurableOutboxReady,
@@ -123,13 +126,18 @@ export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _op
   };
 }
 
-export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewsletterRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailActivity" | "mailSuppressionAdmin" | "menuRepo" | "navLocationBindingRepo" | "removeMenu" | "webhookSubscriptionRepo" | "webhookDeliveryRepo" | "webhookSigner" | "mediaRepo" | "assetBlobRepo" | "assetRenditionRepo" | "mediaContentTypeStore" | "blobStore" | "documentTextExtractors" | "blobHydrationReady" | "adminPasswordResetReady" | "transformDefinitionRepo" | "imageTransformer" | "imageCodec" | "newsletterReady" | "newsletterCampaignRepo" | "newsletterListRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterConfirmationTokenRepo" | "membersConsentCapability" | "newsletterSubscriberDirectory" | "newsletterKeyring" | "newsletterHooks" | "formDefinitionRepo" | "formCollectionProviders" | "formSubmissionRepo" | "formSubmissionAttempts" | "removeFormSubmission" | "executeCommand" | "formsRateLimiter"> {
+export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewsletterRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailActivity" | "mailSuppressionAdmin" | "listCustomCredentials" | "mailWebhookSecretLabels" | "evaluateNewsletterLaunchGate" | "menuRepo" | "navLocationBindingRepo" | "removeMenu" | "webhookSubscriptionRepo" | "webhookDeliveryRepo" | "webhookSigner" | "mediaRepo" | "assetBlobRepo" | "assetRenditionRepo" | "mediaContentTypeStore" | "blobStore" | "documentTextExtractors" | "blobHydrationReady" | "adminPasswordResetReady" | "transformDefinitionRepo" | "imageTransformer" | "imageCodec" | "newsletterReady" | "newsletterCampaignRepo" | "newsletterListRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterConfirmationTokenRepo" | "membersConsentCapability" | "newsletterSubscriberDirectory" | "newsletterKeyring" | "newsletterHooks" | "formDefinitionRepo" | "formCollectionProviders" | "formSubmissionRepo" | "formSubmissionAttempts" | "removeFormSubmission" | "executeCommand" | "formsRateLimiter"> {
   const { kernel, blobStore, clock, adminPasswordResetReady, menuRepo, navLocationBindingRepo, newsletterListRepo, newsletterReady, transformDefinitionRepo, blobHydrationReady, assetRenditionRepo, trash, formDefinitionRepo, formCollectionProviders, formSubmissionRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, mediaRepo, assetBlobRepo, mediaContentTypeStore } = required;
   return {
     // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
     mailActivity: createMailActivityRepo({ db: kernel }),
     // Email page phase 5: the do-not-send list's operator side (list, audited removal) and feedback setup.
     mailSuppressionAdmin: createMailSuppressionAdminRepo({ db: kernel }),
+    // Feedback setup (`@jini-ai/platform/mail/feedback-setup`): the credential lister and the persisted secret labels.
+    listCustomCredentials,
+    mailWebhookSecretLabels,
+    // Mail readiness (`@jini-ai/platform/mail/use-readiness`): Newsletter's own launch gate.
+    evaluateNewsletterLaunchGate: evaluateLaunchGate,
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

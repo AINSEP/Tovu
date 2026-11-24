@@ -40,8 +40,7 @@ import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
-import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
-import { externalMcpOperationsToolCatalog } from "../../features/external-mcp/operations-tools.js";
+import { externalMcpAgentToolCatalog, externalMcpOperationsToolCatalog } from "../../features/external-mcp/external-mcp-host-copy.js";
 import { askAgentPluginChoice, askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
@@ -64,15 +63,14 @@ import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
 import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
-import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
+import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/tool-registrations.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
-import { catalog as pluginsInstallCatalog } from "../../features/plugin-runtime/install-tool.js";
-import { catalog as skillsInstallCatalog } from "../../features/skills/install-tool.js";
+import { pluginAgentToolCatalog, pluginsInstallCatalog, pluginSourceAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
+import { catalog as skillsInstallCatalog } from "@jini-ai/agentic/skills/site/install-tool";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
@@ -105,10 +103,10 @@ import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-t
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
-import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
-import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
+import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
+import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
-import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
+import { mailDeliveryAgentToolCatalog } from "@jini-ai/user-management/mail/status/delivery-agent-tools";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -129,7 +127,6 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
@@ -843,7 +840,7 @@ test("assistant_admin_screen_link is wired into the real assistant tool registry
 // ---------------------------------------------------------------------------
 // 8. plugins_uninstall's Agent Plugin family wiring — present in the REAL ToolRegistry, not merely
 //    compiling. Retargeted (S4, 2026-09-24) from the deleted standalone `agent_plugins_uninstall`;
-//    the branch now lives in `features/agent-plugins/uninstall-tool.ts`, reached through
+//    the branch now lives in `@jini-ai/agent-plugins/site/uninstall-tool`, reached through
 //    `plugins_uninstall` with `family: "agent-plugin"`. See `uninstall.ts`'s file header for the
 //    domain function this wires.
 // ---------------------------------------------------------------------------

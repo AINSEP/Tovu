@@ -160,7 +160,7 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   exact: ["fr"],
   Images: ["fr"],
   Mobile: ["fr"],
-  Note: ["fr"],
+  // "Note" (fr) left with plugins-memory-i18n, which moved to @jini-ai/admin/screens/plugins (w3 batch A).
   Options: ["fr"],
   "Sites ({siteName})": ["fr"],
   Page: ["fr"],

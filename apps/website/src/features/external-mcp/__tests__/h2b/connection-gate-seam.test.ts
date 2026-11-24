@@ -19,10 +19,15 @@ import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import {
-  createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, createExternalMcpReauthRequiredError,
-  createHostedMcpConnectionGate, ExternalMcpReauthRequiredError, tovuConnectionGateVocabulary, tovuRegistrationIdentity,
-  type HostedMcpConnectionGatePorts,
+  createExternalMcpConnectionGate,
+  createExternalMcpOAuthService,
+  createExternalMcpReauthRequiredError,
+  ExternalMcpReauthRequiredError,
+  tovuConnectionGateVocabulary,
+  tovuRegistrationIdentity,
 } from "../../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import { createHostedMcpConnectionGate, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";
 
 const WS = "11111111-1111-4111-8111-111111111111" as never;
 const SERVER = "docs";

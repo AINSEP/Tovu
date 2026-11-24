@@ -49,7 +49,8 @@ import { createRedirect } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/__tests__/remove-redirect-double";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
@@ -295,7 +296,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
 
 async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType<Scenario["setup"]> {
   const workspaceId = "ws-mcp-ui-webhooks-delete-integration";
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const originRegistry: Pick<OriginRegistryPort, "isAllowedEgressTarget"> = { isAllowedEgressTarget: async () => true };
   let idCounter = 0;
