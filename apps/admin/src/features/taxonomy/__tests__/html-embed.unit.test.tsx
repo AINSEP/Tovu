@@ -7,7 +7,8 @@ import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";
-import { TAXONOMY_DICT } from "../taxonomy-i18n";
+
+import { tTaxonomy } from "@/lib/i18n-common";
 import { FORMS_DICT } from "../../forms/forms-i18n";
 
 vi.mock("@/hooks/use-admin-locale.hooks", async (importOriginal) => ({
@@ -48,7 +49,7 @@ describe("taxonomy Copy HTML embed", () => {
 
   it("translates all new strings in every supported locale", () => {
     for (const locale of Object.keys(FORMS_DICT)) {
-      for (const key of ["Copy HTML embed", "Copied!", "Could not copy embed"]) expect(TAXONOMY_DICT[locale]?.[key], `${locale}:${key}`).toBeTruthy();
+      for (const key of ["Copy HTML embed", "Copied!", "Could not copy embed"]) expect((tTaxonomy.dictionary as Record<string, Record<string, string>>)[locale]?.[key], `${locale}:${key}`).toBeTruthy();
     }
   });
 });

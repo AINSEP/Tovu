@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { TAXONOMY_DICT, t } from "../taxonomy-i18n";
+import { tTaxonomy as t } from "../../../lib/i18n-common";
+
+const TAXONOMY_DICT = t.dictionary as Record<string, Record<string, string>>;
 
 /**
  * @file `TAXONOMY_DICT` cross-locale coverage — same idiom as

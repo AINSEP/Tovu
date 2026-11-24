@@ -13,7 +13,7 @@ import {
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useTaxonomyHtmlEmbed } from "./use-taxonomy-html-embed.hooks";
-import { t as translate } from "../taxonomy-i18n";
+import { tTaxonomy as translate } from "../../../lib/i18n-common";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-port.hooks";
 
