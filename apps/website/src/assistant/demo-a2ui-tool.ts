@@ -1,6 +1,7 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import {
   createLabCatalog,
+  parseAgentToRendererMessage,
   type ActionMessagePayload,
   type AgentToRendererMessage,
 } from "@jini-ai/protocol/a2ui";
@@ -174,7 +175,7 @@ function createDemoA2uiHandler(surfaces: AssistantSurfaceDeps): ToolHandler {
       // Jini's session validates every outgoing message by this tool's id and closes the exchange
       // on abort and on every return. The exchange id IS the surface id (A2UI correlates by its own
       // `surfaceId`; `a2ui-actions-route.ts` cross-checks exactly this equality).
-      return withA2uiExchange({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, signal: ctx.signal,
+      return withA2uiExchange({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, signal: ctx.signal, parseAgentMessage: parseAgentToRendererMessage,
         run: async ({ surfaceId, emit: emitA2ui, receive }) => {
         await emitA2ui({
           version: "v1.0",

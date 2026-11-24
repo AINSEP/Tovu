@@ -29,6 +29,7 @@
     "@cfworker/json-schema": "^4.1.1",
     "@jini-ai/agent-plugins": "^0.7.3-next.2",
     "@jini-ai/agent-runtime": "^0.7.3-next.2",
+    "@jini-ai/analytics": "^0.7.3-next.2",
     "@jini-ai/chat": "^0.7.3-next.2",
     "@jini-ai/core": "^0.7.3-next.2",
     "@jini-ai/daemon": "^0.7.3-next.2",

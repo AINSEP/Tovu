@@ -1,4 +1,4 @@
-import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
@@ -162,7 +162,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(record) });
     });
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -191,7 +191,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
-    if (result.applied) invalidateMediaAccessEvidence({ owner: this });
+    if (result.applied) mediaAccessEvidence.invalidate({ owner: this });
     return result;
   }
 
@@ -215,7 +215,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("id", "=", required.id)
         .execute()
     );
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /**
@@ -248,7 +248,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       // when the scoped delete above actually removed the row it projects.
       if (removed.length > 0) await this.search.remove({ kernel: this.kernel, postId: required.id });
     });
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
@@ -352,7 +352,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
   async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     try { return await this.kernel.transaction(fn); }
-    finally { invalidateMediaAccessEvidence({ owner: this }); }
+    finally { mediaAccessEvidence.invalidate({ owner: this }); }
   }
 }
 

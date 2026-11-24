@@ -2,7 +2,8 @@ import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
-import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
+import type { VisitorConfirmations } from "./visitor-confirmations.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 
 
 export interface VisitorExecutionPorts {

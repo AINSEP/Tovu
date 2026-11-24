@@ -42,10 +42,6 @@ export type {
   SiteAssistantCallerClass,
 } from "./site/capability-registry.js";
 
-// Only human confirmation directives remain public. Machine page calls use the isolated
-// frontend session transport and never become chat transcript directives.
-export type { ClientDirective } from "./site/client-directives.js";
-
 export { resolveBoundedHistory } from "./site/history.js";
 export type { SiteAssistantHistoryTurn } from "./site/history.js";
 

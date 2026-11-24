@@ -1,8 +1,11 @@
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 
-import { a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "@jini-ai/daemon/http";
+import { parseRendererToAgentMessage } from "@jini-ai/protocol/a2ui";
+import { a2uiActionsRoutes } from "@jini-ai/daemon/http";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
+import { surfaceRouteHost } from "./surface-route-host.js";
+import { mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 /**
@@ -75,45 +78,23 @@ export interface A2uiActionsRouteDeps {
   surfaceExchanges: SurfaceExchangeStore;
 }
 
-function readPrincipalId(req: Request): string | undefined {
-  const value = req.get(RUN_PRINCIPAL_HEADER);
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-// Body validation (non-empty exchangeId, A2UI schema, the surfaceId/exchangeId cross-check),
-// a2ui-channel delivery and the 409 body are Jini's (`@jini-ai/daemon/http`'s `readA2uiAction`,
-// `deliverA2uiAction`, `a2uiNotPendingBody`) — shared with the admin server's BYOK-first hop so
-// both refuse the same malformed posts. This file keeps only the Express shell.
+// The endpoint itself — the principal header check, body validation (non-empty exchangeId, A2UI
+// schema, the surfaceId/exchangeId cross-check), a2ui-channel delivery and the 202/400/401/409
+// answers — is Jini's (`@jini-ai/daemon/http`'s `a2uiActionsRoutes`), shared with the admin
+// server's BYOK-first hop so both refuse the same malformed posts. This file only injects what Jini
+// does not own (the principal header name and the protocol's parser) and mounts the route on Express.
 
 /**
- * Registers `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`.
+ * Mounts `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`, at this position in its middleware order.
  *
  * @complexity O(1) request handling; the actual delivery cost is `SurfaceExchangeStore.deliver`'s
  * own, which is O(1) (a `Map` lookup).
  * @overallScore 100
  */
 export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
-  app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response) => {
-    const principalId = readPrincipalId(req);
-    if (!principalId) {
-      res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
-      return;
-    }
-
-    const action = readA2uiAction({ rawBody: req.body });
-    if (!action.ok) {
-      res.status(400).json(action.error);
-      return;
-    }
-
-    const delivered = deliverA2uiAction({ store: deps.surfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
-    if (!delivered.ok) {
-      res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
-      return;
-    }
-
-    // Deliberately not the tool's eventual result — the agent's own call is what returns that, to
-    // the model, where it belongs. Same posture as `mcp-ui-tool-calls-route.ts`'s Shape 1.
-    res.status(202).json({ delivered: true });
-  });
+  mountJiniRoutes({ app, routes: a2uiActionsRoutes({
+    path: A2UI_ACTIONS_PATH,
+    host: surfaceRouteHost(),
+    deps: { surfaceExchanges: deps.surfaceExchanges, principalHeader: RUN_PRINCIPAL_HEADER, parseRendererMessage: parseRendererToAgentMessage },
+  }) });
 }

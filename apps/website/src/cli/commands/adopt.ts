@@ -14,7 +14,7 @@ import {
   type SiteMarkerClassification,
   type SiteRepairPlan,
 } from "../../platform/site-dir/repair-site.js";
-import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 
 /**
  * @file `CLI_ADOPT` — `tovu adopt <dir>`: give an EXISTING, working-but-marker-less site directory
@@ -168,7 +168,7 @@ async function adoptKeyOnlyMeta({ target, dryRun }: { target: string; dryRun: bo
  * @complexity O(1) beyond `repairSite`/`planRepairSite`'s own bounded cost.
  */
 export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void> {
-  const target = resolveInstallDirTarget({ dirArg: input.dir });
+  const target = resolveDirectoryTarget({ dirArg: input.dir });
   const markers = classifySiteMarkers({ target });
 
   if (markers.state === "complete") {

@@ -4,7 +4,7 @@ import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorExecutionPorts } from "../visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "../visitor-tool-presentation.js";
 import { parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
-import type { ToolConfirmationDirective } from "../visitor-confirmations.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { confirmationFixture } from "./visitor-confirmations.fixture.js";
 
 const policyFor = (mode: string) => parseVisitorToolPolicy({ value: { version: 1, tools: { list_categories: { mode } } } });

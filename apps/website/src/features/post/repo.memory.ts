@@ -1,4 +1,4 @@
-import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
@@ -92,7 +92,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   async save(record: PostRecord): Promise<void> {
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
     const index = this.rows.findIndex((row) => row.id === record.id);
     if (index === -1) {
       this.rows.push(record);
@@ -119,7 +119,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     if (index === -1 || this.rows[index]?.version !== required.ifVersion) return { applied: false };
 
     this.rows[index] = required.record;
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
     return { applied: true };
   }
 
@@ -143,7 +143,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const row = this.rows[index];
     if (row === undefined) return;
 
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
     this.rows[index] = {
       ...row,
       deletedAt: required.deletedAt,
@@ -162,7 +162,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    * @complexity O(n + r) over the rows and revisions this adapter holds.
    */
   async hardDelete(required: { workspaceId: string; id: string }): Promise<void> {
-    invalidateMediaAccessEvidence({ owner: this });
+    mediaAccessEvidence.invalidate({ owner: this });
     this.rows = this.rows.filter(
       (row) => !(row.workspaceId === required.workspaceId && row.id === required.id)
     );
@@ -254,7 +254,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       this.autosaves = autosavesSnapshot;
       throw error;
     } finally {
-      invalidateMediaAccessEvidence({ owner: this });
+      mediaAccessEvidence.invalidate({ owner: this });
     }
   }
 }

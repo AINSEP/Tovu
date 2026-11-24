@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { openSqliteFileKernel } from "../../kernel/index.js";
 import { journalKernel } from "../database-journal-db.js";
 import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 /**
  * @file The journal on its kernel (SQLite by design, so no dialect matrix): files the former Drizzle
@@ -54,7 +55,7 @@ test("a new file gets all three tables and reopening it is a no-op", async (t) =
     const ledger = await new SqliteDatabaseLedgerRepo({ db: again, siteId: "s" }).query({ limit: 5 });
     assert.deepEqual(ledger.items.map((row) => row.id), ["l1"]);
     assert.equal(await new SqliteMigrationRunsRepo({ db: again, siteId: "s" }).findNonTerminalForSite("s"), null);
-    assert.deepEqual(await new SqliteRestorePointsRepo({ db: again, siteId: "s" }).list(), []);
+    assert.deepEqual(await new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: again, siteId: "s" }).list(), []);
     const [mode] = await again.query<{ journal_mode: string }>(sql`PRAGMA journal_mode`);
     assert.equal(mode?.journal_mode, "wal");
   } finally {
@@ -125,7 +126,7 @@ test("journal writes inside a failed kernel transaction roll back together", asy
   try {
     const ledger = new SqliteDatabaseLedgerRepo({ db: kernel, siteId: "s" });
     const runs = new SqliteMigrationRunsRepo({ db: kernel, siteId: "s" });
-    const points = new SqliteRestorePointsRepo({ db: kernel, siteId: "s" });
+    const points = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: kernel, siteId: "s" });
     await assert.rejects(
       kernel.transaction(async () => {
         await points.save({ restorePointId: "rp-1", idempotencyKey: "k1", trigger: "manual", createdAt: "2026-07-01T00:00:00.000Z", createdBy: "u1" });
@@ -146,8 +147,8 @@ test("journal writes inside a failed kernel transaction roll back together", asy
 test("restore-point flow: save with defaults, dedupe by idempotency key per site, list newest-first", async (t) => {
   const kernel = journalKernel({ filePath: tempJournalPath(t) });
   try {
-    const points = new SqliteRestorePointsRepo({ db: kernel, siteId: "s" });
-    const other = new SqliteRestorePointsRepo({ db: kernel, siteId: "other" });
+    const points = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: kernel, siteId: "s" });
+    const other = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db: kernel, siteId: "other" });
     await points.save({ restorePointId: "rp-1", idempotencyKey: "k1", trigger: "manual", createdAt: "2026-07-01T00:00:00.000Z", createdBy: "u1" });
     await points.save({
       restorePointId: "rp-2",

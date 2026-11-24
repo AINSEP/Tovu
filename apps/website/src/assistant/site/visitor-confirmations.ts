@@ -3,10 +3,9 @@ import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
 /** Visitor-only binding of Jini's bound confirmations. Never shares the admin exchange store. */
 import type { SurfaceExchangeStore } from "@jini-ai/core";
 import { createBoundConfirmations } from "@jini-ai/daemon/surface-exchanges";
-import type { ClientDirective } from "./client-directives.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 
 export const VISITOR_CONFIRMATION_WAIT_MS = 60_000;
-export type ToolConfirmationDirective = Extract<ClientDirective, { kind: "tool_confirmation" }>;
 export interface VisitorConfirmationRequest {
   readonly binding: { readonly runId: string; readonly executionId: string; readonly ip: string; readonly owner?: FrontendSessionOwner };
   readonly title: string;

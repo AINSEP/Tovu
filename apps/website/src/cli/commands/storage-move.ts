@@ -1,5 +1,5 @@
 import { ValidationError } from "../../platform/site-dir/index.js";
-import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { moveSiteStorage, type MoveSiteStorageResult } from "#src/server/runtime/composition/move-site-storage";
 import { readConnectionStringFromUser } from "./init.js";
 
@@ -50,7 +50,7 @@ async function resolveMoveConnection(input: RunStorageMoveCommandInput): Promise
  */
 export async function runStorageMoveCommand(input: RunStorageMoveCommandInput): Promise<MoveSiteStorageResult> {
   if (input.to !== "postgres") throw new ValidationError({ message: "storage move: --to must be postgres (the only target a PGlite site moves to)" });
-  const siteDir = resolveInstallDirTarget({ dirArg: input.dir });
+  const siteDir = resolveDirectoryTarget({ dirArg: input.dir });
   // Default ports are wired here, at the command's composition edge; tests inject their own.
   const { write = writeLine, moveStorage = moveSiteStorage } = input;
   const { connectionString, secretRef } = await resolveMoveConnection(input);

@@ -8,7 +8,9 @@ import { createTracker, redactedError } from "@jini-ai/diagnostics/observability
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/core/contracts/ai-trace";
 import type { getEffective } from "@jini-ai/core/settings";
-import { DaemonCoreError, daemonCoreSnapshot, type DaemonCoreRequest, type DaemonDurableRunStore, type DaemonCoreSnapshot, daemonToolConsentSnapshot, type DaemonToolConsentSnapshot, type DaemonCliConsentTarget, type DaemonCliConsentAllow } from "#src/assistant/daemon-core-protocol";
+import { DaemonCoreError, daemonCoreSnapshot, type DaemonDurableRunStore, type DaemonCoreSnapshot, type DaemonSettingsNamespace } from "#src/assistant/daemon-core-protocol";
+import { daemonToolConsentSnapshot } from "@jini-ai/daemon/core-rpc-schema";
+import type { DaemonCoreRequest, DaemonToolConsentSnapshot, DaemonCliConsentTarget, DaemonCliConsentAllow } from "@jini-ai/core/contracts/site/daemon-core-rpc";
 
 export interface DaemonCoreClient {
   bootstrap(): Promise<DaemonCoreSnapshot>;
@@ -149,7 +151,7 @@ function createDaemonTracker(send: ReturnType<typeof createDaemonTelemetry>["sen
 function createDaemonSettingsReader(call: ReturnType<typeof createDaemonCoreTransport>["call"]): typeof getEffective {
   // The repo stays on this side of the RPC; only the setting coordinate crosses it.
   return async ({ deps: _deps, ...input }) => {
-    const value = await call({ operation: "getEffective", input: input as Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] });
+    const value = await call({ operation: "getEffective", input: input as Extract<DaemonCoreRequest<DaemonSettingsNamespace>, { operation: "getEffective" }>["input"] });
     if (value === null) return null;
     z.object({ value: z.unknown(), sourceLayer: z.string() }).parse(value);
     return value as Awaited<ReturnType<typeof getEffective>>;

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { confirmSiteAssistantTool, parseToolConfirmation, type ToolConfirmation } from '../tool-confirmation';
+import { confirmSiteAssistantTool, parseToolConfirmation } from '../tool-confirmation';
+import type { ToolConfirmationDirective } from '@jini-ai/core/contracts/site/client-directives';
 import { createSiteAssistantTransport } from '../site-assistant-transport';
 
-const directive: ToolConfirmation = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search posts.' };
+const directive: ToolConfirmationDirective = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search posts.' };
 const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
 test('only a bounded typed server directive narrows; text, malformed data and executable objects do not', () => {
@@ -51,7 +52,7 @@ test('two widget instances supply their own live confirmation credentials', asyn
 test('live challenges stay out of events, completed transcripts and the next provider history', async () => {
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   const response = new Response(new ReadableStream<Uint8Array>({ start(controller) { stream = controller; } }));
-  const prompts: Array<ToolConfirmation | null> = [];
+  const prompts: Array<ToolConfirmationDirective | null> = [];
   const events: unknown[] = [];
   let done!: (events: unknown[]) => void;
   const finished = new Promise<unknown[]>(resolve => { done = resolve; });
@@ -71,10 +72,10 @@ test('live challenges stay out of events, completed transcripts and the next pro
 });
 
 test('without a renderer a challenge remains non-persistent, and late challenges after end stay silent', async () => {
-  for (const onToolConfirmation of [undefined, (_value: { directive: ToolConfirmation | null }) => {}]) {
+  for (const onToolConfirmation of [undefined, (_value: { directive: ToolConfirmationDirective | null }) => {}]) {
     let done!: () => void;
     const finished = new Promise<void>(resolve => { done = resolve; });
-    const prompts: Array<ToolConfirmation | null> = [];
+    const prompts: Array<ToolConfirmationDirective | null> = [];
     const transport = createSiteAssistantTransport({}, { onToolConfirmation: onToolConfirmation && (({ directive: value }) => prompts.push(value)), fetch: async () => new Response(
       frame('text', { delta: 'Hello.' }) + frame('client_directive', null) + frame('client_directive', 'approved') +
       frame('client_directive', { ...directive, challengeId: 'malformed' }) + frame('client_directive', directive) + frame('end', {}) + frame('client_directive', directive)) });

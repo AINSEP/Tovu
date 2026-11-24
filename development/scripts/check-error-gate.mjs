@@ -49,8 +49,8 @@ export const sanctionedModules = [];
  */
 export const pureHelpers = [
   { name: 'resolveSitePath', module: 'features/site-inspection/site-path-policy' },
-  { name: 'isLoopbackHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
-  { name: 'resolveBindHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
+  { name: 'isLoopbackHost', module: '@jini-ai/devops/local-dev' },
+  { name: 'resolveBindHost', module: '@jini-ai/devops/local-dev' },
   { name: 'isLocalAdminUrl', module: 'apps/website/src/server/runtime/boot/local-owner-signin' },
   { name: 'isNonArrayRecord', module: '@jini-ai/core/records' },
 ];

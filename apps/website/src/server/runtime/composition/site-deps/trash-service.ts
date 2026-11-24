@@ -5,7 +5,7 @@ import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
-import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
@@ -36,7 +36,7 @@ export function composeTrashService(required: ComposeTrashServiceRequired, _opti
     // Trash flips post and widget markers through the kernel, past the repositories that clear media
     // access evidence on a save. Cleared after commit, so a read during the transaction cannot keep old
     // evidence. Cost: O(256) map clear per Trash action, then one rescan per asset on its next request.
-    transaction: ({ work }) => trashTransaction(work).finally(() => invalidateMediaAccessEvidence({ owner: postRepo() })),
+    transaction: ({ work }) => trashTransaction(work).finally(() => mediaAccessEvidence.invalidate({ owner: postRepo() })),
     entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
   }, {
     retentionDays: TRASH_RETENTION_DAYS,

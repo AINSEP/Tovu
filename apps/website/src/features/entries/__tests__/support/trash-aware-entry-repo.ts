@@ -1,6 +1,6 @@
 import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 
-import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 
 /**
  * The memory twin of the entry repo, bound the way composition binds it (`memory-deps/slices/repos.ts`): a write that settles
@@ -8,5 +8,5 @@ import { invalidateMediaAccessEvidence } from "@jini-ai/cms/media/site/access-ev
  * so the binding stays in one place.
  */
 export function trashAwareEntryRepo(_optional = {}): TrashAwareInMemoryEntryRepo {
-  return new TrashAwareInMemoryEntryRepo({ onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo }) });
+  return new TrashAwareInMemoryEntryRepo({ onWriteSettled: ({ repo }) => mediaAccessEvidence.invalidate({ owner: repo }) });
 }

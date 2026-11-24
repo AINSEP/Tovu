@@ -15,7 +15,7 @@ import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-di
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
-import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
@@ -206,7 +206,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
 
   warnIfLegacyEnvVarsIgnored();
 
-  const target = resolveInstallDirTarget({ dirArg: input.dir });
+  const target = resolveDirectoryTarget({ dirArg: input.dir });
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv({ target: target });

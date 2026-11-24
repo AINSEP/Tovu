@@ -1,6 +1,7 @@
-import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import { createConsoleLogger, type Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { processDomainOutbox } from "@jini-ai/infra/events/domain-outbox";
+import { createNodeOutboxScheduler } from "@jini-ai/infra/events/outbox";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 
 /**
@@ -29,6 +30,18 @@ import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
  */
 
 /**
+ * The host-owned timer scheduler and error sink every outbox drain here runs with (inline after a
+ * route write and the background drainer alike). The generic worker owns neither: the scheduler
+ * defers and `unref`s its timers, and the logger writes the unprefixed console line the site has
+ * always emitted for a failed delivery or drain.
+ *
+ * @example const { scheduler, logger } = createOutboxHostServices({});
+ */
+export function createOutboxHostServices(_required: Record<string, never>, _optional = {}) {
+  return { scheduler: createNodeOutboxScheduler({}), logger: createConsoleLogger({ prefix: "" }) };
+}
+
+/**
  * Claims due outbox rows and attempts to publish each to the event bus, marking delivered on
  * success or scheduling a backed-off retry (or permanent exclusion past `MAX_OUTBOX_ATTEMPTS`,
  * see this file's header doc) on failure. See Jini's `deliver` for a row claimed more
@@ -44,5 +57,5 @@ export async function processOutbox(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
   optional: { batchSize?: number; random?: () => number; deliveryTimeoutMs?: number } = {}
 ): Promise<number> {
-  return processDomainOutbox(required, { ...optional, retryPolicyForEvent: outboxRetryPolicyForEvent });
+  return processDomainOutbox({ ...required, ...createOutboxHostServices({}) }, { ...optional, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }

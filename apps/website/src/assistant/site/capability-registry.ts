@@ -51,7 +51,7 @@ import { createVisitorPageCapabilities, VISITOR_PAGE_CAPABILITIES, type VisitorP
  * a translator that calls `invoke()` with the right `caller` value — it requires no change to the
  * capability list at all, which is REQ-0's success test.
  */
-import type { ClientDirective } from "./client-directives.js";
+import type { ClientDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
 import { createVisitorExecutor, type VisitorCapabilityContract, type VisitorExecutionPorts, type VisitorExecutor } from "./visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "./visitor-tool-presentation.js";

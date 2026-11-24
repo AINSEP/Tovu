@@ -431,8 +431,8 @@ const GUARDED_MODULES = [
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
 // `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
 // identical to `serve.ts`: both call `createSiteRouteDeps` (`server/runtime/composition/deps.ts`) and reach
-// `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
-// `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
+// `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `@jini-ai/platform/fs`'s
+// `resolveDirectoryTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).
 // `deps.ts`/`app.ts` re-pathed 2026-08-27 (apps/website restructure Phase 1 step 6): both moved to
 // `apps/website/src/server/runtime/composition/` — leaving the old literal here would have silently dropped
@@ -445,7 +445,7 @@ const COMPOSITION_ROOTS = [
   "^apps/website/src/server/runtime/composition/",
   // `adopt.ts` joined 2026-09-06 for the identical reason `export.ts` did: it is one more CLI
   // composition root of the same shape, reaching `site-dir/repair-site.ts`'s
-  // `repairSite`/`planRepairSite`/`classifySiteMarkers` and `site-dir/resolve-install-dir-target.ts`
+  // `repairSite`/`planRepairSite`/`classifySiteMarkers`
   // directly — the same boot-only files `init.ts`/`serve.ts` already reach past the barrel, which
   // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
   // `serve-listen.ts` is the `app.listen` half split out of `serve.ts` (2026-11: serveBootedSite under 50
@@ -661,7 +661,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   //    contract test building fixtures against a domain's real tool-registrations.ts/agent-tools.ts
   //    seam), not a barrel change.
   //  - site-dir: 2 warnings resolved by adding cli/commands/export.ts to COMPOSITION_ROOTS — it is
-  //    architecturally identical to serve.ts (same bootSiteDir/resolveInstallDirTarget reach). Its
+  //    architecturally identical to serve.ts (same bootSiteDir/resolveDirectoryTarget reach). Its
   //    no-deep-value-imports-from-db-sqlite:site-dir companion warning (1, schema-guard.ts) is
   //    untouched by this promotion — companion rules stay warn until their own triage.
   "features/widgets/resolvers",
@@ -729,7 +729,6 @@ const REVIEWED_IMPORT_PAIRS = [
   ["server/inbound/public-http/middleware/theme-preview-switcher.ts", "features/theme/preview-switcher-html.ts"],
   ["server/inbound/public-http/middleware/theme-preview-switcher.ts", "features/theme/preview-switcher.ts"],
   ["cli/commands/plugin/install.ts", "platform/site-dir/boot-site-dir.ts"],
-  ["cli/commands/storage-move.ts", "platform/site-dir/resolve-install-dir-target.ts"],
   ["server/runtime/boot/content-db-schema-guard.ts", "platform/site-dir/read-applied-schema-identity.ts"],
   ["server/runtime/boot/content-db-schema-guard.ts", "platform/site-dir/schema-guard.ts"],
   ["server/runtime/lifecycle/local-site-process.ts", "platform/site-dir/read-site-dir.ts"],

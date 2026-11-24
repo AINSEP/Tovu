@@ -1,9 +1,7 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 
-/** Visitor confirmation is a live transport directive, never a transcript/history event. */
-export interface ToolConfirmation {
-  readonly kind: 'tool_confirmation'; readonly challengeId: string; readonly title: string; readonly summary: string;
-}
+// Visitor confirmation is a live transport directive, never a transcript/history event.
 
 /** Keep field bounds explicit without folding four decisions into the directive parser. */
 function boundedText({ value, max }: { value: unknown; max: number }, _options = {}): boolean {
@@ -11,14 +9,14 @@ function boundedText({ value, max }: { value: unknown; max: number }, _options =
 }
 
 /** Narrow only the server directive channel. Model text and tool output never call this parser. */
-export function parseToolConfirmation({ value }: { value: unknown }, _options = {}): ToolConfirmation | null {
+export function parseToolConfirmation({ value }: { value: unknown }, _options = {}): ToolConfirmationDirective | null {
   if (!value || typeof value !== 'object') return null;
   const directive = value as Record<string, unknown>;
   if (directive.kind !== 'tool_confirmation') return null;
   if (typeof directive.challengeId !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(directive.challengeId)) return null;
   if (!boundedText({ value: directive.title, max: 200 })) return null;
   if (!boundedText({ value: directive.summary, max: 240 })) return null;
-  return directive as unknown as ToolConfirmation;
+  return directive as unknown as ToolConfirmationDirective;
 }
 
 /** Only UI click handlers call this relative, same-origin route. No automatic retry of approvals.

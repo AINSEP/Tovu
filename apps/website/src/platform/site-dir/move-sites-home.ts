@@ -4,7 +4,7 @@ import path from "node:path";
 import { assertDatabaseStopped, inspectStoppedDatabase } from "../db/kernel/stopped-database.js";
 export { assertDatabaseStopped, inspectStoppedDatabase } from "../db/kernel/stopped-database.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
-import { withFileLock, moveDirectoryVerified } from "@jini-ai/platform/fs";
+import { withFileLock, moveDirectoryUnderLeases, moveDirectoryVerified } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { sitesProjectReferences } from "./sites-project-references.js";
@@ -193,30 +193,28 @@ function admitStoppedSites({ plans }: { plans: readonly MovePlan[] }, { onRunnin
 }
 
 /** Move one stopped site under its target creation lock while both identities are reserved.
+ * The lock, claim and release sequence lives in `@jini-ai/platform/fs`; this binds the site's running lease,
+ * its databases' stopped-ness, the workspace claims and the operator copy.
  * @throws A site or target claimed by another app, a database admission error, or a failed verified move.
  * @complexity The site's bytes plus SQLite verification and catalog I/O.
  */
 async function moveOneSite({ plan, workspace }: { plan: MovePlan; workspace: SitesWorkspace }, ports: SiteRelocationPorts): Promise<void> {
-  await withFileLock({ lockPath: `${plan.to}.creation.lock`, run: async () => {
-    const live = workspace.running({ path: plan.from }).peek({});
-    if (live) throw new Error(`Site is running in ${live.app}: ${plan.from}. Stop it before moving it.`);
-    for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
-    const reservation = workspace.claim({ path: plan.from, app: "Migration" });
-    if (!reservation.acquired) throw new Error(`Another app started this site: ${plan.from}`);
-    let targetToken: string | undefined;
-    try {
-      const targetReservation = workspace.claim({ path: plan.to, app: "Migration" });
-      if (!targetReservation.acquired) throw new Error(`Another app started the move target: ${plan.to}`);
-      targetToken = targetReservation.record.token;
-      fs.mkdirSync(workspace.home({}), { recursive: true });
-      relocateSite({ plan, workspace }, ports);
-    } finally {
-      // Release at the new path only after the move, so cleanup never recreates the source.
-      // Leases now live in app-data, so release both identities even after the source moves.
-      workspace.running({ path: plan.from }).release({ token: reservation.record.token });
-      if (targetToken) workspace.running({ path: plan.to }).release({ token: targetToken });
-    }
-  } }, { createParent: true, staleMs: Infinity });
+  await moveDirectoryUnderLeases({ from: plan.from, to: plan.to, ports: {
+    assertIdle: ({ from }) => {
+      const live = workspace.running({ path: from }).peek({});
+      if (live) throw new Error(`Site is running in ${live.app}: ${from}. Stop it before moving it.`);
+      for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
+    },
+    claim: ({ path: claimed }) => {
+      const reservation = workspace.claim({ path: claimed, app: "Migration" });
+      return reservation.acquired ? { acquired: true, token: reservation.record.token } : { acquired: false };
+    },
+    release: ({ path: released, token }) => workspace.running({ path: released }).release({ token }),
+    prepareDestination: () => { fs.mkdirSync(workspace.home({}), { recursive: true }); },
+    relocate: () => relocateSite({ plan, workspace }, ports),
+    sourceClaimRefused: ({ path: refused }) => new Error(`Another app started this site: ${refused}`),
+    targetClaimRefused: ({ path: refused }) => new Error(`Another app started the move target: ${refused}`),
+  } });
 }
 
 type SiteRelocationPorts = Pick<SitesMovePorts, "relocateDirectory" | "verifyDatabase"> & Pick<SitesMovePlanOptions, "projectsPaths">;

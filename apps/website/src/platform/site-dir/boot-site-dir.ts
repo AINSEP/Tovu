@@ -15,7 +15,7 @@ import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
 import { completeKeyOnlySiteMeta } from "./key-only-site-meta.js";
 import { readSiteDir } from "./read-site-dir.js";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { resolveWorkspace } from "./resolve-workspace.js";
 import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard.js";
 import { parseSiteStorage } from "./site-storage.js";
@@ -119,7 +119,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, { composed }: { 
  */
 export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
   const { dir, deps } = required;
-  const target = resolveInstallDirTarget({ dirArg: dir });
+  const target = resolveDirectoryTarget({ dirArg: dir });
 
   // A dev site's `.site-meta.json` may hold only its site-key fields (`npm run dev` mints that
   // shape); complete it from the db first, or `readSiteDir` refuses a site that serves fine in dev.

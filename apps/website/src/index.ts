@@ -39,6 +39,7 @@ import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-liste
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 // The parent-watchdog doc (why, checks, escape hatch, platform posture) moved with the code.
 import { startOwnParentWatchdog } from "@jini-ai/sidecar";
+import { formatParentWatchdogEvent } from "./server/runtime/boot/parent-watchdog-report.js";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
@@ -80,12 +81,13 @@ const devScheme = deriveDevScheme({ tlsActive: devTls.active });
 startOwnParentWatchdog({
   env: process.env,
   envNames: { disable: "TOVU_DISABLE_PARENT_WATCHDOG", devSupervisorPid: "TOVU_DEV_SUPERVISOR_PID" },
-  logTag: "[index]",
   ppid: () => process.ppid,
   signalZero: (pid) => { process.kill(pid, 0); },
   exit: (code) => { process.exit(code); },
-  log: (line) => console.log(line),
-  error: (line) => console.error(line),
+  report: (event) => {
+    const { stream, line } = formatParentWatchdogEvent({ event });
+    if (stream === "log") console.log(line); else console.error(line);
+  },
   setInterval: (callback, ms) => setInterval(callback, ms),
 });
 

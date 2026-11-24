@@ -8,6 +8,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { openDatabaseJournalDb } from "../database-journal-db.js";
 import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "@jini-ai/db/recovery/journal-repo.sql";
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 /**
  * @file ADR-041 §2/§4 — integration tests for the sidecar `ops/database-journal.db` schema +
@@ -31,7 +32,7 @@ test("migration runs clean: all 3 tables exist after openDatabaseJournalDb", asy
   try {
     const ledger = new SqliteDatabaseLedgerRepo({ db, siteId: "site-1" });
     const runs = new SqliteMigrationRunsRepo({ db, siteId: "site-1" });
-    const restorePoints = new SqliteRestorePointsRepo({ db, siteId: "site-1" });
+    const restorePoints = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db, siteId: "site-1" });
 
     // A missing table throws a SQLITE_ERROR synchronously from better-sqlite3 — issuing one real
     // (empty-result) query per table is a direct proof the migration actually created all three.
@@ -299,7 +300,7 @@ test("SqliteMigrationRunsRepo: markResolved targets only the given run id, leavi
 test("SqliteRestorePointsRepo: save + findByIdempotencyKey round-trips, and a second save under the same key is not required to be re-found under a different key", async () => {
   const { db, tmpDir } = openTempJournal();
   try {
-    const repo = new SqliteRestorePointsRepo({ db, siteId: "site-1" });
+    const repo = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db, siteId: "site-1" });
 
     await repo.save({
       restorePointId: "rp-1",
@@ -327,8 +328,8 @@ test("SqliteRestorePointsRepo: save + findByIdempotencyKey round-trips, and a se
 test("SqliteRestorePointsRepo: list() renders newest-first and is strictly site-scoped", async () => {
   const { db, tmpDir } = openTempJournal();
   try {
-    const siteA = new SqliteRestorePointsRepo({ db, siteId: "site-a" });
-    const siteB = new SqliteRestorePointsRepo({ db, siteId: "site-b" });
+    const siteA = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db, siteId: "site-a" });
+    const siteB = new SqliteRestorePointsRepo({ onPruneWarning: warnRestorePointPruneFailed, db, siteId: "site-b" });
 
     await siteA.save({
       restorePointId: "rp-a1",

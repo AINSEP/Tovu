@@ -1160,11 +1160,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/platform/site-dir/resolve-install-dir-target.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/platform/site-dir/site-key-dependent-data.ts",
     "rule": "catch-reads-error",
     "value": 2

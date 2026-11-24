@@ -2,6 +2,7 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
+import { parseRendererToAgentMessage } from '@jini-ai/protocol/a2ui';
 import { restoreSurface, a2uiNotPendingBody, deliverA2uiAction, isTypedSurfaceAnswer, readA2uiAction } from '@jini-ai/daemon/http';
 import { answerSurface } from '#src/assistant/surface-answer';
 import { nodeIntervalScheduler } from '../jini-routes.js';
@@ -422,7 +423,7 @@ function tryLocalMcpUiDelivery(
  * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
  */
 async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const action = readA2uiAction({ rawBody: req.body });
+  const action = readA2uiAction({ rawBody: req.body, parseRendererMessage: parseRendererToAgentMessage });
   if (!action.ok) {
     res.status(400).json(action.error);
     return;

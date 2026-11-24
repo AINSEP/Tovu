@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { SHARED_EXTENSION_CAPABILITIES } from "../../extension-capability-vocabulary.js";
+import { SHARED_EXTENSION_CAPABILITIES } from "@jini-ai/core/extension-capability-vocabulary";
 import { validateManifest } from "@jini-ai/plugins/host";
 
 /**
@@ -25,7 +25,7 @@ import { validateManifest } from "@jini-ai/plugins/host";
  */
 
 const SHARED_IMPORT_PATTERN =
-  /import\s*\{[^}]*SHARED_EXTENSION_CAPABILITIES[^}]*\}\s*from\s*["']\.\.\/\.\.\/contracts\/core\/extension-capability-vocabulary\.js["'];?/;
+  /import\s*\{[^}]*SHARED_EXTENSION_CAPABILITIES[^}]*\}\s*from\s*["']@jini-ai\/core\/extension-capability-vocabulary["'];?/;
 
 function readSiblingSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");

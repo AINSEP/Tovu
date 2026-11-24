@@ -21,7 +21,6 @@ import type { JournalDatabase } from '@jini-ai/db/recovery/journal-kernel';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { SqliteDatabaseIntrospectionAdapter } from '#src/platform/db/sqlite/database-introspection-adapter.sqlite';
 import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '@jini-ai/db/recovery/journal-repo.sql';
-import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { SqliteChangeSetRepo } from '#src/platform/db/sqlite/change-set-repo.sqlite';
 import { SqliteEntryRefsRepo } from '#src/platform/db/sqlite/entry-refs-repo.sqlite';
 import { SqliteOriginSettingRepo } from '#src/platform/db/sqlite/origin-repo.sqlite';
@@ -57,6 +56,7 @@ import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';
 import { registeredSources, isLocalTovuHost, type RegisteredSiteSource } from './registered-sites.js';
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 const CHAT_SURFACE_DESCRIPTION = "Chat UI surface, independent of site data.";
 
@@ -270,7 +270,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
       authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }), tokens: unavailable({ field: 'gatedMutations.tokens' }) }) },
     databaseLedgerRepo: new SqliteDatabaseLedgerRepo({ db: journal, siteId: workspaceId }),
     migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
-    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId, errorRedaction: TOVU_ERROR_REDACTION_OPTIONS }),
+    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId, onPruneWarning: warnRestorePointPruneFailed }),
   };
   return bag;
 }

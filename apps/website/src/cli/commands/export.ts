@@ -7,7 +7,7 @@ import { exportSite } from "../../features/site-export/index.js";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
-import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
@@ -135,7 +135,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   // boot step and with no `await` ahead of it, mirroring `index.ts`'s and `serve.ts`'s own ordering.
   (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
 
-  const target = resolveInstallDirTarget({ dirArg: input.dir });
+  const target = resolveDirectoryTarget({ dirArg: input.dir });
   const bootResult = await (optional.bootSiteDir ?? bootSiteDir)({ dir: target }, { workspaceId: input.workspaceId });
   // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
   let composedStore: SiteStore | undefined;

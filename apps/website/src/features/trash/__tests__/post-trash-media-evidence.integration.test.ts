@@ -9,7 +9,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { createPost } from "#src/features/post/index";
-import { getMediaAccessEvidenceCache } from "@jini-ai/cms/media/site/access-evidence";
+import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";
 
 /**
@@ -32,7 +32,7 @@ test("Trash hide and restore clear the media access evidence once they commit", 
   const workspaceId = boot.workspaceId;
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });
   const post = await deps.postRepo.findById({ workspaceId, id: "gated-post" });
-  const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo });
+  const cache = mediaAccessEvidence.getCache({ postRepo: deps.postRepo });
   const remember = () => cache.set("asset", { expiresAt: Number.MAX_SAFE_INTEGER, value: Promise.resolve({ byAsset: new Map(), opaqueGated: new Set() }) });
   const target = { workspaceId, entityType: POST_ENTITY_TYPE, entityId: "gated-post", at: new Date().toISOString() };
 
