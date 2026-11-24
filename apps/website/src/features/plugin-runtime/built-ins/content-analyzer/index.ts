@@ -18,9 +18,8 @@
  * code is definitionally not tampered (ADR Decision item 4).
  *
  * Architectural role:
- * Manifest + runtime source only. The pure scorer (`./analyze-content.ts`), its TipTap adapter
- * (`./tiptap-blocks.ts`), the summary writer (`./summary.ts`) and the worker entry (`./plugin.ts`)
- * hold all logic.
+ * Manifest + runtime source only. The pure scorer binding (`./analyze-content.ts`) and the worker entry (`./plugin.ts`) hold the
+ * host logic; the TipTap adapter and summary writer are `@jini-ai/cms/seo/content-analysis`.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
