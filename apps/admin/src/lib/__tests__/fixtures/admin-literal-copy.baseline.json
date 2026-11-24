@@ -411,53 +411,11 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/taxonomy/Taxonomy.tsx",
-      "line": 776,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/taxonomy/Taxonomy.tsx",
-      "line": 776,
-      "kind": "text",
-      "text": "&quot;:",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/taxonomy/Taxonomy.tsx",
-      "line": 831,
-      "kind": "aria-label",
-      "text": ", subcategory of",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/taxonomy/Taxonomy.tsx",
-      "line": 890,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/taxonomy/Taxonomy.tsx",
-      "line": 890,
-      "kind": "text",
-      "text": "&quot;:",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "components/DevicePreview/DevicePreviewToggle.tsx",
       "line": 48,
       "kind": "text",
       "text": "px",
       "reason": "Exact brand, protocol, unit or editor notation."
-    },
-    {
-      "file": "components/MediaPickerDialog/MediaPickerDialog.tsx",
-      "line": 149,
-      "kind": "text",
-      "text": "Cancel",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
     },
     {
       "file": "components/WidgetConfigFields/HtmlAttributeRows.tsx",
