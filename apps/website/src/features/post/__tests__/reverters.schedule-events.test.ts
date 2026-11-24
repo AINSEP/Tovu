@@ -7,7 +7,7 @@ import type {
   DomainEvent,
   OutboxPort,
 } from "@jini-ai/core/contracts/events";
-import { revertChangeSet } from "#src/contracts/core/commands/index";
+import { revertChangeSet } from "@jini-ai/cms/core/commands";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
 import type { PostRecord } from "../post.js";

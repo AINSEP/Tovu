@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_LOCALES } from '../../../../website/src/contracts/core/admin-locales';
+import { ADMIN_LOCALES } from '@tovu/contracts/admin-locales';
 import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { credentialDraftError, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';

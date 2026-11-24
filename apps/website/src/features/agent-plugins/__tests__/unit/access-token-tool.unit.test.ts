@@ -19,7 +19,7 @@ import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
 
 /**

@@ -1,4 +1,4 @@
-import { executeCommand } from "#src/contracts/core/commands/index";
+import { executeCommand } from "@jini-ai/cms/core/commands";
 import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";

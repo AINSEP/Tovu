@@ -30,7 +30,7 @@ import type { composeAgentPluginMcp } from "../../agent-plugin-service-ports.js"
 import type { NewsletterRouteDeps } from "../../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { CreateRouteDepsOptions } from "../create-route-deps-options.js";
-import type { MemoryClock, MemoryIdGen } from "../ports.js";
+import type { Clock, IdGenerator, IsoClock } from "@jini-ai/core/primitives";
 
 /** The in-memory root's route deps: the same type `createRouteDeps` returns. */
 export type MemoryRouteDeps = NewsletterRouteDeps & ByokToolSurfaceDeps;
@@ -46,9 +46,9 @@ export type MemoryRootContext = {
   routeDeps: () => MemoryRouteDeps;
   createSiteApp: MemoryRouteDeps["createSiteApp"];
   agentPluginMcp: ReturnType<typeof composeAgentPluginMcp>;
-  clock: MemoryClock;
+  clock: Clock & IsoClock;
   derivedPublicOrigin: string;
-  idGen: MemoryIdGen;
+  idGen: IdGenerator;
   inMemoryChatHistory: ReturnType<typeof createInMemoryChatHistory>;
   pluginActivationRepo: ReturnType<typeof followProviderActivations>;
   pluginExports: ReturnType<typeof createPluginExportRuntime>;

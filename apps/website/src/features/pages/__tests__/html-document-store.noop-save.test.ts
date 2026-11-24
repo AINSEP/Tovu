@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { type PostRepoPort } from "../../post/post.js";
 import { createPost } from "../../post/post-create.js";

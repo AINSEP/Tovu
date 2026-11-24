@@ -1,10 +1,10 @@
 /**
  * @file The `list` bound shared between `PublishHistoryStore`'s two implementations —
  * `InMemoryPublishHistoryStore` (`features/deployments/static-publish/publish-history.ts`) and
- * `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`). Lives here, in `core/`,
+ * `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`). Lives here, in `@tovu/contracts`,
  * not in either implementation's module tree: it is dialect-neutral policy, not storage logic.
- * `contracts/core` is the neutral layer both features and DB adapters may depend on without
- * depending on each other. `core-no-server-or-app-imports` keeps that direction one-way.
+ * The shared contracts package is the neutral layer both features and DB adapters may depend on without
+ * depending on each other, so that direction stays one-way.
  */
 
 /** Default `limit` for {@link PublishHistoryStore.list} when a caller does not specify one. */

@@ -18,7 +18,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
-import { InMemoryEventBus, processOutbox } from "../index.js";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "../outbox-worker.js";
 
 const T0 = "2026-11-05T00:00:00.000Z";
 const WS = "mail-restart-fixture";

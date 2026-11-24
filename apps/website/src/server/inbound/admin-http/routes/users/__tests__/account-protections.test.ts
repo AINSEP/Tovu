@@ -1,5 +1,5 @@
 import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { registerAdminUserListRoute } from "../list.js";
 import assert from "node:assert/strict";
 import test from "node:test";

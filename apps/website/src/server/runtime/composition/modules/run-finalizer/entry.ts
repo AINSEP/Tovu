@@ -14,15 +14,14 @@ import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node"
 import { agentCarriesOwnMemory } from "#src/assistant/agent-session-preset";
 import { type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
 import { runContentFromEvents, runEventsForSave } from "#src/contracts/core/assistant-run-events";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { verifyAttemptChildDead } from "#src/server/inbound/assistant/attempt-process-identity";
 
 import { createHttpRunDaemonClient, type RunDaemonClient } from "../run-daemon-http-client.js";
 import { createFollower, delay, probeRun, type Follower } from "./bounded-follow.js";
 import { createCheckpointer } from "./checkpointer.js";
-import type { RunLogPort, RunTimerPort } from "./ports.js";
 import { createRecoveryBinding, type RecoveryBinding } from "./recovery-binding.js";
-import { reportSafely } from "./report.js";
+import { reportSafely, type RunLogPort, type RunTimerPort } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 import { createStreamReader } from "./stream.js";
 import { interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./watch-state.js";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";

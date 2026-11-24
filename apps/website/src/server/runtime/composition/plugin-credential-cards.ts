@@ -9,7 +9,7 @@ import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 import { readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import type { LoadPluginCredentialCards } from "../../../features/custom-credentials/plugin-credential-card.js";
-import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
 

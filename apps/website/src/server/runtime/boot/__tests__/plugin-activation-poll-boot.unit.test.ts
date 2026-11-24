@@ -98,7 +98,7 @@ for (const heldStep of ["readiness", "activation read"] as const) {
 test("server polling survives removal of daemon site composition", async () => {
   const { readFileSync } = await import("node:fs");
   const source = readFileSync(new URL("../bootstrap.ts", import.meta.url), "utf8");
-  assert.match(source, /from "..\/composition\/plugin-activation-polling.js"/);
+  assert.match(source, /import \{ startPluginActivationPolling \} from "@jini-ai\/plugins\/host"/);
   assert.doesNotMatch(source, /from .*agent-daemon-deps/);
 });
 

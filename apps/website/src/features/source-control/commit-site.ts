@@ -2,11 +2,11 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import type { UUID } from "@jini-ai/core/primitives";
 import * as sourceControl from "@jini-ai/devops/source-control";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import { validateCommitTarget } from "./commit-target.js";
 import type { RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";

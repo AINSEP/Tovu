@@ -1,7 +1,7 @@
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express, Request, Response } from "express";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 import { createRateLimiter, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";

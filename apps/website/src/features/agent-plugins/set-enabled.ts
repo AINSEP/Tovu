@@ -1,4 +1,4 @@
-import type { NotifyToolAccessChanged } from '../../contracts/core/tool-access-change.js';
+import type { NotifyToolAccessChanged } from '@jini-ai/core/contracts/site/tool-access-change';
 
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:

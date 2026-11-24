@@ -1,5 +1,5 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_LOCALES } from "../../../../website/src/contracts/core/admin-locales";
+import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { COMMON_I18N } from "../i18n-common";
 import * as adminNavI18n from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import * as editorFailureI18n from "@jini-ai/admin/shell/lib/editor-failure-i18n";

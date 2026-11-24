@@ -5,7 +5,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo, type EntryRecord } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { buildWidgetInstanceFieldsJson, ensureWidgetContentTypesRegistered, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 

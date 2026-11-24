@@ -12,8 +12,8 @@
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
 import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { processOutbox } from "../../contracts/core/events/index.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { MailerPort } from "../../platform/mail/index.js";
 import { transitionCampaignStatus } from "./campaign.js";

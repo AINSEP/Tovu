@@ -6,7 +6,8 @@ import { mkdtemp, mkdir, readdir, rm, symlink, writeFile } from "node:fs/promise
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { createSiteRouteDeps, createSiteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
+import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "../deps.js";
+import { defaultContentDbPath } from "../site-paths.js";
 
 // RED: mkdir/containment errors escaped composition and prevented the whole site booting.
 test("bad private share storage logs and disables only sharing", async t => {

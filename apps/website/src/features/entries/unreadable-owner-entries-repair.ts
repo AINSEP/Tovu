@@ -1,4 +1,4 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "@jini-ai/cms/widgets/site/declared-content-type-owners";
 import { buildTrashRegistry } from "../trash/registry.js";

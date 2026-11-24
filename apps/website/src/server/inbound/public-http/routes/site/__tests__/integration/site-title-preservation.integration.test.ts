@@ -24,7 +24,8 @@ import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-ti
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
-import { builtInThemesDir, createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
+import { builtInThemesDir } from "#src/server/runtime/composition/site-paths";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";

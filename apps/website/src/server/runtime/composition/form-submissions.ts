@@ -1,7 +1,7 @@
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { withFormPullLease, type FormDefinitionRepoPort, type FormPullLeasePort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";

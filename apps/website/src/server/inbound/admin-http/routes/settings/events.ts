@@ -76,7 +76,7 @@ import {
   type ChangeFeedBatch,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";

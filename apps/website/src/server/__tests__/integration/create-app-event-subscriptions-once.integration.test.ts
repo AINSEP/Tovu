@@ -2,7 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";

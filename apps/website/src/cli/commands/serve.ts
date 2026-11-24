@@ -14,7 +14,7 @@ import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-re
 import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
-import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
+import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
@@ -29,9 +29,12 @@ import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
-import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
+import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "@jini-ai/devops/local-dev";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { serveListening } from "./serve-listen.js";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 
 /**
@@ -253,7 +256,7 @@ async function releaseServeOwnership(owned: ServeOwnership): Promise<void> {
 /** Closes the store once the boot work still reading it has settled (bounded, see
  *  `awaitBootWorkWithinBound`), so a site stopped seconds after boot does not close under it. */
 async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
-  await awaitBootWorkWithinBound({ work: owned.bootWork });
+  await awaitBootWorkWithinBound({ work: owned.bootWork, logger: consoleLogger });
   await closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore });
 }
 
@@ -351,7 +354,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST });
+  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
   pinSiteListenerOrigin({ scheme: "http", host, port });
 
   await prepareSiteKey({ target });

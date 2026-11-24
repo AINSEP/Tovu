@@ -1,6 +1,6 @@
 import { SqlChangeSetRepo, SqlOutboxAdapter } from "@jini-ai/db/events";
 
-import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import { schemaErasedKernel, type ContentKernel } from "../content-kernel.js";
 import { CHANGE_SET_TABLES } from "../sqlite/change-set-repo.sqlite.js";
 import { OUTBOX_TABLES } from "../sqlite/outbox-repo.sqlite.js";

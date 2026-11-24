@@ -6,8 +6,9 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDelive
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
-import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import { createFormDestinationDeliverer } from "#src/features/form-destinations/index";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";

@@ -7,8 +7,8 @@ import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/ren
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
-import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";

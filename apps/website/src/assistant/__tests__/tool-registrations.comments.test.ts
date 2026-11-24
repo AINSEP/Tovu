@@ -36,7 +36,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
 
 import { commentTrashDoubles } from "../../features/comments/__tests__/comment-trash-doubles.js";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {

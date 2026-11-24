@@ -9,7 +9,7 @@ import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { composeCommerce } from '../commerce.js';
 import type { ProviderConfigSource } from '../provider-config-source.js';
-import { ensureCommerceSetting } from '../commerce-settings.js';
+import { ensureCommerceSetting } from '@jini-ai/commerce';
 import { runMigrations } from '@jini-ai/db/migrate';
 
 /** Dormant host integration uses the real SQL kernel and settings ledger, with no vendor or network. */

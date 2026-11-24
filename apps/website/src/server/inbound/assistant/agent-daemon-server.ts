@@ -8,7 +8,7 @@ import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
-import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
+import { closeWithinBound, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installServerLogCapture } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
@@ -16,6 +16,9 @@ import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
 const scopeEnvironments = new Map<SiteScopeKey, string>();
@@ -55,7 +58,7 @@ async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): P
     // The retained client owns content/chat; process.exit alone leaves WALs. The site server
     // alone owns its ops journal and providers. Drain this daemon before closing its client.
 
-  }, label: "the agent daemon store" });
+  }, label: "the agent daemon store", logger: consoleLogger });
   process.exit(exitCode);
 }
 

@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from '@jini-ai/cms/forms';
-import { InMemoryEventBus } from '#src/contracts/core/events/index';
+import { InMemoryEventBus } from '@jini-ai/infra/events/memory-bus';
 import { createFormsModule } from '../modules/forms.js';
 
 test('committed forms require original and still-active consent; delayed events never contain receipt data', async () => {

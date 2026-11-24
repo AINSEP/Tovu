@@ -22,7 +22,7 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   readonly tracker?: Tracker;
   readonly pluginExports?: PluginExportCatalogPort;
   readonly providerFaces: PluginProviderFacesPort;
-  readonly notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
+  readonly notifyRosterChanged: import("@jini-ai/core/contracts/site/tool-access-change").NotifyToolAccessChanged;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;

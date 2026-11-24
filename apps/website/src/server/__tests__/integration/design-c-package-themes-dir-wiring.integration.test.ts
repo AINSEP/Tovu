@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
-import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { builtInThemesDir } from "../../runtime/composition/site-paths.js";
 import { createSiteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 
 /**

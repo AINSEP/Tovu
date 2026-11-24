@@ -1,5 +1,5 @@
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { rmSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -19,7 +19,7 @@ import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } fro
 import { rewriteFormActions } from "#src/features/form-destinations/rewrite-actions";
 import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "@jini-ai/core/contracts/site/cms-forms";
 
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 /**
  * Imported from the LEAF `export-failure-summary.ts`, not from `#src/features/site-export/index`.
  *

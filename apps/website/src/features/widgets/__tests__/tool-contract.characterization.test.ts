@@ -21,7 +21,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";

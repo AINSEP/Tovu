@@ -21,7 +21,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { contributeRedirectsTools, type RedirectsToolDeps } from "../tool-registrations.js";
 import { removeVia, restoreVia } from "./remove-redirect-double.js";

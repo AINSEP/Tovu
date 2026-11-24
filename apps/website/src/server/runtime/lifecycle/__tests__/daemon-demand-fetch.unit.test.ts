@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fetchWithDaemonParkRecovery } from "../daemon-demand-fetch.js";
 
+/** Wire parity only: the replay decision itself is tested in `@jini-ai/sidecar`
+ * (`daemon-park-recovery.test.ts`). These prove the Tovu binding reads Tovu's header names. */
 test("only an identified pre-dispatch park refusal can replay a request", async () => {
   const refusals: Record<string, string>[] = [{}, { "x-tovu-daemon-parked": "1" }, { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "invalid" }];
   for (const headers of refusals) {

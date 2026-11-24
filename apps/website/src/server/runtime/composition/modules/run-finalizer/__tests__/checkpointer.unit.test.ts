@@ -4,7 +4,7 @@ import test from "node:test";
 import { flush, unhandledRejections } from "../../../../../__tests__/run-finalizer-characterization.fixture.js";
 import type { RunDaemonClient } from "../../run-daemon-http-client.js";
 import { createCheckpointer, type CheckpointerPorts } from "../checkpointer.js";
-import type { RunLogPort, RunTimerPort } from "../ports.js";
+import type { RunLogPort, RunTimerPort } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 import { makeWatch } from "../watch-state.js";
 
 /**

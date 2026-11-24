@@ -17,7 +17,8 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";

@@ -1,5 +1,5 @@
 import { readFederationAdmissions, type FederationAdmissionsPorts } from "@jini-ai/mcp/federation";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ExternalMcpOperations } from "./operations-tools.js";
 
 /** Live in-process accounting. The federation transport owns remote errors and their tracing. */

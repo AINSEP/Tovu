@@ -1,4 +1,4 @@
-import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
+import { ToolAccessLoweringError } from '@jini-ai/daemon';
 import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';

@@ -34,7 +34,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { buildThemesRegistrations } from "#src/features/theme/tool-registrations";
 import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import {
   createVerifiedOrigin,
   InMemoryOriginSettingRepo,

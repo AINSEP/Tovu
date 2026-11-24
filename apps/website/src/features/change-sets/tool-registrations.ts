@@ -12,14 +12,8 @@ import {
 } from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
-import {
-  ChangeSetInvalidStatusError,
-  ChangeSetNotFoundError,
-  RevertConflictError,
-  RevertNotPossibleError,
-  revertChangeSet,
-  type RevertRegistry,
-} from "#src/contracts/core/commands/index";
+import { ChangeSetInvalidStatusError, ChangeSetNotFoundError, RevertConflictError, RevertNotPossibleError, revertChangeSet } from "@jini-ai/cms/core/commands";
+import type { RevertRegistry } from "@jini-ai/core/contracts/site/core-commands";
 
 import {
   CHANGE_SET_READ_PERMISSION,

@@ -1,4 +1,5 @@
-import { ToolAccessLoweringError, type NotifyToolAccessChanged } from '../../contracts/core/tool-access-change.js';
+import type { NotifyToolAccessChanged } from '@jini-ai/core/contracts/site/tool-access-change';
+import { ToolAccessLoweringError } from '@jini-ai/daemon';
 import type { PluginProviderFacesPort } from './service-ports.js';
 
 /** A provider's OFF switch also turns its assistant faces off. Use the existing owner lookup once

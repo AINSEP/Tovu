@@ -161,7 +161,7 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
   const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("../peers.js");
   const { PublishContentPeerTransportError } = await import("../peer-transport.js");
   const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");
-  const { PluginHookFailedError } = await import("../../../contracts/core/plugin-hook-failed-error.js");
+  const { PluginHookFailedError } = await import("@jini-ai/plugins/host");
   const cases: Array<{ error: unknown; message: string }> = [
     { error: new PlanStaleError({ message: "internal stale" }), message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." },
     { error: new PublishContentBundleNotFoundError({ message: "internal missing" }), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },

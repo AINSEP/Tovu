@@ -9,7 +9,7 @@ import { createCustomCredential, CustomCredentialNotFoundError, type CustomCrede
 import { withCustomCredentialSetup } from "../credential-recovery.js";
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { isIssuedToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
+import { isIssuedToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /** Authentication failures preserve scheme/username facts and provider output. They never

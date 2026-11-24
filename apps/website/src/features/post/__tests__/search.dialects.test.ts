@@ -10,7 +10,7 @@ import { deletePost } from "../post-trash.js";
 import { postRepoFor } from "../repo.js";
 import { searchAdminPosts } from "../search.js";
 import { backfillPostSearchIndex, PostSearchIndex } from "../search-index.js";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { removeVia } from "./remove-post-double.js";
 import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures, SQLITE_BASELINE } from "./search.eval.js";
 

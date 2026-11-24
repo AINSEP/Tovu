@@ -17,7 +17,8 @@ test('only the forms capability advertises the wired durable email path', () => 
 });
 
 for (const retryable of [true, false]) test(`outbox persists notification failure as ${retryable ? 'pending retry' : 'terminal failed'}`, async () => {
-  const { InMemoryEventBus, processOutbox } = await import('../index.js');
+  const { InMemoryEventBus } = await import('@jini-ai/infra/events/memory-bus');
+const { processOutbox } = await import('../outbox-worker.js');
   const now = '2026-11-04T00:00:00.000Z';
   const event = { id: 'n', name: FORM_NOTIFY_DELIVERY_EVENT, workspaceId: 'w', occurredAt: now, payload: {} };
   const failures: { nextStatus: string; error: string; nextAttemptAt: string }[] = [];

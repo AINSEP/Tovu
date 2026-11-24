@@ -1,7 +1,6 @@
-import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
-import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
+import { admittedToolSources, stopRunsForToolAccessChange, ToolAccessLoweringError, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
-import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/core/contracts/ai-trace";

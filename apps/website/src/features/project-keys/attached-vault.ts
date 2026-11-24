@@ -1,5 +1,5 @@
 import { ToolInputError } from '@jini-ai/core';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import {
   isInVaultQueryScope,
   type VaultRecord,

@@ -2,8 +2,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { uploadMedia } from '@jini-ai/cms/media';
-import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
-import { InMemoryOutbox } from '#src/contracts/core/events/index';
+import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
+import { InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
 import type { PackedEntity } from '#src/features/publish-content/type-registry';
 import { contributeMediaPublish } from '../publish-content.js';
 import { duplicateMediaAsset } from '../duplicate-asset.js';

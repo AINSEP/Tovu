@@ -1,6 +1,7 @@
 import { nowIso as clockNowIso, type Clock as ClockPort, type JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
+import { createRevertRegistry } from "@jini-ai/cms/core/commands";
+import type { EntityReverter, RevertRegistry } from "@jini-ai/core/contracts/site/core-commands";
 import { emitPublicTransitionEvent } from "./post-write-effects.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "./post.js";
@@ -324,7 +325,7 @@ export function createPostReverters(deps: PostReverterDeps, _optional: Record<st
  * convenience `defaultRevertRegistry()` used to provide before the Job 2 inversion moved it here.
  */
 export function createPostRevertRegistry(deps: PostReverterDeps, _optional: Record<string, never> = {}): RevertRegistry {
-  const registry = createRevertRegistry();
+  const registry = createRevertRegistry({}, {});
   const reverters = createPostReverters(deps);
   registry.register("post", "update", reverters.update);
   registry.register("post", "delete", reverters.delete);

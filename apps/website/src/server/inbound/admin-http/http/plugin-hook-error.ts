@@ -1,5 +1,5 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
-import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
+import { pluginHookRefusalText } from "@jini-ai/plugins/host/hook-refusals";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
@@ -38,7 +38,7 @@ export interface PluginHookFailedBody {
  */
 export function pluginHookFailedBody(err: PluginHookFailedError, optional: { publicText?: string } = {}): PluginHookFailedBody {
   consoleLogger.warn({ message: redactSecretShapes({ text: `[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}` }).text });
-  return { error: optional.publicText ?? pluginHookRefusalText(err), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
+  return { error: optional.publicText ?? pluginHookRefusalText({ err }), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
 }
 
 /**

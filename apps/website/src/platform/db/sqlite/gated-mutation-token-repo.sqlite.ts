@@ -1,5 +1,6 @@
 import { SqlTokenStore } from "@jini-ai/db/gated-mutations";
-import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/core/gated-mutations/token";
+import type { ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
+import type { TokenStorePort } from "#src/contracts/core/gated-mutations/token";
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 

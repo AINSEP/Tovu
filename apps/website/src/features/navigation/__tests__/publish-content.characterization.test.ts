@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 

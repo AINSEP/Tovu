@@ -7,7 +7,7 @@ import test from "node:test";
 import express from "express";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor, createRemoteToolExecutor } from "@jini-ai/daemon";
-import { processOutbox } from "#src/contracts/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { coreForSite } from "../../runtime/composition/__tests__/helpers/daemon-core.js";

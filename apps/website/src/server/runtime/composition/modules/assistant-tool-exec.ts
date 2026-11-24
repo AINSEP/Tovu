@@ -1,6 +1,6 @@
 import { assistantDaemonToken, delegatedAssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 import type { AssistantDaemonConnection } from "@tovu/contracts/daemon-connection";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the
  * daemon keeps the run, this process runs the site tools. `POST /internal/tool-executions` and

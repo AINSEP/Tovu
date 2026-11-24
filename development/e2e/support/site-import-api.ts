@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "../../../apps/website/src/server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../../apps/website/src/server/runtime/composition/deps.js";
+import { defaultContentDbPath, siteDir } from "../../../apps/website/src/server/runtime/composition/site-paths.js";
 import { createServingApp } from "../../../apps/website/src/server/runtime/composition/serving-app.js";
 import { buildBootModules } from "../../../apps/website/src/server/runtime/boot/bootstrap.js";
 import { awaitSiteBootReadiness } from "../../../apps/website/src/server/runtime/boot/site-boot-readiness.js";
@@ -8,7 +9,7 @@ import { agentDaemonWanted } from "../../../apps/website/src/server/runtime/boot
 import { runBootLifecycle } from "../../../apps/website/src/server/runtime/lifecycle/boot-lifecycle.js";
 import { setReadinessSnapshot } from "../../../apps/website/src/server/runtime/lifecycle/readiness-state.js";
 import { ensureAgentDaemonPortResolved } from "../../../apps/website/src/server/runtime/lifecycle/agent-daemon-port.js";
-import { registerPluginSdkResolver } from "../../../apps/website/src/server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../../apps/website/src/features/plugin-runtime/sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../../apps/website/src/assistant/index.js";
 import { startAssistantDaemon } from "../../../apps/website/src/server/inbound/assistant/index.js";
 

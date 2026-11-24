@@ -6,7 +6,10 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
-import { InMemoryEventBus, InMemoryOutbox, processOutbox, startOutboxDrainer, toEnqueueOnlyOutbox } from "../index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "../outbox-worker.js";
+import { startOutboxDrainer } from "../outbox-drainer.js";
+import { toEnqueueOnlyDomainOutbox } from "@jini-ai/infra/events/domain-outbox";
 
 const NOW = "2026-10-07T00:00:00.000Z";
 const event: DomainEvent = {
@@ -64,7 +67,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
   const snapshot = () => db.$client.prepare("SELECT * FROM outbox_events WHERE id = ?").get(event.id) as Record<string, unknown>;
   const initial = snapshot();
   const outbox = new SqliteOutboxAdapter({ store: db });
-  const daemon = toEnqueueOnlyOutbox(outbox);
+  const daemon = toEnqueueOnlyDomainOutbox({ outbox: outbox });
   const bus = new InMemoryEventBus();
   const received: DomainEvent[] = [];
   await bus.subscribe<DomainEvent["payload"]>({ eventName: event.name, handler: async (delivered) => {
@@ -124,7 +127,7 @@ test("persisted poison rows get exactly six attempts with the historical retry t
 test("only the explicitly started serving drainer executes effects; inline drains and stop cannot duplicate them", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const outbox = new InMemoryOutbox();
-  const daemon = toEnqueueOnlyOutbox(outbox);
+  const daemon = toEnqueueOnlyDomainOutbox({ outbox: outbox });
   const bus = new InMemoryEventBus();
   const started = deferred();
   const finish = deferred();

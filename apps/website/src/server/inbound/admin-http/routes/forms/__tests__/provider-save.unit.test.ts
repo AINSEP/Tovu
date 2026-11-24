@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, type HtmlFormDefinitionRecord } from '@jini-ai/cms/forms';
-import { executeCommand, InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
+import { executeCommand, InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminFormsCreateRoute } from '../create.js';
 import { registerAdminFormsAuthoringRoute } from '../authoring.js';

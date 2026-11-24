@@ -58,7 +58,7 @@ import {
   type SubmissionAttempts,
 } from "@jini-ai/cms/forms";
 import { createFormAuthoring, htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
-import { processOutbox } from "../../contracts/core/events/index.js";
+import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
 import { capSubmissionFieldLengths } from "@jini-ai/cms/forms";

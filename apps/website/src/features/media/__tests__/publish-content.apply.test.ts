@@ -28,8 +28,8 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryVersionedMediaRepo, type VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import {
   computeBlobStorageKey,

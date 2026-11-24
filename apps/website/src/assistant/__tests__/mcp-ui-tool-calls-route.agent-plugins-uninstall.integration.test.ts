@@ -12,7 +12,7 @@ import express from "express";
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";

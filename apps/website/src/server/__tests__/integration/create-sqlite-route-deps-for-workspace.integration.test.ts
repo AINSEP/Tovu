@@ -10,7 +10,8 @@ import ts from "typescript";
 import { assertContentDbFileName } from "../../runtime/composition/site-paths.js";
 import { openSiteContentDb } from "../../runtime/composition/open-site-content-db.js";
 
-import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
+import { createSiteRouteDepsForWorkspace, createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { defaultContentDbPath } from "../../runtime/composition/site-paths.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { isInMemoryDbPath } from "@jini-ai/db/data-modules";

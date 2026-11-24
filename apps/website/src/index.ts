@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
-import { pinDefaultSiteRoot } from "./platform/site-dir/index.js";
+import { pinDefaultSiteRoot, ValidationError } from "./platform/site-dir/index.js";
 import { claimSiteRunning } from "./platform/site-dir/site-running.js";
 import { resumeLocalSitesForHost, shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
@@ -9,7 +9,8 @@ import { resolve as resolvePath } from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./platform/dev-host/dev-tls.js";
-import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "./server/runtime/composition/deps.js";
+import { defaultContentDbPath, siteDir } from "./server/runtime/composition/site-paths.js";
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
@@ -22,23 +23,25 @@ import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js"
 import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readiness.js";
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
-import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "./features/plugin-runtime/sdk-resolver.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from './server/runtime/composition/build-release.js';
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
-import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
+import { closeStoreOnShutdown, stopServingWithinGrace } from "@jini-ai/server/shutdown";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
 import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
-import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
-import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
+import { resolveBindHost, reserveBootListener } from "@jini-ai/devops/local-dev";
 import { pinSiteListenerOrigin } from "./server/runtime/boot/site-listener-origin.js";
 import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-listener.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 // The parent-watchdog doc (why, checks, escape hatch, platform posture) moved with the code.
-import { startOwnParentWatchdog } from "./server/runtime/boot/parent-watchdog.js";
+import { startOwnParentWatchdog } from "@jini-ai/sidecar";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file Process entrypoint.
@@ -61,7 +64,7 @@ const useMemory = process.env.TOVU_DB === "memory";
 // interface; Docker, compose and every container host run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
-const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined });
+const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
 
 // Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
 // from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd
@@ -76,6 +79,8 @@ const devScheme = deriveDevScheme({ tlsActive: devTls.active });
 // Same placement rationale as the daemon's own `startParentWatchdog()` call.
 startOwnParentWatchdog({
   env: process.env,
+  envNames: { disable: "TOVU_DISABLE_PARENT_WATCHDOG", devSupervisorPid: "TOVU_DEV_SUPERVISOR_PID" },
+  logTag: "[index]",
   ppid: () => process.ppid,
   signalZero: (pid) => { process.kill(pid, 0); },
   exit: (code) => { process.exit(code); },
@@ -293,7 +298,7 @@ async function main(): Promise<void> {
   // Every store closes on shutdown; SQLite close checkpoints and removes its WAL/SHM sidecars.
   const storeOwnsShutdown =
     closeStoreOnShutdown(
-      { store: opened.store, onShutdown: shutdownAssistantDaemon },
+      { store: opened.store, onShutdown: shutdownAssistantDaemon, logger: consoleLogger },
       { bootWork: () => bootWork, registerStop: ({ stop }, _optional = {}) => { requestStop = stop; }, stopServing: () => stopServing() }
     );
 

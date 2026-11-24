@@ -2,16 +2,19 @@ import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases
 import path from "node:path";
 
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
-import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import { exportSite } from "../../features/site-export/index.js";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
-import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
+import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file `tovu export <dir>` — boot the real site and call the export engine.
@@ -200,6 +203,7 @@ async function closeExportBoot(
   const { legacyPublishCredentialsReady, siteAppBootWork } = routeDeps;
   await awaitBootWorkWithinBound({
     work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
+    logger: consoleLogger,
   });
   await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, { composed: composedStore });
 }

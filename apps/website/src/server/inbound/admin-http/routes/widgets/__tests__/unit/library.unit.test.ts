@@ -5,7 +5,7 @@ import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminWidgetListRoute } from "../../list.js";
 import { registerAdminWidgetGetRoute } from "../../get-by-id.js";

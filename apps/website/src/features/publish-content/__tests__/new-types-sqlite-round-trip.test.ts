@@ -2,7 +2,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
 import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
