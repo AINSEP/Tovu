@@ -4,7 +4,7 @@ import type { AdminWebhookDeliveryResponse, AdminWebhookSubscriptionResponse } f
 import { describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { t } from "./integrations-i18n";
+import { tIntegrations as t } from "../../lib/i18n-common";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";

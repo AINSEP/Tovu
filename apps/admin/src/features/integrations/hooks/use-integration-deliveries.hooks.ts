@@ -3,7 +3,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t as defaultT } from "../integrations-i18n";
+import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
 

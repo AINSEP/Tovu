@@ -2,7 +2,8 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
-import { actionsForWebhookLabel, deleteWebhookBody, t } from "../integrations-i18n";
+import { actionsForWebhookLabel, deleteWebhookBody } from "@jini-ai/admin/screens/integrations/integrations-i18n";
+import { tIntegrations as t } from "../../../lib/i18n-common";
 
 it("resolves integration-specific copy, shared fallback, English and unknown locale/key copy", () => {
   expect(t({ locale: "es", key: "Pause" })).toBe("Pausar");

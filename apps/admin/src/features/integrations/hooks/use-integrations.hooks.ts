@@ -5,7 +5,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { t as defaultT } from "../integrations-i18n";
+import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { KEYS, WEBHOOKS_RESOURCE, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";
 import type { IntegrationsPort } from "./integrations-port.hooks";
