@@ -1,4 +1,4 @@
-DONE @@TOVU@@ @@JINI@@
+PARTIAL 9b4bc1dceb f2a965472: 1 owned file held for an owner decision (contracts/core/extension-capability-vocabulary.ts, STOP 5); the other 163 are decided (37 moved/deleted, 15 thinned, 111 STAYS-HOST)
 
 # w4-runtime (2026-11-24): server runtime + contracts + CLI lane
 
@@ -154,7 +154,7 @@ Unattended cloud run, Opus coordinator. I read `AI-Dev-Shop/agents/programmer/sk
   - `check:coverage-integrity` 1 (no lcov in either tree)
 - `check:size`: 1, same row (`assistant-byok.ts` 532 → 531).
 - `check:architecture`: 1. Its non-blocking WARNING propagation-cost ratchet rose from 3.14 to 3.21, because files left the graph (2077 → 2040 nodes). The deep-import edges fell 2593 → 2483.
-- `check:why-comments`: @@WHY@@
+- `check:why-comments`: 1 = base: the same 78 open blocks. The 75 why-comments that moved with code are recorded per id in `development/why-comments-debt.json` (65 moved/kept reworded, with destination; 4 restored in Jini `packages/infra/src/events/outbox/policy.ts`; 6 obsolete forwarder/barrel headers).
 - **Changed tests:** 237 node test files. 220 are clean; the other 17 were re-run on base:
   - 15 are identical to base (base-red): `serve-command-wiring`, `describe-error-for-log`, `forms-notification-{retry,restart}`, `outbox-retry-policies`, `site-exporter`, `commit-site.unit`, `forms-submit`, `forms-module-sender`, `site-title-preservation`, `index-bind-host-wiring`, `plugin-host.integration`, `webhook-delivery-worker`, `close-store-on-shutdown` (8 cancelled), and `outbox-worker`. `outbox-worker` has one fewer pass because that test moved to Jini.
   - 2 were new reds and are fixed: `outbox-drainer.scheduling` (eval child imported the deleted memory-bus) and `process-root-parity` #7 (harness lacked the injected daemon logger). They are now 2/2 and 6/7 (#5 is base-red).
@@ -164,7 +164,7 @@ Unattended cloud run, Opus coordinator. I read `AI-Dev-Shop/agents/programmer/sk
 | | moving (FILES LEFT) | excl. themes |
 |---|---|---|
 | before (merge-16 `3a93322474`; reproduces combine-16) | 2,187 | 2,076 |
-| after (this branch) | @@FL@@ | @@FLX@@ |
+| after (this branch) | **2,169** | **2,058** |
 
 Note: `plan.mjs` counts only files under its planned area prefixes. `contracts/core` is an area, so its 18 removals show. `server/runtime/**` is treated as composition and is not counted, so the 19 runtime files deleted here (and the 15 thinned files) do not move the number.
 
@@ -176,7 +176,7 @@ Note: `plan.mjs` counts only files under its planned area prefixes. `contracts/c
 - **Product words:** none in Jini additions (`git diff | grep -i tovu` = 0).
 - **Shared wire types:** in core contracts; the core `contracts/site` additions are type-only (XP4 clean).
 - **No new size-exception entries.** The stale error-gate debt rows for deleted Tovu files were removed (3).
-- **Why-comments** moved with the code, or are recorded per id with their destination (@@WHYN@@ entries).
+- **Why-comments** moved with the code, or are recorded per id with their destination (75 entries).
 - **Wiring sections:** `## Wiring` was added or extended in the READMEs of core, infra, plugins, platform (+ `src/secrets/README.md`), commerce, sandbox, sidecar, server, devops, chat, cli, db, diagnostics, analytics and daemon.
 - **Notes:**
   - `apps/desktop/src/product-telemetry-ipc.ts` now reaches `@jini-ai/analytics/product` through `product-events.ts`. `apps/desktop/package.json` does not declare `@jini-ai/analytics`; it resolves through the root `node_modules`. Desktop tsc and its test pass. Declaring it means a registry lockfile change, which was left to the owner.
@@ -184,4 +184,39 @@ Note: `plan.mjs` counts only files under its planned area prefixes. `contracts/c
   - `development/scripts/write-path-inventory.baseline.json` still lists `events/memory-bus.ts`. Its checker crashes here (ts-morph), so it could not be regenerated.
 
 ## Pushed SHAs
-@@SHAS@@
+Tovu `codex/w4-runtime-tovu` (newest first):
+- T `9b4bc1dceb` wip(w4-runtime): report draft; why-comments reconciliation in flight
+- T `c2ee9e5010` test(w4-runtime): import site paths from site-paths.ts (deps.ts re-export removed)
+- T `e29d0c3445` test(w4-runtime): repoint eval-child memory-bus import to @jini-ai/infra; parity harness supplies the injected daemon logger
+- T `ab2dd29515` fix(w4-runtime B8): type-only core contract (ToolAccessLoweringError -> @jini-ai/daemon), required logger ports instead of console defaults, named error idioms
+- T `0ceaac2b9a` wip(w4-runtime): checkpoint — B8 (gate-row fixes) in flight
+- T `02d8601936` wip(w4-runtime B9): product-events keeps the catalog + admin rewrite; projection over @jini-ai/analytics/product
+- T `cdd73335a2` wip(w4-runtime): checkpoint — B7 in flight
+- T `02ffc893f1` wip(w4-runtime): checkpoint — B7 in flight
+- T `4b237bf80b` wip(w4-runtime): checkpoint — B7 in flight
+- T `99edaa509b` wip(w4-runtime B6): tier-2 worker runner and daemon park recovery thinned to host bindings over Jini sandbox/sidecar
+- T `92a35ef260` wip(w4-runtime): checkpoint — B5b (composition helpers) and B6 (tier2 worker, demand-fetch) in flight
+- T `693e0d4f75` wip(w4-runtime B2b): bind-host moved to @jini-ai/devops/local-dev; site-idle-park thinned to the express adapter over @jini-ai/server/shutdown/idle-park
+- T `f58cb893d5` fix(w4-runtime): pass handlers/err as objects to @jini-ai/plugins hook-refusals
+- T `6ac33d6001` wip(w4-runtime): drop deps.ts site-paths re-export and store-bound-services type re-export (importers repointed); remove stale error-gate debt rows for moved files
+- T `35125a084e` wip(w4-runtime B2): boot/lifecycle helpers to Jini (sidecar parent-watchdog, devops boot listener, server shutdown, core lazy-proxy); plugin-sdk-resolver forwarder removed
+- T `de8519e7e2` wip(w4-runtime): wave-1 checkpoint — B1b done (contracts/core shims out, Tovu tables/copy to @tovu/contracts); B1a/B2/B3 in flight
+
+Jini `codex/w4-runtime-jini` (newest first):
+- J `f2a965472` docs(w4-runtime): restore moved outbox policy why-comments in @jini-ai/infra (keep the existing equal-jitter line verbatim)
+- J `2dca3f9bf` wip(w4-runtime): why-comments reconciliation in flight
+- J `a4f35a498` fix(w4-runtime B8): type-only core contract (ToolAccessLoweringError -> @jini-ai/daemon), required logger ports instead of console defaults, named error idioms
+- J `9d6aecf7f` wip(w4-runtime): checkpoint — B8 (gate-row fixes) in flight
+- J `4973c862b` wip(w4-runtime B9): analytics ./product projectDeclaredProductEvent + freezeProductEventCatalog (host catalog injected)
+- J `1b8733738` chore(w4-runtime): api baselines for the new host-helper subpaths; changeset covers db/diagnostics
+- J `c706a6974` wip(w4-runtime): checkpoint — B7 in flight
+- J `691b2ee6d` wip(w4-runtime): checkpoint — B7 in flight
+- J `91061d9c1` wip(w4-runtime): checkpoint — B7 in flight
+- J `be1613bfa` docs(w4-runtime): provenance ledger entries for moved host helpers; changeset
+- J `ec8e55d7a` wip(w4-runtime B6): sandbox ./node-worker/per-call-runner (Tier-2 runner core) and sidecar ./daemon-park-recovery
+- J `e3677e6eb` fix(w4-runtime B5b): legacy-codecs decoder table is a ReadonlyMap (HW3 module state)
+- J `32c257cef` wip(w4-runtime): checkpoint — B5b and B6 in flight
+- J `72a7366cc` wip(w4-runtime B2b): devops local-dev resolveBindHost (host label + error factory injected); server ./shutdown/idle-park core
+- J `fde79c3cf` fix(w4-runtime): plugins host/hook-refusals exports take object args with _optional pad
+- J `fcaccf0ed` wip(w4-runtime B2): sidecar supervision/parent-watchdog, devops local-dev reserveBootListener, server ./shutdown + ./shutdown/boot-work, core primitives lazy-proxy
+- J `446f12f4b` wip(w4-runtime): wave-1 checkpoint — B1b (plugins host/hook-refusals, core tool-access-change); B1a/B2/B3 in flight
