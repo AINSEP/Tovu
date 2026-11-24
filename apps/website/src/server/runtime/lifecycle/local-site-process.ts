@@ -12,7 +12,7 @@ import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import os from "node:os";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { probeLoopbackHttp, requestLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";
@@ -40,7 +40,7 @@ const nodeProcessControl = createProcessControlPort({ functions: { listProcessSn
  * taking the 4096-character diagnostic tail so a sliced vendor-token prefix cannot leak its suffix.
  */
 export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
-  const redact = ({ text }: { text: string }) => redactLocalText({ text: redactSecretShapes({ text }).text });
+  const redact = ({ text }: { text: string }) => redactTovuLocalText({ text: redactSecretShapes({ text }).text });
   const buffer = createLogBuffer({ redact });
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
   let stderrText = "";

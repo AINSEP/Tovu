@@ -36,7 +36,7 @@ import { delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTe
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
@@ -440,9 +440,9 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
       registry,
     }, { ...optional, startupSecrets: launch.secrets,
       stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout,
-        redact: redactLocalText }),
+        redact: redactTovuLocalText }),
       stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr,
-        redact: redactLocalText }),
+        redact: redactTovuLocalText }),
       platform: process.platform,
     });
   }

@@ -38,7 +38,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -130,7 +130,7 @@ function isViteWatchRunning(exec: ExecPort): boolean {
   } catch (error) {
     // `as`: execFileSync throws a plain Error decorated with the spawned process's own `status`.
     if ((error as { status?: number }).status === 1) return false;
-    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${sanitizeUntrustedText({ text: redactLocalText({ text: (error as Error).message }) }, { maxLength: 2_000 })}`);
+    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${sanitizeUntrustedText({ text: redactTovuLocalText({ text: (error as Error).message }) }, { maxLength: 2_000 })}`);
   }
 }
 
@@ -228,7 +228,7 @@ function runTreeQuietCheck(
     out("check-tree-quiet: OK — apps/desktop is quiet\n");
     return 0;
   } catch (error) {
-    err(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
+    err(sanitizeUntrustedText({ text: redactTovuLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
     return 1;
   }
 }

@@ -11,7 +11,7 @@ import { createAsyncLocalSpanScope } from '@jini-ai/diagnostics/observability/no
 import { createNoopProductAnalytics, withProductAnalyticsGuards } from '@jini-ai/analytics/product';
 import { type ProductAnalyticsPort, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
-import { redactLocalText } from '@jini-ai/diagnostics/local-text';
+import { redactTovuLocalText } from '@tovu/contracts/diagnostics-redaction';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
 // Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
 import { resolveTovuObservabilityExport } from '#src/server/runtime/composition/observability-export';
@@ -36,7 +36,7 @@ const WARNING = '[product-telemetry] unavailable; product reporting is disabled'
 // checkout. Stack frames below it stay readable as app:///…; every other local path is masked.
 const INSTALL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..');
 // Frames are home-redacted before masking, so the root is retained in its redacted spelling too.
-const KEEP_ROOTS = [INSTALL_ROOT, redactLocalText({ text: INSTALL_ROOT })];
+const KEEP_ROOTS = [INSTALL_ROOT, redactTovuLocalText({ text: INSTALL_ROOT })];
 
 /** Parse the existing desktop preference key; malformed values never grant consent. O(1). */
 function consentOf({ value }: { value: unknown }, _options = {}): ProductConsent {
@@ -158,7 +158,7 @@ export async function loadProductProviders(required: ProductProviderInput, { res
 
 /** Credential + PII redaction precedes truncation so a cut cannot hide a secret's shape. O(n). */
 function scrub({ text }: { text: string }, _options = {}): string {
-  return maskLocalPaths({ text: redactSecrets({ input: redactLocalText({ text }) }) }, { keepRoots: KEEP_ROOTS });
+  return maskLocalPaths({ text: redactSecrets({ input: redactTovuLocalText({ text }) }) }, { keepRoots: KEEP_ROOTS });
 }
 
 /** Project diagnostic context without carrying site IDs, URLs, user identities or raw route slugs.

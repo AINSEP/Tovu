@@ -150,6 +150,8 @@ function LiveWebsiteSource({ controller, liveSite, mode, t }: {
         <div className="onboarding-section-head">
           <h3 className="onboarding-section-title">{t("From a live website")}</h3>
           <p className="onboarding-section-lead">{t("This host can't make new sites, so it can't import a live website here.")}</p>
+          {/* A337 (by design): the site switcher is a deployment switch, so say how to get one rather than only refusing. */}
+          <p className="onboarding-section-lead">{t("To add another site, run Tovu on your own computer with the site switcher on (set TOVU_ENABLE_SITE_SWITCHER=1; npm run dev already does).")}</p>
         </div>
       </div>
     );

@@ -2,7 +2,7 @@ import { formatErrorForLog } from "@jini-ai/core";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
-import { redactedError } from "@jini-ai/diagnostics/observability/node";
+import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 
 /**
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
@@ -107,7 +107,7 @@ export function installProcessErrorReporting(
   const exit = optional.exit ?? ((code: number) => process.exit(code));
   let crashing = false;
   const onRejection = (reason: unknown): void => {
-    tracker.error({ error: reason instanceof Error ? reason : redactedError({ error: reason }) }, { context: { operation: "process.unhandled_rejection", attributes: { process: processRole } } });
+    tracker.error({ error: reason instanceof Error ? reason : redactedTovuError({ error: reason }) }, { context: { operation: "process.unhandled_rejection", attributes: { process: processRole } } });
   };
   const onUncaught = (error: unknown): void => {
     if (crashing) return;
@@ -121,17 +121,17 @@ export function installProcessErrorReporting(
     };
     const deadline = setTimeout(finish, Math.min(optional.timeoutMs ?? 2_000, 2_000));
     try {
-      (optional.log ?? ((_message, failure) => console.error(failure)))("[uncaughtException] fatal; exiting after telemetry flush:", error instanceof Error ? error : redactedError({ error }));
+      (optional.log ?? ((_message, failure) => console.error(failure)))("[uncaughtException] fatal; exiting after telemetry flush:", error instanceof Error ? error : redactedTovuError({ error }));
     } catch { /* A broken stderr must not skip the report, fatal drain and exit. */ }
     try {
-      tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
+      tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
       // Fatal shutdown still exits if the already-reported crash prevents telemetry flushing.
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
     }
   };
   const onMonitor = (error: unknown): void => {
-    tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
+    tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
   };
   const fatalEvent = optional.flush ? 'uncaughtException' : 'uncaughtExceptionMonitor';
   const fatalHandler = optional.flush ? onUncaught : onMonitor;

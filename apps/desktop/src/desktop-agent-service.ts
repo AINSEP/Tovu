@@ -14,7 +14,7 @@ import { createPrivateKeyLineRedactor, redactSecrets } from "@jini-ai/core";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { maskLocalPaths } from "@jini-ai/diagnostics";
 import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { createDaemonSupervisor, type DaemonSupervisorRequired } from "@jini-ai/sidecar/supervisor";
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervisorScheduler, createSupervisorRegistry,
@@ -139,7 +139,7 @@ function createSiteRedactor({ state }: { state: ServiceState }, _options = {}) {
     for (const site of state.sites.values()) {
       exactSecrets.push(site.token, site.config.token);
     }
-    return redactLocalText({ text: redactSecrets({ input: maskLocalPaths({ text }) }, { exactSecrets, redactPii: false }) });
+    return redactTovuLocalText({ text: redactSecrets({ input: maskLocalPaths({ text }) }, { exactSecrets, redactPii: false }) });
   };
 }
 

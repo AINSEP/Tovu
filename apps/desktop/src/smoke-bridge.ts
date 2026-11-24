@@ -1,7 +1,7 @@
 /** Packaged MCP release checks. Command construction and reply validation are independently testable. */
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { isNonArrayRecord } from "@jini-ai/core/records";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { resolveSmokeTargets } from "./smoke-native.ts";
@@ -115,7 +115,7 @@ export function buildJiniEntryScript(
 export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}): BridgeCommand[] {
   let entries: unknown;
   try { entries = JSON.parse(stdout); }
-  catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) })}`); }
+  catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactTovuLocalText({ text: stdout }) })}`); }
   const resolverOutput = { value: entries };
   if (!isNonArrayRecord(resolverOutput) || resolverOutput.value.desktopHttp !== true) throw new Error("packaged desktop HTTP smoke did not complete");
   entries = resolverOutput.value.entries;
@@ -247,7 +247,7 @@ function bridgeSmokeFailure({ entry, error, stderr }: { entry: BridgeCommand; er
   const diagnostics = stderr ? `\n${stderr}` : "";
   const detail = `${entry.label}: ${errorText}${diagnostics}`;
   // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
-  return new Error(sanitizeUntrustedText({ text: redactLocalText({ text: detail }) },
+  return new Error(sanitizeUntrustedText({ text: redactTovuLocalText({ text: detail }) },
     { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));
 }
 

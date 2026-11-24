@@ -587,7 +587,7 @@ Tovu source. Next step: an Opus plan (not written yet).
 
 ## WebMCP: let Chrome's agent operate the admin and the published site (owner call, 2026-09-17)
 
-**PARTLY DONE 10-04** — admin `page.*` tools + Settings > Privacy opt-out (`3be477f86`); published-site script, form `tool*` attributes, theme validator (`98ccfc6e0`). Left: real-Chrome acceptance, a post-save tagging pass, the `data-agent-*` migration (parked).
+**PARTLY DONE 10-04** — admin `page.*` tools + Settings > Privacy opt-out (`3be477f86`); published-site script, form `tool*` attributes, theme validator (`98ccfc6e0`). Left: real-Chrome acceptance, the `data-agent-*` migration (parked). ~~A post-save tagging pass~~ — owner 11-23 (G7-13): tag only when the owner asks; the page-HTML prompt says so (bt-dec-b).
 
 **Goal.** If a user asks a browser agent (Chrome's, or any WebMCP client), it can talk to and
 operate both the admin and the front end.
@@ -2351,3 +2351,18 @@ Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu
 - [ ] Videos: same idea, harder — describe from stills/key frames (and transcript if any). Later.
 
 - 11-01 owner: REDO the demo reel later — the reel itself is good, but the sites/website UI shown in it looks awful; re-record once the site UI is better. (Blur of client names: owner says not needed.)
+
+## P10 G7 owner decisions — bt-dec-b (2026-11-24, owner 11-23 "approve all recs")
+- [x] G7-1 new-site password: desktop unchanged; server sites refuse the default (`identity/first-owner-password.ts`, ERR-OWNER-PASSWORD-REQUIRED). Boot wiring in `identity/wiring.ts` + `identity-settings.ts` AFTER-MERGE.
+- [x] G7-2 dev CORS: off outside dev, admin Vite origins allow-list only (`inbound/shared/dev-cors.ts`).
+- [x] G7-3 menu HTML mode needs `pages.edit_html`: already enforced (`modules/menus.ts:82`, `menu-html-mode.test.ts`).
+- [ ] G7-4 trash retention 30 days: held as patches `cloud-results/bt-dec-b/g7-4-*.patch` (Jini constant + Tovu UI copy/21 locales + `member-adapter.test.ts`) — apply together after the w3 merge.
+- [x] G7-5 Q-M2: decided together with the media single-limit step (P10-M2). Plan only.
+- [ ] G7-6/G7-7 sent-email 30 d / test-email 7 d: same as the owner's YES item "sent-email records 30d + captured test emails 7d + clear all" — done in that lane, not here.
+- [x] G7-8 pre-consent pages with gated tracking scripts are `private, no-store` (`pages/pre-consent-cache.ts`).
+- [ ] G7-9 captions: Jini `renderVideoTag` emits a safe `<track kind="captions">` (`cms/widgets/caption-track.ts`); Tovu column + migration, `.vtt` upload/serving and renderer wiring AFTER-MERGE.
+- [x] G7-10 four catch-await handlers: fix in the P4-T4 sheet. Plan only.
+- [ ] G7-11 `<<SUBAGENT_DISPATCH>>` only when the site folder has `AGENTS.md`: helper `assistant/subagent-dispatch-marker.ts`; call site `agent-daemon-run-start.ts:378` + 2 pinned tests AFTER-MERGE.
+- [x] G7-12 theme `/` layout: parked until the owner designs it.
+- [x] G7-13 page tagging: only on owner request (see WebMCP section).
+- [x] G7-14 browser observability adapter and ffmpeg: off / not bundled by default (no change).

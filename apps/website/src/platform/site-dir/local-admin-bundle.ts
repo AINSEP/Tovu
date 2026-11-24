@@ -4,7 +4,7 @@ import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { isProcessAlive } from "@jini-ai/platform/process";
@@ -74,7 +74,7 @@ async function cleanupLocalAdminBuilds(
   for (const entry of stale) {
     await reclaimLocalAdminBuild({ dir: path.join(parent, entry.name) }).catch(error => {
       if (error instanceof Error && error.name === "FileLockTimeoutError") return;
-      console.warn(redactLocalText({ text: `tovu local sites: could not reclaim an unused admin build: ${String(error)}` }));
+      console.warn(redactTovuLocalText({ text: `tovu local sites: could not reclaim an unused admin build: ${String(error)}` }));
     });
   }
 }
@@ -92,9 +92,9 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
     const child = spawnBuild(process.execPath, [path.join(repoRoot, "apps/admin/node_modules/vite/bin/vite.js"),
       "build", "--outDir", output], { cwd: path.join(repoRoot, "apps/admin"), env, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout?.pipe(createRedactedOutputSink({ sink: stdout,
-      redact: redactLocalText }));
+      redact: redactTovuLocalText }));
     child.stderr?.pipe(createRedactedOutputSink({ sink: stderr,
-      redact: redactLocalText }));
+      redact: redactTovuLocalText }));
     const stop = ({ reason }: { reason: string }, _optional = {}) => () => {
       cleanup();
       reject(new Error(`Journey admin build did not finish: ${reason}`));
@@ -133,7 +133,7 @@ export async function journeyAdminBundle(
   const root = path.join(runtimeDir, "admin-build");
   const output = path.join(root, "dist");
   await cleanupLocalAdminBuilds({ runtimeDir, tempRoot }).catch(error => {
-    console.warn(redactLocalText({ text: `tovu local sites: could not inspect unused admin builds: ${String(error)}` }));
+    console.warn(redactTovuLocalText({ text: `tovu local sites: could not inspect unused admin builds: ${String(error)}` }));
   });
   await mkdir(root, { recursive: true });
   // The builder bounds inactivity; a contender must not impose a shorter total-work deadline.

@@ -215,6 +215,22 @@ test('error payload masks POSIX/Windows/UNC/file paths, credentials and email; c
   } finally { await f.close(); }
 });
 
+test('B258: a Tovu application key in an error message, stack or context is redacted by the production scrub binding', async () => {
+  const f = await fixture();
+  try {
+    const product = await bootProductTelemetry(f.required, { ...f.options, readConsent: () => granted });
+    // Built in pieces so no secret-shaped literal sits in the source: `tovu_ak_<12 hex>.<24 token chars>`.
+    const secret = ['abcdef012345', 'Z9y8X7w6V5u4T3s2R1q0P9o8'].join('.');
+    const key = `tovu_ak_${secret}`;
+    const error = new Error(`upstream rejected ${key}`);
+    error.stack = `Error: upstream rejected ${key}\n at fake (/opt/elsewhere/a.ts:1:1)`;
+    product.observability.reportError({ error, context: { operation: `op ${key}`, attributes: { process: 'server' } } });
+    const sent = f.errors[0]!;
+    const payload = JSON.stringify({ message: (sent.error as Error).message, stack: (sent.error as Error).stack, context: sent.context });
+    assert.equal(payload.includes(secret.split('.')[1]!), false, payload);
+  } finally { await f.close(); }
+});
+
 test('preference reader parses only on mtime change, and stat/read/JSON/malformed booleans fail closed', () => {
   for (const preferencePath of ['/fake/preferences.json', 'C:\\fake\\preferences.json']) {
     let mtimeMs = 1, reads = 0, statFails = false, readFails = false;

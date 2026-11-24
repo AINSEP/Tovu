@@ -8,9 +8,8 @@ import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite } from "../../http/site/render-site.js";
 import type { SiteProduct } from "../../http/site/render-context.js";
-import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 import { resolveSiteAssistantWidgetForRequest } from "./pages/render-context/widgets.js";
-import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest } from "./pages/request-policy.js";
+import { resolvePerVisitorResponse, sendPublicPage } from "./pages/response.js";
 import { resolveSiteTitleForRender } from "./pages/render-context/site-title.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -30,21 +29,21 @@ import type { RouteDeps } from "#src/server/routes/types";
  *    `middleware/theme-page-preview.ts` imported). Two copies of a user-visible string that could
  *    drift independently; now one. Since SPEC-050 it is `pages.ts`'s `resolveSiteTitleForRender`.
  *
- * `CACHE_CONTROL_PUBLIC_PAGE` below is deliberately NOT collapsed the same way — see its own doc.
+ * The response finalization is shared with `pages.ts` too — see `sendStorefrontPage` below.
  */
 
-/** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
- *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): neither
- *  handler below reads `req` for anything beyond the route param, so the response is identical for
- *  every anonymous visitor requesting the same URL. Not shared as a cross-file export — two short,
- *  independently-readable copies over a new cross-file coupling for one string constant. */
-const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
-
-/** This file's two render handlers' `Cache-Control`: the shared-cacheable directive, except for a
- *  request carrying the static-export marker, whose widget-less body must never be stored under the
- *  plain URL (`pages.ts`'s `isStaticExportRequest` doc). */
-function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): string {
-  return isStaticExportRequest(req) ? CACHE_CONTROL_PRIVATE_STATIC_EXPORT : CACHE_CONTROL_PUBLIC_PAGE;
+/**
+ * Both handlers finish through `pages/response.ts`'s `sendPublicPage` (B230, owner decision): plugin
+ * head and widget partials, form attempt tokens and results, the member sign-in script and
+ * off-site-link targets are applied exactly as on every other public page. They used to apply only
+ * the off-site-link pass, so a plugin's head markup, forms and member sign-in silently did not work on
+ * storefront pages. `Cache-Control` therefore comes from the shared per-visitor policy
+ * (`resolvePerVisitorResponse`): public for an anonymous visitor, never-store for a member, a form
+ * result or the static-export marker — the owner accepted that change for member/form requests.
+ */
+async function sendStorefrontPage(required: { req: Request; res: Response; deps: CommerceSiteAdapterDeps; html: string }, _optional = {}): Promise<void> {
+  const { req, res, deps, html } = required;
+  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse({ req, res }) });
 }
 
 /** Commerce owns the bounded catalog projection. The host's adapter applies the activation
@@ -101,7 +100,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
       if (page === null) return;
       const { theme, siteAssistantEnabled, siteTitle } = page;
       const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
-      res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }));
+      await sendStorefrontPage({ req, res, deps, html });
     } catch (error) {
       const { errorId } = reportServerFailure({ error, operation: "products:catalog" }, { tracker: res.locals.adminFailureTracker });
       res.status(500).type("html").send(`<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
@@ -123,7 +122,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
       let html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "product", siteTitle, posts: [], products: [product], product, siteAssistantEnabled });
       html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
         productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
-      res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }));
+      await sendStorefrontPage({ req, res, deps, html });
     } catch (error) {
       const { errorId } = reportServerFailure({ error, operation: "products:detail" }, { tracker: res.locals.adminFailureTracker });
       res.status(500).type("html").send(`<h1>This product could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
