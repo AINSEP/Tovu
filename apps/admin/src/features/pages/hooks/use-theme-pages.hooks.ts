@@ -1,3 +1,4 @@
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
 import { useThemePages, type ThemePageRow, type ThemePagesController } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 import type { ThemePageSlugCollision } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
@@ -44,5 +45,5 @@ export function themePagePublishSummary({ row, t }: { row: ThemePageRow; t: Tran
  * this and a test composes {@link useThemePages} with `createFakeThemePagesPort`.
  */
 export function useWiredThemePages(): ThemePagesController {
-  return useThemePages({ port: defaultThemePagesPort, noThemeId: NO_THEME_ID });
+  return useThemePages({ port: defaultThemePagesPort, noThemeId: NO_THEME_ID, useFetchQuery, useFetchMutation, useCachedLoader });
 }
