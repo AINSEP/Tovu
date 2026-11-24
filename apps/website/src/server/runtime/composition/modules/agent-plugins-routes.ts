@@ -22,7 +22,7 @@ import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { API_CONNECTION_SIGN_IN_PATH, browserBindingCookie } from "#src/features/api-connections/browser-binding";
 import { getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
-import { mountJiniRouteInPlace } from "../jini-routes.js";
+import { expressSendResponse, mountJiniRouteInPlace, type InPlaceResponseWriter } from "../jini-routes.js";
 
 /**
  * @file K1 (RT-K1-adm-agent-plugins): registrars for the `agent-plugins` admin routes that are Jini
@@ -38,9 +38,20 @@ import { mountJiniRouteInPlace } from "../jini-routes.js";
  * first and keep failing in `authenticate`.
  */
 
-/** The two port fields every mount passes; `authorize` is read per request (tests reassign it). */
+/** The two port fields a by-id mount passes; `authorize` is read per request (tests reassign it). */
 function agentPluginPortDeps({ deps }: { deps: AgentPluginsRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+}
+
+/**
+ * The port fields an id-free mount (list, files) passes. Their hand-written routes asked the host
+ * authorizer with NO `entityType` key; the Jini spec must send a string, so it sends `""`, which is
+ * dropped here before the authorizer sees it. `""` is not inert: the policy writer accepts an empty
+ * resource type, and such a row would match `""` where an absent key matches nothing (review
+ * rv1123i FIX 1). Set-enabled keeps `agentPluginPortDeps`: it names `"agent-plugin"` and the id.
+ */
+function idFreeAgentPluginPortDeps({ deps }: { deps: AgentPluginsRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
+  return { workspaceId: deps.workspaceId, authorize: ({ entityType: _placeholder, ...params }) => deps.authorize(params) };
 }
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization each hand-written route used. */
@@ -108,7 +119,7 @@ async function provisionAgentPluginMcpServersBestEffort(
 /** `AGENT_PLUGINS_LIST`: the host's read model plus its per-plugin connection statuses. */
 export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: agentPluginsListRoute, deps: {
-    ...agentPluginPortDeps({ deps }),
+    ...idFreeAgentPluginPortDeps({ deps }),
     loadCandidates: () => loadAgentPluginSearchCandidates(deps),
     loadConnectionStatuses: () => loadAgentPluginConnectionStatuses({ workspaceId: deps.workspaceId,
       mcp: deps.externalMcpServerRepo, loadCards: deps.loadPluginCredentialCards, apiConnections: deps.apiConnections?.host, ...agentPluginMcpPortsOf(deps.mcp) }),
@@ -125,14 +136,14 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({
     notifyPluginLowered: ({ pluginId }) => deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {}),
     isError: AGENT_PLUGIN_SET_ENABLED_ERRORS,
     copy: AGENT_PLUGIN_SET_ENABLED_COPY,
-    warn: (message) => { console.warn(message); },
+    diagnose: ({ pluginId, causeMessage }) => { console.warn(`[agent-plugins] '${pluginId}': enable/disable refused — ${causeMessage}`); },
   } }, mountOptions({ operation: "routes/agent-plugins/set-enabled", authorization: "guarded" }, { deferMissingPrincipal: true }));
 };
 
 /** `AGENT_PLUGIN_FILES`: the contained Node package-file reader over this workspace's layout. */
 export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: agentPluginFilesRoute, deps: {
-    ...agentPluginPortDeps({ deps }),
+    ...idFreeAgentPluginPortDeps({ deps }),
     agentPluginLayout: { forWorkspace: (required) => deps.agentPluginLayout.forWorkspace(required) },
     // An upgraded bundled plugin's superseded package is dropped first, so this browses the
     // version the running build ships rather than whichever digest the walk reached first.
@@ -150,11 +161,33 @@ function localsAsResponse({ locals }: { locals: Readonly<Record<string, unknown>
   return { locals } as unknown as ExpressResponse;
 }
 
+/** Headers `res.redirect` writes itself from the request's `Accept`, or that are appended, not set. */
+const REDIRECT_WRITTEN_HEADERS = new Set(["location", "content-type", "content-length", "set-cookie"]);
+
+/**
+ * Writes the sign-in start's answer as the hand-written handler did (review rv1123i FIX 2). The 302
+ * goes through Express's own `res.redirect`, so its body, Content-Type, Content-Length and
+ * `Vary: Accept` follow the request's `Accept` — a browser asking for HTML gets Express's HTML body,
+ * not the plain-text one the route builds. Every other answer (the 403 JSON, the 400 page) went
+ * through `res.send`, so it goes through `expressSendResponse`. The route's other headers are set
+ * first and each `Set-Cookie` is appended, keeping any cookie an earlier middleware set.
+ * @complexity O(headers + body bytes).
+ */
+const expressRedirectOrSend: InPlaceResponseWriter = async (required) => {
+  const { response, res } = required;
+  const location = response.status === 302 ? response.headers.get("location") : null;
+  if (location === null) { await expressSendResponse(required); return; }
+  await response.body?.cancel();
+  response.headers.forEach((value, name) => { if (!REDIRECT_WRITTEN_HEADERS.has(name)) res.set(name, value); });
+  for (const cookie of response.headers.getSetCookie()) res.append("Set-Cookie", cookie);
+  res.redirect(302, location);
+};
+
 /**
  * Hosted sign-in start (Jini `apiConnectionSignInRoute`), mounted beneath the /api/admin session
- * middleware where the hand-written inline handler stood (`<anonymous>` row kept). Binds the path,
- * the session helpers (which throw without a gate-attached credential, as before), the handoff store,
- * the binding cookie and Tovu's failure page.
+ * middleware where the hand-written inline handler stood (`<anonymous>` row kept) and written as it
+ * wrote ({@link expressRedirectOrSend}). Binds the path, the session helpers (which throw without a
+ * gate-attached credential, as before), the handoff store, the binding cookie and Tovu's failure page.
  * @complexity O(1) setup.
  */
 export function registerApiConnectionSignInRoute({ app, deps }: { app: Express; deps: { readonly workspaceId: string; readonly host: ApiConnectionHost } }, _optional: Record<string, never> = {}): void {
@@ -168,5 +201,5 @@ export function registerApiConnectionSignInRoute({ app, deps }: { app: Express; 
     bindingCookie: ({ browserBinding }) => browserBindingCookie({ browserBinding }),
     messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE,
     renderPage: renderOAuthCallbackPage,
-  }) }, { anonymous: true });
+  }) }, { anonymous: true, writeResponse: expressRedirectOrSend });
 }
