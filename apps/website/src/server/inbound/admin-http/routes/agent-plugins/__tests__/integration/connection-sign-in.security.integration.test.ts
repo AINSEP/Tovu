@@ -8,8 +8,8 @@ import { getAuthedPrincipal, registerAuthRoutes, requireAdminSession } from "#sr
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { startAcmeHarness, ACME_PLUGIN } from "#src/features/api-connections/__tests__/support/acme-harness";
 import { API_CONNECTION_BINDING_COOKIE, API_CONNECTION_OAUTH_CALLBACK_PATH, hostedSignInLink } from "#src/features/api-connections/browser-binding";
-import { registerApiConnectionSignInRoute } from "../../connection-sign-in.js";
-import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { registerApiConnectionSignInRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 
 /** Real session + start route + Jini completion: forwarding either link cannot bind a different
  * principal's browser. HTTP tests carry Secure cookies explicitly; browser enforcement is also
