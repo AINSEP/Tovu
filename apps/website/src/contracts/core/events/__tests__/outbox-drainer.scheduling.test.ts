@@ -50,7 +50,7 @@ test('an idle drainer does not keep its otherwise finished process alive', (t) =
   t.after(() => fs.rmSync(coverageDir, { recursive: true, force: true }));
   const script = `
     import { startOutboxDrainer } from ${JSON.stringify(new URL('../outbox-drainer.ts', import.meta.url).href)};
-    import { InMemoryEventBus, InMemoryOutbox } from ${JSON.stringify(new URL('../memory-bus.ts', import.meta.url).href)};
+    import { InMemoryEventBus, InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
     startOutboxDrainer({ outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock: { nowMs: () => Date.parse('${NOW}') } });
     process.stdout.write('ready\\n');
   `;
