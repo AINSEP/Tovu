@@ -1,5 +1,6 @@
 import { nowIso as clockNowIso, type Clock as ClockPort } from "@jini-ai/core/primitives";
 
+import { applyRetiringRow as applyRetiringRowSequence } from "@jini-ai/cms/publish/content/apply-retire";
 import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-failure.js";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
@@ -199,4 +200,27 @@ export async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOu
     }
   }
   return { row, changeSetId: null, retiredChangeSetId: null };
+}
+
+type RetiringRow = PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> };
+
+export type RetiringRowStep = ApplyRowStep & { readonly row: RetiringRow };
+
+/** Host binding of the retire/create/rollback sequence owned by `@jini-ai/cms`: the downgrade
+ *  wording, baseline refresh and item idempotency key stay here. */
+export function applyRetiringRow({ step }: { step: RetiringRowStep }, _optional = {}): Promise<ApplyRowResult> {
+  return applyRetiringRowSequence<RetiringRow, PackedEntity, PublishContentHandler, ApplyRowContext, ApplyRowResult>({
+    step,
+    collaborators: {
+      downgradedRow,
+      downgradeOrRethrow,
+      itemIdempotencyKey: ({ ctx, entity }) => publishContentItemIdempotencyKey({
+        workspaceId: ctx.workspaceId,
+        sourcePrincipalId: ctx.sourcePrincipalId,
+        entity,
+      }),
+      refreshBaseline,
+      appliedResult: ({ row, changeSetId, retiredChangeSetId }) => ({ row, changeSetId, retiredChangeSetId }),
+    },
+  });
 }

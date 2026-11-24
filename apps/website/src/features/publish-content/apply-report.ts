@@ -2,9 +2,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash } from "node:crypto";
 
 import { downgradedRow, withRefusedItem, type ApplyRowResult } from "./apply-failure.js";
-import { applyRetiringRow } from "./apply-retire.js";
 import {
-  applyOrdinaryRow, checkAgreement, checkExistence, refreshNonWritingRow,
+  applyOrdinaryRow, applyRetiringRow, checkAgreement, checkExistence, refreshNonWritingRow,
   type ApplyRowContext, type ApplyRowStep,
 } from "./apply-row.js";
 import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
