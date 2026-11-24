@@ -61,6 +61,23 @@ async function installedMailProviderIds(input: Parameters<typeof setAgentPluginE
   return parsed.ok ? parsed.descriptors.map(adapter => adapter.id).filter(id => id !== 'smtp' && id !== 'console') : [];
 }
 
+/** The id Jini's resolver gives its console fallback provider (`resolve-mailer.ts`, `consoleMailer`). */
+const LOCAL_FALLBACK_PROVIDER_ID = "console";
+
+/**
+ * The provider id a test-send approval must name: the one the delivery policy will really see on the send.
+ * In local mode a chosen provider that cannot resolve yet (its key is not saved) hands the message to the
+ * console fallback, and the policy checks the approval against THAT id. Naming the chosen id there made
+ * every Send test refuse with "Mail configuration changed". Production refuses such a send before the
+ * policy, so it keeps the chosen id.
+ * @complexity O(1) plus one lane resolution in local mode.
+ */
+async function effectiveTestProvider(required: { chosen: string | null; mode: ResolveMailerDeps["mode"]; laneReady: ResolvedMailer["laneReady"] }, _optional: Record<string, never> = {}): Promise<string | null> {
+  const { chosen, mode, laneReady } = required;
+  if (chosen === null || mode !== "local") return chosen;
+  return (await laneReady({ lane: "transactional" })) ? chosen : LOCAL_FALLBACK_PROVIDER_ID;
+}
+
 /**
  * Builds the lane-routed, policy-wrapped site mailer.
  * @complexity O(1); see `resolve-mailer.ts` for per-send costs.
@@ -91,7 +108,11 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   };
   const operations: SiteMailer["operations"] = {
     mailTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); },
-    mailTestProvider: async () => { await ready(); return (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null; },
+    mailTestProvider: async () => {
+      await ready();
+      const chosen = (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null;
+      return effectiveTestProvider({ chosen, mode: resolve.mode, laneReady: resolved.laneReady });
+    },
     mailTestRequests: new Map(),
     // One bucket per site, so the Email page's button and the assistant's tool share it.
     mailTestSendLimiter: createMailTestSendLimiter(),
