@@ -59,7 +59,8 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   // Composition root: the ONLY place the serving site reads its first-boot owner login from env.
-  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });
+  const ownerEnv = startupSecretEnvironment({ env: process.env });
+  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: ownerEnv }), ownerEnv });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),

@@ -634,3 +634,41 @@ test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the rea
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// G7-1: a SERVER site must not seed its first owner with the published starter password.
+const SERVER_ENV = { TOVU_RUNTIME_MODE: "production" } as const;
+const STRONG_PASSWORD = "Correct-Horse-Battery-9!";
+const freshInMemory = (ownerEnv?: Readonly<Record<string, string | undefined>>) => createInMemoryIdentityRouteDeps({
+  ownerCredentials: ownerEnv ? resolveOwnerCredentials({ env: ownerEnv }) : DEFAULT_OWNER_CREDENTIALS,
+  permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen(),
+  ...(ownerEnv ? { ownerEnv } : {}),
+});
+
+test("G7-1: a server site with no TOVU_ADMIN_PASSWORD refuses to seed a new owner (ERR-OWNER-PASSWORD-REQUIRED)", async () => {
+  const deps = freshInMemory(SERVER_ENV);
+  // `ownerPrincipalId` is forked off the same seed promise, so it rejects too; observe it so the test owns that rejection.
+  const [, forked] = await Promise.allSettled([assert.rejects(deps.identityReady, /ERR-OWNER-PASSWORD-REQUIRED/), deps.ownerPrincipalId]);
+  assert.equal(forked.status, "rejected");
+  assert.equal(await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" }), null, "no owner row is written");
+});
+
+test("G7-1: a server site seeds its first owner with the operator's own password; desktop keeps the starter password", async () => {
+  const server = freshInMemory({ ...SERVER_ENV, TOVU_ADMIN_PASSWORD: STRONG_PASSWORD });
+  await server.identityReady;
+  assert.ok(await server.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" }));
+  const desktop = freshInMemory({ ELECTRON_RUN_AS_NODE: "1" });
+  await desktop.identityReady;
+  assert.ok(await desktop.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" }));
+});
+
+test("G7-1: an existing owner is never refused, even if a server boot has no TOVU_ADMIN_PASSWORD", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-g71-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    const base = { permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() };
+    const first = createSqliteIdentityRouteDeps({ ...base, ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db: contentKernel({ store: openContentDb(dbPath) }) });
+    await first.identityReady;
+    const second = createSqliteIdentityRouteDeps({ ...base, ownerCredentials: resolveOwnerCredentials({ env: SERVER_ENV }), ownerEnv: SERVER_ENV, db: contentKernel({ store: openContentDb(dbPath) }) });
+    await second.identityReady;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
