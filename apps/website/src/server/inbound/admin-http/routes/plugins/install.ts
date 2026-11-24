@@ -4,7 +4,7 @@ import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { raw, type Express, type Request, type Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { PluginsRouteDeps } from "./deps.js";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import { localPluginInstaller, type LocalInstallerDeps } from "./local-installer.js";
 
 const conflicts = new Set(["PLUGIN_SHADOWS_BUILT_IN", "PLUGIN_ID_CONFLICT", "PLUGIN_IN_TRASH", "PLUGIN_ENABLED", "PLUGIN_VERSION_EXISTS", "PLUGIN_DOWNGRADE", "PLUGIN_CHANGED_SINCE_PREVIEW", "PLUGIN_INSTALL_BUSY"]);

@@ -8,8 +8,8 @@ import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
  * permission each one carries. Every entry maps 1:1 onto a real, already-shipped admin surface:
- * `content_read.plugin` mirrors `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
- * mirrors `apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
+ * `content_read.plugin` mirrors `@jini-ai/cms/admin-http/routes/plugins/list` (`PLUGINS_LIST`) and `plugins_set_enabled`
+ * mirrors `@jini-ai/cms/admin-http/routes/plugins/set-enabled (registrar in runtime/composition/modules/plugins.ts)` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
  * same underlying `Jini/packages/plugins/src/host/activation.ts` functions.
  *
  * Deliberate absences (the point of a catalog, not an oversight):

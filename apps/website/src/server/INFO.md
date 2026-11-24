@@ -93,3 +93,39 @@ test-connection) mount `"direct"` with `detectAgents`/`testAgent`/`listModels`/`
 here (DNS/dispatcher seams, redirect refusal, detection cache) and `resolveProbeCredential` from
 `inbound/admin-http/routes/assistant/stored-credential-probe.ts`, which stays host-side.
 `get-chat-attachment.ts` stays hand-written (binary bytes).
+
+Public OAuth callbacks (`runtime/composition/public-oauth-callbacks.ts`) mount Jini `ServerRoute`s
+(`@jini-ai/cms/public-http/routes/{api-connections,external-mcp}/oauth-callback`) with
+`mountJiniRouteInPlace` (`jini-routes.ts`): each stays an Express `route get` row with Express's own
+params, gets the request facts in `locals`, and answers through http-kit's `sendWebResponse`; a throw
+goes to `next(error)`. The registrar binds Tovu's copy and message types (`inbound/public-http/routes/oauth/callback-page.ts`),
+the callback path, binding-cookie rules, `ApiConnectionError`/`OAuthError`/`ExternalMcpValidationError`
+predicates, `notifyExternalMcpRosterChanged`, the `TOVU_PUBLIC_URL` origin policy
+(`resolvePublicOriginFor`) and the console logger.
+External MCP (`modules/external-mcp.ts`) mounts `@jini-ai/cms/admin-http/routes/external-mcp/*` (list, put,
+delete, admissions, tool-approvals, oauth disconnect; all `"direct"`) and injects the store functions,
+`notifyExternalMcpRosterChanged`, built-in ownership rules and the host error classes as predicates;
+probe, OAuth connect/sign-in/device-poll and the session-credential routes stay hand-written (`routes/external-mcp/`).
+Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
+(`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
+id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
+
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+Recovery/database (`modules/database-recovery.ts`, `modules/recovery-restore.ts`,
+`modules/database-migrate-forward.ts`): status binds the operation-lock peek and the db banner
+precedence; the restore and migrate-forward ceremonies bind the gated-mutation gateway, the
+restore/migrate hooks, the operation lock and the db orchestrator per request, mount `"direct"`, and
+pass `getAuthedPrincipal`'s diagnosis as `missingPrincipalMessage`. `DatabaseRecoveryRouteDeps`
+lives in `modules/database-recovery.ts`.
+Publish-content (`modules/publish-content-transport.ts`) mounts the peer and destination specs
+`"guarded"`; plugins (`modules/plugins.ts`) mounts list/files/uninstall/preview `"guarded"` and
+injects `pluginHookFailedBody` (stays in Tovu until lane L1 moves it). Both drop the spec's
+`entityType` before `deps.authorize`, because those hand-written routes never sent one.
+Plugins set-enabled mounts `"direct"` and binds `deps.authorize` raw and lazily as
+`authorizeCommand` (the cms `executeCommand` gateway names the `plugin-activation` entity itself),
+plus the pre-bound `setPluginEnabled`, `lowerPluginToolAccess`, `recordSiteApproval` and the
+`ToolAccessLoweringError` + plugins host error classes.
+Still hand-written: routes that read `res.locals.authCredentialKind` or the publish-trust grant
+(publish-content import/backstop/bundle-create/export/capabilities/peer-transport, plugins
+provider-settings) — they need that context on the admin JSON ports — and the byte/stream/upload
+routes (blob-get/put, blobs-probe's own 413 body, export, plugins install/chart-providers).
