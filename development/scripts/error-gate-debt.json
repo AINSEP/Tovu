@@ -655,11 +655,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/identity/delete-user-service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/identity/tool-registrations.ts",
     "rule": "failure-text-from-catalog",
     "value": 1

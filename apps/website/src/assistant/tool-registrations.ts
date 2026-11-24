@@ -187,7 +187,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   ExternalMcpToolDeps &
   TrashToolDeps &
   TrashItemToolDeps &
-  import("../features/identity/delete-user-service.js").TrashUserToolDeps &
+  import("@jini-ai/user-management/identity/delete-user-service").TrashUserToolDeps &
   import("./admin-screen-link-tool.js").AdminScreenLinkToolDeps &
   import("../features/observability/tool-registrations.js").ObservabilityToolDeps;
 

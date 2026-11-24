@@ -1,6 +1,6 @@
 import { isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
-import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";

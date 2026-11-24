@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { mintApiKey, parseApiKey, ScryptApiKeySecretHasher } from "#src/features/identity/api-key-secret";
+import { ScryptApiKeySecretHasher } from "@jini-ai/user-management/identity/api-key-secret";
+import { mintApiKey, parseApiKey } from "#src/features/identity/api-key-binding";
 
 /**
  * @file P3 + P4 (S0): the API key wire format and the stored-hash format, N-1. Installed sites hold

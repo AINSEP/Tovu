@@ -45,9 +45,9 @@ describe('createHostAdminScope', () => {
   it('describes the media library page, exposes the picker and keys the scope by its grants', () => {
     const scope = createHostAdminScope({ permissions: ['media.read'], useAdminLocaleHook });
     expect(scope.permissionKey).toBe('["media.read"]');
-    expect(scope.admin.describe().pages.map((page) => [page.id, page.path])).toEqual([['media.library', '/media'], ['comments.queue', '/comments'], ['redirects.list', '/redirects'], ['seo.settings', '/seo'], ['widgets.library', '/widgets'], ['widgets.editor', '/widgets/:widgetId'], ['widgets.regions', '/widgets/regions'], ['widgets.region', '/widgets/regions/:regionKey'], ['forms.list', '/forms'], ['forms.editor', '/forms/:formId']]);
+    expect(scope.admin.describe().pages.map((page) => [page.id, page.path])).toEqual([['media.library', '/media'], ['comments.queue', '/comments'], ['redirects.list', '/redirects'], ['seo.settings', '/seo'], ['widgets.library', '/widgets'], ['widgets.editor', '/widgets/:widgetId'], ['widgets.regions', '/widgets/regions'], ['widgets.region', '/widgets/regions/:regionKey'], ['forms.list', '/forms'], ['forms.editor', '/forms/:formId'], ['security.secrets', '/secrets']]);
     expect(typeof scope.picker.pick).toBe('function');
-    expect(Object.keys(scope.bindings)).toEqual(['media', 'comments', 'redirects', 'seo', 'widgets', 'forms']);
+    expect(Object.keys(scope.bindings)).toEqual(['media', 'comments', 'redirects', 'seo', 'widgets', 'forms', 'security']);
     expect(Object.keys(scope.bindings.media!.pages)).toEqual(['library']);
     expect(Object.keys(scope.bindings.comments!.pages)).toEqual(['queue']);
     expect(Object.keys(scope.bindings.redirects!.pages)).toEqual(['list']);

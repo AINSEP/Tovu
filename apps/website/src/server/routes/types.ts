@@ -24,9 +24,19 @@ import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } fr
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 import type { RevertRegistry } from "../../contracts/core/commands/index.js";
-import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
-import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
-import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
+import type {
+  PasswordHasherPort,
+  PolicyPermissionRepoPort,
+  PolicyRepoPort,
+  PrincipalPolicyRepoPort,
+  PrincipalRepoPort,
+  PrincipalRoleRepoPort,
+  RolePolicyRepoPort,
+  RoleRepoPort,
+  SessionRepoPort,
+  UserRepoPort,
+} from "@jini-ai/user-management";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

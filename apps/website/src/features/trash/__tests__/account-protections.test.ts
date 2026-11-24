@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createUserTrashAdapter } from "../adapters/user.js";
-import { SelfDeleteError, assertUserAccountAction } from "#src/features/identity/delete-user-service";
+import { SelfDeleteError, assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
 import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";

@@ -1,26 +1,11 @@
+import type { AuthenticationProviderSchema } from "@jini-ai/admin/screens/authentication/model/provider-schemas";
+
 /**
  * Credential-field metadata for the provider tabs already exposed by the Authentication screen.
  * This is UI metadata only: it deliberately contains no callback URL, secret value, SDK object,
- * persistence state, or claim that Tovu can complete an OAuth flow.
+ * persistence state, or claim that Tovu can complete an OAuth flow. The field/provider shapes are
+ * owned by the Jini screen; this catalog is Tovu policy and is passed to it as `providers`.
  */
-
-export type AuthenticationProviderId = "google" | "facebook" | "linkedin";
-
-export interface AuthenticationCredentialFieldSchema {
-  readonly key: string;
-  readonly label: string;
-  readonly kind: "text" | "password";
-  readonly placeholder: string;
-  readonly hint: string;
-  readonly required: true;
-}
-
-export interface AuthenticationProviderSchema {
-  readonly id: AuthenticationProviderId;
-  readonly label: string;
-  readonly subtitle: string;
-  readonly fields: readonly AuthenticationCredentialFieldSchema[];
-}
 
 /**
  * The fixed provider catalog rendered by {@link Authentication}. Adding an entry changes the

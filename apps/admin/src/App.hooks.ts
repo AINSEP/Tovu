@@ -23,11 +23,12 @@ import {
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
-import type { AdminUser } from "./features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
-import { takeBootToken } from "./lib/boot-token-fragment";
+import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
+import { readInitialAdminSession } from "./lib/owner-clients";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {
@@ -48,7 +49,7 @@ import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { adminBrowserStreamPorts, readInitialAdminSession } from "./lib/shell-collaborators";
+import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -213,7 +214,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
  * "asked before signed in" race to guard against here.
  *
  * The `useRef` guard is what makes this fire at most once per mount, mirroring `takeBootToken`'s own
- * "read and strip once" contract in `lib/boot-token-fragment.ts`: `takePublishCriteriaFromQuery`
+ * "read and strip once" contract in `@jini-ai/admin/shell/lib/boot-token-fragment`: `takePublishCriteriaFromQuery`
  * already strips the param on its own first call (valid or not), so a second run would just read an
  * empty query string. The ref exists anyway because Effects in Strict Mode run twice in development,
  * and a second `requestPublish` call would supersede the first's promise for no reason (see

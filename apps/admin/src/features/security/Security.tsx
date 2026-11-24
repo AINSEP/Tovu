@@ -1,17 +1,18 @@
 import { navigateSecurityTab } from "./Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
+import { ownerPasskeySettingsPort } from '../../lib/owner-clients';
 import { TotpSettings } from "@jini-ai/user-management/react";
-import { ownerMfaPort, ownerPasskeySettingsPort } from "../../lib/shell-collaborators";
+import { ownerMfaPort } from "../../lib/owner-clients";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t } from "./security-i18n";
+import { t } from "../../integrations/jini-admin/security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "./SiteKeyTab";
-import { AccessTokensIcon, SiteKeyIcon } from "./security-visuals";
+import { AccessTokensIcon, SiteKeyIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";

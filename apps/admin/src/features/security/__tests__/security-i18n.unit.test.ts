@@ -10,7 +10,7 @@ import {
   siteKeyGenerateErrorMessage,
   siteKeyRevealErrorMessage,
   t,
-} from "../security-i18n";
+} from "../../../integrations/jini-admin/security-i18n";
 
 /**
  * @file `security-i18n.ts` — scoped copy regressions including the SiteKeyTab "no key yet" note

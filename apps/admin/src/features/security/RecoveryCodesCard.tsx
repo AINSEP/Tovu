@@ -3,8 +3,8 @@ import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { useEffect, useMemo, useState } from 'react';
 import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
-import { ownerRecoveryPort, ownerRecoveryFailure } from '../../lib/shell-collaborators';
-import { type OwnerRecoveryPort, type OwnerRecoveryStatus } from '@jini-ai/admin/shell/lib/owner-recovery-api';
+import type { OwnerRecoveryPort, OwnerRecoveryStatus } from '@jini-ai/user-management/react/auth/owner-recovery-api';
+import { ownerRecoveryPort, ownerRecoveryFailure } from '../../lib/owner-clients';
 
 import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;

@@ -1,7 +1,7 @@
 import { useRecoveryKit as useJiniRecoveryKit, createRecoveryKitDownload as createJiniRecoveryKitDownload, useOwnerPasswordReset } from '@jini-ai/user-management/react';
 
-import { ownerRecoveryFailure } from '../../lib/shell-collaborators';
-import { type OwnerRecoveryPort } from '@jini-ai/admin/shell/lib/owner-recovery-api';
+import type { OwnerRecoveryPort } from '@jini-ai/user-management/react/auth/owner-recovery-api';
+import { ownerRecoveryFailure } from '../../lib/owner-clients';
 
 import { type Translate } from '@jini-ai/core/text';
 /** Issue a fresh recovery kit after password proof. */

@@ -4,7 +4,7 @@ import type { AdminSiteKeyAffectedWebhook, AdminSiteKeyStartFreshPreview, AdminS
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as defaultT } from "../security-i18n";
+import { t as defaultT } from "../../../integrations/jini-admin/security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
 import type { SiteKeyGenerateFailure } from "./use-site-key.hooks";

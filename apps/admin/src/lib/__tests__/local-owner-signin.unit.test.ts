@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { readInitialAdminSession } from "../shell-collaborators";
+import { readInitialAdminSession } from "../owner-clients";
 import { ApiError } from "../admin-http/request";
 
 /** devsignin: parameter-injected API fakes; no module replacements or secrets in JS. */

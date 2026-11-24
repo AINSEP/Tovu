@@ -1,11 +1,11 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
-import type { AdminUser } from "./features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
-import { takeBootToken } from "./lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/shell-collaborators";
+import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
+import { readInitialAdminSession } from "./lib/owner-clients";
 import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,

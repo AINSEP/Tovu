@@ -4,7 +4,7 @@ import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management
 import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
-import { createUsernameChangePort } from "#src/features/identity/username-change-ports";
+import { createUsernameChangePort } from "@jini-ai/user-management/identity/username-change-ports";
 
 /**
  * @file `RouteDeps` -> `identity` service-deps mapping for the users/roles/policies admin routes,

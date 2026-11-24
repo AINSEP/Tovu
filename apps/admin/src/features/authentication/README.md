@@ -1,10 +1,20 @@
-# Authentication
+# features/authentication
 
-Admin screen built on the settings-dialog shell.
+Tovu's binding of the Jini Authentication page (`@jini-ai/admin/screens/authentication`): an honest,
+disabled preview of the credentials each sign-in provider will need. The screen, its copy in every
+admin locale and its tests live in Jini; this folder keeps only what is Tovu's.
+
+| file | what it is |
+|---|---|
+| `index.tsx` | `Authentication` — the Jini screen with Tovu's collaborators bound in. The panel registry imports this. |
+| `authentication-host-binding.tsx` | `AuthenticationSettingsShell`: `@jini-ai/ui`'s settings shell inside its own `I18nProvider`, plus its stylesheets. |
+| `model/provider-schemas.ts` | `AUTHENTICATION_PROVIDER_SCHEMAS`, the provider catalog (Tovu policy). |
+| `authentication.css` | `jini-` copies of the `source-config-*` / settings-section rules the screen's markup needs. |
 
 ## Wiring
 
-- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
-- Kit slots: `I18nProvider` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
-- `SettingsDialogShell` comes from the kit facade; its `labels` prop is the kit `SettingsDialogChromeLabels` mirror of the UI owner's chrome labels.
-- Residual `@jini-ai/ui` imports: `SETTINGS_DIALOG_DICTIONARIES`, `SettingsDialogShell`.
+Tovu injects into the Jini screen: `useAdminThemeBoundary` (theme attributes on the shell wrapper),
+`useAdminLocale`, the product name (`"Tovu"`, host copy — it fills the dictionary's `{product}`
+slot), `AUTHENTICATION_PROVIDER_SCHEMAS` as `providers`, `SecretInput`, and
+`AuthenticationSettingsShell` as `SettingsShell`. The page's `jini-page*` / `jini-settings-ui-*`
+classes are styled by the `jini-` selectors added beside the legacy ones in `styles.css`.

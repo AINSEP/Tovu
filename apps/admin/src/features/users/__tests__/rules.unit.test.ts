@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { ApiError } from "@/lib/admin-http/request";
 import { describeUsersError as describeApiError, formatGrantLabel, userRowMenuItems } from "@jini-ai/user-management/react";
-import { t } from "../users-i18n";
+import { t } from "@jini-ai/admin/users/users-i18n";
 
 /**
  * @file Pure-logic coverage for `features/users/rules.ts` — the screen's `describeApiError`

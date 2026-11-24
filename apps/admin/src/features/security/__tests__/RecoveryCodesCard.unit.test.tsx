@@ -2,7 +2,7 @@ import { ApiError } from '@/lib/admin-http/request';
 import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import { describe, it, expect, vi } from 'vitest';
 import { RecoveryCodesCard } from '../RecoveryCodesCard';
-import type { OwnerRecoveryPort } from '@jini-ai/admin/shell/lib/owner-recovery-api';
+import type { OwnerRecoveryPort } from '@jini-ai/user-management/react/auth/owner-recovery-api';
 
 const port = (owner = true): OwnerRecoveryPort => ({
   status: async () => ({ isOwner: owner, available: owner, desktopOwnerReset: owner }),
