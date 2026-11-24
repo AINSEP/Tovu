@@ -13,6 +13,7 @@ import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in"
 import { updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
 import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WS = "credential-workspace";
 const BEFORE = "2026-10-09T12:00:00.000Z";
@@ -27,6 +28,7 @@ function harness(kernel: ContentKernel) {
   const clock = createFakeClock({ startIso: BEFORE });
   let seq = 0;
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     clock, ids: { newId: () => `credential-${++seq}` }, members, sessions, magicLinks,
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}),
