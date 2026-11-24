@@ -116,6 +116,7 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
   closeStoreOnShutdown({
     store: { storage: owned.bootResult.storage, close: () => closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore }) },
     onShutdown: shutdownAssistantDaemon,
+    logger: consoleLogger,
   }, {
     registerStop: ({ stop }, _optional = {}) => { stopRef.requestStop = stop; },
     bootWork: () => owned.bootWork,

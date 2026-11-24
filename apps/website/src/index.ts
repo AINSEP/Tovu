@@ -39,6 +39,9 @@ import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-liste
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 // The parent-watchdog doc (why, checks, escape hatch, platform posture) moved with the code.
 import { startOwnParentWatchdog } from "@jini-ai/sidecar";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file Process entrypoint.
@@ -295,7 +298,7 @@ async function main(): Promise<void> {
   // Every store closes on shutdown; SQLite close checkpoints and removes its WAL/SHM sidecars.
   const storeOwnsShutdown =
     closeStoreOnShutdown(
-      { store: opened.store, onShutdown: shutdownAssistantDaemon },
+      { store: opened.store, onShutdown: shutdownAssistantDaemon, logger: consoleLogger },
       { bootWork: () => bootWork, registerStop: ({ stop }, _optional = {}) => { requestStop = stop; }, stopServing: () => stopServing() }
     );
 

@@ -32,6 +32,9 @@ import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/
 import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "@jini-ai/devops/local-dev";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { serveListening } from "./serve-listen.js";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 
 /**
@@ -253,7 +256,7 @@ async function releaseServeOwnership(owned: ServeOwnership): Promise<void> {
 /** Closes the store once the boot work still reading it has settled (bounded, see
  *  `awaitBootWorkWithinBound`), so a site stopped seconds after boot does not close under it. */
 async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
-  await awaitBootWorkWithinBound({ work: owned.bootWork });
+  await awaitBootWorkWithinBound({ work: owned.bootWork, logger: consoleLogger });
   await closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore });
 }
 

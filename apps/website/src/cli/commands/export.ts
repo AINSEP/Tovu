@@ -12,6 +12,9 @@ import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-res
 import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file `tovu export <dir>` — boot the real site and call the export engine.
@@ -200,6 +203,7 @@ async function closeExportBoot(
   const { legacyPublishCredentialsReady, siteAppBootWork } = routeDeps;
   await awaitBootWorkWithinBound({
     work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
+    logger: consoleLogger,
   });
   await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, { composed: composedStore });
 }

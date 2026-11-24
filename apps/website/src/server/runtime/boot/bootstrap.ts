@@ -281,7 +281,7 @@ function pluginRuntimeBootModule(deps: NewsletterRouteDeps, options: BuildBootMo
     start: async () => {
       pluginActivationPoll?.stop();
       pluginActivationPoll = startPluginActivationPolling(
-        deps,
+        { ...deps, logger: consoleLogger },
         options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
       );
     },

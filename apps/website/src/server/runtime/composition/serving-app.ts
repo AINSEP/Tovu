@@ -15,6 +15,9 @@ import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from ".
 import { startDomainBindingSweeper, type DomainBindingSweeper } from "@jini-ai/devops/dns";
 import { nodeWebhookDeliveryScheduler } from "@jini-ai/integrations/webhooks";
 import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./modules/site-search.js";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 // Only the website serving runtime starts this service. Recomposition/site switches replace its
 // active site's watcher; exporter apps and the separate agent daemon never own another one.
@@ -111,7 +114,7 @@ export function createServingApp(
   );
   const verifyDue = routeDeps.verifyDueDomainBindings;
   const domainBindingSweeper = startDomainBindingSweeper(
-    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })), scheduler: nodeWebhookDeliveryScheduler },
+    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })), scheduler: nodeWebhookDeliveryScheduler, logger: consoleLogger },
     optional.domainBindingSweepIntervalMs === undefined ? {} : { intervalMs: optional.domainBindingSweepIntervalMs }
   );
   // After `createApp`: the pulled submissions' events need their subscribers attached.

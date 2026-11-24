@@ -49,7 +49,7 @@ for (const role of ["owner", "workspace-client"] as const) {
         }
         const server = createServer((_request, response) => response.end('ready'));
         await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-        closeStoreOnShutdown({ store, onShutdown: () => {} }, {
+        closeStoreOnShutdown({ store, onShutdown: () => {}, logger: { info: () => {}, warn: () => {}, error: () => {} } }, {
           bootWork: () => bootWork(deps),
           stopServing: () => stopServingWithinGrace({ server, workers: [] }),
         });
