@@ -57,7 +57,7 @@ export interface AdminJsonRouteMountOptions {
    *  both decisions this way instead of forcing one mode on every check. */
   authorizationByPermission?: Readonly<Record<string, AdminRouteAuthorization>>;
   /** Opt-in: a request with no session principal reaches `parse` instead of failing in
-   *  `authenticate`. Only for routes whose hand-written version refused a bad body BEFORE reading the
+   *  `authenticate`. Refused together with {@link AdminJsonRouteMountOptions.sessionCredentialOnly}. Only for routes whose hand-written version refused a bad body BEFORE reading the
    *  principal (so that 400 still wins); the spec must call `authorize` before any side effect,
    *  because that is where the missing principal then fails closed. */
   deferMissingPrincipal?: boolean;
@@ -138,12 +138,17 @@ function writeAdminFailure({ res, error, options }: { res: Response; error: unkn
 
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
+ * @throws Error at registration for `deferMissingPrincipal` + `sessionCredentialOnly` (rv1123l T6): a
+ *   deferred sessionless request would skip the credential gate, which must answer before parse.
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
  */
 export function createAdminJsonRoutePorts(
   required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean } = {},
   _optional: Record<string, never> = {},
 ): AdminPorts {
+  if (required.deferMissingPrincipal && required.sessionCredentialOnly) {
+    throw new Error("admin route ports: deferMissingPrincipal cannot be combined with sessionCredentialOnly — the credential gate must run before parse");
+  }
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
