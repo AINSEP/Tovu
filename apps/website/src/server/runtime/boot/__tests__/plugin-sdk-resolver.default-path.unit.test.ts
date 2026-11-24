@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { registerPluginSdkResolver, resolveDefaultSdkModulePath } from "../plugin-sdk-resolver.js";
+import { registerPluginSdkResolver, resolveDefaultSdkModulePath } from "../../../../features/plugin-runtime/sdk-resolver.js";
 
 /**
  * @file Every real boot call site (`index.ts`, `serve.ts`, `export.ts`) calls

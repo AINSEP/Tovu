@@ -8,7 +8,7 @@ import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
-import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
@@ -21,7 +21,7 @@ import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../err
  *
  * CIC U-002-B1/ADR-005 require the synchronous plugin SDK resolver before composition,
  * with no preceding await, because a real plugin install dir makes imports reachable.
- * See `server/runtime/boot/plugin-sdk-resolver.ts` for the security boundary.
+ * See `features/plugin-runtime/sdk-resolver.ts` for the security boundary.
  *
  * Run interrupted-migration reconciliation immediately after composition, before crawling
  * potentially inconsistent data. Refuse with `ExportBlockedPendingRecoveryError` (exit 7)

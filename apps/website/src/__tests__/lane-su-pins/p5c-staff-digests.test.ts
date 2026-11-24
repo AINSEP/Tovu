@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import { createMfaStore, createRecoveryCodeStore } from "#src/features/identity/sql-stores";
+import { createMfaStore, createRecoveryCodeStore } from "#src/features/identity/repo.sqlite";
 import { SqlSessionRepo } from "#src/features/identity/repo.authentication";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 

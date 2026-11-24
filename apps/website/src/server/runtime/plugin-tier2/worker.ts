@@ -17,7 +17,7 @@ import { pluginHostBinding } from "../../../features/plugin-runtime/host-binding
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "../../../features/plugin-runtime/built-ins/content-analyzer/index.js";
 import { PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
 import { startTier2Worker, type Tier2ImportPolicy } from "@jini-ai/plugins/host/worker";
-import { registerPluginSdkResolver } from "../boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../../features/plugin-runtime/sdk-resolver.js";
 
 export interface Tier2WorkerMainRequired {
   /** The `Tier2Request` the host posted as `workerData` (built by the server from a validated manifest). */

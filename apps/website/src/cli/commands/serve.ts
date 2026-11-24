@@ -20,7 +20,7 @@ import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/ag
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
-import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/index.js";
 import { initializeStartupSecrets } from '../../platform/secrets/startup-secrets.js';
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
@@ -52,7 +52,7 @@ import { serveListening } from "./serve-listen.js";
  * CIC U-002-B1/ORD1 and ADR-005 require synchronous SDK resolver registration before
  * any route or plugin-import path, with no preceding await. Otherwise a site plugin
  * can shadow `@tovu/sdk` with its own node_modules and defeat the deep-import boundary.
- * See `server/runtime/boot/plugin-sdk-resolver.ts` for the owner contract.
+ * See `features/plugin-runtime/sdk-resolver.ts` for the owner contract.
  *
  * Shared production-readiness and boot lifecycle gates run before listening or daemon
  * startup: crash-interrupted migrations are reconciled and critical settings/SEO failures

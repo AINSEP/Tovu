@@ -1,5 +1,4 @@
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
-import { createMfaStore, createPasskeyStore, createRecoveryCodeStore } from "./sql-stores.js";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
@@ -17,6 +16,9 @@ import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
 import type { RemoveUserFn } from "./delete-user-service.js";
 import {
+  createMfaStore,
+  createPasskeyStore,
+  createRecoveryCodeStore,
   SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,
   SqlitePolicyRepo,
