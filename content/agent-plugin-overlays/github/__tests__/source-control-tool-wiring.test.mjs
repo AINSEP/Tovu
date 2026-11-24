@@ -55,8 +55,9 @@ test('with no gitAdapter override, a confirmed commit reaches the real GitHub ad
     clock: createSystemClock(), idGen: createRandomUuidGenerator(), loadSourceControlProviders,
     sourceControlExportRootDir: exportDir,
     authorize: async input => { permissions.push(input.permission); return { allowed: true, reason: 'matched' }; },
-    // Required deps: the commit pins site identity + theme before rendering (1485b4e49/0a0885ad7), then packages the export
-    // through the host's packager (2f6bfeed7); without it the commit stops at 'static site packaging failed'.
+    // Required dep since 1485b4e49/0a0885ad7: the commit pins site identity + theme before rendering.
+    // Required dep since 2f6bfeed7: the export is then packaged through the host's packager; without it the commit
+    // stops at 'static site packaging failed'.
     staticSitePackager: createStaticSitePackager(),
     staticSiteContext: async () => ({ name: 'Demo', slug: 'demo', theme: 'Fixture', themeId: 'fixture' }),
     exportSiteBound: async ({ outputDir, themeId }) => {
