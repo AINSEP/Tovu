@@ -79,3 +79,37 @@ export function resolveSiteDirForDatabase(
   }
   return parent;
 }
+
+/** The filesystem calls {@link classifySiteDatabaseDir} and its deleting callers use; injectable for tests. */
+export type SiteDatabaseDirFs = Pick<typeof fs, "lstatSync" | "rmSync">;
+
+/** Where one of a site's database files lives, as far as deleting that site is concerned. */
+export type SiteDatabaseDir =
+  | { kind: "inSite" }
+  | { kind: "absent" }
+  | { kind: "appData"; dir: string }
+  | { kind: "unsafe"; dir: string };
+
+/**
+ * Classify a site's database path before a delete so the caller removes at most the site's own
+ * `<appData>/databases/<siteId>/` folder. Inside the site folder → `inSite` (the folder delete covers it).
+ * Anything that is not exactly one real, non-symlinked direct child of `<appData>/databases/` →
+ * `unsafe`: that covers a `..` siteId, the shared `databases/` parent itself, deeper nesting and
+ * any other folder. A missing per-site folder → `absent`.
+ * @complexity O(1) path math plus one lstat.
+ */
+export function classifySiteDatabaseDir(
+  { siteDir, dbPath, appData }: { siteDir: string; dbPath: string; appData: string },
+  { fs: io = fs }: { fs?: SiteDatabaseDirFs } = {},
+): SiteDatabaseDir {
+  const resolved = path.resolve(dbPath);
+  if (resolved.startsWith(path.resolve(siteDir) + path.sep)) return { kind: "inSite" };
+  // path.resolve has already folded any `..`, so a direct-child test is the whole containment rule.
+  const dir = path.dirname(resolved);
+  if (path.dirname(dir) !== path.resolve(appData, "databases")) return { kind: "unsafe", dir };
+  const stat = io.lstatSync(dir, { throwIfNoEntry: false });
+  if (!stat) return { kind: "absent" };
+  // A symlink would make the recursive remove act on whatever it points at.
+  if (stat.isSymbolicLink() || !stat.isDirectory()) return { kind: "unsafe", dir };
+  return { kind: "appData", dir };
+}

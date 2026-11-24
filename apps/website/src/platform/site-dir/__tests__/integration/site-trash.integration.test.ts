@@ -247,3 +247,133 @@ test("permanentlyDeleteTrashedSite removes a confirmed, readable Trash entry", (
   permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
   assert.equal(fs.existsSync(dir), false);
 });
+
+// B229: app-data placement keeps content.db/chat.db at `<appData>/databases/<siteId>/`, outside the
+// site folder, so a permanent delete must remove that one per-site folder too — and nothing else.
+const OTHER_ID = "2c5f39cb-3a22-42e3-994a-1127e4ddb538";
+
+/** A fixture whose app data lives at `<base>/appdata`, with the shared `databases/` parent. */
+function appDataFixture(t: Context) {
+  const { base, options, home } = fixture(t);
+  const appData = path.join(base, "appdata");
+  const databases = path.join(appData, "databases");
+  return { base, home, appData, databases, options: { ...options, env: { ...options.env, TOVU_DESKTOP_USER_DATA_DIR: appData } } };
+}
+
+/** Writes app-data databases for `siteId` and returns their folder. */
+function writeAppDataDatabases({ databases, siteId }: { databases: string; siteId: string }): string {
+  const dir = path.join(databases, siteId);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "content.db"), `content of ${siteId}`);
+  fs.writeFileSync(path.join(dir, "chat.db"), `chat of ${siteId}`);
+  return dir;
+}
+
+/** A trashed site with no in-folder DB, so its databases resolve to app-data placement. */
+function writeAppDataTrashedSite({ base }: { base: string }): string {
+  const dir = writeSite({ dir: trashFolder({ base, id: `alpha--${SITE_ID}` }), siteId: SITE_ID });
+  fs.rmSync(path.join(dir, "content.db"));
+  return dir;
+}
+
+test("B229: permanent delete of an app-data site removes its <appData>/databases/<siteId>/ folder", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
+  assert.equal(fs.existsSync(dir), false);
+  assert.equal(fs.existsSync(dbDir), false);
+});
+
+test("B229: permanent delete keeps a sibling site's app-data databases and the shared databases/ parent", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  writeAppDataTrashedSite({ base });
+  writeAppDataDatabases({ databases, siteId: SITE_ID });
+  const sibling = writeAppDataDatabases({ databases, siteId: OTHER_ID });
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
+  assert.equal(fs.readFileSync(path.join(sibling, "content.db"), "utf8"), `content of ${OTHER_ID}`);
+  assert.equal(fs.readFileSync(path.join(sibling, "chat.db"), "utf8"), `chat of ${OTHER_ID}`);
+  assert.equal(fs.statSync(databases).isDirectory(), true);
+});
+
+test("B229: permanent delete of an in-folder site removes only its folder, leaving app-data databases alone", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  const dir = writeSite({ dir: trashFolder({ base, id: `alpha--${SITE_ID}` }), siteId: SITE_ID }); // in-folder content.db
+  const sibling = writeAppDataDatabases({ databases, siteId: OTHER_ID });
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
+  assert.equal(fs.existsSync(dir), false);
+  assert.equal(fs.readFileSync(path.join(sibling, "content.db"), "utf8"), `content of ${OTHER_ID}`);
+});
+
+test("B229: an unconfirmed permanent delete leaves the app-data databases in place", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  writeAppDataTrashedSite({ base });
+  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: false, confirmed: true }, options), { code: "SITE_CONFIRM_REQUIRED" });
+  assert.equal(fs.existsSync(path.join(dbDir, "content.db")), true);
+});
+
+test("B229: app-data databases now owned by a live site with the same siteId are kept", (t) => {
+  const { base, options, databases, home } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+  // e.g. a Finder copy of the folder that booted after the original went to Trash and reserved the identity.
+  const live = writeSite({ dir: path.join(home, "copy"), siteId: SITE_ID });
+  createSitesWorkspace({}, { ...options, cwd: base }).registry({}).merge({ entries: [{ id: SITE_ID, name: "copy", path: live, createdBy: "database-owner", lastOpened: null }] });
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
+  assert.equal(fs.existsSync(dir), false);
+  assert.equal(fs.readFileSync(path.join(dbDir, "content.db"), "utf8"), `content of ${SITE_ID}`);
+});
+
+test("B229: a symlinked per-site database folder is refused before anything is deleted", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  const outside = path.join(base, "outside");
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, "content.db"), "not ours");
+  fs.mkdirSync(databases, { recursive: true });
+  fs.symlinkSync(outside, path.join(databases, SITE_ID));
+  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options), { code: "SITE_PATH_UNSAFE" });
+  assert.equal(fs.readFileSync(path.join(outside, "content.db"), "utf8"), "not ours");
+  assert.equal(fs.existsSync(dir), true);
+});
+
+test("B229: a siteId with `..` is refused (by the platform's identity check) before anything is deleted", (t) => {
+  const { base, options, appData } = appDataFixture(t);
+  const dir = writeSite({ dir: trashFolder({ base, id: `alpha--${SITE_ID}` }), siteId: "../escape" });
+  fs.rmSync(path.join(dir, "content.db"));
+  const escaped = path.join(appData, "escape");
+  fs.mkdirSync(escaped, { recursive: true });
+  fs.writeFileSync(path.join(escaped, "content.db"), "outside databases/");
+  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options), /safe, stable site identity/);
+  assert.equal(fs.readFileSync(path.join(escaped, "content.db"), "utf8"), "outside databases/");
+  assert.equal(fs.existsSync(dir), true);
+});
+
+for (const [label, odd] of [
+  ["the shared databases/ parent itself", (databases: string) => path.join(databases, "content.db")],
+  ["a folder outside app data", (_databases: string) => path.join(os.tmpdir(), "elsewhere", "content.db")],
+  ["a `..` hop out of databases/", (databases: string) => `${databases}${path.sep}..${path.sep}escape${path.sep}content.db`],
+  ["a nested folder below a site's folder", (databases: string) => path.join(databases, SITE_ID, "nested", "content.db")],
+] as const) {
+  test(`B229: an injected database path pointing at ${label} is refused`, (t) => {
+    const { base, options, databases } = appDataFixture(t);
+    const dir = writeAppDataTrashedSite({ base });
+    const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+    const databasePaths = () => ({ contentDbPath: odd(databases), chatDbPath: odd(databases) });
+    assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, databasePaths }), { code: "SITE_PATH_UNSAFE" });
+    assert.equal(fs.existsSync(path.join(dbDir, "content.db")), true);
+    assert.equal(fs.existsSync(dir), true);
+  });
+}
+
+test("B229: the database folder is removed through the injected filesystem port", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  writeAppDataTrashedSite({ base });
+  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+  const removed: string[] = [];
+  const databaseFs = { lstatSync: fs.lstatSync, rmSync: (target: fs.PathLike) => { removed.push(String(target)); } };
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, databaseFs });
+  assert.deepEqual(removed, [dbDir]);
+  assert.equal(fs.existsSync(dbDir), true);
+});

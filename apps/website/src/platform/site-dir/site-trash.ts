@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createSitesWorkspace } from "./sites-home.js";
+import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import type { ResolveSiteRootOptional } from "./site-root.js";
 import { listSites } from "./site-registry.js";
 import { readSiteDir } from "./read-site-dir.js";
+import { classifySiteDatabaseDir, resolveSiteDatabasePaths, type SiteDatabaseDirFs } from "./site-databases.js";
 import { assertLocalSiteName, LocalSiteError } from "./local-site-supervisor.js";
 
 /**
@@ -139,12 +140,56 @@ export function restoreSite({ base, id }: { base: string; id: string }, optional
   sitesWorkspace({ base }, optional).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
 }
 
-/** Only the Trash route calls permanent removal, after checkbox + confirm. @complexity O(bytes). */
+/** Injectable seams of a permanent delete: how a trashed folder's database paths resolve, and the fs that removes them. */
+type PermanentDeleteOptions = SiteTrashOptions & {
+  databasePaths?: (required: { dir: string; workspace: SitesWorkspace }) => { contentDbPath: string; chatDbPath: string };
+  databaseFs?: SiteDatabaseDirFs;
+};
+
+/** Default resolution: the same lookup boot uses, minus the identity reservation a delete must not write. */
+function resolveTrashedDatabasePaths({ dir, workspace }: { dir: string; workspace: SitesWorkspace }) {
+  return resolveSiteDatabasePaths({ dir }, { workspace, reserveIdentity: false });
+}
+
+/**
+ * The `<appData>/databases/<siteId>/` folders a permanent delete must also remove (none for in-folder placement).
+ * @throws LocalSiteError SITE_PATH_UNSAFE for any database path outside the site's own app-data folder.
+ * @complexity O(n) registry records plus O(1) path checks.
+ */
+function trashedSiteDatabaseDirs(
+  { dir, siteId, workspace }: { dir: string; siteId: string; workspace: SitesWorkspace },
+  { databasePaths = resolveTrashedDatabasePaths, databaseFs }: Pick<PermanentDeleteOptions, "databasePaths" | "databaseFs">,
+): string[] {
+  // App-data DBs are keyed by siteId only. If a live catalog entry claims this id (e.g. a Finder copy
+  // that booted after the original went to Trash), the databases are that site's now: keep them.
+  if (workspace.registry({}).list({}).some((entry) => entry.id === siteId)) return [];
+  const { contentDbPath, chatDbPath } = databasePaths({ dir, workspace });
+  const appData = workspace.config({}).appData;
+  const dirs = new Set<string>();
+  for (const dbPath of [contentDbPath, chatDbPath]) {
+    const where = classifySiteDatabaseDir({ siteDir: dir, dbPath, appData }, databaseFs ? { fs: databaseFs } : {});
+    if (where.kind === "unsafe") throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
+    if (where.kind === "appData") dirs.add(where.dir);
+  }
+  return [...dirs];
+}
+
+/**
+ * Only the Trash route calls permanent removal, after checkbox + confirm. App-data placement keeps the
+ * site's databases outside its folder, so their `<appData>/databases/<siteId>/` folder goes too (B229).
+ * @complexity O(bytes).
+ */
 export function permanentlyDeleteTrashedSite(
-  { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean }, optional: SiteTrashOptions = {},
+  { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean },
+  { databasePaths, databaseFs, ...optional }: PermanentDeleteOptions = {},
 ): void {
   if (!checked || !confirmed) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
   const { dir } = trashEntry({ base, id }, optional);
-  readSiteDir({ dir });
+  const { meta } = readSiteDir({ dir });
+  // Resolved and checked before anything is removed, so a refusal deletes nothing.
+  const databaseDirs = trashedSiteDatabaseDirs({ dir, siteId: meta.siteId, workspace: sitesWorkspace({ base }, optional) }, { databasePaths, databaseFs });
+  // Folder first: if the database removal then fails, orphaned databases stay on disk rather than
+  // a still-restorable Trash entry losing its data.
   fs.rmSync(dir, { recursive: true });
+  for (const target of databaseDirs) (databaseFs ?? fs).rmSync(target, { recursive: true, force: true });
 }
