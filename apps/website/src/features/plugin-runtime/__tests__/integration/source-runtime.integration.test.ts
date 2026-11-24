@@ -9,7 +9,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled } from '@jini-ai/plugins/host';
 import { composePluginRuntime } from '#src/server/runtime/composition/plugin-runtime';
-import { reconcilePluginActivationsOnce } from '#src/server/runtime/composition/plugin-activation-polling';
+import { reconcilePluginActivationsOnce } from '@jini-ai/plugins/host';
 import { InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
 import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';

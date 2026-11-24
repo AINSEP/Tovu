@@ -5,12 +5,14 @@ import test from "node:test";
 import type { WorkerFactory, WorkerScheduler, WorkerSubscription } from "@jini-ai/sandbox/node-worker";
 
 import type { Tier2Request } from "@jini-ai/plugins/host/worker";
-import { createTier2WorkerRunner, resolveTier2TimeoutMs, tier2WorkerEnv } from "../run-in-worker.js";
+import { createTier2WorkerRunner, resolveTier2TimeoutMs } from "../run-in-worker.js";
 
 /**
- * @file `createTier2WorkerRunner()` — the host side of a Tier-2 call: one fresh bounded worker per
- * request over `@jini-ai/sandbox/node-worker`. Fake worker/timer ports here; the real worker is the
- * composition integration test.
+ * @file `createTier2WorkerRunner()` — Tovu's binding of a Tier-2 call onto
+ * `@jini-ai/sandbox/per-call-worker-runner` (whose generic behaviour, including the worker env
+ * allowlist, is tested in Jini's `per-call-worker-runner.test.ts`). These prove the Tovu wiring:
+ * sibling entry, Tovu env name, Tier-2 budgets, reply codec and error label. Fake worker/timer ports
+ * here; the real worker is the composition integration test.
  *
  * Requirement-to-test map:
  * - the request is the worker payload, the entry is the sibling worker file, default heap limits
@@ -19,7 +21,6 @@ import { createTier2WorkerRunner, resolveTier2TimeoutMs, tier2WorkerEnv } from "
  * - a timeout or crash rejects (hook-registry then fails closed) -> the timeout test.
  * - timeout env parsing is strict -> the resolveTier2TimeoutMs table.
  * - a compiled build spawns `worker.js` without the TS bootstrap -> the .js test.
- * - the worker env is an allowlist, never the server env -> the tier2WorkerEnv test.
  */
 
 const request: Tier2Request = {
@@ -121,12 +122,4 @@ test("a compiled build (.js) spawns worker.js with the real factory and no TypeS
     assert.match(error.message, /plugin-tier2\/worker\.js/);
     return true;
   });
-});
-
-test("tier2WorkerEnv keeps only the runtime/tooling allowlist, never server secrets", () => {
-  assert.deepEqual(
-    tier2WorkerEnv({ env: { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov", TOVU_SITE_KEY: "site-key", DATABASE_URL: "postgres://u:p@h/db", PATH: "/bin" } }),
-    { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov" },
-  );
-  assert.deepEqual(tier2WorkerEnv({ env: {} }), {});
 });

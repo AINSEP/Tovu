@@ -25,8 +25,12 @@ import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
-import { legacyTargetProvider, legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
+import { legacyTargetProvider, legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "@jini-ai/platform/secrets/legacy-codecs";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
+
+/** Tovu's vault owner key: the former custom vault (`secrets_vault_custom_v1`) sealed under it, so its
+ * pinned legacy AAD binds it. Injected into Jini's generic legacy codec. */
+export const TOVU_VAULT_OWNER_KEY = "tovu";
 
 const INVALID_META = "invalid-meta";
 
@@ -120,7 +124,7 @@ function normalizationProvider({ input, record, legacy }: LegacyRecordInput, _op
   if (record.sealed && legacy.table === "publish_credential_sets") {
     // The catalog owns provider reassignment; detect duplicates without opening their ciphertext.
     try {
-      legacyVaultAad({ record, legacy });
+      legacyVaultAad({ record, legacy, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY });
       provider = legacyTargetProvider({ record, legacy, policy: input.registry.policy }).provider;
     } catch (error) {
       throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : INVALID_META);
@@ -134,11 +138,11 @@ async function openLegacyRecord({ input, record, legacy, previous = input.sealer
   let key!: RootKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
   if (record.sealed) {
     try { key = await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
-    try { plaintext = await previous.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy }) }); }
+    try { plaintext = await previous.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY }) }); }
     catch { throw new RowBlocked("unopenable"); }
   } else {
     // Even an empty envelope must not erase an unsupported or mismatched lineage marker.
-    try { legacyVaultAad({ record, legacy }); } catch { throw new RowBlocked(INVALID_META); }
+    try { legacyVaultAad({ record, legacy, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY }); } catch { throw new RowBlocked(INVALID_META); }
   }
   return { plaintext, key };
 }

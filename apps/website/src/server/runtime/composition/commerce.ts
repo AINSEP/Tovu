@@ -6,13 +6,13 @@ import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
 import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
 import { createCommerceWorker } from './commerce-worker.js';
-import { commerceConfigurationKey, readCommerceDrain, selectCommerceDrain } from './commerce-drain.js';
+import { readCommerceDrain } from './commerce-drain.js';
 import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type KyselyKernel } from '@jini-ai/db/kernel';
 import type { Clock, HttpClientPort, IdGenerator } from '@jini-ai/core/primitives';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
-import { createCommerceServer, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
+import { createCommerceServer, readCommerceConfiguration, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
 import { commerceOrderRepoFor, commerceOrderPaymentRepoFor, commercePriceProviderRefRepoFor, commercePriceRepoFor,
-  commerceProductRepoFor, commerceStorefrontFor } from '@jini-ai/commerce/repo';
+  commerceProductRepoFor, commerceStorefrontFor, commerceConfigurationKey, selectCommerceDrain, type CommerceConfiguration } from '@jini-ai/commerce/repo';
 import { createPaymentsService, createPaymentsOperator, createKernelProviderRegistry, createProviderContexts,
   createWebhookReceiver, createInboxWorker, createOutboxRelay, paymentError, type KernelProviderRegistry,
   LedgerConstraintError, type LedgerTx, type LedgerKeyScope, type QuarantineRecord,
@@ -23,7 +23,6 @@ import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
 import { createAgentPluginEnabledReader } from '#src/features/agent-plugins/activation-effects';
 import type { ProviderPluginPorts } from './provider-plugins.js';
 import type { ProviderConfigSource } from './provider-config-source.js';
-import { readCommerceConfiguration, type CommerceConfiguration } from './commerce-settings.js';
 
 export type CommerceServer = ReturnType<typeof createCommerceServer>;
 /** The host keeps scope/configuration private; routes supply only the authenticated member and order. */

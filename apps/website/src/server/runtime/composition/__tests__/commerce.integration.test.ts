@@ -24,7 +24,8 @@ import { agentPluginActivations } from '#src/features/agent-plugins/activation-e
 import { openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { openPgliteKernel } from '#src/platform/db/kernel/drivers/pglite';
 import { composeCommerce, type ComposeCommerceRequired } from '../commerce.js';
-import { ensureCommerceSetting, type CommerceConfiguration } from '../commerce-settings.js';
+import { ensureCommerceSetting } from '@jini-ai/commerce';
+import type { CommerceConfiguration } from '@jini-ai/commerce/repo';
 import { createVaultProviderConfigSource } from '../provider-config-source.js';
 
 const configuration = { providerId: 'stripe', accountId: 'acct_fixture', mode: 'test' as const, publicOrigin: 'https://shop.example.test' };

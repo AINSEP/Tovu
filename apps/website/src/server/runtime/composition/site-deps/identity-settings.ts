@@ -21,7 +21,7 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
-import { ensureCommerceSetting } from "../commerce-settings.js";
+import { ensureCommerceSetting } from "@jini-ai/commerce";
 import { ensureFormDeliverySettings } from "#src/features/settings/index";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
