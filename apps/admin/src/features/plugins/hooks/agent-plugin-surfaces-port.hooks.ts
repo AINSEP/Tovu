@@ -1,4 +1,4 @@
-import type { AdminSurfaceAction, AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceAction, AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 
 /**
  * @file The admin's port onto the server's plugin admin-surface routes (`AGENT_PLUGIN_SURFACES`,

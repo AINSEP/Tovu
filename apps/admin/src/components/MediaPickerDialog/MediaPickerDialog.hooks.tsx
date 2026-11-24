@@ -6,7 +6,7 @@ import { describeApiError } from "../../lib/admin-http/request";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
-import { t as sharedComponentsT } from "../shared-components-i18n";
+import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 

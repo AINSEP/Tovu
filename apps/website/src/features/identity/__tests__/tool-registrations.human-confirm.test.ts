@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmission, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import {
   createSurfaceExchangeStore,
   SURFACE_DISMISSED_PARAM,

@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { FrontendHookInput } from "@jini-ai/daemon/http";
+import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 import { nodeRequestHeaders } from "@jini-ai/http-kit/node-bridge";
 import { JINI_REQUEST_FACTS, type RequestFacts } from "@jini-ai/core/contracts/site/request-facts";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

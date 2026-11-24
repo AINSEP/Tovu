@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { createA2uiActionPoster } from "../a2ui-action-poster";
+import { createA2uiActionPoster } from "../shell-collaborators";
 
 /**
  * @file The client half of A2UI's inbound transport — `createA2uiActionPoster` posting a rendered

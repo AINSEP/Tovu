@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog, type SettingsDialogTab } from "@jini-ai/ui";
+import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog } from "@jini-ai/ui";
+import type { SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 /** Adapt Jini's tab owner to this page's URL and translated header copy.

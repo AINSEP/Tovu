@@ -1,4 +1,4 @@
-import type { AdminTrashedSite, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminTrashedSite, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import { resolveSiteSubtitle, resolveTrashCardActions } from "./Sites.hooks";

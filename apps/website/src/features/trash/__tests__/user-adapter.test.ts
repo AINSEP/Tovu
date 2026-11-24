@@ -8,7 +8,8 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { assignRole, createUser } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";

@@ -1,6 +1,6 @@
 /** Closed admin input parsing and publication decisions shared by both admin transports. */
-import { visitorToolsObject, VisitorToolPolicyValidationError, VISITOR_TOOL_DEFAULT_LIMITS, type VisitorToolChoice } from "../../contracts/site-assistant/visitor-tools.js";
-import type { VisitorToolDescriptor, VisitorToolsConfigureInput } from "../../contracts/site-assistant/visitor-tools-management.js";
+import { visitorToolsObject, VisitorToolPolicyValidationError, VISITOR_TOOL_DEFAULT_LIMITS } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolChoice, VisitorToolDescriptor, VisitorToolsConfigureInput } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 const MODE_RANK = { off: 0, ask: 1, auto: 2 } as const;
 

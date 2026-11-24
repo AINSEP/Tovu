@@ -21,3 +21,9 @@ The site-visitor-assistant settings screen — the ungrouped, top-row **AI Assis
 own tab — the four failures are in the "not-yet-built roadmap accordion" block and query roadmap
 content without activating the "Not built yet" tab first. This is pre-existing, known breakage, not
 introduced by this feature move — do not "fix" it as a side effect of an unrelated change.
+
+## Wiring
+
+- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
+- Kit slots: `I18nProvider`, `SettingsDialogShell` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
+- Residual `@jini-ai/ui` imports: `ByokProviderForm`, `ExecutionTab`, `SETTINGS_DIALOG_DICTIONARIES`.

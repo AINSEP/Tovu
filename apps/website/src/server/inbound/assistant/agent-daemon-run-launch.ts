@@ -11,7 +11,11 @@ import { ASSISTANT_SETTING_SOURCES } from "./assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
 import { claimBrowserForRun, releaseBrowserForRun } from "./assistant-browser-lease.js";
-import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 export function createRunLaunch(ports: RunPorts, _optional = {}) {
   return { launchAgentRun: launchAgentRun.bind(undefined, ports) };

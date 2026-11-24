@@ -5,25 +5,10 @@ import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
 
-import {
-  AuthInvalidCredentialsError,
-  IdentityValidationError,
-  type IdentityRepos,
-  type PrincipalKind as IdentityPrincipalKind,
-  type PrincipalRecord,
-} from "@jini-ai/user-management";
-import {
-  beginOwnerLogin,
-  beginPrincipalSignIn,
-  completeOwnerLogin,
-  createSessionForPrincipal,
-  getEffectivePermissions,
-  login,
-  logout,
-  NodeSessionTokens,
-  validateSession,
-  type AuthServiceDeps,
-} from "@jini-ai/user-management/server";
+import { AuthInvalidCredentialsError, IdentityValidationError, type PrincipalKind as IdentityPrincipalKind } from "@jini-ai/user-management";
+import type { IdentityRepos, PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
+import { beginOwnerLogin, beginPrincipalSignIn, completeOwnerLogin, createSessionForPrincipal, getEffectivePermissions, login, logout, NodeSessionTokens, validateSession } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
 import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";

@@ -1,10 +1,9 @@
 import { useCallback } from "react";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { QueryResult } from "@jini-ai/core/fetch";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { KEYS, SITES_RESOURCE } from "../rules";
-import type { SitesPort } from "./sites-port.hooks";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 
 /** Shared Sites read/refresh lifecycle for the screen and its sidebar label.

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { AdminSubagents } from "../AdminSubagents";
 import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
-import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@jini-ai/admin/shell/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { t as translate } from "../ai-assistant-i18n";
 

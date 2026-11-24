@@ -9,7 +9,8 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
-import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { assignRole, createUser } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";

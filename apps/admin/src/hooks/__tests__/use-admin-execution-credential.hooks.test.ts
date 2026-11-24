@@ -4,7 +4,7 @@ import type { ByokConfig } from "@jini-ai/ui";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError as FakeApiError } from "../../lib/admin-http/request";
 import { resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";
+import type { AdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 
 /**
  * @file Covers the four owner-required behaviors for the admin's own BYOK credential UI (Bug 7),
@@ -37,7 +37,7 @@ import {
   useAdminExecutionCredential,
   useWiredAdminExecutionCredential,
 } from "../use-admin-execution-credential.hooks";
-import { createFakeAdminExecutionCredentialPort } from "../admin-execution-credential-dependencies.hooks";
+import { createFakeAdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 
 const LEGACY_STORAGE_KEY = "tovu:execution-credentials:v1";
 
@@ -715,7 +715,7 @@ describe("resolveByokFooterStatusLine", () => {
  * Google key and the owner picks OpenAI. The OpenAI key field showed the Google key's mask, Test
  * connection stayed enabled, and the tab probed OpenAI with the Google key, which the server refused
  * with its raw endpoint-pin text. Same rules as the visitor tab's fix (852b83c1), now shared through
- * `lib/stored-credential-endpoint.ts`.
+ * `@jini-ai/admin/shell/lib/stored-credential-endpoint` (bound describer in `lib/shell-collaborators.ts`).
  */
 describe("useAdminExecutionCredential — provider switch while the key is stored for another endpoint", () => {
   const GOOGLE = "https://generativelanguage.googleapis.com";

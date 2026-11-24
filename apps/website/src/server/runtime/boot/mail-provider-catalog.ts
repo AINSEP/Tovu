@@ -1,13 +1,8 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createProviderMailer as createEngineProviderMailer, defaultMailProviderSetup } from "@jini-ai/platform/mail";
 import type { UUID } from "@jini-ai/core/primitives";
-import {
-  createConsoleMailProvider,
-  createMailProviderRegistry,
-  createSmtpMailProvider,
-  type MailAdapterCredential,
-  type MailProviderModule,
-} from "@jini-ai/platform/mail";
+import { createConsoleMailProvider, createMailProviderRegistry, createSmtpMailProvider, type MailProviderModule } from "@jini-ai/platform/mail";
+import type { MailAdapterCredential } from "@jini-ai/core/contracts/mail";
 
 import {
   resolveCustomCredentialByLabel,

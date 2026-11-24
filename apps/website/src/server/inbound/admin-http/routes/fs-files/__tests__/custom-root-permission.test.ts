@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";

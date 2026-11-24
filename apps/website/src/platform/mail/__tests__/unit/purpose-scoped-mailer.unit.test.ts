@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
-import type { PositionalMailer as MailerPort, OutboundEmail, MailerSendOptions, MailerSendResult } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, OutboundEmail, MailerSendOptions, MailerSendResult } from "@jini-ai/core/contracts/mail";
 
 /**
  * @file SPEC-022 C-005 / CIC U-001 — the purpose-scoped mailer seam gate

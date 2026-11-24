@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import type { TestContext } from 'node:test';
 import { createContributionRegistry, type ToolExecutionContext } from '@jini-ai/core';
-import type { ToolAttemptAuditSink } from '@jini-ai/daemon/tool-audit';
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import type { ToolContributor, DerivedToolContributor } from '@jini-ai/core';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';

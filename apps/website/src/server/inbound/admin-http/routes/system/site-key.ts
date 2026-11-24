@@ -27,7 +27,7 @@ import { hasKeyDependentData } from "#src/platform/db/key-dependent-data";
 import { findSiteKeyDependentData, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
 import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import type { SiteKeyState } from "#src/contracts/core/site-key-state";
+import type { AdminSiteKeyState as SiteKeyState } from "@jini-ai/core/contracts/site/site-key";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";

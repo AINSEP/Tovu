@@ -5,7 +5,7 @@ import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/local-owner-signin";
+import { readInitialAdminSession } from "./lib/shell-collaborators";
 import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,

@@ -2,7 +2,7 @@ import path from "node:path";
 import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR, type SiteSavedKeysPort } from "./saved-keys-port.js";
 import { addBuffered } from "./share-preparation-steps.js";
 import type { BlobStorePort, ImageTransformerPort } from "#src/features/media/index";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "./sources.js";
 import { checkShareLimits, type ShareDatabaseSanitizer } from "./share-policy.js";

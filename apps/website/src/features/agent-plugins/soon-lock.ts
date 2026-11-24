@@ -9,7 +9,8 @@
  * (`HOST_SOON_AGENT_PLUGINS` in `bundled-catalog.ts`). This module imports no lifecycle code:
  * `lifecycle.ts` binds it into the enable paths of the activation owner, and boot passes the same ports.
  */
-import { readPluginMaturity, type PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { readPluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import type { PluginMaturity } from "@jini-ai/core/contracts/site/lifecycle-host-tools";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 

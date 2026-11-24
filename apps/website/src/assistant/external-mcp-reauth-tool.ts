@@ -1,6 +1,6 @@
 import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
-import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource, UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

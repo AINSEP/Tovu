@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import {
-  adminSurfaceActionResponse,
-  adminSurfaceInitMessage,
-  adminSurfaceThemeMessage,
-  createAdminSurfaceMount,
-  openAdminSurfaceLink,
-  readAdminSurfaceResize,
-  validateAdminSurfaceMessage,
-  type AdminSurfaceActionOutcome,
-  type AdminSurfaceOpenLinkPort,
-} from "@jini-ai/agent-plugins/admin-surfaces";
+import { adminSurfaceActionResponse, adminSurfaceInitMessage, adminSurfaceThemeMessage, createAdminSurfaceMount, openAdminSurfaceLink, readAdminSurfaceResize, validateAdminSurfaceMessage, type AdminSurfaceOpenLinkPort } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceActionOutcome } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import { readAdminTheme, watchAdminTheme } from "../admin-surface-theme";
 import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPluginSurfaceSummary, HostSignInLink } from "./agent-plugin-surfaces-port.hooks";
 

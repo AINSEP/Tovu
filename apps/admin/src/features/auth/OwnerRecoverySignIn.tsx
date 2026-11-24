@@ -2,7 +2,8 @@ import { useOwnerRecoverySignIn } from './OwnerRecoverySignIn.hooks';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
-import { ownerRecoveryPort, type OwnerRecoveryPort } from '../../lib/owner-recovery-api';
+import { ownerRecoveryPort } from '../../lib/shell-collaborators';
+import { type OwnerRecoveryPort } from '@jini-ai/admin/shell/lib/owner-recovery-api';
 
 import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;

@@ -46,7 +46,7 @@
 import path from "node:path";
 import * as asar from "@electron/asar";
 import { filesUnderPrefixes as files, verifyAsarAgainstSource as verify, toArchiveEntryPath as entryPath, isEmptyVerification as empty, bundledNpmFailures as npmFailures, createNodePackagingFilesystem, createAsarArchiveReader } from "@jini-ai/devops/packaging/electron";
-import type { AsarHeaderNode, AsarMismatch, AsarVerification } from "@jini-ai/devops/packaging/electron";
+import type { AsarHeaderNode, AsarMismatch, AsarVerification } from "@jini-ai/core/contracts/site/packaging-electron";
 export type { AsarHeaderNode, AsarMismatch, AsarVerification };
 /**
  * What the packaging backstop verifies, matched as `app.asar` entries (a top-level directory, or a file path

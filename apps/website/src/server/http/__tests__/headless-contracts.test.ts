@@ -6,7 +6,7 @@ import type {
   AdminPresentation,
   ContentPost,
   ContentPostPayload,
-} from "#src/contracts/headless/index";
+} from "@jini-ai/core/contracts/headless/contracts";
 import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { toAdminPostResponse } from "../../inbound/admin-http/http/posts.js";

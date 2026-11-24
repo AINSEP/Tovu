@@ -1,7 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Response } from "express";
 
-import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, type IdentityRepos } from "@jini-ai/user-management";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";

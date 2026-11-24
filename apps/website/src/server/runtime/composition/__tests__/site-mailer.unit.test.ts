@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
-import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headless/plugin-host";
 

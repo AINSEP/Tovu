@@ -1,12 +1,19 @@
 import { createElement, type ReactNode } from "react";
-import { Sidebar } from "@jini-ai/admin/react";
+import { Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import * as navI18n from "@/lib/admin-nav-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
-import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";
-import { useSitesSidebarNav } from "../use-sites-sidebar-nav.hooks";
+import type { AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
+import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
+import { useSitesSnapshot } from "@/features/sites/hooks/use-sites-snapshot.hooks";
+
+/** The host collaborators the Jini hook requires; the translator is read through the module
+ *  namespace at call time so `vi.spyOn(navI18n, ...)` below still reaches it. */
+const host = {
+  useSitesSnapshot,
+  translateNavLabel: (args: { locale: string; key: string }) => navI18n.translateAdminNavLabel(args),
+};
 
 const groups: readonly AdminNavGroup[] = [{ items: [
   { id: "sites", label: "Sites", href: "/sites", order: 1 },
@@ -27,7 +34,7 @@ it.each([
     currentSite: { name, dir: "/sites/current", listed: false, dirOverridden: false },
   };
   const port: Pick<SitesPort, "listSites"> = { listSites: vi.fn(async () => snapshot) };
-  const { result } = renderHook(() => useSitesSidebarNav({ groups, locale }, { port }), { wrapper: SidebarScope });
+  const { result } = renderHook(() => useSitesSidebarNav({ groups, locale, port, useSidebar, ...host }), { wrapper: SidebarScope });
   expect(result.current.groups[0]!.items[0]!.label).toBe(locale === "es" ? "Sitios" : "Sites");
   await waitFor(() => expect(port.listSites).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(result.current.groups[0]!.items[0]!.label).toBe(label));
@@ -38,7 +45,7 @@ it.each([
 
 it("does not load sites when the supplied navigation has no Sites row", () => {
   const port: Pick<SitesPort, "listSites"> = { listSites: vi.fn(() => Promise.reject(new Error("unexpected Sites read"))) };
-  const { result } = renderHook(() => useSitesSidebarNav({ groups: [], locale: "en" }, { port }), { wrapper: SidebarScope });
+  const { result } = renderHook(() => useSitesSidebarNav({ groups: [], locale: "en", port, useSidebar, ...host }), { wrapper: SidebarScope });
   expect(port.listSites).not.toHaveBeenCalled();
   expect(result.current).toMatchObject({ groups: [], siteName: "", prefix: "Sites (", suffix: ")", title: undefined });
 });
@@ -55,7 +62,7 @@ it.each([
     switchingEnabled: true, sites: [], persistedSiteName: "pending",
     currentSite: { name: "live", dir: "/sites/current", listed: false, dirOverridden: false },
   }) };
-  const { result } = renderHook(() => useSitesSidebarNav({ groups, locale: "en" }, { port }), { wrapper: SidebarScope });
+  const { result } = renderHook(() => useSitesSidebarNav({ groups, locale: "en", port, useSidebar, ...host }), { wrapper: SidebarScope });
   await waitFor(() => expect(result.current.siteName).toBe("live"));
   expect(result.current).toMatchObject({ prefix, suffix });
   expect(result.current.groups[0]!.items[0]!.label).toBe(label);
@@ -71,7 +78,7 @@ function Probe({ measure, onView }: { measure?: (element: HTMLElement) => { scro
     switchingEnabled: true, sites: [], persistedSiteName: "p",
     currentSite: { name: "a-very-long-site-name", dir: "/sites/current", listed: false, dirOverridden: false },
   }) };
-  const view = useSitesSidebarNav({ groups, locale: "en" }, measure ? { port, measure } : { port });
+  const view = useSitesSidebarNav({ groups, locale: "en", port, useSidebar, ...host }, measure ? { measure } : {});
   onView(view);
   return createElement("span", { ref: view.nameRef }, view.siteName);
 }

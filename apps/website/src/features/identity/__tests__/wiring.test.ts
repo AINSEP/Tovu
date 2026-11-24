@@ -7,7 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb, openContentDbReadOnly } from "#src/platform/db/sqlite/content-db";
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { DEFAULT_OWNER_CREDENTIALS, DEFAULT_OWNER_PASSWORD, createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "../wiring.js";
 // Every wiring call below passes the app's real, explicit grant registry: the library's built-in

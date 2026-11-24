@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { isClipboardRefusal } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";
 
 /** Copy follows Forms' saved-identity and visible-feedback contract; clipboard is a swappable port. */

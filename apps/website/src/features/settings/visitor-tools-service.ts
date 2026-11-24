@@ -1,7 +1,7 @@
 /** Tovu's site-policy management owner. Page and assistant use the same permission, merge and CAS. */
 import { ForbiddenError, type SetValueRequired } from "@jini-ai/core/settings";
-import { parseVisitorToolPolicy, resolveVisitorToolChoice, VisitorToolPolicyValidationError, VISITOR_TOOLS_PERMISSION, VISITOR_TOOL_CALLS_PER_TURN, VISITOR_TOOL_DEFAULT_LIMITS, type VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
-import type { PreparedVisitorToolsChange, VisitorToolDescriptor, VisitorToolsManagementPort, VisitorToolsView } from "../../contracts/site-assistant/visitor-tools-management.js";
+import { parseVisitorToolPolicy, resolveVisitorToolChoice, VisitorToolPolicyValidationError, VISITOR_TOOLS_PERMISSION, VISITOR_TOOL_CALLS_PER_TURN, VISITOR_TOOL_DEFAULT_LIMITS } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolPolicy, PreparedVisitorToolsChange, VisitorToolDescriptor, VisitorToolsManagementPort, VisitorToolsView } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import { parseVisitorToolsConfigure, visitorToolsNeedsApproval } from "./visitor-tools-configure.js";
 import { readVisitorToolsSnapshot, VisitorToolsRevisionConflictError, writeVisitorTools } from "./visitor-tools-write.js";
 

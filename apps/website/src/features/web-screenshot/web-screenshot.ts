@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import type { CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
+import type { CaptureBudgetLimits } from "@jini-ai/core/contracts/site/web-evidence-capture-budget";
 
 /**
  * @file `web_screenshot_page`'s domain logic: input rules, viewport presets, the one-at-a-time

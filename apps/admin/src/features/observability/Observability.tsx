@@ -1,5 +1,6 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
+import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 

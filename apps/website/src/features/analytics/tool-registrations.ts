@@ -9,7 +9,7 @@ import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { AnalyticsSinkPort } from "./index.js";
-import type { NormalizedHit } from "@jini-ai/analytics";
+import type { NormalizedHit } from "@jini-ai/core/contracts/site/analytics";
 import { analyticsAgentToolCatalog } from "./agent-tools.js";
 
 export interface AnalyticsToolDeps { authorize: AuthorizeFn; workspaceId: string; analyticsSink: AnalyticsSinkPort }

@@ -9,7 +9,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/credential-save";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

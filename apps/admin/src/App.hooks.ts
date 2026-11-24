@@ -28,7 +28,6 @@ import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {
@@ -49,7 +48,7 @@ import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
+import { adminBrowserStreamPorts, readInitialAdminSession } from "./lib/shell-collaborators";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern

@@ -3,10 +3,8 @@ import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import {
-  VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, visitorToolsPort,
-  type VisitorToolLimits, type VisitorToolMode, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView,
-} from "@/lib/visitor-tools";
+import { VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, type VisitorToolLimits, type VisitorToolMode, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView } from "@jini-ai/admin/shell/lib/visitor-tools";
+import { visitorToolsPort } from "@/lib/shell-collaborators";
 
 const queryKey = ["ai-assistant", "visitor-tools"] as const;
 export type VisitorToolsNotice = { kind: "conflict" | "error"; message: string } | null;

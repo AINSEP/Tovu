@@ -1,6 +1,5 @@
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { sitesApi } from "@/features/sites/api/sites-api";
-import type { SitesPort } from "./sites-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */

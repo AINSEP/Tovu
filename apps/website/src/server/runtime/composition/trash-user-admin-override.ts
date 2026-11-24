@@ -1,5 +1,5 @@
 import { OwnerRequiredError } from "@jini-ai/user-management";
-import type { AuthServiceDeps } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 
 import { callerMayManageUserTrash, assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { USER_ENTITY_TYPE, type TrashAuthorizeFn } from "#src/features/trash/index";

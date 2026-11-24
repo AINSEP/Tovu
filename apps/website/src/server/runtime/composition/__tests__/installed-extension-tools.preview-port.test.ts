@@ -6,7 +6,7 @@ import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { CONTENT_ANALYZER_MANIFEST } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { InstalledExtensionToolDeps } from "#src/assistant/installed-extension-tools";

@@ -58,3 +58,10 @@ If restoring a replaced version fails, the installer retains its old bytes in st
 Implementation reference: `ADS-memory/.local-artifacts/terra-runs/sol/plugin-install-plan.md`
 (owner-approved 2026-09-22; SHA-256 `568b1fd6ddc9bbab348e89931baa976eda51fa11432de5c54f3abb319424c608`).
 Tests were written but not executed in the dispatched worker; validation belongs to the coordinator.
+
+## Wiring
+
+- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
+- Kit slots: `I18nProvider` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
+- `SettingsDialogShell` comes from the kit facade; its `labels` prop is the kit `SettingsDialogChromeLabels` mirror of the UI owner's chrome labels.
+- Residual `@jini-ai/ui` imports: `SETTINGS_DIALOG_DICTIONARIES`, `SettingsDialogShell`.

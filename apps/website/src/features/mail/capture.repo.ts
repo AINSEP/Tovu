@@ -7,7 +7,7 @@ import {
 import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
-import type { MailCapturePort, MailDeliveryLane, OutboundEmail } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailDeliveryLane, OutboundEmail } from "@jini-ai/core/contracts/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
 
 export interface CapturedMail {

@@ -2,12 +2,12 @@ import { useRef } from "react";
 import type { StartRunInput } from "@jini-ai/chat/core";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
-import { Composer, useComposer, ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
+import { Composer, useComposer, ChatPane, useT, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
 import { useComposerDiscoverySelect } from "../hooks/composer-discovery.hooks";
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
-import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
+import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 import { FakeEventSource } from "@/lib/__tests__/assistant-transport.test-helpers";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
@@ -26,7 +26,7 @@ it("pick adds a removable chip, preserves the user's draft, and only the run pay
     const discovery = useComposerDiscoveryDraft(capabilities.groups);
     const onDiscoverySelect = useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn(), addSkill: skills.addSkill, readDraft: () => composer.draft });
     return <div onChangeCapture={discovery.captureDraft}>
-      <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} />
+      <SelectedAgentPluginTray useTHook={useT} chips={skills.chips} onRemove={skills.removeSkill} />
       <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills({ prompt: composer.draft, context: { selectedSkills: skills.selectedSkills } }) })}</output>
       <Composer composer={composer} onSend={vi.fn()} slots={{ discoveryGroups: discovery.groups, onDiscoverySelect }} />
     </div>;
@@ -84,7 +84,7 @@ it("the real ChatPane sends a chip-only turn under the skill name, with an empty
     return <div ref={discovery.rootRef} onChangeCapture={discovery.captureDraft}>
       <ChatPane transport={{ startRun: started, reattachRun: async () => {}, fetchRunStatus: async () => null, stopRun: async () => {} }} agents={[{ id: "test", name: "Test" }]} initialSelection={{ agentId: "test" }} composerHandle={handle}
         composerSlots={{ discoveryGroups: discovery.groups, onDiscoverySelect }} runContext={{ selectedSkills: skills.selectedSkills }}
-        leadingAccessory={<SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={only.canSendSkills ? only.sendSkills : undefined} />} />
+        leadingAccessory={<SelectedAgentPluginTray useTHook={useT} chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={only.canSendSkills ? only.sendSkills : undefined} />} />
     </div>;
   }
   render(<Harness />);

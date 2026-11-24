@@ -7,7 +7,8 @@ import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberPost, checkMemberRequestLimits, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
 import { callbackAddress } from "./oidc-callback.js";
-import { MEMBER_OIDC_PATH, MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
   memberOidcHeaders, sendMemberOidcError, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Strict JSON DTO; callers cannot inject claims, intent or proof booleans. O(k) body keys. */

@@ -2,7 +2,7 @@ import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type U
 import type { VaultRecord } from "@jini-ai/core/contracts/vault";
 import type { SealedSecret } from "../features/webhooks/index.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault, writeAssistantVault } from "./assistant-vault.js";
 import { credentialViewFields } from './credential-store-fields.js';
 

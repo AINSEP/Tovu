@@ -2,7 +2,7 @@
  * The provider verdict remains separate from credential presence and delivery evidence.
  * Setup copy is plugin/host data, and credential summaries expose presence without values.
  */
-import type { MailProviderConfigurationReport } from "@jini-ai/platform/mail";
+import type { MailProviderConfigurationReport } from "@jini-ai/core/contracts/mail";
 
 /** Explicit provider selection: `check` validates without sending, `select` writes both lanes. */
 export interface MailProviderControl {

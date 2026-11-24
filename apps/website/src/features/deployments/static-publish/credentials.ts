@@ -7,7 +7,7 @@ import type { PublishConnectionInput } from "../publish-credentials/types.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
 import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget  } from "../deploy-targets/types.js";
-import type { DeployTargetCredential } from "@jini-ai/devops/deploy";
+import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";
 import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
 
 /** Readiness accepts the same optional saved-connection choice as resolution, without opening it. */

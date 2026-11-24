@@ -5124,6 +5124,206 @@
     {
       "id": "486452b0f1ad",
       "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "233ac6f79e9c",
+      "reason": "Moved to Jini @jini-ai/core/src/contracts/headless/__tests__/admin-post-response.type.test.ts @file header (w3-fnd C-contracts-headless-1); host repo paths reworded to 'the host admin' per N2, why-sentences kept."
+    },
+    {
+      "id": "286d4730e4b2",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/core-custom-credential-categories.ts CustomCredentialCategoryId doc (w3-fnd K4-seam-15); host paths reworded neutral per N2, why kept."
+    },
+    {
+      "id": "7fd1b0e034d5",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/ui-sections.ts PublishSection.typePluralLabelKeys doc (w3-fnd K4-seam-21), verbatim; only the declaration moved, the host keeps PUBLISH_SECTIONS."
+    },
+    {
+      "id": "aa5ec62f9632",
+      "reason": "The host SiteKeyState file is deleted (ex6-fnd-shared-a): its plan/alias-wiring @file header described a host-only staging step that no longer exists; the type's purpose and its runtime-list parity rule now live on @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyState doc (w3-fnd, rv1123e shared-a FIX 2)."
+    },
+    {
+      "id": "f35d66f3ea31",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyState doc (w3-fnd, rv1123e shared-a FIX 2): all five per-state explanations carried, host file names reworded neutral per N2."
+    },
+    {
+      "id": "3ec770e8db4f",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "7fa4856a75ca",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "8f929ca04f57",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "e9cdafa80c90",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "f7e07caf5344",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "fc2296b4f8a8",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "fe2539e801df",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts SitesPort @file rationale (w3-fnd K4-seam-17); the host port file is deleted (types-only), reworded per N2."
+    },
+    {
+      "id": "48a23f6e39a0",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/__tests__/stored-credential-endpoint.unit.test.ts @file header (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "4f2ee79864eb",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "68d60bb545f4",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "7f3dbb3a1c26",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "9ca288b68b2f",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "f264b12eee50",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "ad632c7d77c1",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/visitor-tools.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "d5ca51656775",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/version-conflict.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "18237559fe3f",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/owner-mfa-api.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "1c4ac880df87",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/owner-recovery-api.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "2ab95a92fb4a",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AdminFailureNotice/AdminFailureNotice.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "2e84b89655b4",
+      "reason": "sse-frames.ts was a pure re-export of @tovu/assistant-run-events (forwarding file, banned); deleted in w3-fnd lib-2/3 and importers use the real module, so its 'preserve import paths' explanation has nothing left to attach to."
+    },
+    {
+      "id": "358483d846e0",
+      "reason": "Moved to Jini packages/admin/src/shell/hooks/admin-execution-credential-port.hooks.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "56e0c5c33923",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AssistantDock/SelectedAgentPluginTray.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "587c8aa708d7",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/local-owner-signin.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "58d5c33bd9ff",
+      "reason": "standing-draft-local-backup.ts deleted (w3-fnd lib-2/3): its wrappers only forwarded to createStandingDraftLocalBackup; the binding and its retained-prefix note now live in apps/admin/src/lib/shell-collaborators.ts."
+    },
+    {
+      "id": "5d523b226ffd",
+      "reason": "Moved to Jini packages/admin/src/shell/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "60657dd77d43",
+      "reason": "Moved to Jini packages/admin/src/shell/hooks/admin-execution-credential-port.hooks.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "7bf8129f67e3",
+      "reason": "Moved to Jini packages/admin/src/shell/components/MailStatusBanner/MailStatusBanner.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "85acc5b56840",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/browser-working-directory-access.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "8c30f75bcdca",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AssistantDock/__tests__/SlowRunNoticeCard.unit.test.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "95a3c2791612",
+      "reason": "Moved to Jini packages/admin/src/shell/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "9bbb376dff0c",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/admin-failure-reporter.ts (w3-fnd lib-2/3) as the host-disclosure adapter doc; product name reworded to 'the host' per N1."
+    },
+    {
+      "id": "a12931eab869",
+      "reason": "Moved to Jini packages/admin/src/shell/hooks/admin-execution-credential-port.hooks.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "bb6b481bfb4c",
+      "reason": "Moved to Jini packages/admin/src/shell/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "bcf62726e4fa",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AssistantDock/MessageOverflowModal.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "be71c859964f",
+      "reason": "a2ui-action-poster.ts folded into apps/admin/src/lib/shell-collaborators.ts (w3-fnd lib-2/3); the host-wiring note moved with the binding."
+    },
+    {
+      "id": "c84711d3d601",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/admin-failure-reporter.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "cb9c3b22fa9a",
+      "reason": "Explained SlowRunNoticeCard's helper re-export; that forwarding re-export was removed in w3-fnd components-3 (tests import SlowRunNoticeCard.hooks directly), so the comment is obsolete."
+    },
+    {
+      "id": "cfc48a8425d2",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/owner-recovery-api.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "d09ae0fc378c",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/local-owner-signin.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "d4e65dc5fc18",
+      "reason": "Moved to Jini packages/admin/src/shell/components/shared-components-i18n.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "d601f64fc790",
+      "reason": "Moved to Jini packages/admin/src/shell/components/AssistantDock/SlowRunNoticeCard.tsx (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "d9ae27a342aa",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/__tests__/browser-working-directory-access.unit.test.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "e1fe9efe6f94",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/browser-working-directory-access.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "e9beb79c467f",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/admin-failure-reporter.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "f62497c2809a",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/browser-working-directory-access.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
+    },
+    {
+      "id": "fd4a490755d5",
+      "reason": "Moved to Jini packages/admin/src/shell/lib/credential-submit-error.ts (w3-fnd shell K2/K3/K5 move); product names and host paths reworded to 'the host' per N1/N2, hooks/collaborators now injected, why kept."
     }
   ]
 }

@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { isNonArrayRecord } from "@jini-ai/core/records";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { resolveSmokeTargets } from "./smoke-native.ts";
 
@@ -115,19 +116,22 @@ export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}):
   let entries: unknown;
   try { entries = JSON.parse(stdout); }
   catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) })}`); }
-  if (!isRecord(entries) || entries.desktopHttp !== true) throw new Error("packaged desktop HTTP smoke did not complete");
-  entries = entries.entries;
+  const resolverOutput = { value: entries };
+  if (!isNonArrayRecord(resolverOutput) || resolverOutput.value.desktopHttp !== true) throw new Error("packaged desktop HTTP smoke did not complete");
+  entries = resolverOutput.value.entries;
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
-    if (!isRecord(entry)) throw new Error("malformed packaged Jini entry");
-    if (typeof entry.command !== "string" || entry.command.length === 0) throw new Error("malformed packaged Jini entry");
-    if (!Array.isArray(entry.args) || !entry.args.every((arg: unknown) => typeof arg === "string")) {
+    const candidate = { value: entry };
+    if (!isNonArrayRecord(candidate)) throw new Error("malformed packaged Jini entry");
+    const fields = candidate.value;
+    if (typeof fields.command !== "string" || fields.command.length === 0) throw new Error("malformed packaged Jini entry");
+    if (!Array.isArray(fields.args) || !fields.args.every((arg: unknown) => typeof arg === "string")) {
       throw new Error("malformed packaged Jini entry");
     }
-    const env = parseJiniEntryEnv({ env: entry.env });
+    const env = parseJiniEntryEnv({ env: fields.env });
     return {
       label: index === 0 ? "site jini-mcp" : "desktop jini-mcp",
-      command: entry.command, args: entry.args as string[], env,
+      command: fields.command, args: fields.args as string[], env,
       serverName: "jini-mcp", toolName: "execute_delegated_tool",
     };
   });
@@ -143,26 +147,26 @@ export function parseJiniEntryEnv(
   { env }: { env: unknown },
   _options: Record<string, never> = {},
 ): Record<string, string> {
-  if (!isRecord(env) || !Object.values(env).every(value => typeof value === "string")
-    || env.JINI_RUN_ID !== "release-smoke" || env.ELECTRON_RUN_AS_NODE !== "1") {
+  const candidate = { value: env };
+  if (!isNonArrayRecord(candidate) || !Object.values(candidate.value).every(value => typeof value === "string")
+    || candidate.value.JINI_RUN_ID !== "release-smoke" || candidate.value.ELECTRON_RUN_AS_NODE !== "1") {
     throw new Error("malformed packaged Jini entry");
   }
   return env as Record<string, string>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Validates one JSON-RPC line; unrelated replies/notifications cannot satisfy the pending request. */
 export function parseBridgeReply(
   { line, id }: { line: string; id: number },
 ): Record<string, unknown> | undefined {
-  const reply: unknown = JSON.parse(line);
-  if (!isRecord(reply) || reply.jsonrpc !== "2.0") throw new Error("invalid MCP JSON-RPC reply");
+  const parsed: unknown = JSON.parse(line);
+  const candidate = { value: parsed };
+  if (!isNonArrayRecord(candidate) || candidate.value.jsonrpc !== "2.0") throw new Error("invalid MCP JSON-RPC reply");
+  const reply = candidate.value;
   if (reply.id !== id) return undefined;
-  if (reply.error !== undefined || !isRecord(reply.result)) throw new Error(`MCP request ${id} failed`);
-  return reply.result;
+  const result = { value: reply.result };
+  if (reply.error !== undefined || !isNonArrayRecord(result)) throw new Error(`MCP request ${id} failed`);
+  return result.value;
 }
 
 /** Checks bridge identity and its static tool roster; never invokes a delegated tool or a model. */
@@ -171,10 +175,15 @@ export function assertBridgeReplies(
     initialize: Record<string, unknown>; tools: Record<string, unknown>; serverName: string; toolName: string;
   },
 ): void {
-  if (!isRecord(initialize.serverInfo) || initialize.serverInfo.name !== serverName) {
+  const serverInfo = { value: initialize.serverInfo };
+  if (!isNonArrayRecord(serverInfo) || serverInfo.value.name !== serverName) {
     throw new Error(`initialize did not identify ${serverName}`);
   }
-  if (!Array.isArray(tools.tools) || !tools.tools.some(tool => isRecord(tool) && tool.name === toolName)) {
+  const namesTool = (tool: unknown): boolean => {
+    const candidate = { value: tool };
+    return isNonArrayRecord(candidate) && candidate.value.name === toolName;
+  };
+  if (!Array.isArray(tools.tools) || !tools.tools.some(namesTool)) {
     throw new Error(`tools/list did not include ${toolName}`);
   }
 }

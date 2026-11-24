@@ -2,7 +2,7 @@ import { SiteTrashTab } from "./SiteTrashTab";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import type { AdminSitesSnapshot } from "./api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "../../lib/admin-http/request";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";

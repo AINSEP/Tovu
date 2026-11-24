@@ -14,7 +14,7 @@ import test from "node:test";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";

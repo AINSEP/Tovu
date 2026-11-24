@@ -8,7 +8,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { derivedRisk } from "@jini-ai/search/tools";
 import { createInMemorySearchProvider, createInMemorySearchState, createStaticAccessPort } from "@jini-ai/search/testkit";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/search";
 import type { HttpResponse } from "#src/platform/http/index";

@@ -1,3 +1,4 @@
+import { isNonArrayRecord } from "@jini-ai/core/records";
 import { assertExistingAbsoluteDirectory } from "#src/features/fs-files/custom-root-store";
 /**
  * @file The admin screen a chat message was sent from — decoded off a run's `contextRef` and
@@ -53,10 +54,6 @@ export interface RunPageContext {
 /** Longest value kept for any one field; an entry title is the only one that realistically nears it. */
 const MAX_FIELD_LENGTH = 300;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** A non-empty string capped at {@link MAX_FIELD_LENGTH}, or `undefined` for any other shape. */
 function readCappedString({ value }: { value: unknown }, _options = {}): string | undefined {
   return typeof value === "string" && value.length > 0 ? value.slice(0, MAX_FIELD_LENGTH) : undefined;
@@ -72,17 +69,19 @@ function readDrawingSurface({ value }: { value: unknown }, _options = {}): RunDr
 }
 
 function readEntry({ value }: { value: unknown }, _options = {}): RunPageContextEntry | undefined {
-  if (!isRecord(value)) return undefined;
-  const kind = readCappedString({ value: value.kind });
-  const id = readCappedString({ value: value.id });
-  const title = readCappedString({ value: value.title });
+  const candidate = { value };
+  if (!isNonArrayRecord(candidate)) return undefined;
+  const fields = candidate.value;
+  const kind = readCappedString({ value: fields.kind });
+  const id = readCappedString({ value: fields.id });
+  const title = readCappedString({ value: fields.title });
   if (kind === undefined || id === undefined || title === undefined) return undefined;
   return {
     kind,
     id,
     title,
-    ...optionalField({ key: "slug", value: readCappedString({ value: value.slug }) }),
-    ...optionalField({ key: "status", value: readCappedString({ value: value.status }) }),
+    ...optionalField({ key: "slug", value: readCappedString({ value: fields.slug }) }),
+    ...optionalField({ key: "status", value: readCappedString({ value: fields.status }) }),
   };
 }
 
@@ -98,16 +97,18 @@ function readEntry({ value }: { value: unknown }, _options = {}): RunPageContext
  * @complexity O(1) — a fixed set of fields, each capped.
  */
 export function readRunPageContext({ value }: { value: unknown }, _options = {}): RunPageContext | undefined {
-  if (!isRecord(value)) return undefined;
-  const path = readCappedString({ value: value.path });
-  const section = readCappedString({ value: value.section });
+  const candidate = { value };
+  if (!isNonArrayRecord(candidate)) return undefined;
+  const fields = candidate.value;
+  const path = readCappedString({ value: fields.path });
+  const section = readCappedString({ value: fields.section });
   if (path === undefined || section === undefined) return undefined;
-  const entry = readEntry({ value: value.entry });
-  const drawingSurface = readDrawingSurface({ value: value.drawingSurface });
+  const entry = readEntry({ value: fields.entry });
+  const drawingSurface = readDrawingSurface({ value: fields.drawingSurface });
   return {
     path,
     section,
-    ...optionalField({ key: "view", value: readCappedString({ value: value.view }) }),
+    ...optionalField({ key: "view", value: readCappedString({ value: fields.view }) }),
     ...(entry === undefined ? {} : { entry }),
     ...(drawingSurface === undefined ? {} : { drawingSurface }),
   };
