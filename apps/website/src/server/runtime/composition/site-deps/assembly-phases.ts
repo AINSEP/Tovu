@@ -1,4 +1,4 @@
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { CreateSiteRouteDepsOverrides } from "./overrides.js";
 import type { StoreCloseRegistration } from "./open-store.js";
 import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";

@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { createSeoFeaturedImagePort, createSeoPostPort } from "../index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";

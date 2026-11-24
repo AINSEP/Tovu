@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";

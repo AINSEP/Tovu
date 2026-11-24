@@ -1083,7 +1083,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * route reads it, and the post repo, entry repo and trash service (constructed from the same instance) clear it
    * on every write. A second instance anywhere would leave the reader serving stale access decisions.
    */
-  mediaAccessEvidence: import("../../features/media/access-evidence.js").MediaAccessEvidence;
+  mediaAccessEvidence: import("@jini-ai/cms/media/site/access-evidence").MediaAccessEvidence;
   /**
    * Media persistence (ADR-027): the bespoke `MediaRecord` repo is not a frozen ADR
    * port. `assetBlobRepo`/`assetRenditionRepo` are core-owned sidecars (ADR-027 §2);

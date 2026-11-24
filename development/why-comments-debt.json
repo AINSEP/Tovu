@@ -13796,6 +13796,10 @@
     {
       "id": "5fca575c680e",
       "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/held-back.ts (Jini 48f2aeca5), reworded neutral; the Tovu file no longer holds the route spec these comments explained."
+    },
+    {
+      "id": "c8ca595b4591",
+      "reason": "Only the federate-mcp bullet is gone: it explained two ALLOWED entries that 9a3319b4f (C026) removed because their lines were already reworded (the comment itself says such entries must be removed). The rest of the block is kept verbatim at vendor-neutrality.test.ts:45."
     }
   ]
 }

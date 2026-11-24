@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";

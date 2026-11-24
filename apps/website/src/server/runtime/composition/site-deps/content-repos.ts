@@ -2,7 +2,7 @@ import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { FORMS_TABLES, TAXONOMY_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";

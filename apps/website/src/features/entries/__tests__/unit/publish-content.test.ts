@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";

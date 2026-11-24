@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";

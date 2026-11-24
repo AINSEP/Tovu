@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";

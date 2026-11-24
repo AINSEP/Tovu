@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence, type MediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence, type MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { createHash, randomUUID } from "node:crypto";
 
 import {

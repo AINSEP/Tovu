@@ -34,7 +34,7 @@ import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/si
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 
 interface RouteDepsContentTrashRequired {
   assistantAgentInventory: ReturnType<typeof composeAgentPluginBootstrap>["assistantAgentInventory"];

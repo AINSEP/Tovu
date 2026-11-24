@@ -1,4 +1,4 @@
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { composeMemoryTrash } from "../slices/memory-trash.js";
 import type { composeTaxonomyTrashRepos } from "../slices/taxonomy-trash-repos.js";
 import type { composeMemoryRepos } from "../slices/repos.js";

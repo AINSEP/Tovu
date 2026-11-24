@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
 import assert from "node:assert/strict";

@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";

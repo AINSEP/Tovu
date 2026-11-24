@@ -2,7 +2,7 @@ import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../pla
 import { POST_SEARCH_HOST } from "./search-host-config.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlPostRepo } from "./repo.js";
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { postSearchFor } from "@jini-ai/cms/posts/sql";
 
 /**

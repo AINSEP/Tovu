@@ -1,5 +1,5 @@
 import { POST_SEARCH_HOST } from "./search-host-config.js";
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";

@@ -6,7 +6,7 @@ import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { COMMENTS_TABLES, FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";

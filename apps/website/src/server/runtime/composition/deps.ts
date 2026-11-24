@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { composeStoragePhase, composeSiteServicesPhase, composeProviderLifecyclePhase, composeInstrumentedContentPhase, composePublishingPhase } from "./site-deps/boot-phases.js";
 import { assembleRouteDepsPhase, finishRouteDepsPhase } from "./site-deps/assembly-phases.js";
 
@@ -89,7 +89,9 @@ async function composeSiteRouteDeps(
   { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
-  // The ONE media access-evidence store of this site: the repos and trash service below clear it on writes and the public media-rendition route (via routeDeps) reads it, so every owner must be built from THIS instance.
+  /** The one media access-evidence store for this server process. The public media-rendition route reads it
+   *  and every content-write owner (post repos, entry repos, trash service) invalidates it, so they must all
+   *  hold THIS instance; the engine keeps no shared state of its own. */
   const mediaAccessEvidence = createMediaAccessEvidence();
   // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
   // lifecycle summaries until the consenting facade exists, rather than reading an uninitialized

@@ -3,7 +3,7 @@ import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo } from "@jini-ai/cms/tax
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { existsSync, readFileSync } from "node:fs";

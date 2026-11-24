@@ -1,4 +1,4 @@
-import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { createNavMenuReadModel } from "@jini-ai/cms/navigation";
 
 import { assembleMemoryRouteDeps } from "./memory-deps/route-deps/assemble.js";

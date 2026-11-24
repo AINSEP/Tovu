@@ -3,7 +3,7 @@ import { SqliteAssetBlobRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
-import type { MediaAccessEvidence } from "#src/features/media/access-evidence";
+import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 
 interface ComposeContentStoresRequired {
   kernel: SiteStore["content"];
