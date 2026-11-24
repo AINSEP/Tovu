@@ -148,10 +148,7 @@ export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken, ensureToolExecToken
 // re-exporting it here would create an assistant -> server dependency. The pure respawn policy
 // remains public so the supervisor and its tests share crash-loop/backoff decisions.
 export { createRespawnPolicy } from "./daemon-respawn-policy.js";
-export type { RespawnDecision, RespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
-/** Fixed, secret-free recovery copy shared by both HTTP hops. */
-export { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from "@jini-ai/daemon/http";
 export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
@@ -233,7 +230,6 @@ export type { DuplicateResourceHandlerContributor } from "./tool-registrations.j
 // ---------------------------------------------------------------------------------------------
 export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
-export type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
 // selects the adapter" shape as the chat-history pair immediately above, for the same two

@@ -18,7 +18,6 @@
  * `export *` — every line here exists because `agent-daemon-server.ts` uses it today.
  */
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
-export { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-access.js";
 export { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
@@ -79,25 +78,10 @@ export {
   waitForStoppingRuns,
   agentAcceptsHostMintedSessionId,
 } from "./agent-session-preset.js";
-export {
-  extractSessionRefFromEndEvent,
-  resolveResumeSessionField,
-  shouldClearSessionOnFailedResume,
-  wouldForcedColdStartLoseConversationContext,
-  createLiveRunTracker,
-  failRunBeforeStart,
-  STOPPING_RUN_WAIT_MS,
-  resolveHostMintedSessionId,
-  resolveNewSessionField,
-  createConversationStartLock,
-} from "@jini-ai/daemon/session-coordination";
 export { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 export { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
 export { readAssistantCliPermissions } from "./subagent-settings.js";
-export { createLostFrontendBindings } from "@jini-ai/daemon/http";
-export { withPageNavigateErrorRewrap } from "@jini-ai/agentic";
 export { delegatedToolErrorDisclosure } from "./tool-recovery-preset.js";
 export { registerRunActiveContextRoute } from "./run-active-context.js";
-export { createRunActiveContextStore } from "@jini-ai/daemon/http";
 export { createRunScopedCredentials } from "./daemon-access.js";
 export type { RunPageContext } from "./run-page-context.js";

@@ -2,7 +2,7 @@ import { createFederatedMcpPresetRegistry, createFederationRuntime as createJini
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
-import { attachFederatedMcpTools, resolveRegisteredPresets } from "./mcp-federation/bootstrap.js";
+import { attachFederatedMcpTools, createFederationConsoleLogger, resolveRegisteredPresets } from "./mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { createFederationReloadCoordinator } from "./mcp-federation/reload-adapter.js";
@@ -64,7 +64,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   const attach = params.attach ?? attachFederatedMcpTools;
   const connect = params.connect ? { connect: params.connect } : {};
   return createJiniFederationRuntime({
-    log: params.log, messages: tovuFederationMessages, resolveConnections: params.resolveConnections,
+    logger: createFederationConsoleLogger({ prefix: params.log }), messages: tovuFederationMessages, resolveConnections: params.resolveConnections,
     boot: ({ extraConnections, logger }) => attach({ presetRegistry, registry: params.registry, deps: params.deps, extraConnections, logger, ...connect }),
     resolvePresetConnections: ({ logger }) => resolveRegisteredPresets({ env: process.env, logger, registry: presetRegistry }),
     createReloadCoordinator: ({ resolveConnections, logger, initiallyAdmitted, initiallyAwaitingGrants }) => createFederationReloadCoordinator({

@@ -54,6 +54,8 @@ import { nodeIntervalScheduler } from '../jini-routes.js';
  */
 import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import type { AgentSummary } from "@jini-ai/daemon/http";
+/** Fixed, secret-free recovery copy shared by both HTTP hops. */
+import { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from "@jini-ai/daemon/http";
 import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels, type LiveModelDiscovery } from "@jini-ai/agent-runtime/model-catalog/live-discovery";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Express, NextFunction, Request, Response } from "express";
@@ -62,7 +64,6 @@ import {
   A2UI_ACTIONS_PATH,
   resolveExecutionCredential,
   isMcpUiToolCallPermitted,
-  MCP_UI_TYPED_ANSWER_REFUSAL,
   MCP_UI_TOOL_CALLS_PATH,
   RUN_PRINCIPAL_HEADER,
 } from "#src/assistant/index";

@@ -1,4 +1,4 @@
-import { createFederatedMcpPresetRegistry, createFederationConsoleLogger, resolveFederatedMcpPresets, type AttachFederatedToolsResult, type FederatedMcpPresetRegistry, type FederationHostLogger } from "@jini-ai/mcp/federation";
+import { createFederatedMcpPresetRegistry, resolveFederatedMcpPresets, type AttachFederatedToolsResult, type FederatedMcpPresetRegistry, type FederationHostLogger } from "@jini-ai/mcp/federation";
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
 import type { ToolRegistry } from "@jini-ai/core";
@@ -17,8 +17,19 @@ import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDe
  * fail-closed. The detailed admission, collision and session-cleanup rationale is at the Jini owner.
  */
 
-/** Tovu's console sink: Jini's prefixed federation console logger (original error as a second
- * console argument) under the daemon's historical `[agent-daemon]` prefix. */
+/** Tovu's console sink for Jini's `FederationHostLogger` port. Jini's federation loop logs fixed
+ * words in `message` and hands the original error as `{ error }` for the host sink; this console IS
+ * Tovu's host sink, so the error rides along as a second console argument (without it a failed
+ * connection would log no cause at all). `prefix` keeps each process's boot lines byte-identical
+ * (`"[agent-daemon]"`, `"[assistant-byok]"`). */
+export function createFederationConsoleLogger({ prefix }: { prefix: string }, _optional: Record<string, never> = {}): FederationHostLogger {
+  const args = ({ message, error }: { message: string; error: unknown }): unknown[] => (error === undefined ? [`${prefix} ${message}`] : [`${prefix} ${message}`, error]);
+  return {
+    info: ({ message }, { error } = {}) => console.log(...args({ message, error })),
+    warn: ({ message }, { error } = {}) => console.warn(...args({ message, error })),
+  };
+}
+
 const consoleLogger: FederationHostLogger = createFederationConsoleLogger({ prefix: "[agent-daemon]" });
 
 /**

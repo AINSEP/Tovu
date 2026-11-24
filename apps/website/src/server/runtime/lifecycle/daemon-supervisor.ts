@@ -44,7 +44,7 @@ import { getAgentDaemonPortForSpawnEnv, refreshAgentDaemonPort } from "./agent-d
 import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./assistant-daemon-registry.js";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { createRespawnPolicy } from "#src/assistant/index";
-import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
+import type { RespawnDecision, RespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 
 /** Platform's process functions behind core's port (node-adapters takes them injected). */
 const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });

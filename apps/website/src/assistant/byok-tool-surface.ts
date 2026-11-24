@@ -53,7 +53,6 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { readDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 
 
-export type { ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
 
 /** A request-owned exposure; releasing it at turn completion releases its pinned descriptors. */
 export interface ByokToolRun {

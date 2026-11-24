@@ -7,13 +7,10 @@ import * as installedExtensions from "../installed-extension-tools.js";
 import * as connectionSource from "../external-mcp-connection-source.js";
 import * as rosterChange from "../external-mcp-roster-change.js";
 import * as sessions from "../agent-session-preset.js";
-import * as sessionCoordination from "@jini-ai/daemon/session-coordination";
 import * as permanentDeletes from "../permanent-delete-settings.js";
 import * as deleteGate from "../permanent-delete-tool-gate.js";
 import * as subagentSettings from "../subagent-settings.js";
-import * as agentic from "@jini-ai/agentic";
 import * as activeContexts from "../run-active-context.js";
-import * as daemonHttp from "@jini-ai/daemon/http";
 
 import * as mcpFederation from "@jini-ai/mcp/federation";
 
@@ -21,7 +18,6 @@ import * as a2uiActionsRoute from "../a2ui-actions-route.js";
 import * as port from "../agent-daemon-port.js";
 import * as agents from "../agents.js";
 import * as componentCatalogQuery from "../component-catalog-query.js";
-import * as customInstructions from "@jini-ai/agent-runtime/custom-instructions";
 import * as daemonAccess from "../daemon-access.js";
 import * as externalMcpOAuth from "../../features/external-mcp/external-mcp-oauth.js";
 import * as externalMcpStore from "../../features/external-mcp/external-mcp-store.js";
@@ -50,7 +46,6 @@ import * as toolRegistrations from "../tool-registrations.js";
 const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   listAssistantAgents: agents,
   rescanAssistantAgents: agents,
-  createCustomInstructionsCache: customInstructions,
   DELEGATED_TOOL_CALLS_PATH: daemonAccess,
   requireAgentDaemonToken: daemonAccess,
   FRONTEND_CONTROL_CAPABILITIES: frontendControl,
@@ -95,27 +90,14 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   onExternalMcpRosterChanged: rosterChange,
   notifyExternalMcpRosterChanged: rosterChange,
   agentCarriesOwnMemory: sessions,
-  extractSessionRefFromEndEvent: sessionCoordination,
-  resolveResumeSessionField: sessionCoordination,
-  shouldClearSessionOnFailedResume: sessionCoordination,
-  wouldForcedColdStartLoseConversationContext: sessionCoordination,
   CONCURRENT_RUN_REFUSAL_MESSAGE: sessions,
-  createLiveRunTracker: sessionCoordination,
-  failRunBeforeStart: sessionCoordination,
-  STOPPING_RUN_WAIT_MS: sessionCoordination,
   waitForStoppingRuns: sessions,
   agentAcceptsHostMintedSessionId: sessions,
-  resolveHostMintedSessionId: sessionCoordination,
-  resolveNewSessionField: sessionCoordination,
-  createConversationStartLock: sessionCoordination,
   readChatPermanentDeletesPolicy: permanentDeletes,
   createChatDeleteScope: deleteGate,
   ALL_CHAT_DELETE_TOOLS: deleteGate,
   readAssistantCliPermissions: subagentSettings,
-  createLostFrontendBindings: daemonHttp,
-  withPageNavigateErrorRewrap: agentic,
   delegatedToolErrorDisclosure: toolRecoveryPreset,
-  createRunActiveContextStore: daemonHttp,
   registerRunActiveContextRoute: activeContexts,
   createRunScopedCredentials: daemonAccess,
 };
