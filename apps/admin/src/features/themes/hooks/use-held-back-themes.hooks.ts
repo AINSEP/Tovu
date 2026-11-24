@@ -118,7 +118,7 @@ export function useHeldBackThemes(
 
   /** A refusal makes the stored check stale, so the row goes back to "Check" with the reason shown. */
   function refuse({ themeId, error, fallbackKey }: { themeId: string; error: unknown; fallbackKey: string }) {
-    patchRow(themeId, { phase: "idle", failure: heldBackFailure({ error, fallbackKey, t: tRef.current }) });
+    patchRow(themeId, { phase: "idle", check: null, failure: heldBackFailure({ error, fallbackKey, t: tRef.current }) });
     if (isGone({ error })) void load();
   }
 
