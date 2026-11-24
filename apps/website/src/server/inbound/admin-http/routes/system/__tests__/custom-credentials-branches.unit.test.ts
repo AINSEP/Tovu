@@ -7,7 +7,7 @@ import express from "express";
 
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { registerAdminCustomCredentialsRoutes } from "../custom-credentials.js";
+import { registerAdminCustomCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";

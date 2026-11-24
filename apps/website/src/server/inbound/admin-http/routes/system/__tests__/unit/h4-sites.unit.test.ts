@@ -5,14 +5,14 @@ import express from 'express';
 import * as tokenCatalog from '#src/features/agent-plugins/new-site-agent-plugin-tokens';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
-import type { AdminSitesDeps } from '../../sites.js';
+import type { AdminSitesDeps } from '#src/server/runtime/composition/modules/sites';
 import { bundledAgentPluginsDir } from '#src/server/runtime/composition/site-paths';
 
 const catalogReads: unknown[] = [];
 mock.module('#src/features/agent-plugins/new-site-agent-plugin-tokens', { namedExports: { ...tokenCatalog,
   listNewSiteAgentPluginTokenSignInPlugins: async (...args: unknown[]) => { catalogReads.push(args); return []; },
 } });
-const { registerAdminSitesRoutes } = await import('../../sites.js');
+const { registerAdminSitesRoutes } = await import('#src/server/runtime/composition/modules/sites');
 const ROOT = '/api/admin/v1/workspaces/:workspaceId/system/sites';
 
 test('sites uses the bundled token catalog when no catalog port override is supplied', async () => {

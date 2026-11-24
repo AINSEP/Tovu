@@ -68,7 +68,7 @@ test("supervisor reuses a foreign URL and refuses stopped-site mutations while a
 
 
 test("home settings enforce workspace/capability/permission boundaries before filesystem changes", async () => {
-  const { registerSitesHomeRoutes } = await import("../../../../server/inbound/admin-http/routes/sites/sites-home.js");
+  const { registerSitesHomeRoutes } = await import("#src/server/runtime/composition/modules/sites");
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-home-setting-")));
   try {
     const workspace = createSitesWorkspace({}, { homeDir: root, env: {} });

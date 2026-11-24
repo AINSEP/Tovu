@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildDeploymentOverviewSnapshot } from "../../inbound/admin-http/routes/system/deployment-overview.js";
+import { buildDeploymentOverviewSnapshot } from "#src/server/runtime/composition/modules/system-deploy";
 
 /**
  * The Overview's TOVU_SITE_KEY row reported only `Boolean(process.env[...])`, but the

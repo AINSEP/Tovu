@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import express from "express";
-import { registerAdminSitesRoutes, type AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
+import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { assertSiteOwnerLogin } from "#src/platform/site-dir/__tests__/helpers/assert-site-owner-login";
 
