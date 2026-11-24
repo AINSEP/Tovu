@@ -1,8 +1,7 @@
 import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
-import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 import type { ToolMetadata } from '@jini-ai/core';
-import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
+import { collectDeclaredToolKeywords, createSearchEnricher, mergeKeywordMaps } from '@jini-ai/registry/tool-catalog-builder';
 import { DOC2QUERY } from "./tool-search-doc2query.js";
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -24,28 +23,18 @@ export function readBundledToolKeywords(required: { sourceRoot: string }, option
   sources?: BundledToolKeywordSources;
   readText?: (file: string) => string;
 } = {}): Record<string, string> {
-  const keywords: Record<string, string> = Object.create(null);
   const listSources = optional.sources;
-  if (!listSources) return keywords;
-  const sources = orFallbackSync({ work: () => listSources({ ...required, filename: 'plugin.json' }), fallback: [], step: 'List tool keyword manifests' });
-  for (const source of sources) {
-    orFallbackSync({ work: () => {
+  if (!listSources) return Object.create(null);
+  return collectDeclaredToolKeywords({
+    listSources: () => listSources({ ...required, filename: 'plugin.json' }),
+    readDeclaration: ({ source }) => {
       const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
       const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
-      appendToolKeywords({ keywords, declaration: readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords });
-    }, fallback: undefined, step: 'Read tool keyword manifest' }); /* Optional search data never prevents tool catalog construction. */
-  }
-  return keywords;
-}
-
-/** Ignore non-string values and unknown tool ids; metadata can enrich only existing native tools.
- * @complexity O(k) declared entries, without I/O. */
-function appendToolKeywords({ keywords, declaration }: { keywords: Record<string, string>; declaration: unknown }, _optional = {}): void {
-  if (typeof declaration !== 'object' || declaration === null || Array.isArray(declaration)) return;
-  for (const [id, words] of Object.entries(declaration)) {
-    if (!Object.hasOwn(nativeToolMetadata.byId, id) || typeof words !== 'string' || !words.trim()) continue;
-    keywords[id] = [keywords[id], words.trim()].filter(Boolean).join(' ');
-  }
+      return readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords;
+    },
+    // Metadata can enrich only existing native tools.
+    isKnownTool: ({ id }) => Object.hasOwn(nativeToolMetadata.byId, id),
+  });
 }
 
 let bundledKeywords: Record<string, string> | undefined;
@@ -90,10 +79,7 @@ export function toolSearchKeywords(_required: Record<string, never>, optional: {
   }
   if (searchKeywords) return searchKeywords;
   const bundled = bundledToolKeywords({});
-  searchKeywords = Object.fromEntries(
-    [...new Set([...Object.keys(nativeToolMetadata.keywords), ...Object.keys(bundled)])]
-      .map(id => [id, [nativeToolMetadata.keywords[id], bundled[id]].filter(Boolean).join(' ')]),
-  );
+  searchKeywords = mergeKeywordMaps({ maps: [nativeToolMetadata.keywords, bundled] });
   return searchKeywords;
 }
 

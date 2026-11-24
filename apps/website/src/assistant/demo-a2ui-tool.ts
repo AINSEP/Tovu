@@ -1,10 +1,10 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import {
   createLabCatalog,
-  parseAgentToRendererMessage,
   type ActionMessagePayload,
   type AgentToRendererMessage,
 } from "@jini-ai/protocol/a2ui";
+import { a2uiActionOf, withA2uiExchange } from "@jini-ai/agentic/render-surface";
 
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -94,43 +94,6 @@ interface RoundTripStep {
 }
 
 /**
- * Reads the `ActionMessagePayload` out of a delivered exchange message, or `undefined` if this
- * particular message was not an `action` (a `functionResponse`/`error` reaching this tool would be
- * a client bug — this tool's own surface has no `functionCall` action and raises no `error` of its
- * own — so refusing to guess, rather than throwing, is the same "degrade sanely" posture the browser
- * side already takes for shapes it does not expect).
- *
- * @complexity O(1).
- * @overallScore 100
- */
-function readActionPayload(params: Record<string, unknown>): ActionMessagePayload | undefined {
-  const message = params["message"];
-  if (typeof message !== "object" || message === null || !("action" in message)) return undefined;
-  // `a2ui-actions-route.ts` only ever delivers a message that already passed
-  // `parseRendererToAgentMessage` — this is a re-read of already-validated data, not a second
-  // validation pass.
-  return (message as { action: ActionMessagePayload }).action;
-}
-
-/**
- * Validates an outgoing message against its own schema before it goes out over the wire — same
- * dogfooding `examples/reference-web/src/daemon.ts`'s `runA2uiDemo` does, so a typo in one of the
- * handler's literal messages fails loudly here instead of reaching the renderer as a message it then
- * has to reject.
- *
- * @returns The parsed message, exactly what the renderer will receive.
- * @throws Error naming this tool and the schema failure when `message` is not a valid A2UI message.
- * @complexity O(message size) for the schema parse.
- */
-export function validateDemoA2uiMessage({ message }: { message: unknown }, _options: Record<string, never> = {}): AgentToRendererMessage {
-  const validated = parseAgentToRendererMessage({ raw: message });
-  if (!validated.ok) {
-    throw new Error(`${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: ${validated.message}`);
-  }
-  return validated.message;
-}
-
-/**
  * Builds the result for a turn that never produced an action — expired, or the exchange was
  * abandoned (a cancelled run, or a human who navigated away). Mirrors
  * `demo-choices-tool.ts#describeSelections`'s sibling `answer.status !== "received"` branch:
@@ -207,25 +170,12 @@ function createDemoA2uiHandler(surfaces: AssistantSurfaceDeps): ToolHandler {
         };
       }
 
-      // The exchange is opened BEFORE any message is sent, exactly like `demo-choices-tool.ts` —
-      // opening requires the emitter, so waiting on an unsent message is unrepresentable.
-      const exchange = surfaces.surfaceExchanges.open(
-        { binding: { toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" },
-        emit: emitSurface },
-      );
-      // A2UI correlates by its own `surfaceId`, not by a route-specific callback param the way
-      // MCP-UI's `__exchangeId` does — so the exchange id IS the surface id, directly, with nothing
-      // to smuggle it through. `a2ui-actions-route.ts` cross-checks exactly this equality.
-      const surfaceId = exchange.id;
-
-      /** Validates every outgoing message (see {@link validateDemoA2uiMessage}) before it goes out. */
-      const emitA2ui = async (message: AgentToRendererMessage): Promise<void> => {
-        await emitSurface({ channel: "a2ui", payload: { message: validateDemoA2uiMessage({ message }) } });
-      };
-
-      const closeOnAbort = () => exchange.close({});
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
+      // The exchange is opened BEFORE any message is sent, exactly like `demo-choices-tool.ts`;
+      // Jini's session validates every outgoing message by this tool's id and closes the exchange
+      // on abort and on every return. The exchange id IS the surface id (A2UI correlates by its own
+      // `surfaceId`; `a2ui-actions-route.ts` cross-checks exactly this equality).
+      return withA2uiExchange({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, signal: ctx.signal,
+        run: async ({ surfaceId, emit: emitA2ui, receive }) => {
         await emitA2ui({
           version: "v1.0",
           createSurface: {
@@ -236,9 +186,9 @@ function createDemoA2uiHandler(surfaces: AssistantSurfaceDeps): ToolHandler {
         });
         await emitA2ui(initialDemoComponents(surfaceId));
 
-        const first = await exchange.receive({});
+        const first = await receive();
         if (first.status !== "received") return noAnswerResult({ reason: first.status });
-        const firstAction = readActionPayload(first.params);
+        const firstAction = a2uiActionOf({ params: first.params });
         const firstStep: RoundTripStep = firstAction
           ? { name: firstAction.name, context: firstAction.context }
           : { name: "unknown", context: {} };
@@ -248,21 +198,15 @@ function createDemoA2uiHandler(surfaces: AssistantSurfaceDeps): ToolHandler {
         // just did, proving the round trip carries real information rather than a scripted replay.
         await emitA2ui(continuedDemoComponents(surfaceId, firstStep, firstAction));
 
-        const second = await exchange.receive({});
+        const second = await receive();
         if (second.status !== "received") return noAnswerResult({ reason: second.status });
-        const secondAction = readActionPayload(second.params);
+        const secondAction = a2uiActionOf({ params: second.params });
         const secondStep: RoundTripStep = secondAction
           ? { name: secondAction.name, context: secondAction.context }
           : { name: "unknown", context: {} };
 
         return { completed: true, firstAction: firstStep, secondAction: secondStep };
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-        // Idempotent — a normal completion has already driven the exchange to its natural end via
-        // two received actions, so this is a no-op there and the real cleanup only on an early
-        // return (no-answer) or an abort.
-        exchange.close({});
-      }
+        } });
     };
 }
 

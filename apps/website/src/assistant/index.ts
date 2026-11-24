@@ -69,7 +69,6 @@ export {
 } from "./public-assistant-settings.js";
 export type { PublicAssistantSettings, PublicAssistantSettingKey } from "./public-assistant-settings.js";
 export { resolvePublicAssistantAvailability } from "./public-assistant-availability.js";
-export { resolveByokProtocol } from "./byok-provider-turn.js";
 
 export {
   getSiteAssistantCredential,
@@ -125,7 +124,6 @@ export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js"
 // `assistant-byok.ts` actually constructs.
 export { createStoredExecutionCredentialPort } from "./byok-credential.js";
 
-export { runByokProviderTurn } from "./byok-provider-turn.js";
 export {
   createSiteAssistantErrorReporter,
   siteAssistantIncident,
@@ -133,14 +131,6 @@ export {
   type SiteAssistantErrorLogEntry,
   type SiteAssistantPublicError,
 } from "./site/public-errors.js";
-export type {
-  ByokChatMessage,
-  ByokProtocol,
-  ByokProviderTurnResult,
-  ByokToolCall,
-  ByokToolResult,
-  ByokTurnEvent,
-} from "./byok-provider-turn.js";
 
 export { createByokToolSurface } from "./byok-tool-surface.js";
 export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.js";

@@ -1,4 +1,4 @@
-import { resolveByokProtocol } from "./byok-provider-turn.js";
+import { resolveProviderProtocol } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { resolveSiteAssistantApiKey, type ResolvedSiteAssistantCredential } from "./site-credential-store.js";
 import type { SiteAssistantCredentialRepoPort } from "./site-credential-store.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
@@ -20,7 +20,7 @@ export async function resolvePublicAssistantAvailability(required: {
   if (!credential?.apiKey.trim()) {
     return { ready: false, code: "NOT_CONFIGURED", error: "site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant." };
   }
-  if (!resolveByokProtocol({ provider: credential.provider })) {
+  if (!resolveProviderProtocol({ provider: credential.provider })) {
     return { ready: false, code: "PROVIDER_UNSUPPORTED", error: `site assistant is configured for an unsupported provider "${credential.provider}" — supported providers are anthropic, openai, azure, google.` };
   }
   if (!credential.model?.trim()) {

@@ -21,7 +21,7 @@ import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type Medi
  * path keeps intact: the daemon's delegated-tool bridge treats `image` as model-visible
  * (`@jini-ai/daemon`'s `tool-result-surfaces.ts`), `@jini-ai/mcp`'s gateway unwraps and forwards it
  * verbatim, and the BYOK surface maps it onto each provider's own image part
- * (`assistant/byok-provider-turn.ts`).
+ * (`@jini-ai/agent-runtime/providers/tool-turn`).
  *
  * Named `media_*`, not `content_read.*`: that prefix means "one of `assistant/content-read-tool.ts`'s
  * 29 derived cards" — `content-read-tool.test.ts` and the parent-tool-read eval both identify cards by

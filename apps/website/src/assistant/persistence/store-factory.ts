@@ -2,7 +2,7 @@ import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
-import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
+import { createLazyChatRunLedger, type ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 import { createTenantScopedChatStore } from "./tenant-scope.js";
 
 /**
@@ -47,16 +47,9 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // production and fail here — or, worse, the reverse.
   const open = (): ChatKernel => (db ??= chatKernel({ store: openChatDb({ filePath: ":memory:" }) }));
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
-  // database lazy.
-  const chatRunLedger: ChatRunLedger = {
-    hasActiveRuns: async () => db ? createChatRunLedger({ store: db }).hasActiveRuns({}, {}) : false,
-    get durable() { return createChatRunLedger({ store: open() }).durable; },
-    unlessSettled: (required, optional) => createChatRunLedger({ store: open() }).unlessSettled(required, optional),
-    settle: (settlement) => createChatRunLedger({ store: open() }).settle(settlement),
-    checkpoint: (progress, optional) => createChatRunLedger({ store: open() }).checkpoint(progress, optional),
-    // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
-    reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger({ store: db }).reconcileInterrupted(required, optional) : 0),
-  };
+  // database lazy; Jini's lazy ledger never opens it for boot-time probes.
+  const chatRunLedger: ChatRunLedger = createLazyChatRunLedger({ peek: () => db, open,
+    ledgerFor: ({ kernel }) => createChatRunLedger({ store: kernel }) });
   return {
     chatHistory: (principal) => createTenantScopedChatStore({ db: open(), principal: principal }, { ledger: chatRunLedger }),
     chatRunLedger,

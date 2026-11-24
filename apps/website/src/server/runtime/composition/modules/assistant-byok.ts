@@ -73,15 +73,12 @@ import type { Principal, SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ExecutionCredentialPort, RequestSuppliedProviderConfig as RequestSuppliedByokConfig, ResolvedProviderCredential as ResolvedByokCredential } from "@jini-ai/agent-runtime/providers/credentials";
 
 import {
-  type ByokChatMessage,
-  type ByokProviderTurnResult,
-  type ByokTurnEvent,
-  runByokProviderTurn,
   createStoredExecutionCredentialPort,
   createByokToolSurface,
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
+import { providerTurnAdapters, runProviderToolTurn, type ProviderChatMessage, type ProviderToolExecutor, type ProviderToolTurnInput, type ProviderToolTurnOptions, type ProviderToolTurnResult, type ProviderTurnEvent } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "@jini-ai/agent-runtime/custom-instructions";
 import { readPickedFolders, readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
@@ -207,7 +204,7 @@ export function toWireSurfacePayload({ emission, toolUseId }: { emission: Surfac
 }
 
 /** Validate the BYOK wire entry before either current-turn selection or redaction. @complexity O(1). */
-function readByokHistoryMessage({ entry }: { entry: unknown }, _options = {}): (ByokChatMessage & { secretRedacted: unknown }) | null {
+function readByokHistoryMessage({ entry }: { entry: unknown }, _options = {}): (ProviderChatMessage & { secretRedacted: unknown }) | null {
   if (!isPlainMessage(entry)) return null;
   const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
   if (role === null) return null;
@@ -224,11 +221,11 @@ function lastUserMessageIndex({ entries }: { entries: readonly unknown[] }, _opt
   return -1;
 }
 
-/** One raw history entry -> a valid {@link ByokChatMessage}, or `null` if it isn't one — the single
+/** One raw history entry -> a valid {@link ProviderChatMessage}, or `null` if it isn't one — the single
  *  per-entry validation `resolveMessages` below loops over. Always redacts user text; only the
  *  current user turn receives a notice. Does not mutate the entry or perform I/O.
  *  @complexity Redaction cost in the message content; constant validation work. */
-function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; currentUserTurn: boolean }, _optional = {}): ByokChatMessage | null {
+function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; currentUserTurn: boolean }, _optional = {}): ProviderChatMessage | null {
   const message = readByokHistoryMessage({ entry }, {});
   if (message === null) return null;
   const { role, content, secretRedacted } = message;
@@ -244,12 +241,12 @@ function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; current
  *  just author this instant, so a malformed entry degrades the turn's context rather than the whole
  *  request.
  *  @complexity O(n) entries plus per-message redaction cost; O(n) output space, no I/O. */
-export function resolveMessages({ raw }: { raw: unknown }, _optional = {}): ByokChatMessage[] {
+export function resolveMessages({ raw }: { raw: unknown }, _optional = {}): ProviderChatMessage[] {
   if (!Array.isArray(raw)) return [];
   // Redact every user turn, but notify only for the latest valid user message. Historical flags
   // and raw historical secrets must not turn an unrelated request into another rotation warning.
   const currentUserIndex = lastUserMessageIndex({ entries: raw }, {});
-  const messages: ByokChatMessage[] = [];
+  const messages: ProviderChatMessage[] = [];
   for (const [index, entry] of raw.entries()) {
     const message = toByokChatMessage({ entry, currentUserTurn: index === currentUserIndex }, {});
     if (message) messages.push(message);
@@ -313,7 +310,7 @@ export function byokTurnOutcome(
 export function createByokUsageTimer(
   { startedAt }: { startedAt: number },
   { now = Date.now }: { now?: () => number } = {},
-): (event: ByokTurnEvent) => ByokTurnEvent & { durationMs?: number } {
+): (event: ProviderTurnEvent) => ProviderTurnEvent & { durationMs?: number } {
   let mark = startedAt;
   return (event) => {
     if (event.type !== "usage") return event;
@@ -381,12 +378,12 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
  * argument list — a default-parameter expression evaluates before the function body starts, which
  * would be too early for the install call to have any effect on the surface it composes.
  */
-type ByokTurnInputs = { messages: ByokChatMessage[]; principal: Principal; credential: ResolvedByokCredential };
+type ByokTurnInputs = { messages: ProviderChatMessage[]; principal: Principal; credential: ResolvedByokCredential };
 
 /** BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
  * Reuse its recorder so both execution modes report generations with the same semantics. */
 function startByokTrace(
-  { routeDeps, run, credential, messages }: { routeDeps: Pick<RouteDeps, "aiTraceSink">; run: { id: string }; credential: ResolvedByokCredential; messages: ByokChatMessage[] },
+  { routeDeps, run, credential, messages }: { routeDeps: Pick<RouteDeps, "aiTraceSink">; run: { id: string }; credential: ResolvedByokCredential; messages: ProviderChatMessage[] },
   _optional = {},
 ) {
   const trace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
@@ -450,7 +447,7 @@ async function resolveTurnInputsOrRespond(
  * At most ten references are passed to the existing attachment preparation owner.
  * @complexity O(attachment bytes) preparation, with at most ten references; mutates the last message. */
 async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalId, routeDeps, res }: {
-  attachmentIds: unknown; messages: ByokChatMessage[]; principalId: string; routeDeps: RouteDeps; res: Response;
+  attachmentIds: unknown; messages: ProviderChatMessage[]; principalId: string; routeDeps: RouteDeps; res: Response;
 }, _options: Record<string, never> = {}): Promise<boolean> {
   if (attachmentIds === undefined) return true;
   const refs = readAttachmentRefs({ value: attachmentIds });
@@ -686,7 +683,7 @@ async function loadPinnedPluginGuidance({ pinned }: { pinned: string[] }, routeD
    * @complexity One automatic-use preparation; candidate discovery/ranking belongs to that owner. */
 async function appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }: {
     run: { id: string }; principal: Principal; conversationId: string;
-    pluginBody: { agentPluginState?: unknown; userPrompt?: unknown }; messages: ByokChatMessage[];
+    pluginBody: { agentPluginState?: unknown; userPrompt?: unknown }; messages: ProviderChatMessage[];
     pinned: string[]; abort: AbortController; res: Response; system: string;
   }, automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>): Promise<string> {
     try {
@@ -706,7 +703,7 @@ async function appendAutomaticPluginGuidance({ run, principal, conversationId, p
    * Registers response-close cleanup and returns the augmented prompt.
    * @complexity O(pinned references + guidance bytes), plus the automatic lifecycle's preparation. */
 async function preparePluginGuidance({ req, res, run, principal, messages, abort, system }: {
-    req: Request; res: Response; run: { id: string }; principal: Principal; messages: ByokChatMessage[]; abort: AbortController; system: string;
+    req: Request; res: Response; run: { id: string }; principal: Principal; messages: ProviderChatMessage[]; abort: AbortController; system: string;
   }, context: Pick<ByokTurnContext, "routeDeps" | "automaticPluginRuns">): Promise<string> {
     const { routeDeps, automaticPluginRuns } = context;
     // Preflight uses the same catalog/consent/guidance owner as CLI, before the provider plans.
@@ -780,7 +777,7 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
       //
       // `emitSurface` is built fresh per call (not once for the whole turn), because it needs THIS
       // call's own `call.id` as the correlation `toolUseId` a rendered mcp-ui card is tagged with —
-      // `runByokProviderTurn`'s adapters invoke `executeTool` once per model-issued tool call, so a new
+      // `runProviderToolTurn`'s adapters invoke `executeTool` once per model-issued tool call, so a new
       // closure per invocation costs nothing a turn with real tool calls wasn't already paying.
       const executeTool = (call: { id: string; name: string; input: unknown }) => {
         abort.signal.throwIfAborted();
@@ -802,9 +799,9 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
 
 function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messages, principal, abort, res, system, liveToolRun, toolRun, executeTool }: {
   routeDeps: RouteDeps & ByokToolSurfaceDeps; resolvedToolSurface: ByokToolSurface; run: { id: string };
-  credential: ResolvedByokCredential; messages: ByokChatMessage[]; principal: Principal; abort: AbortController; res: Response; system: string;
+  credential: ResolvedByokCredential; messages: ProviderChatMessage[]; principal: Principal; abort: AbortController; res: Response; system: string;
   liveToolRun: LiveByokToolRun; toolRun: ReturnType<NonNullable<ByokToolSurface["createRun"]>> | undefined;
-  executeTool: Parameters<typeof runByokProviderTurn>[0]["executeTool"];
+  executeTool: ProviderToolExecutor;
 }) {
   return routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
         const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
@@ -822,16 +819,16 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
           if (!abort.signal.aborted && !reportedError) reportRunFailure({ error });
           endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
         }
-        let result: ByokProviderTurnResult;
+        let result: ProviderToolTurnResult;
         try {
-          result = await runByokProviderTurn(byokProviderTurnOptions({ credential, system, messages, toolRun, resolvedToolSurface, executeTool, abort,
+          result = await runProviderToolTurn(...byokProviderTurnOptions({ credential, system, messages, toolRun, resolvedToolSurface, executeTool, abort,
             // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
             // daemon path's distinct `source.addEventListener("error", ...)` on the client
             // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
             // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
             // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
             
-            onEvent: (event: ByokTurnEvent) => {
+            onEvent: (event: ProviderTurnEvent) => {
               if (liveToolRun.lowered) return;
               aiTrace?.observe(event as unknown as Record<string, unknown>);
               // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
@@ -854,33 +851,35 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
 function byokProviderTurnOptions({ credential, system, messages, toolRun, resolvedToolSurface, executeTool, abort, onEvent }: {
   credential: ResolvedByokCredential; toolRun: ReturnType<NonNullable<ByokToolSurface["createRun"]>> | undefined;
   resolvedToolSurface: ByokToolSurface; abort: AbortController;
-} & Pick<Parameters<typeof runByokProviderTurn>[0], "system" | "messages" | "executeTool" | "onEvent">): Parameters<typeof runByokProviderTurn>[0] {
-  return {
+} & Pick<ProviderToolTurnInput, "system" | "messages" | "executeTool" | "onEvent">): [ProviderToolTurnInput, ProviderToolTurnOptions] {
+  return [{
             protocol: credential.protocol,
+            adapters: providerTurnAdapters,
             apiKey: credential.apiKey,
-            ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
             model: credential.model,
-            ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
-            maxToolTurns: BYOK_MAX_TOOL_TURNS,
             system,
             messages,
             // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
             // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
             // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
             tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
-            getToolSnapshot: toolRun?.getToolSnapshot,
-            onSchemaFallback: ({ toolId, protocol, reason }) => {
-              console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
-            },
             executeTool,
-            signal: abort.signal,
             // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
             // daemon path's distinct `source.addEventListener("error", ...)` on the client
             // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
             // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
             // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
             onEvent,
-          };
+          }, {
+            ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
+            ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
+            maxToolTurns: BYOK_MAX_TOOL_TURNS,
+            getToolSnapshot: toolRun?.getToolSnapshot,
+            onSchemaFallback: ({ toolId, protocol, reason }) => {
+              console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
+            },
+            signal: abort.signal,
+          }];
 }
 
 
