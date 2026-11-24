@@ -1,5 +1,5 @@
-import type { AdminDockerfileSource } from "@/features/deployment/api/deployment-api.types";
-import { deploymentApi } from "@/features/deployment/api/deployment-api";
+import type { AdminDockerfileSource } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

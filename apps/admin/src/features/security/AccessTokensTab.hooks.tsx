@@ -1,6 +1,6 @@
 import { useMemo, type ForwardedRef, type RefObject } from "react";
 
-import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "./access-token-rows";
+import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import { customCredentialReadyToSave, isValidHttpUrl } from "./custom-credential-forms";
 import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./other-credential-stores";
 import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "./rules";

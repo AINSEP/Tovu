@@ -3,7 +3,7 @@ import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";

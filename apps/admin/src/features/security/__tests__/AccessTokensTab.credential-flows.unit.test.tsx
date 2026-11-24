@@ -9,7 +9,7 @@ import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "../access-t
 import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind } from "../rules";
-import type { AccessTokenRow } from "../access-token-rows";
+import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import type {
   AccessTokenAddFormState,
   AccessTokenExistingRowState,

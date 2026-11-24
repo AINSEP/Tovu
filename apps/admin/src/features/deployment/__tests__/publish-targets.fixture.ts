@@ -1,4 +1,4 @@
-import type { AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishTargetDescriptor } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
 /**
  * @file The deploy registry's targets as `GET .../system/publish-targets` returns them — a copy of

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";

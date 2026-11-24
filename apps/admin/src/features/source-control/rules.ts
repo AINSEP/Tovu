@@ -1,6 +1,6 @@
 import { classifyCredentialSubmitError, type CredentialSubmitFailure } from "../../lib/credential-submit-error";
-import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
-import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId } from "./api/source-control-api.types";
+import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file Pure data and computation for the Source Control page — no React, no fetch, no `t()` calls

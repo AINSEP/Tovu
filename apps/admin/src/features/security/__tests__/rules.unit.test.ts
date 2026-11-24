@@ -5,7 +5,7 @@ import { t as translateSecurity } from "../security-i18n";
 import { accessTokenProvidersWithSavedRows, accessTokenProviderInfo, accessTokenProviders, accessTokenRowProviderInfo, extraFieldsAroundToken, providerGroupSubtitleKeys, providerGroupHandleLabel, tokenRowHandleLabel } from "../access-token-providers";
 import { ACCESS_TOKEN_CATEGORIES, accessTokenCategoryLabel, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenGroupSortInput, type AccessTokenRowCategoryId } from "../rules";
 import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";
-import { accessTokenNameTaken, accessTokenProviderMatchesQuery, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow, type RawCredentialSummary, type RawCustomCredentialSummary } from "../access-token-rows";
+import { buildCustomCredentialRows, type AccessTokenRow, type RawCustomCredentialSummary } from "@jini-ai/admin/security/access-token-rows";
 import { accessTokenReplaceReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, accessTokenExistingRowReadyToSave, type AccessTokenFormFields } from "../access-token-forms";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, customCredentialReplaceReadyToSave, invalidAdditionalHostsEntries, isValidHttpUrl, parseAdditionalHostsInput, type CustomCredentialFormFields } from "../custom-credential-forms";
 import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS, SOURCE_CONTROL_TEST_DESCRIPTORS } from "./access-token-providers.fixture";
@@ -24,18 +24,6 @@ function infoFor(ref: AccessTokenFormFields["ref"]) {
 }
 
 const GITHUB_PAGES_INFO = infoFor({ kind: "publish", providerId: "github-pages" });
-
-function rawSummary(overrides: Partial<RawCredentialSummary> = {}): RawCredentialSummary {
-  return {
-    id: "cred-1",
-    providerId: "github-pages",
-    label: "default",
-    isDefault: true,
-    createdAt: "2026-08-15T10:00:00.000Z",
-    updatedAt: "2026-08-15T10:00:00.000Z",
-    ...overrides,
-  };
-}
 
 describe("accessTokenProviders", () => {
   it("leaves the generic token label to the view when a host declares only non-token fields", () => {
@@ -125,60 +113,6 @@ describe("accessTokenProviders", () => {
     const bitbucket = accessTokenProviderInfo({ providers: PROVIDERS, ref: { kind: "source-control", providerId: "bitbucket" } });
     expect(bitbucket.extraFields.map((f) => [f.name, f.required])).toEqual([["username", true]]);
     expect(bitbucket.username).toBeUndefined();
-  });
-});
-
-describe("buildAccessTokenRows", () => {
-  it.each(["publish", "source-control"] as const)("preserves server token metadata for a %s row without changing its identity", (kind) => {
-    const hint = { length: 20, last4: "a9F2" };
-    const [row] = buildAccessTokenRows({ kind, raws: [rawSummary({ label: "Production", tokenHint: hint })], providers: PROVIDERS });
-    expect(row).toEqual({
-      kind, providerId: "github-pages", id: "cred-1", name: "Production", rawLabel: "Production",
-      isDefault: true, createdAt: "2026-08-15T10:00:00.000Z", updatedAt: "2026-08-15T10:00:00.000Z", tokenHint: hint,
-    });
-  });
-
-  it("uses the saved label verbatim as the display name when it is not the legacy sentinel", () => {
-    const rows = buildAccessTokenRows({ kind: "publish", raws: [rawSummary({ label: "Production" })], providers: PROVIDERS });
-    expect(rows[0]!.name).toBe("Production");
-    expect(rows[0]!.rawLabel).toBe("Production");
-  });
-
-  it("computes a friendly name for a lone legacy 'default'-labeled row", () => {
-    const rows = buildAccessTokenRows({ kind: "publish", raws: [rawSummary({ providerId: "vercel", label: "default" })], providers: PROVIDERS });
-    expect(rows[0]!.name).toBe("Vercel token");
-  });
-
-  it("numbers a second legacy row for the SAME provider distinctly from the first", () => {
-    const rows = buildAccessTokenRows({ kind: "publish", raws: [
-      rawSummary({ id: "a", providerId: "netlify", label: "default" }),
-      rawSummary({ id: "b", providerId: "netlify", label: "default" }),
-    ], providers: PROVIDERS });
-    expect(rows.map((r) => r.name)).toEqual(["Netlify token", "Netlify token 2"]);
-  });
-
-  it("names a chat-saved 'default-<id>' project row like the sentinel row, keeping the raw label", () => {
-    const rows = buildAccessTokenRows({ kind: "publish", raws: [
-      rawSummary({ id: "a", providerId: "vercel", label: "default" }),
-      rawSummary({ id: "b", providerId: "vercel", label: "default-01JCHAT" }),
-    ], providers: PROVIDERS });
-    expect(rows.map((r) => [r.name, r.rawLabel])).toEqual([["Vercel token", "default"], ["Vercel token 2", "default-01JCHAT"]]);
-  });
-
-  it("numbers legacy rows independently per provider, not globally", () => {
-    const rows = buildAccessTokenRows({ kind: "publish", raws: [
-      rawSummary({ id: "a", providerId: "netlify", label: "default" }),
-      rawSummary({ id: "b", providerId: "vercel", label: "default" }),
-    ], providers: PROVIDERS });
-    expect(rows.map((r) => r.name)).toEqual(["Netlify token", "Vercel token"]);
-  });
-
-  it("uses the source-control sentinel (not the publish one) for source-control rows", () => {
-    // Both sentinels happen to be the literal string "default" today, but this proves the function
-    // reads from the CORRECT store's own constant, not a hardcoded shared literal — a future
-    // divergence between the two constants must not silently break this.
-    const rows = buildAccessTokenRows({ kind: "source-control", raws: [rawSummary({ providerId: "gitlab", label: "default" })], providers: PROVIDERS });
-    expect(rows[0]!.name).toBe("GitLab token");
   });
 });
 
@@ -331,17 +265,6 @@ describe("mediaProviderLabel", () => {
   });
 });
 
-describe("accessTokenRowsForProvider", () => {
-  it("filters to exactly one kind+providerId pair, ignoring the same providerId under a different kind", () => {
-    const rows: AccessTokenRow[] = [
-      ...buildAccessTokenRows({ kind: "publish", raws: [rawSummary({ id: "a", providerId: "github-pages" })], providers: PROVIDERS }),
-      ...buildAccessTokenRows({ kind: "source-control", raws: [rawSummary({ id: "b", providerId: "github-pages" })], providers: PROVIDERS }),
-    ];
-    const result = accessTokenRowsForProvider({ rows, ref: { kind: "publish", providerId: "github-pages" } });
-    expect(result.map((r) => r.id)).toEqual(["a"]);
-  });
-});
-
 describe("sortAccessTokenGroups", () => {
   /** A minimal {@link AccessTokenGroupSortInput} — `savedCount` stands in for `rows.length` (the
    *  function only ever reads its length, never its contents). */
@@ -411,61 +334,6 @@ describe("sortAccessTokenGroups", () => {
     const original = [...groups];
     sortAccessTokenGroups({ groups });
     expect(groups).toEqual(original);
-  });
-});
-
-describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
-  const info = accessTokenProviderInfo({ providers: PROVIDERS, ref: { kind: "publish", providerId: "github-pages" } });
-  const row = buildAccessTokenRows({ kind: "publish", raws: [rawSummary({ label: "Production" })], providers: PROVIDERS })[0]!;
-
-  it("matches everything when the query is blank", () => {
-    expect(accessTokenRowMatchesQuery({ row, info, query: "" })).toBe(true);
-    expect(accessTokenProviderMatchesQuery({ info, query: "  " })).toBe(true);
-  });
-
-  it("matches on the provider's own label, case-insensitively", () => {
-    expect(accessTokenRowMatchesQuery({ row, info, query: "github" })).toBe(true);
-    expect(accessTokenProviderMatchesQuery({ info, query: "GITHUB" })).toBe(true);
-  });
-
-  it("matches on the purpose subtitle — the two-store GitHub disambiguator", () => {
-    expect(accessTokenRowMatchesQuery({ row, info, query: "hosting" })).toBe(true);
-    const sourceControlInfo = accessTokenProviderInfo({ providers: PROVIDERS, ref: { kind: "source-control", providerId: "github" } });
-    expect(accessTokenProviderMatchesQuery({ info: sourceControlInfo, query: "hosting" })).toBe(false);
-  });
-
-  it("matches on the row's own display name", () => {
-    expect(accessTokenRowMatchesQuery({ row, info, query: "production" })).toBe(true);
-  });
-
-  it("does not match an unrelated query", () => {
-    expect(accessTokenRowMatchesQuery({ row, info, query: "azure" })).toBe(false);
-    expect(accessTokenProviderMatchesQuery({ info, query: "azure" })).toBe(false);
-  });
-});
-
-describe("accessTokenNameTaken", () => {
-  const rows: AccessTokenRow[] = buildAccessTokenRows({ kind: "publish", raws: [
-    rawSummary({ id: "a", providerId: "github-pages", label: "Production" }),
-  ], providers: PROVIDERS });
-  const ref = { kind: "publish" as const, providerId: "github-pages" };
-
-  it("flags a collision, case- and whitespace-insensitive", () => {
-    expect(accessTokenNameTaken({ rows, ref, name: "  production  " })).toBe(true);
-    expect(accessTokenNameTaken({ rows, ref, name: "PRODUCTION" })).toBe(true);
-  });
-
-  it("does not flag a different name", () => {
-    expect(accessTokenNameTaken({ rows, ref, name: "Staging" })).toBe(false);
-  });
-
-  it("does not flag a row against itself when excludeId is passed — editing a row's own name is not a collision", () => {
-    expect(accessTokenNameTaken({ rows, ref, name: "Production" }, { excludeId: "a" })).toBe(false);
-  });
-
-  it("does not flag a same-name row under a DIFFERENT provider — uniqueness is per (kind, providerId)", () => {
-    const vercelRef = { kind: "publish" as const, providerId: "vercel" };
-    expect(accessTokenNameTaken({ rows, ref: vercelRef, name: "Production" })).toBe(false);
   });
 });
 
@@ -615,40 +483,6 @@ describe("accessTokenCategoryLabel", () => {
   it("resolves every real category id to its own label", () => {
     expect(accessTokenCategoryLabel({ id: "general" })).toBe("General");
     expect(accessTokenCategoryLabel({ id: "ai" })).toBe("AI");
-  });
-});
-
-describe("buildCustomCredentialRows", () => {
-  it("preserves a short-token hint without adding a username or exposing token bytes", () => {
-    const [row] = buildCustomCredentialRows({ raws: [rawCustomSummary({ tokenHint: { length: 4, last4: null } })] });
-    expect(row).toEqual({
-      kind: "custom", providerId: "custom-1", id: "custom-1", name: "name.com", rawLabel: "name.com", isDefault: false,
-      category: "general", baseUrl: "https://api.name.com", createdAt: "2026-08-17T10:00:00.000Z", updatedAt: "2026-08-17T10:00:00.000Z",
-      tokenHint: { length: 4, last4: null },
-    });
-  });
-
-  it("maps a raw summary onto an AccessTokenRow with kind 'custom' and no default", () => {
-    const rows = buildCustomCredentialRows({ raws: [rawCustomSummary()] });
-    expect(rows).toEqual([
-      {
-        kind: "custom",
-        providerId: "custom-1",
-        id: "custom-1",
-        name: "name.com",
-        rawLabel: "name.com",
-        isDefault: false,
-        category: "general",
-        baseUrl: "https://api.name.com",
-        createdAt: "2026-08-17T10:00:00.000Z",
-        updatedAt: "2026-08-17T10:00:00.000Z",
-      },
-    ]);
-  });
-
-  it("gives each row its OWN providerId (its own id) — no shared grouping key across two custom rows", () => {
-    const rows = buildCustomCredentialRows({ raws: [rawCustomSummary({ id: "a", label: "name.com" }), rawCustomSummary({ id: "b", label: "GoDaddy" })] });
-    expect(rows.map((r) => r.providerId)).toEqual(["a", "b"]);
   });
 });
 

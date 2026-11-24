@@ -1,5 +1,5 @@
-import type { AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
-import { deploymentApi } from "@/features/deployment/api/deployment-api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

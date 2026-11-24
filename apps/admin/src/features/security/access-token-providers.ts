@@ -1,8 +1,8 @@
-import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "../deployment/api/deployment-api.types";
-import type { AdminSourceControlProviderDescriptor } from "../source-control/api/source-control-api.types";
+import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminSourceControlProviderDescriptor } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { sourceControlProviderInfoFromDescriptor } from "../source-control/rules";
 import { SOURCE_CONTROL, accessTokenCategoryLabel, type AccessTokenKind, type AccessTokenRowCategoryId } from "./rules";
-import { type AccessTokenRow } from "./access-token-rows";
+import { type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 /** Identifies one provider across either store — the minimal shape enough to look up its
  *  {@link AccessTokenProviderInfo} entry or build its connection input. `providerId` is left as
  *  `string` (not the store's own strict union) deliberately: this ref is a client-side grouping key

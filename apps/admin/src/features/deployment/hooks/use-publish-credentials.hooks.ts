@@ -3,8 +3,8 @@ import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
-import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishExecutionMode } from "@/features/security/api/security-api.types";
-import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishExecutionMode } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

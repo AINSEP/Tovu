@@ -1,6 +1,6 @@
-import type { AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminCustomCredentialsSnapshot, AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
-import type { AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
-import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor, AdminSourceControlCredentialSummary, AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
+import type { AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminCustomCredentialsSnapshot, AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminPublishTargetDescriptor } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor, AdminSourceControlCredentialSummary, AdminSourceControlCredentialsSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file What `useAccessTokens` needs from the outside world, as an interface rather than a direct

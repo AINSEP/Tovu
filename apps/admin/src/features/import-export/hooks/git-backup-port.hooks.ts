@@ -1,5 +1,5 @@
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
-import { sourceControlApi } from "@/features/source-control/api/source-control-api";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
+import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 

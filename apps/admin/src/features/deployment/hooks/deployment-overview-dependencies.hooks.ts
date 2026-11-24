@@ -1,5 +1,5 @@
-import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
-import { deploymentApi } from "@/features/deployment/api/deployment-api";
+import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

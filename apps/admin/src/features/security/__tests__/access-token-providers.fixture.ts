@@ -1,4 +1,4 @@
-import type { AdminSourceControlProviderDescriptor } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlProviderDescriptor } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { accessTokenProviders } from "../access-token-providers";
 import { PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 

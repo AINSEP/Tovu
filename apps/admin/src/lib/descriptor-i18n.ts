@@ -1,5 +1,5 @@
-import type { AdminDescriptorI18n, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "../features/deployment/api/deployment-api.types";
-import type { AdminSourceControlProviderDescriptor } from "../features/source-control/api/source-control-api.types";
+import type { AdminDescriptorI18n, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminSourceControlProviderDescriptor } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file Renders a plugin descriptor's own text (host labels, help, credential guidance) in the

@@ -1,6 +1,6 @@
-import type { AdminCustomConnectionInput } from "./api/security-api.types";
+import type { AdminCustomConnectionInput } from "@jini-ai/admin/security/api/security-api.types";
 import { type AccessTokenRowCategoryId } from "./rules";
-import { type AccessTokenRow } from "./access-token-rows";
+import { type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenFormFields } from "./access-token-forms";
 /** One "Add custom provider" form's fields — the dedicated dialog's own shape, kept separate from
  *  {@link AccessTokenFormFields} (used by the seven catalog providers' Create/Replace) rather than

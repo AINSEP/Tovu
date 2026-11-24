@@ -5,14 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { useAccessTokens, useWiredAccessTokens } from "../use-access-tokens.hooks";
 import { createFakeAccessTokensPort } from "../access-tokens-dependencies.hooks";
 import { ACCESS_TOKENS_RESOURCE } from "../../rules";
 import type { AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../use-access-tokens.hooks";
-import type { AccessTokenRow } from "../../access-token-rows";
+import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import { PUBLISH_TARGETS } from "../../../deployment/__tests__/publish-targets.fixture";
 import { SOURCE_CONTROL_TEST_DESCRIPTORS } from "../../__tests__/access-token-providers.fixture";
 
@@ -1761,12 +1761,12 @@ const { listPublishCredentials, listSourceControlCredentials, listCustomCredenti
 // which calls straight through to `api.list*Credentials` — mocking just those three keeps every
 // other `lib/api` export (`ApiError`, `describeApiError`, ...) real, same convention
 // `use-other-credentials.unit.test.tsx`'s own `useWiredOtherCredentials` block establishes.
-vi.mock("../../api/security-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/security-api")>();
+vi.mock("@/features/security/security-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/security/security-host-ports")>();
   return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, listCustomCredentials } };
 });
-vi.mock("../../../source-control/api/source-control-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../source-control/api/source-control-api")>();
+vi.mock("@/features/source-control/source-control-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/source-control/source-control-host-ports")>();
   return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlCredentials } };
 });
 

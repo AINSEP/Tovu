@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import { authApi } from "../../features/auth/api/auth-api";
 import { ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 

@@ -1,5 +1,5 @@
 
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import type { GitBackupPlan, GitBackupPlanInput, GitBackupPushResult, GitBackupRefusal } from "./hooks/git-backup-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

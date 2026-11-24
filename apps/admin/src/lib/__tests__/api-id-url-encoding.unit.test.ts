@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { securityApi } from "../../features/security/api/security-api";
-import { sourceControlApi } from "../../features/source-control/api/source-control-api";
+import { securityApi } from "@/features/security/security-host-ports";
+import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";

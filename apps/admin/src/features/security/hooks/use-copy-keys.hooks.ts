@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 
-import type { AdminCredentialCopySource, AdminCredentialCopyResult } from '@/features/security/api/security-api.types';
-import { securityApi } from '@/features/security/api/security-api';
+import type { AdminCredentialCopySource, AdminCredentialCopyResult } from '@jini-ai/admin/security/api/security-api.types';
+import { securityApi } from '@/features/security/security-host-ports';
 import { publishContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { ACCESS_TOKENS_RESOURCE } from '../rules';
 

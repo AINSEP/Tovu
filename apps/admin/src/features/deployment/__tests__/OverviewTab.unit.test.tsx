@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { OverviewTab } from "../OverviewTab";
 import type { DeploymentOverviewController } from "../hooks/use-deployment-overview.hooks";
-import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
 /**
  * @file `OverviewTab` — driven entirely through the `useDeploymentOverviewHook` DI seam (same

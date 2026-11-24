@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file Coverage for `source-control-credentials-dependencies.hooks.ts` (1/11 funcs) —
@@ -18,8 +18,8 @@ const { listSourceControlProviders, listSourceControlCredentials, createSourceCo
   deleteSourceControlCredential: vi.fn(),
 }));
 
-vi.mock("../api/source-control-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/source-control-api")>();
+vi.mock("@/features/source-control/source-control-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/source-control/source-control-host-ports")>();
   return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } };
 });
 

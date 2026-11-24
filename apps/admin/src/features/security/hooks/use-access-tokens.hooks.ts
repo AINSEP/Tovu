@@ -3,8 +3,8 @@ import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 
-import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
-import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -23,10 +23,15 @@ import {
 import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId, type AccessTokenKind, type AccessTokenRowCategoryId } from "../rules";
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, type AccessTokenFormFields as CredentialAccessTokenFormFields } from "../access-token-forms";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "../custom-credential-forms";
-import { accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow } from "../access-token-rows";
+import { accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import { accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "../access-token-providers";
+import { PUBLISH_CREDENTIAL_ROW_LABEL } from "@/features/deployment/rules";
+import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@/features/source-control/rules";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
+
+/** The two stores' legacy sentinel row labels, each read from its own store's constant. */
+const LEGACY_SENTINEL_LABELS = { publish: PUBLISH_CREDENTIAL_ROW_LABEL, "source-control": SOURCE_CONTROL_CREDENTIAL_ROW_LABEL };
 
 import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "unknown error";
@@ -516,8 +521,8 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
     return [
-      ...buildAccessTokenRows({ kind: "publish", raws: publishCredentials, providers }),
-      ...buildAccessTokenRows({ kind: "source-control", raws: sourceControlCredentials, providers }),
+      ...buildAccessTokenRows({ kind: "publish", raws: publishCredentials, providerLabel: ({ ref }) => accessTokenProviderInfo({ providers, ref }).label, sentinelLabels: LEGACY_SENTINEL_LABELS }),
+      ...buildAccessTokenRows({ kind: "source-control", raws: sourceControlCredentials, providerLabel: ({ ref }) => accessTokenProviderInfo({ providers, ref }).label, sentinelLabels: LEGACY_SENTINEL_LABELS }),
       ...buildCustomCredentialRows({ raws: customCredentials }),
     ];
   }, [publishCredentials, sourceControlCredentials, customCredentials, publishTargetsSettled, providers]);
