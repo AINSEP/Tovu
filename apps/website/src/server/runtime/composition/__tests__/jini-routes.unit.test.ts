@@ -7,7 +7,7 @@ import { jsonResponse, readJsonBody, type ServerRoute } from "@jini-ai/core/cont
 import { allowAllOrigins } from "@jini-ai/core/contracts/server/testing";
 import { JINI_REQUEST_FACTS } from "@jini-ai/core/contracts/site/request-facts";
 import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
-import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
+import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */
 
@@ -150,4 +150,33 @@ test("mountJiniRoutes gives a route the request facts in locals, overwriting any
   assert.deepEqual(answer.facts, expected);
   assert.equal((answer.facts as { clientAddress: string }).clientAddress, "203.0.113.5");
   assert.equal(answer.other, "kept");
+});
+
+/** A finished HTML answer with two cookies, as a callback page route builds one. */
+const page: ServerRoute = { method: "GET", path: "/page", handler: () => {
+  const headers = new Headers({ "cache-control": "no-store", "content-type": "text/html; charset=utf-8" });
+  headers.append("set-cookie", "a=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+  headers.append("set-cookie", "b=; Max-Age=0");
+  return new Response("<p>done</p>", { status: 201, headers });
+} };
+
+test("an in-place route written with expressSendResponse answers as res.send did: status, its own headers, each cookie on its own line, length and a weak ETag; HEAD has no body", async t => {
+  const app = express();
+  mountJiniRouteInPlace({ app, route: page }, { writeResponse: expressSendResponse });
+  const origin = await listen(t, app);
+  const response = await fetch(`${origin}/page`);
+  assert.deepEqual(
+    [response.status, response.headers.get("cache-control"), response.headers.get("content-type"), response.headers.get("content-length"), response.headers.getSetCookie(), await response.text()],
+    [201, "no-store", "text/html; charset=utf-8", "11", ["a=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT", "b=; Max-Age=0"], "<p>done</p>"],
+  );
+  assert.match(response.headers.get("etag") ?? "", /^W\/"b-/);
+  const head = await fetch(`${origin}/page`, { method: "HEAD" });
+  assert.deepEqual([head.status, head.headers.get("etag"), await head.text()], [201, response.headers.get("etag"), ""]);
+});
+
+test("an in-place route keeps the bridge's writer unless told otherwise: the answer as built, no ETag added", async t => {
+  const app = express();
+  mountJiniRouteInPlace({ app, route: page });
+  const response = await fetch(`${await listen(t, app)}/page`);
+  assert.deepEqual([response.status, response.headers.get("etag"), response.headers.getSetCookie().length, await response.text()], [201, null, 2, "<p>done</p>"]);
 });

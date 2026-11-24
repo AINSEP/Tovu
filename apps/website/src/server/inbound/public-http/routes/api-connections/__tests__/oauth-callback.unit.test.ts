@@ -22,9 +22,10 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
-import { API_CONNECTION_BINDING_COOKIE } from "#src/features/api-connections/browser-binding";
+import type { OAuthCallbackFailureReason } from "@jini-ai/core/contracts/site/oauth-callback-page";
+import { API_CONNECTION_BINDING_COOKIE, clearedBrowserBindingCookie } from "#src/features/api-connections/browser-binding";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
-import { API_CONNECTION_CALLBACK_MESSAGE_TYPE } from "#src/server/inbound/public-http/routes/oauth/callback-page";
+import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
 
 let harness: AcmeHarness;
 const servers: Server[] = [];
@@ -290,4 +291,50 @@ test("failures: an API-connection error with any other code still renders exchan
   const page = await get(harness.consentRedirect(start.authorizationUrl));
   assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "exchange_failed" });
   assert.deepEqual(logs, ["api-connection oauth callback failed: ApiConnectionError configuration-invalid"]);
+});
+
+// ---- Wire parity with the hand-written route this registrar replaced (Tovu `6fdb2cf25f^1`,
+// `inbound/public-http/routes/api-connections/oauth-callback.ts`). Its `send` wrote every page with
+// Express `res.send`, so each answer carried a weak ETag; `legacySite` below is that writer, copied as
+// it stood (the binding cookie appended once the attempt was routed). The mounted Jini route must
+// answer the same status, headers and body.
+
+/** A site answering the callback path the way the legacy `send` did. */
+async function legacySite({ status, reason, cleared }: { status: number; reason?: OAuthCallbackFailureReason; cleared: boolean }): Promise<string> {
+  const app = express();
+  app.get("/api/agent-plugins/connections/oauth/callback", (_req, res) => {
+    if (cleared) res.append("Set-Cookie", clearedBrowserBindingCookie());
+    res.status(status).set("Cache-Control", "no-store").type("html")
+      .send(renderOAuthCallbackPage(reason ? { ok: false, reason, messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE } : { ok: true, messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE }));
+  });
+  const server = createServer(app);
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+
+/** Status, body and every header but the per-response `Date`, by name. */
+async function wire(url: string | URL, headers: Readonly<Record<string, string>> = {}) {
+  const response = await fetch(url, { headers });
+  return { status: response.status, headers: Object.fromEntries([...response.headers].filter(([name]) => name !== "date")), body: await response.text() };
+}
+
+test("wire parity: every answer is the hand-written route's res.send answer (weak ETag, length, type, no-store, cleared cookie) byte for byte", async () => {
+  const host = harness.makeHost();
+  const limited = await ownSite(host, { callbackLimiter: { check: async () => ({ allowed: false, retryAfterSeconds: 30 }) } });
+  const success = harness.consentRedirect((await startHosted(host)).authorizationUrl);
+  const refused = harness.consentRedirect((await startHosted(host)).authorizationUrl);
+  const cases: readonly { label: string; url: string | URL; headers: Readonly<Record<string, string>>; legacy: { status: number; reason?: OAuthCallbackFailureReason; cleared: boolean } }[] = [
+    { label: "rate_limited", url: callbackAt(limited, { state: "s", code: "c" }), headers: {}, legacy: { status: 429, reason: "rate_limited", cleared: false } },
+    { label: "no_state", url: callbackAt(harness.siteOrigin, { code: "c" }), headers: {}, legacy: { status: 400, reason: "no_state", cleared: false } },
+    { label: "unknown state", url: callbackAt(harness.siteOrigin, { state: "unknown-state", code: "c" }), headers: {}, legacy: { status: 400, reason: "state_expired", cleared: false } },
+    { label: "success", url: success, headers: harness.cookieFor(success), legacy: { status: 200, cleared: true } },
+    { label: "refused binding", url: refused, headers: {}, legacy: { status: 400, reason: "state_expired", cleared: true } },
+  ];
+  for (const { label, url, headers, legacy } of cases) {
+    const mounted = await wire(url, headers);
+    const handWritten = await wire(`${await legacySite(legacy)}/api/agent-plugins/connections/oauth/callback`);
+    assert.match(mounted.headers.etag ?? "", /^W\/"/, `${label}: res.send's weak ETag`);
+    assert.deepEqual(mounted, handWritten, label);
+  }
 });

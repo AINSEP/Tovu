@@ -10,7 +10,7 @@ import type { RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/c
 import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes, nodeRequestHeaders, sendWebResponse } from "@jini-ai/http-kit/node-bridge";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request as ExpressRequest, RequestHandler, Response as ExpressResponse } from "express";
 import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
 import { asyncRoute } from "#src/platform/express/async-route";
 
@@ -39,22 +39,45 @@ export function mountJiniRoutes(
   });
 }
 
+/** How an in-place mount writes a route's answer onto Express's response. */
+export type InPlaceResponseWriter = (required: { readonly response: Response; readonly req: ExpressRequest; readonly res: ExpressResponse }) => Promise<void>;
+
+/** The bridge's writer: the answer exactly as the route built it (streams pass through; Express adds no ETag and checks no freshness). */
+const bridgeResponseWriter: InPlaceResponseWriter = ({ response, req, res }) => sendWebResponse({ response, res }, { headOnly: req.method === "HEAD" });
+
+/**
+ * Writes a FINISHED answer through Express `res.send`, for a route whose hand-written handler answered
+ * with `res.send`: Express then states the length, adds the app's ETag (weak by default) and answers a
+ * matching If-None-Match with 304 and a HEAD with no body, as that handler's answers did. The route's
+ * own headers are set first (each `Set-Cookie` on its own line: cookie dates contain commas). The body
+ * is read to its end before anything is written, so this is not for a streamed answer.
+ * @complexity O(headers + body bytes).
+ */
+export const expressSendResponse: InPlaceResponseWriter = async ({ response, res }) => {
+  const body = Buffer.from(await response.arrayBuffer());
+  res.status(response.status);
+  response.headers.forEach((value, name) => { if (name !== "set-cookie") res.set(name, value); });
+  for (const cookie of response.headers.getSetCookie()) res.append("Set-Cookie", cookie);
+  res.send(body);
+};
+
 /**
  * Mounts ONE body-less Jini route as an ordinary Express route at its own path and method, where a
  * hand-written `app.get(path, asyncRoute(...))` stood. Unlike {@link mountJiniRoutes} (one `use`
  * layer per list), the route stays a `route` row in the app's stack: the registration table keeps
  * its shape, and Express's own match decides — the route answers wherever Express mounted its
  * handler, with Express's decoded params, as the hand-written handler did. The answer goes through
- * the bridge's response writer; a throw goes to `next(error)` (the host error handler), as before.
+ * `optional.writeResponse`; a throw goes to `next(error)` (the host error handler), as before.
  * The web `Request` carries the method, path, query and headers; its origin is a fixed placeholder,
  * because Express trusts no Host for routing — a route that needs the public origin takes it as a dep.
  * @param optional.anonymous - Register through an unnamed wrapper, for a route whose hand-written handler was an inline arrow.
+ * @param optional.writeResponse - How the answer is written; the bridge's writer by default. Pass {@link expressSendResponse} where the hand-written handler answered with `res.send`, so its ETag and 304s stay.
  * @throws Error at mount time for a method that carries a body: this mount hands no body on.
  * @complexity O(1) setup; O(headers) per request plus the route.
  */
 export function mountJiniRouteInPlace(
   { app, route }: { app: Pick<Express, "get" | "delete">; route: ServerRoute },
-  { anonymous = false }: { anonymous?: boolean } = {},
+  { anonymous = false, writeResponse = bridgeResponseWriter }: { anonymous?: boolean; writeResponse?: InPlaceResponseWriter } = {},
 ): void {
   if (route.method !== "GET" && route.method !== "DELETE") throw new Error(`mountJiniRouteInPlace: ${route.method} ${route.path} carries a body; mount it with mountJiniRoutes`);
   const verb = route.method === "GET" ? "get" : "delete";
@@ -67,7 +90,7 @@ export function mountJiniRouteInPlace(
     const request = new Request(url, { method: req.method, headers: nodeRequestHeaders({ incoming: req }) });
     const client = req.socket.remoteAddress ? { address: req.socket.remoteAddress } : undefined;
     const response = await route.handler({ request, params: { ...req.params }, ...(client ? { client } : {}), locals: requestFactsLocals({ req }, { base: res.locals }) });
-    await sendWebResponse({ response, res }, { headOnly: req.method === "HEAD" });
+    await writeResponse({ response, req, res });
   } });
   // The route table names each handler: a route that replaced a plain inline handler keeps its `<anonymous>` row.
   app[verb](route.path, anonymous ? (req, res, next) => handler(req, res, next) : handler);
