@@ -3708,6 +3708,42 @@
     {
       "id": "32e2abcb2b4b",
       "reason": "Moved with the code to Jini packages/platform/src/mail/positional-purpose-gate.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "be3a2ee17da0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "70c8025751c0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "2dae107f967d",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "4a137f3959f7",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "bac76edb5bef",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "6ac35bcb9404",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-admissions.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "d318b21bac1a",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-probe.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "9695593ba4a5",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/tool-registrations.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "b99aeac1199d",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/tool-registrations.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
     }
   ]
 }
