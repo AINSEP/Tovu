@@ -65,6 +65,9 @@ sites/*/content.db-shm
 sites/*/content.db.bak-*
 sites/*/restore-point-*.db
 sites/*/out/
+# 2026-11-24 (rv1123r fix 14): per-workspace agent-plugin install state (activations, layout marker,
+# bundled digests, packaged plugin trees) is generated at runtime by the local daemon; a lane committed it.
+sites/*/agent-plugins/ws/
 # 2026-09-06: commit 0fb84ae0 split chat history out of content.db into its own per-site
 # chat.db, but added no ignore rule for the new file -- the rule above protects content.db's
 # "real chat transcripts" (see comment at the top of this block), and those transcripts moved out
