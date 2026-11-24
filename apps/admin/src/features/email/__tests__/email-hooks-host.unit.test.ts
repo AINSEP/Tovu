@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ApiError } from "@/lib/admin-http/request";
 import { emailApi } from "../email-api";
-import { newRequestId, useWiredEmailOverview, useWiredEmailTemplateEditor, useWiredEmailTemplates } from "../email-hooks-host";
+import { newRequestId, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailTemplateEditor, useWiredEmailTemplates } from "../email-hooks-host";
 import { TEMPLATE } from "./email.test-helpers";
 
 vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
@@ -23,6 +23,15 @@ describe("email hooks host bindings", () => {
     const editor = renderHook(() => useWiredEmailTemplateEditor({ id: TEMPLATE.id }));
     await waitFor(() => expect(templates.result.current.view).toEqual({ kind: "forbidden" }));
     await waitFor(() => expect(editor.result.current.view).toEqual({ kind: "error", message: "Server says no" }));
+  });
+
+  it("binds this app's ApiError into the Activity tab: a 403 reads as forbidden, other refusals keep the server's message", async () => {
+    vi.spyOn(emailApi, "listActivity").mockResolvedValue({ items: [], nextCursor: null, empty: "none_recorded", access: "full" });
+    vi.spyOn(emailApi, "listSuppressions").mockRejectedValue(new ApiError({ message: "Server says no", status: 500 }));
+    vi.spyOn(emailApi, "readFeedback").mockRejectedValue(new ApiError({ message: "Forbidden", status: 403 }));
+    const { result } = renderHook(() => useWiredEmailActivity());
+    await waitFor(() => expect(result.current.feedback).toEqual({ kind: "forbidden" }));
+    await waitFor(() => expect(result.current.suppressions.view).toEqual({ kind: "error", message: "Server says no" }));
   });
 
   it("opens a new template through this app's router", async () => {

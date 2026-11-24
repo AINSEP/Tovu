@@ -11,7 +11,7 @@ import { EmailActivityTab } from "../EmailActivityTab";
 import { EmailTemplatesTab } from "../EmailTemplatesTab";
 import { useEmailProvider } from "../hooks/use-email-provider.hooks";
 import { useEmailSender } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
-import { useEmailActivity } from "../hooks/use-email-activity.hooks";
+import { useEmailActivity } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, MAIL_PLUGIN, TEMPLATE } from "./email.test-helpers";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
@@ -211,7 +211,7 @@ describe("Email tab components", () => {
     const api = createEmailFake();
     api.listSuppressions.mockResolvedValue({ items: [BLOCK], nextCursor: null, empty: null });
     api.removeSuppression.mockResolvedValueOnce({ removed: false, confirmationRequired: true, plan: PLAN });
-    function Harness() { return <EmailActivityTab controller={useEmailActivity({ api }, { debounceMs: 0 })} locale="en" />; }
+    function Harness() { return <EmailActivityTab controller={useEmailActivity({ api, ApiError }, { debounceMs: 0 })} locale="en" />; }
     render(<Harness />);
     await userEvent.click(await screen.findByRole("button", { name: "Unblock" }));
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));

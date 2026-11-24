@@ -17,3 +17,6 @@ transport-free leaves live in `@jini-ai/admin/screens/email/*`.
 - `@jini-ai/admin/screens/email/hooks/use-email{,-overview,-sender,-templates,-template-editor}.hooks`
   — bound in `email-hooks-host.ts` (`useWired*`: `emailApi` / `mailStatusApi`, `ApiError`, the router's
   `navigate`, `newRequestId`); `Email.tsx` and `EmailTemplateEditor.tsx` mount the wired hooks.
+- `@jini-ai/admin/screens/email/hooks/use-email-activity.hooks` — bound in `email-hooks-host.ts`
+  (`useWiredEmailActivity`: `emailApi`, `ApiError`); `Email.tsx` mounts it and `EmailActivityTab.tsx`
+  imports its `EmailActivityController` / `PagedList` types from there.

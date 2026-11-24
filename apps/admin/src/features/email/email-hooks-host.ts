@@ -1,6 +1,7 @@
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 import { useEmail, type EmailController, type EmailPort } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
+import { useEmailActivity, type EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { useEmailOverview, type EmailOverviewController } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
 import { useEmailSender, type EmailSenderController } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 import { useEmailTemplateEditor, type EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
@@ -53,4 +54,9 @@ export function useWiredEmailTemplates(optional: { newName?: string } = {}): Ema
 /** The real API port. */
 export function useWiredEmailTemplateEditor(required: { id: string }): EmailTemplateEditorController {
   return useEmailTemplateEditor({ api: emailApi, id: required.id, ApiError });
+}
+
+/** The real API port. */
+export function useWiredEmailActivity(): EmailActivityController {
+  return useEmailActivity({ api: emailApi, ApiError });
 }

@@ -4,7 +4,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailActivityItem, MailFeedbackProviderSetup, MailSuppressionEntry } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, CopyButton, Loaded, Section, when, type Tone } from "./EmailParts";
-import type { EmailActivityController, PagedList } from "./hooks/use-email-activity.hooks";
+import type { EmailActivityController, PagedList } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 
 /**
  * @file The Activity tab: recent sends (filters, Load more, one send's feedback), blocked
