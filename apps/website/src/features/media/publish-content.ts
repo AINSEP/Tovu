@@ -194,7 +194,7 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen,
-          sha256: { isValidSha256Hex, bytesMatchSha256 } },
+          sha256: { isValidSha256Hex, bytesMatchSha256 }, outwardErrorMessage: ({ error }) => error.message },
         input: {
           workspaceId,
           record,
@@ -268,7 +268,8 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
       restore: ({ ctx: { ports, deps }, prior }, _optional = {}) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
         assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
-        clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, sha256: { isValidSha256Hex, bytesMatchSha256 } }, prior }),
+        clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, sha256: { isValidSha256Hex, bytesMatchSha256 },
+        outwardErrorMessage: ({ error }) => error.message }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),
       summary: async ({ ports, workspaceId, id, state }) => {
         const sha256 = (state as unknown as MediaRecord).source?.sha256 ?? "";

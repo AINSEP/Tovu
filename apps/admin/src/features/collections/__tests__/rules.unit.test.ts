@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ADMIN_SYSTEM_CONTENT_TYPES, addDraftField, autoFocusCancelForLifecycleOp, collectionEmbedSnippet, draftFieldsFromContentType, emptyField, isUserCollection, LIFECYCLE_COPY, removeDraftField, STALE_VERSION_MESSAGE, stripDraftFieldRowIds, updateDraftField, type DraftField } from "@jini-ai/admin/screens/collections/rules";
-import { contentTypeMenuItems, describeEditFieldsError, firstDraftFieldError, validateEditFieldsDraft, validateFieldName, validateKey, validateNewContentTypeDraft, visibleEntryEditorError } from "../collections-host-ports";
+import { ADMIN_SYSTEM_CONTENT_TYPES, autoFocusCancelForLifecycleOp, isUserCollection, LIFECYCLE_COPY, removeDraftField, STALE_VERSION_MESSAGE, stripDraftFieldRowIds, updateDraftField, type DraftField } from "@jini-ai/admin/screens/collections/rules";
+import { addDraftField, collectionEmbedSnippet, contentTypeMenuItems, draftFieldsFromContentType, emptyField, describeEditFieldsError, firstDraftFieldError, validateEditFieldsDraft, validateFieldName, validateKey, validateNewContentTypeDraft, visibleEntryEditorError } from "../collections-host-ports";
 import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
@@ -9,9 +9,9 @@ import { ApiError } from "@/lib/admin-http/request";
  * @file Pure logic for the top-level `Collections` screen — validation, draft-field-list
  * transforms, error formatting, lifecycle copy, and the row-menu builder.
  *
- * `nextRowId` (backing {@link emptyField}/{@link draftFieldsFromContentType}) is deliberately
- * NOT reset between tests — this file's own doc comment marks it as an intentionally impure,
- * module-level monotonic counter SHARED across `NewContentTypeDialog` and `EditFieldsDialog`
+ * The row-id counter (backing {@link emptyField}/{@link draftFieldsFromContentType}, bound once
+ * into `collectionsHostKit` as `nextDraftRowId`) is deliberately NOT reset between tests — the rules
+ * module's own doc comment marks it as an intentionally impure, host-owned monotonic counter SHARED across `NewContentTypeDialog` and `EditFieldsDialog`
  * (open New, cancel, then open Edit continues the same sequence rather than resetting). A test
  * that reset it between cases would be pinning the wrong behavior; the "monotonic, never resets"
  * property is asserted directly below instead.
@@ -79,15 +79,15 @@ describe("validateFieldName", () => {
 
 describe("nextRowId — shared, monotonic, never resets (deliberate landmine)", () => {
   it("emptyField assigns a strictly increasing _rowId across repeated calls", () => {
-    const a = emptyField();
-    const b = emptyField();
-    const c = emptyField();
+    const a = emptyField({});
+    const b = emptyField({});
+    const c = emptyField({});
     expect(b._rowId).toBeGreaterThan(a._rowId);
     expect(c._rowId).toBeGreaterThan(b._rowId);
   });
 
   it("draftFieldsFromContentType assigns fresh, increasing _rowIds off the SAME counter emptyField uses", () => {
-    const before = emptyField();
+    const before = emptyField({});
     const seeded = draftFieldsFromContentType({ fields: [
       { name: "a", kind: "text", required: false, queryable: false },
       { name: "b", kind: "text", required: false, queryable: false },
@@ -97,12 +97,12 @@ describe("nextRowId — shared, monotonic, never resets (deliberate landmine)", 
     // Continuing to call emptyField afterward keeps advancing past draftFieldsFromContentType's
     // ids too — proof it's genuinely the same shared counter, not two independent ones that
     // happen to start at the same place.
-    const after = emptyField();
+    const after = emptyField({});
     expect(after._rowId).toBeGreaterThan(seeded[1]._rowId);
   });
 
   it("LANDMINE: the counter does not reset between independent dialog sessions — simulates 'open New, cancel, open Edit'", () => {
-    const openNewDialogFirstId = emptyField()._rowId;
+    const openNewDialogFirstId = emptyField({})._rowId;
     // ...dialog cancelled, unmounted...
     const openEditDialogFirstId = draftFieldsFromContentType({ fields: [{ name: "x", kind: "text", required: false, queryable: false }] })[0]._rowId;
     expect(openEditDialogFirstId).toBeGreaterThan(openNewDialogFirstId);

@@ -104,6 +104,7 @@ function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEn
     clock: makeClock(),
     idGen: makeIdGen(),
     sha256: { isValidSha256Hex, bytesMatchSha256 },
+    outwardErrorMessage: ({ error }: { error: Error }) => error.message,
     ...overrides,
   } as ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo; assetBlobRepo: InMemoryAssetBlobRepo; blobStore: InMemoryBlobStore };
 }

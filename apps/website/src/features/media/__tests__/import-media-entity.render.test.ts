@@ -49,6 +49,7 @@ function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMedia
       return { newId: () => `blob-${++n}` };
     })(),
     sha256: { isValidSha256Hex, bytesMatchSha256 },
+    outwardErrorMessage: ({ error }) => error.message,
   };
 }
 
