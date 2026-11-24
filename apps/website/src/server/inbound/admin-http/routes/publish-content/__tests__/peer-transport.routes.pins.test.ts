@@ -4,13 +4,8 @@ import test from "node:test";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PublishContentPeerTransportError } from "#src/features/publish-content/peer-transport";
-import {
-  InMemoryPublishContentPeerRepo,
-  PublishContentPeerCredentialMissingError,
-  PublishContentPeerNotFoundError,
-  PublishContentPeerSecretStoreUnconfiguredError,
-  PublishContentPeerValidationError,
-} from "#src/features/publish-content/peers";
+import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

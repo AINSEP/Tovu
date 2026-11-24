@@ -11,11 +11,7 @@ import {
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
-import {
-  PublishContentPeerCredentialMissingError,
-  PublishContentPeerNotFoundError,
-  PublishContentPeerSecretStoreUnconfiguredError,
-} from "#src/features/publish-content/peers";
+import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import {
   canPublishToLive,

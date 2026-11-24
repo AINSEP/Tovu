@@ -22,7 +22,7 @@ import { executePublishContentImport, RestorePointUnavailableError } from "@jini
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import { entityKey, type PublishContentReport } from "./plan-rows.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
-import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
+import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contracts/core/plugin-hook-failed-error.js";

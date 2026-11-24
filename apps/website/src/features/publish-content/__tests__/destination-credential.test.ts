@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { PublishTrustHandshakeError, type PublishSession } from "#src/features/publish-trust/handshake-client";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "../destination-credential.js";
-import { PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, type PublishContentPeerRecord } from "../peers.js";
+import { PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
+import { type PublishContentPeerRecord } from "../peers.js";
 
 /** @file The connected-destination branch of `resolvePublishDestinationCredential` with the
  *  handshake replaced by a recording session opener (the real three-call handshake is proven

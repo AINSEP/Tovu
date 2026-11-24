@@ -2,12 +2,8 @@ import { openPublishSession, PublishTrustHandshakeError } from "#src/features/pu
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
-import {
-  PublishContentPeerNotFoundError,
-  resolvePeerCredential,
-  type PublishContentPeerRepoPort,
-  type ResolvedPeerCredential,
-} from "./peers.js";
+import { PublishContentPeerNotFoundError } from "@jini-ai/cms/publish/content/peers";
+import { resolvePeerCredential, type PublishContentPeerRepoPort, type ResolvedPeerCredential } from "./peers.js";
 
 /**
  * @file The single seam where a publish decides HOW it authenticates — item 6 of

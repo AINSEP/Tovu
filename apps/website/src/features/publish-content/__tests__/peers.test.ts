@@ -5,23 +5,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
-import {
-  createPublishContentPeer,
-  deletePublishContentPeer,
-  getPublishContentPeerSummary,
-  InMemoryPublishContentPeerRepo,
-  listPublishContentPeers,
-  maskApiKey,
-  PublishContentPeerCredentialMissingError,
-  PublishContentPeerDuplicateLabelError,
-  PublishContentPeerNotFoundError,
-  PublishContentPeerSecretStoreUnconfiguredError,
-  PublishContentPeerValidationError,
-  resolvePeerCredential,
-  toPeerSummary,
-  updatePublishContentPeer,
-  type PublishContentPeerWriteDeps,
-} from "../peers.js";
+import { PublishContentPeerCredentialMissingError, PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
+import { createPublishContentPeer, deletePublishContentPeer, getPublishContentPeerSummary, InMemoryPublishContentPeerRepo, listPublishContentPeers, maskApiKey, resolvePeerCredential, toPeerSummary, updatePublishContentPeer, type PublishContentPeerWriteDeps } from "../peers.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

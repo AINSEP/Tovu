@@ -6,6 +6,10 @@ import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token"
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
+import {
+  PublishContentPeerCredentialMissingError, PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError,
+  PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError,
+} from "@jini-ai/cms/publish/content/peers";
 import type { SealedSecret } from "#src/features/webhooks/index";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
@@ -36,48 +40,6 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhoo
  * STORAGE SHAPE: Jini's vault owns persistence, JSON sealing and context-bound AAD. The site
  * key remains installation-owned; no vendor secret-store dependency is introduced here.
  */
-
-/** Thrown when a named peer does not exist in this workspace. */
-export class PublishContentPeerNotFoundError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
-    this.name = "PublishContentPeerNotFoundError";
-  }
-}
-
-/** Thrown when operator-supplied peer input is unusable. `message` is operator-facing and never
- *  echoes a supplied credential. */
-export class PublishContentPeerValidationError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
-    this.name = "PublishContentPeerValidationError";
-  }
-}
-
-/** Thrown when a write would violate `publish_content_peers_workspace_label_unique`. */
-export class PublishContentPeerDuplicateLabelError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
-    this.name = "PublishContentPeerDuplicateLabelError";
-  }
-}
-
-/** Thrown when `sealer.seal()`/`keyring.activeKey()` fails — fail-closed, never a plaintext write.
- *  Mirrors `PublishCredentialSecretStoreUnconfiguredError`. */
-export class PublishContentPeerSecretStoreUnconfiguredError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
-    this.name = "PublishContentPeerSecretStoreUnconfiguredError";
-  }
-}
-
-/** Thrown when a peer row exists but carries no sealed credential — a push/pull cannot proceed. */
-export class PublishContentPeerCredentialMissingError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
-    this.name = "PublishContentPeerCredentialMissingError";
-  }
-}
 
 /** The existing peer record projected from the vault (`sealed` is the DB's opaque {@link SealedSecret};
  *  the raw API key only exists in memory after {@link resolvePeerCredential} opens it). */

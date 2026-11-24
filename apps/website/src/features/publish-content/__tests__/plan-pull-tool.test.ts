@@ -158,7 +158,7 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
   const { PlanStaleError, ForbiddenError } = await import("../../../contracts/core/gated-mutations/gateway.js");
   const { PublishContentBundleNotFoundError } = await import("../gated-hooks.js");
   const { RestorePointUnavailableError } = await import("@jini-ai/cms/publish/content/execute-import");
-  const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("../peers.js");
+  const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("@jini-ai/cms/publish/content/peers");
   const { PublishContentPeerTransportError } = await import("../peer-transport.js");
   const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");
   const { PluginHookFailedError } = await import("../../../contracts/core/plugin-hook-failed-error.js");

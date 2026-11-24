@@ -6,18 +6,8 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import {
-  createPublishContentPeer,
-  deletePublishContentPeer,
-  listPublishContentPeers,
-  PublishContentPeerDuplicateLabelError,
-  resolvePeerCredential,
-  updatePublishContentPeer,
-  getPublishContentPeerSummary,
-  selectConnectedDestination,
-  saveConnectedDestination,
-  removeConnectedDestination,
-} from "#src/features/publish-content/peers";
+import { PublishContentPeerDuplicateLabelError } from "@jini-ai/cms/publish/content/peers";
+import { createPublishContentPeer, deletePublishContentPeer, listPublishContentPeers, resolvePeerCredential, updatePublishContentPeer, getPublishContentPeerSummary, selectConnectedDestination, saveConnectedDestination, removeConnectedDestination } from "#src/features/publish-content/peers";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
