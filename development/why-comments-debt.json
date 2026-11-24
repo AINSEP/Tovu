@@ -4826,6 +4826,11 @@
     {"id": "3cec53f4ba5d", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort test helper, w5-admin)."},
     {"id": "19f9f65f4319", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."},
     {"id": "fb17c84314b8", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."},
-    {"id": "9f08114a8563", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."}
+    {"id": "9f08114a8563", "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."},
+    {"id": "69bb95bef4df", "reason": "Moved to Jini `packages/admin/src/screens/plugins/AgentPlugins.hooks.ts` (`useAgentPluginConfirmation` why-comment, host file names reworded, w5-admin)."},
+    {"id": "8fcb0e73f30a", "reason": "Moved to Jini `packages/admin/src/screens/plugins/hooks/use-plugin-provider-settings.hooks.ts` (file header; the wired-hook sentence stays with the host binding, w5-admin)."},
+    {"id": "da8c186d2910", "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (why-not-the-settings-controller header, host names reworded, w5-admin)."},
+    {"id": "50879856327e", "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (`ProvidersController` doc, product wording removed, w5-admin)."},
+    {"id": "c02e57c53b1c", "reason": "Moved to Jini `packages/admin/src/screens/trash/rules.ts` (`TRASH_RESOURCE` doc, host bus path reworded, w5-admin)."}
   ]
 }
