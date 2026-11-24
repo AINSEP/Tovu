@@ -6,12 +6,11 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
-import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
+import { InMemoryContentTypeRepo, type ContentTypeRecord } from "@jini-ai/cms/content-types";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

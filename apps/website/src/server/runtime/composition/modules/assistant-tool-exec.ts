@@ -35,11 +35,10 @@ import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
-import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
+import { buildListPendingChatAttachmentsTool } from "@jini-ai/cms/media/site/list-pending-chat-attachments";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
-;
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";

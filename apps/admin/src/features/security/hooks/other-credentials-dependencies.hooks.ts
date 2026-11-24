@@ -1,6 +1,6 @@
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 

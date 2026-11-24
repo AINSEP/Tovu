@@ -1,3 +1,5 @@
+import type { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import type { SqlTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
 import type { TrashFollowUpHooks } from "@jini-ai/cms/trash";
 import { buildMenuTrashFollowUpHooks } from "@jini-ai/cms/navigation/site/menu-trash-follow-ups";
@@ -6,7 +8,7 @@ import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { createTaxonomyPurgeFollowUp } from "@jini-ai/cms/taxonomy";
 import { createTermPurgeFollowUp } from "@jini-ai/cms/taxonomy";
-import { purgeMedia as purgeFormMedia } from "#src/features/media/index";
+import { purgeMedia as purgeFormMedia } from "@jini-ai/cms/media/site/purge-media";
 import { restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
 import { trashMedia as trashFormMedia } from "#src/features/media/index";
 import type { SiteStore } from "../open-site-store.js";
@@ -15,8 +17,6 @@ import type { SqlitePostRepo } from "#src/features/post/index";
 import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import type { SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
-import type { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
-import type { SqliteTermRepo, SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
 import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
 import type { createMediaBlobStore } from "#src/features/object-storage/media-store";
@@ -36,11 +36,11 @@ interface ComposeTrashFollowUpHooksRequired {
   outbox: SqliteOutboxAdapter;
   formDeliveryRepo: SqlFormDeliveryRepo;
   routeDeps: () => NewsletterRouteDeps & ByokToolSurfaceDeps;
-  menuRepo: SqliteMenuRepo;
+  menuRepo: SqlMenuRepo;
   idGen: { newId: () => string };
-  taxonomyFollowUpTermRepo: SqliteTermRepo;
+  taxonomyFollowUpTermRepo: SqlTermRepo;
   trashRepo: SqliteTrashRepo;
-  taxonomyFollowUpRevisions: SqliteTaxonomyRevisionRepo;
+  taxonomyFollowUpRevisions: SqlTaxonomyRevisionRepo;
   taxonomyFollowUpOutbox: ReturnType<typeof toTaxonomyOutbox>;
 }
 

@@ -5,7 +5,7 @@ import { createRevertRegistry, InMemoryChangeSetRepo, revertChangeSet, RevertCon
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 
-import { InMemoryMenuRepo, type NavMenuEntry, type MenuRepoPort, type NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "../publish-content.js";
 import { createMenuReverters, registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

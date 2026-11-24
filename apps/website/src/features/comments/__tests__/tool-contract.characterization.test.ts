@@ -21,8 +21,8 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemorySettingsRepo } from "../../settings/index.js";
-import { ensureCommentsSettingDefinitions } from "../settings.js";
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "../../settings/index.js";
+import { ensureCommentsSettingDefinitions } from "@jini-ai/cms/comments/site/settings";
 import { contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
@@ -109,7 +109,7 @@ async function makeFixture(): Promise<Fixture> {
   const idGen = { newId: () => { counter += 1; return `id-${counter}`; } };
   const settingsRepo = new InMemorySettingsRepo();
   const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [] });
-  await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, clock, ids: idGen }, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system" });
+  await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, createPrincipalLookup: createSettingsPrincipalLookup, clock, ids: idGen }, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system" });
   const commentRepo = new InMemoryCommentRepo();
   for (const id of ["comment-1", "comment-2", "comment-3", "comment-4"]) await commentRepo.create({ record: seedComment(id) }, {});
   const commentWriteService = createCommentWriteService({

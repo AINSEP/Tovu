@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
-import type { DetectedAgent, ExecutionPort } from "@jini-ai/ui";
+import type { ExecutionCardAgent, ExecutionPort } from "@jini-ai/core/contracts/execution";
 import { createExecutionPort } from "../../../lib/execution-settings";
 import { selectedAgentWarning } from "../../../features/settings/ai-agent-presentation";
 
@@ -33,7 +33,7 @@ export function useSelectedAgentAuthWarning(
   { port: injectedPort }: { port?: AuthDetectionPort } = {},
 ) {
   const [port] = useState<AuthDetectionPort>(() => injectedPort ?? createExecutionPort());
-  const [agents, setAgents] = useState<readonly DetectedAgent[]>([]);
+  const [agents, setAgents] = useState<readonly ExecutionCardAgent[]>([]);
   const generation = useRef(0);
   const live = useRef(true);
   useEffect(() => {
@@ -41,7 +41,7 @@ export function useSelectedAgentAuthWarning(
     return () => { live.current = false; };
   }, []);
 
-  const scanRef = useRef((request: () => Promise<readonly DetectedAgent[]>) => {
+  const scanRef = useRef((request: () => Promise<readonly ExecutionCardAgent[]>) => {
     generation.current += 1;
     const scan = generation.current;
     // Through a promise so a port that throws synchronously still lands in the no-warning branch.

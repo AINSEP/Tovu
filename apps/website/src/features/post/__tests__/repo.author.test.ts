@@ -4,7 +4,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost } from "../post-create.js";
 import { updatePost } from "../post-update.js";
-import type { PostRepoPort } from "../post.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 
 const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };

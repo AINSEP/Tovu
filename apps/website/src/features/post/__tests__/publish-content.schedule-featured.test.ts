@@ -16,7 +16,7 @@ import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "../publish-content.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";

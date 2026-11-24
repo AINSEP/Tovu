@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "../../features/media/api/media-api";
 import { MediaImage, MediaImageNodeView } from "../media-image-extension";
 

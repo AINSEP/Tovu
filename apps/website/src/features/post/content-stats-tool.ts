@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/post';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -8,8 +8,8 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { PostRecord, PostRepoPort } from "./post.js";
-import { extractPostPlainText } from "./search.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
+import { extractPostPlainText } from "@jini-ai/cms/posts/search";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { sniffContentType } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";

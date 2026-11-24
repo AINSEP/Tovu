@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 
 import { notifyExternalMcpRosterChanged, onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";

@@ -2042,23 +2042,9 @@
         ]
       },
       {
-        "path": "apps/website/src/features/media/duplicate-asset.ts",
-        "ids": [
-          "content_duplicate",
-          "media_trash_asset"
-        ]
-      },
-      {
         "path": "apps/website/src/features/media/library-save-attachment.ts",
         "ids": [
           "files_copy"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/media/list-pending-chat-attachments.ts",
-        "ids": [
-          "plugins_install",
-          "agent_plugins_install"
         ]
       },
       {
@@ -2068,27 +2054,9 @@
         ]
       },
       {
-        "path": "apps/website/src/features/media/view-image-tool.ts",
-        "ids": [
-          "content_read.media_asset",
-          "media_update_metadata",
-          "media_view_video"
-        ]
-      },
-      {
         "path": "apps/website/src/features/media/view-video-tool.ts",
         "ids": [
           "content_read.media_asset"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/media-generation/agent-tools.ts",
-        "ids": [
-          "media_upload_asset",
-          "content_read.media_asset",
-          "media_update_metadata",
-          "media_trash_asset",
-          "credential_save"
         ]
       },
       {
@@ -2102,19 +2070,6 @@
         "ids": [
           "media_generate_asset",
           "credential_save"
-        ]
-      },
-      {
-        "path": "apps/website/src/features/media-import/agent-tools.ts",
-        "ids": [
-          "fs_list_files",
-          "fs_read_file",
-          "media_import_from_url",
-          "media_upload_asset",
-          "media_generate_asset",
-          "content_read.media_asset",
-          "media_update_metadata",
-          "media_trash_asset"
         ]
       },
       {

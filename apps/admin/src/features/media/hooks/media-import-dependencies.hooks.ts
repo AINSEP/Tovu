@@ -1,4 +1,4 @@
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 
 /** The admin URL-import port is separate so existing upload/edit consumers need no new dependency. */

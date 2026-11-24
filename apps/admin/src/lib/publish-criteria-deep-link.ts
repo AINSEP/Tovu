@@ -1,8 +1,4 @@
-import {
-  decodePublishCriteriaFromQuery,
-  PUBLISH_CRITERIA_QUERY_PARAM,
-  type PublishCriteria,
-} from "@jini-ai/cms/publish/content/dialog";
+import { decodePublishCriteriaFromQuery, PUBLISH_CRITERIA_QUERY_PARAM, type PublishCriteria } from "@jini-ai/cms/publish/content/dialog";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
 
 /**

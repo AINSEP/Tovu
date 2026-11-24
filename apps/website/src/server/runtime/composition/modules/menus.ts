@@ -8,7 +8,6 @@ import { menuListRoute } from "@jini-ai/cms/admin-http/routes/menus/list";
 import { menuUpdateTreeRoute } from "@jini-ai/cms/admin-http/routes/menus/update-tree";
 import { normalizeMenuHtml } from "@jini-ai/cms/navigation/node";
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
-import { trashMenu } from "@jini-ai/cms/navigation/site/trash-menu";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -20,8 +19,8 @@ import type { ServerModuleHandle } from "./types.js";
  * K1 (RT-K1-adm-menus): all six routes are Jini route specs (`@jini-ai/cms/admin-http/routes/menus/*`)
  * mounted behind the admin ports. `RouteDeps` is read only here, at registration: each mount builds
  * that route's own small deps object, so a spec never sees the whole bag. The Tovu-owned policy the
- * specs need is injected here too: the raw-HTML permission, the Node HTML normalizer and the
- * host-local trash move.
+ * specs need is injected here too: the raw-HTML permission, the Node HTML normalizer, the outward
+ * error copy and the trash move's collaborators (`removeMenu`, `clock`).
  *
  * Owns all 6 registrations (list, get-by-id, create, update-tree, assign-location, delete), same
  * relative order as before.
@@ -55,11 +54,16 @@ function mountOptions(
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
-/** The write services' shared collaborators plus the host's HTML policy. */
+/** The admin surface's outward copy for a classified domain error is that error's own message. The
+ *  specs never put stored `error.message` text into a body themselves; this host port is where that
+ *  policy lives. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
+/** The write services' shared collaborators plus the host's HTML policy and outward error copy. */
 function menuWriteDeps({ deps }: { deps: MenuRouteDeps }, _optional: Record<string, never> = {}) {
   return {
     ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox,
-    rawHtmlPermission: MENU_RAW_HTML_PERMISSION, normalizeMenuHtml,
+    rawHtmlPermission: MENU_RAW_HTML_PERMISSION, normalizeMenuHtml, outwardErrorMessage,
   };
 }
 
@@ -87,18 +91,18 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   const assignDeps = {
     ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo,
-    clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox,
+    clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, outwardErrorMessage,
   };
   mountAdminJsonRoute({ app, spec: menuAssignLocationRoute, deps: assignDeps }, mountOptions(
     { operation: "routes/menus/assign-location", authorization: "direct" }, { deferMissingPrincipal: true },
   ));
 };
 
-/** The trash move is host-local (`features/navigation/trash-menu.ts`), bound here to this request's repos. */
+/** The spec runs the trash move itself over this request's repo, `removeMenu` (the generic trash
+ *  pipeline) and clock. */
 export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   const deleteDeps = {
-    ...menuPortDeps({ deps }),
-    trashMenu: (input: Parameters<typeof trashMenu>[0]) => trashMenu(input, { menuRepo: deps.menuRepo, remove: deps.removeMenu, clock: deps.clock }),
+    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, removeMenu: deps.removeMenu, clock: deps.clock, outwardErrorMessage,
   };
   mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/menus/delete", authorization: "guarded" }));
 };

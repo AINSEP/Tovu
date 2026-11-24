@@ -1,7 +1,7 @@
 import { act } from "@testing-library/react";
 import { vi } from "vitest";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import { type ByokConfig, type ExecutionPort } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionPort } from "@jini-ai/core/contracts/execution";
 
 import type { AdminExecutionCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError } from "../admin-http/request";

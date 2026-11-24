@@ -1,13 +1,13 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
-import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { OverwritablePrecheckRefusal } from "@jini-ai/cms/publish/content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
-import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "./import-media-entity.js";
+import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "@jini-ai/cms/media/site/import-media-entity";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "./verify-published-media.js";
@@ -194,7 +194,8 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
-        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
+        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen,
+          sha256: { isValidSha256Hex, bytesMatchSha256 }, outwardErrorMessage: ({ error }) => error.message },
         input: {
           workspaceId,
           record,
@@ -268,7 +269,8 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
       restore: ({ ctx: { ports, deps }, prior }, _optional = {}) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
         assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
-        clock: { nowIso: () => clockNowIso({ clock: deps.clock }) } }, prior }),
+        clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, sha256: { isValidSha256Hex, bytesMatchSha256 },
+        outwardErrorMessage: ({ error }) => error.message }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),
       summary: async ({ ports, workspaceId, id, state }) => {
         const sha256 = (state as unknown as MediaRecord).source?.sha256 ?? "";

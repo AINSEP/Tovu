@@ -11,7 +11,7 @@ import type { LoadedSearchProviders } from "#src/features/agent-plugins/search-p
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import {

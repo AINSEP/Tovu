@@ -13,7 +13,7 @@ import {
   buildListPendingChatAttachmentsTool,
   CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID,
   type PendingChatAttachmentLookup,
-} from "../list-pending-chat-attachments.js";
+} from "@jini-ai/cms/media/site/list-pending-chat-attachments";
 
 /**
  * Regression coverage for the discovery half of the chat-attachment bridge — see

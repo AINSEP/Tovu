@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { loadTheme } from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { renderSite } from "../render-site.js";

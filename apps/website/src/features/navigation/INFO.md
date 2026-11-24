@@ -4,6 +4,10 @@ Owns the menus/navigation write-service and render-time read model for
 ADR-029: menu trees as editable content, a derived location→menu binding
 index, and the resolved render model themes consume.
 
+The engine half lives in `@jini-ai/cms/navigation` (import it directly; this folder has no barrel).
+`importMenuEntity` and `repointMenuItems`/`menuHoldersReferencing` live in `@jini-ai/cms/navigation/site/{import-menu,repoint-menu-refs}`;
+only the host-bound adapters (`publish-content.ts`, `reverters.ts`, `page-target-resolver.ts`, `migrate-footer-page-links.ts`, `tool-registrations.ts`) stay here.
+
 ## Responsibilities
 
 - validate and persist whole-menu-tree edits (create, whole-tree replace with
@@ -74,7 +78,7 @@ index, and the resolved render model themes consume.
 
 ## ADR-PIPE-012 (Menus remediation) additions
 
-- **`repo.sqlite.ts` (NEW)** — `SqliteMenuRepo`/`SqliteNavLocationBindingRepo`,
+- **Menu repos** — `SqlMenuRepo`/`SqlNavLocationBindingRepo` (`@jini-ai/cms/navigation/sql`),
   the rule-of-two SQLite adapter for both `MenuRepoPort` and
   `NavLocationBindingRepoPort` (D-5). Mirrors `SqlitePostRepo`'s
   `ContentDb`/Drizzle pattern; `doc`/`locations` are JSON-text columns. Certified

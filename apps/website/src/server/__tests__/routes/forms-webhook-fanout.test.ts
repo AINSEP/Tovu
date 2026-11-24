@@ -10,7 +10,7 @@ import {
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { enqueueDelivery } from "@jini-ai/integrations/webhooks/site/delivery";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { submitForm } from "#src/features/forms/index";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

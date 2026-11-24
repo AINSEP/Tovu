@@ -5,10 +5,9 @@ import test from 'node:test';
 import { EntityNotLiveError } from '@jini-ai/cms/core';
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry, MenuVersionConflictError } from '@jini-ai/cms/navigation';
 import { MenuConflictError, MenuNotFoundError } from '@jini-ai/cms/navigation/node';
-import type { MenuRouteDeps } from '#src/server/runtime/composition/modules/menus';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMenuAssignLocationRoute } from '#src/server/runtime/composition/modules/menus';
+import { registerAdminMenuAssignLocationRoute, type MenuRouteDeps } from '#src/server/runtime/composition/modules/menus';
 
 const path = `${BASE}/menus/menu/locations`;
 const now = '2026-10-20T00:00:00.000Z';

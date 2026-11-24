@@ -1,5 +1,7 @@
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { PostUrlDialog } from "../PostUrlDialog";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { PostUrlDialog } from "@jini-ai/admin/posts/PostUrlDialog";
+import "../../../styles/native-domain-dialogs.css";
+import "@jini-ai/admin/posts/post-url-dialog.css";
 import { BubbleFormattingMenu } from "./bubble-menu/BubbleFormattingMenu";
 import { Toolbar } from "./toolbar/Toolbar";
 import { usePostUrlDialog } from "../hooks/use-post-url-dialog.hooks";

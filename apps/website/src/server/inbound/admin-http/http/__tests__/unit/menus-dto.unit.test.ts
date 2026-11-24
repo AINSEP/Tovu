@@ -8,6 +8,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { InMemoryMenuRepo } from "@jini-ai/cms/navigation";
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import { parseMenuHtmlAuthoring, toAdminMenuDto } from "@jini-ai/cms/admin-http/http/menus";
+import { authorizeMenuHtml } from "@jini-ai/cms/admin-http/routes/menus/shared";
 import { registerAdminMenuCreateRoute, registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/composition/modules/menus";
 
 const baseMenu = {
@@ -32,6 +33,19 @@ test("toAdminMenuDto carries mode and html through when the doc is HTML-authored
 test("parseMenuHtmlAuthoring keeps only the fields that were sent", () => {
   assert.deepEqual(parseMenuHtmlAuthoring({ body: {} }), {});
   assert.deepEqual(parseMenuHtmlAuthoring({ body: { mode: "html", html: "<b>y</b>", other: 1 } }), { mode: "html", html: "<b>y</b>" });
+});
+
+test("authorizeMenuHtml names the menu as entityId only when an entity id is given", async () => {
+  const calls: unknown[] = [];
+  // The admin authorize port's shape: the port adds the principal and workspace itself.
+  const authorize = async (required: { permission: string; entityType: string }, optional: { entityId?: string } = {}) => { calls.push({ ...required, ...optional }); };
+  const authoring = { mode: "html", html: "<i>z</i>" } as never;
+  await authorizeMenuHtml({ authorize, permission: MENU_RAW_HTML_PERMISSION, authoring }, { entityId: "menu-1" });
+  await authorizeMenuHtml({ authorize, permission: MENU_RAW_HTML_PERMISSION, authoring });
+  assert.deepEqual(calls, [
+    { permission: MENU_RAW_HTML_PERMISSION, entityType: "menu", entityId: "menu-1" },
+    { permission: MENU_RAW_HTML_PERMISSION, entityType: "menu" },
+  ]);
 });
 
 // K1: the raw-HTML check moved into the Jini specs (`authorizeMenuHtml`); this pins the same rule at

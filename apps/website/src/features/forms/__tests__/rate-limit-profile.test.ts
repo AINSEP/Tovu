@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildFormsRateLimitKey } from "@jini-ai/cms/forms";
-import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**

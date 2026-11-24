@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
-import { FormsList } from "../index";
+import { FormsList } from "@jini-ai/admin/screens/forms";
 import { AdminModulesContext, createHostAdminScope } from "../../../integrations/jini-admin/modules.hooks";
+import { formsMount } from "../../../integrations/jini-admin/panel-mounts";
 
 /**
  * @file `FormsList` — pins this dispatch's row-actions pass: a `RowMenu` "More" column matching
@@ -108,7 +109,7 @@ describe("Created / Updated column — host locale wiring", () => {
       return fetchMock(input, init);
     });
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    renderScreen(<FormsList useAdminLocaleHook={useHostAdminLocale} />);
+    renderScreen(<FormsList {...formsMount({ useAdminLocaleHook: useHostAdminLocale })} />);
 
     expect(await screen.findByRole("columnheader", { name: "Erstellt / Aktualisiert" })).toBeInTheDocument();
     const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];

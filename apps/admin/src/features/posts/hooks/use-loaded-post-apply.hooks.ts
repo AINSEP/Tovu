@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import type { Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { isLiveEditor } from "@/lib/live-tiptap-editor";
 import { POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure } from "./post-editor-messages";
 

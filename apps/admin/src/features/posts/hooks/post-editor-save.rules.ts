@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { savedHideCoverImageInBody } from "./post-editor-state.rules";
 import type { PostFormState } from "./post-editor-state.rules";

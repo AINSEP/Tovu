@@ -4,14 +4,17 @@ import type { ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";
-import { TermPicker } from "../taxonomy/TermPicker";
+import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
+import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
 import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
  * `/admin/collections/{typeKey}/{entryId|new}` route. Markup only: every piece of state and every
  * API call lives in `hooks/use-collection-entry-editor.hooks.ts` — see its header for why. The
- * Categories & Tags box is the shared `features/taxonomy/TermPicker.tsx`.
+ * Categories & Tags box is `@jini-ai/admin`'s shared `screens/taxonomy/TermPicker.tsx`.
  *
  * Disclosed deviation from design-spec.md §1.5's "do not build a second TipTap wiring from
  * scratch — extract/reuse [PostEditor.tsx's]" direction: this dispatch's own scope discipline
@@ -487,7 +490,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
       />
 
       {entry ? (
-        <TermPicker contentType={props.contentTypeKey} contentId={entry.id} />
+        <TermPicker contentType={props.contentTypeKey} contentId={entry.id} useTermPickerHook={useWiredTermPicker} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />
       ) : null}
     </div>
   );

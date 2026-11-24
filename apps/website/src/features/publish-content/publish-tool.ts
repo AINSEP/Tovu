@@ -10,12 +10,17 @@ import { confirmPeerImport, executePeerImport } from "./peer-transport.js";
 import {
   applyPublishCriteria,
   parsePublishContentToolInput,
+  preparePublishConfirmation,
+  toPublishReportRows,
+} from "./ui/index.js";
+import {
+  canConfirmPlan,
+  overwriteReplanIsConsistent,
+  selectableRowKeys,
+  type PublishContentPlanResult,
+  type PublishContentReport,
   type PublishCriteria,
-} from "@jini-ai/cms/publish/content/dialog/criteria";
-import { canConfirmPlan } from "@jini-ai/cms/publish/content/dialog/phase";
-import { overwriteReplanIsConsistent, preparePublishConfirmation } from "@jini-ai/cms/publish/content/dialog/replan";
-import { selectableRowKeys, toPublishReportRows } from "@jini-ai/cms/publish/content/dialog/report-rows";
-import type { PublishContentPlanResult, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+} from "@jini-ai/cms/publish/content/ui";
 
 /** Strict tool boundary: misspelled filters must never widen an autonomous publish. */
 function readCriteria(input: Record<string, unknown>): PublishCriteria & { readonly excludeItems?: readonly string[] } {

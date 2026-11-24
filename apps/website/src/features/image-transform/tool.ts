@@ -1,4 +1,4 @@
-import { toolMetadata } from "../../contracts/core/tool-metadata/image-transform.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/image-transform";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";

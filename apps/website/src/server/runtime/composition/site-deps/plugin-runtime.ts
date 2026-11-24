@@ -1,3 +1,4 @@
+import type { SqlContentTypeRepo } from "@jini-ai/cms/content-types/sql";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { RECHARTS_BROWSER_APPROVAL } from "../charts-recharts-source.js";
 import { RECHARTS_RUNTIME_SOURCE } from "../charts-recharts-source.js";
@@ -10,7 +11,6 @@ import { pluginsInstallDir } from "../site-paths.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import { type CreateSiteRouteDepsOverrides, type resolveSiteBindingOverride, pluginFailureThresholdOverride } from "./overrides.js";
 import type { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
-import type { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 
 interface ComposeSitePluginRuntimeRequired {
@@ -20,7 +20,7 @@ interface ComposeSitePluginRuntimeRequired {
   clock: { nowMs: () => number; nowIso: () => string };
   pluginActivationRepo: ReturnType<typeof followProviderActivations>;
   resolvedSiteBinding: ReturnType<typeof resolveSiteBindingOverride>;
-  contentTypeRepo: () => SqliteContentTypeRepo;
+  contentTypeRepo: () => SqlContentTypeRepo;
   idGen: { newId: () => string };
   outbox: () => SqliteOutboxAdapter;
   overrides: Partial<CreateSiteRouteDepsOverrides>;

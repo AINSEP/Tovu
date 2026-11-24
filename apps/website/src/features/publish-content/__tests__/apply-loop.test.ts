@@ -27,7 +27,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
@@ -36,7 +36,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry, type MenuRepoPort } from "@jini-ai/cms/navigation";
+import { type MenuRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';

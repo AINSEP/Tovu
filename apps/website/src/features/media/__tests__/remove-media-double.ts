@@ -15,7 +15,7 @@ import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-witho
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { MediaRecord } from "../index.js";
-import type { RemoveMediaFn } from "../contracts.js";
+import type { RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 
 /** One recorded call, in the shape a `trashed_items` row is built from. */
 export interface RecordedMediaRemoval {

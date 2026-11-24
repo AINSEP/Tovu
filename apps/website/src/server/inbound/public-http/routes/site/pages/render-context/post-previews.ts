@@ -1,5 +1,5 @@
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { listPublishedPostPreviews } from "#src/features/post/post-read";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
+import { listPublishedPostPreviews } from "@jini-ai/cms/posts/post-read";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 // Keep request rendering separate from theme installation, imports, and agent tools.
@@ -7,7 +7,7 @@ import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPrevie
 import type { StaticFeaturedImage } from "#src/features/theme/static-render-content";
 import { markersOfType, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, readListingBatch, readListingPage, renderListingPageNav, type ListingSource } from "@jini-ai/cms/listing";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { postPublicPath } from "#src/platform/routing/index";
 import { featuredImageView } from "../../../../http/site/render/template-render-data.js";

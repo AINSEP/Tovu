@@ -240,11 +240,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -738,11 +733,6 @@
     "file": "apps/website/src/features/publish-content/publish-tool.ts",
     "rule": "failure-text-from-catalog",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/features/publish-content/ui/publish-order.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/publish-trust/handshake-client.ts",

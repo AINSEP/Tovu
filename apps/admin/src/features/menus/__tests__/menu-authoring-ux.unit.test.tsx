@@ -1,8 +1,9 @@
 import { act, fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from 'vitest';
-import { MenuEditor } from '../MenuEditor';
-import { useMenuEditor } from '../hooks/use-menu-editor.hooks';
-import { createFakeMenusPort } from '../hooks/menus-dependencies.hooks';
+import { menusHostKit } from "@/features/menus/menus-host-ports";
+import { MenuEditor } from '../menu-editor-panel';
+import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
 
 const existing: AdminMenu = {
@@ -14,7 +15,7 @@ describe('menu authoring UX', () => {
   it('derives a readable slug while typing and saves a title-only empty menu', async () => {
     const port = createFakeMenusPort();
     const navigate = vi.fn();
-    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate, t: (key) => key } })} />);
+    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { kit: menusHostKit, port, navigate, t: (key) => key } })} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: 'Main Navigation' } });
     expect(screen.getByRole('textbox', { name: 'Menu slug' })).toHaveValue('main-navigation');
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: '' } });
@@ -30,7 +31,7 @@ describe('menu authoring UX', () => {
 
   it.each(['custom-menu', ''])('preserves an explicitly edited slug, including clearing it (%s)', (editedSlug) => {
     const port = createFakeMenusPort();
-    const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { kit: menusHostKit, port, navigate: vi.fn(), t: (key) => key } }));
     act(() => result.current.setTitle({ next: 'First title' }));
     expect(result.current.slug).toBe('first-title');
     act(() => result.current.setSlug({ next: editedSlug }));
@@ -40,7 +41,7 @@ describe('menu authoring UX', () => {
 
   it('keeps persisted slugs stable and resets derivation when navigating to a new menu', async () => {
     const port = createFakeMenusPort({ menus: [existing] });
-    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useMenuEditor({ menuId: id, dependencies: { port, navigate: vi.fn(), t: (key) => key } }), { initialProps: { id: 'main' as string | null } });
+    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useMenuEditor({ menuId: id, dependencies: { kit: menusHostKit, port, navigate: vi.fn(), t: (key) => key } }), { initialProps: { id: 'main' as string | null } });
     await act(async () => { await Promise.resolve(); });
     act(() => result.current.setTitle({ next: 'Renamed menu' }));
     expect(result.current.slug).toBe('main');
@@ -54,15 +55,15 @@ describe('menu authoring UX', () => {
     const port = createFakeMenusPort();
     port.createMenu = async () => { throw new Error('slug must use lowercase letters, numbers, and dashes'); };
     const navigate = vi.fn();
-    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate, t: (key) => key } })} />);
+    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { kit: menusHostKit, port, navigate, t: (key) => key } })} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: 'Main menu' } });
     if (mode === 'html') fireEvent.click(screen.getByRole('tab', { name: 'HTML' }));
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })); });
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toBe('slug must use lowercase letters, numbers, and dashes');
-    expect(alert).toHaveClass('notice', 'error');
-    expect(alert.closest('.page-header')).toBeNull();
-    expect(alert.parentElement).toHaveClass('page');
+    expect(alert).toHaveClass('jini-notice', 'jini-notice-error');
+    expect(alert.closest('.jini-page-header')).toBeNull();
+    expect(alert.parentElement).toHaveClass('jini-page');
     expect(screen.getAllByText('slug must use lowercase letters, numbers, and dashes')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     expect(navigate).not.toHaveBeenCalled();

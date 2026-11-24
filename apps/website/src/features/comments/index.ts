@@ -16,7 +16,7 @@ import type { SettingsRepoPort } from "../settings/index.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
-import { getCommentsSettings } from "./settings.js";
+import { getCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 
 export { renderCommentsMarkers } from "./public-markers.js";
 
@@ -58,5 +58,3 @@ export function createCommentsHostPorts(
   );
   return { getSettings, rateLimiter };
 }
-
-export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings, CommentsSettingsValidationError } from "./settings.js";

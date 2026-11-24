@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { WidgetEmbed, WidgetEmbedInsertControl, WidgetEmbedNodeView, WidgetEmbedStatus, widgetTypeLabel } from "../widget-embed-extension";
 
 /**

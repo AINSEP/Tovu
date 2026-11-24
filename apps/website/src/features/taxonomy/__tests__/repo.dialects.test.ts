@@ -1,3 +1,4 @@
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -5,8 +6,6 @@ import { describeEachDialect, type ContentKernel } from "#src/platform/db/kernel
 import type { Taxonomy, Term } from "@jini-ai/cms/taxonomy";
 import { SqlEntryTermRepo, SqlTaxonomyRepo, SqlTaxonomyRevisionRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
-import { TAXONOMY_TABLES } from "../repo.sqlite.js";
-
 /**
  * @file The four taxonomy repos on every dialect through the kernel's matrix (`describeEachDialect` +
  * the Jini SQL classes bound to Tovu's table names: one query body serves every dialect). One `describe` per class; each public

@@ -6,8 +6,8 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
-import { InMemorySettingsRepo } from '../../settings/index.js';
-import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from '../../settings/index.js';
+import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '@jini-ai/cms/comments/site/settings';
 import { commentsDerivedRisk } from '@jini-ai/cms/comments';
 import { buildCommentsRegistrations, type CommentsToolDeps } from '../tool-registrations.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
@@ -93,7 +93,7 @@ test('built-in selected while comments settings are off answers with the setting
   const f = fixture();
   const settings = { settingsRepo: f.deps.settingsRepo, clock: { nowIso: () => '2026-10-21T00:00:00.000Z' }, ids: { newId: () => crypto.randomUUID() },
     authorize: async () => ({ allowed: true, reason: 'matched' }),
-    principals: { findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => ({ workspaceId, id, status: 'active' }) } as unknown as SetCommentsSettingsDeps['principals'] };
+    principals: { findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => ({ workspaceId, id, status: 'active' }) } as unknown as SetCommentsSettingsDeps['principals'], createPrincipalLookup: createSettingsPrincipalLookup };
   await ensureCommentsSettingDefinitions(settings, { workspaceId: 's', systemPrincipalId: 'system' });
   await setCommentsSettings(settings, { workspaceId: 's', patch: { enabled: false }, callerPrincipalId: 'owner' });
   assert.deepEqual(await f.call('comments_get_provider'), { providerId: 'built-in', revision: 0, ready: false, pendingCount: 3,

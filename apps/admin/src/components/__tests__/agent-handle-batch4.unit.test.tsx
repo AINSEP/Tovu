@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mediaApi } from "../../features/media/api/media-api";
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
 import { ChatFab } from "../ChatFab/ChatFab";
 

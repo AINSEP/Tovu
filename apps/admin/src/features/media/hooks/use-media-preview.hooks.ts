@@ -1,9 +1,9 @@
 import { useState, type SyntheticEvent } from "react";
 
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaAltText, type MediaShape } from "../rules";
 import { defaultMediaPort } from "./media-dependencies.hooks";
-import type { MediaPort } from "./media-port.hooks";
+import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 
 /**
  * @file Everything `MediaPreview` does, so the component in `Media.tsx` is only markup.

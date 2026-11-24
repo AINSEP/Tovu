@@ -38,7 +38,7 @@
  */
 /** Tovu forms wiring. Domain rules, records, rendering and persistence live in @jini-ai/cms/forms. */
 import { createHash } from "node:crypto";
-import type { FormFileStorage } from "./form-file-storage.js";
+import type { FormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
 import type { Logger } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import {
@@ -62,8 +62,6 @@ import { processOutbox } from "../../contracts/core/events/index.js";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { MAX_SUFFIX_ATTEMPTS } from "@jini-ai/cms/content-duplication/derive-available-name";
 import { capSubmissionFieldLengths } from "@jini-ai/cms/forms";
-
-export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
 
 /** The admin editor uses this slug for its create screen. */
 // The editor's formId === "new" guard would render a blank create form at a saved form's own URL.
@@ -138,8 +136,7 @@ export interface SubmitFormDeps extends Omit<PackageSubmitDeps, "dispatcher" | "
   files?: FormFileStorage;
 }
 /** Trusted request-bound evidence; never supplied by public form answers. */
-export type { FormAnalyticsProvenance } from "./analytics-provenance.js";
-import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
+import type { FormAnalyticsProvenance } from "@jini-ai/cms/forms/site/analytics-provenance";
 export interface SubmitFormRequired { deps: SubmitFormDeps; input: SubmitFormInput; }
 
 /** One attempt store per submission store: the same process-lifetime scope the store has. */

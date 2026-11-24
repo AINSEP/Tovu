@@ -18,7 +18,7 @@ import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import type { composeContentResolversComments } from "./content-resolvers-comments.js";
 import type { composeContentStores } from "./content-stores.js";
 import type { composePublishingStoresThemes } from "./publishing-stores-themes.js";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { SharpImageTransformer } from "#src/features/media/index";
 import { SqliteMagicLinkTokenRepo } from "#src/features/members/repo.sqlite";
 import { SqliteMemberSessionRepo } from "#src/features/members/repo.sqlite";

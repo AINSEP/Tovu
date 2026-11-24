@@ -2,7 +2,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 
 import {
   HierarchyCycleDetectedError,

@@ -1,4 +1,4 @@
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { RedirectRecord, InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { CommentRecord, InMemoryCommentRepo } from "@jini-ai/cms/comments";

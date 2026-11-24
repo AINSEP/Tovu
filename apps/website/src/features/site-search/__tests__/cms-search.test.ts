@@ -7,7 +7,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { SqlPagesHtmlDocumentStore } from "../../pages/html-document-store.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { PostRecord } from "../../post/post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../../post/repo.js";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { createCmsSearchAccessPort } from "@jini-ai/search/site/access";

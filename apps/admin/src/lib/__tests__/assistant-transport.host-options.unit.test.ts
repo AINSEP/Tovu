@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { createStreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";

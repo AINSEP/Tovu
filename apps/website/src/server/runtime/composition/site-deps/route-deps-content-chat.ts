@@ -1,4 +1,5 @@
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeStoreBasics } from "./store-basics.js";
 import type { composeTrashStores } from "./trash-stores.js";
@@ -26,7 +27,8 @@ import { createSqliteAgentSessionStore } from "#src/assistant/index";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import { createTrashSweep } from "@jini-ai/cms/trash";
 import { getSlugChangeCapture } from "#src/platform/routing/adapter";
-import { postSearchIndexFor } from "#src/features/post/index";
+import { postSearchIndexFor } from "@jini-ai/cms/posts/sql";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
@@ -113,7 +115,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
     db: sqliteTrashDb,
     postRepo,
     postGoLiveCandidates: postRepo,
-    postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),
+    postSearch: postSearchIndexFor({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }, { ready: postSearchBackfillReady }),
   };
 }
 
@@ -131,7 +133,7 @@ export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _opti
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/contracts/core/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.

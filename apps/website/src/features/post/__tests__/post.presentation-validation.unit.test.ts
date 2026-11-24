@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createPost, type CreatePostInput } from "../post-create.js";
 import { updatePost, type UpdatePostInput } from "../post-update.js";
-import { PostValidationError } from "../post.js";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 

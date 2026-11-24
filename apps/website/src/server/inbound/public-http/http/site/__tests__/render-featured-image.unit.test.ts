@@ -25,7 +25,7 @@ function meta(overrides: Partial<MediaAssetRenderMeta> = {}): MediaAssetRenderMe
   return { width: 1200, height: 630, cssClass: null, htmlAttributes: null, contentType: "image/jpeg", slug: "launch-cover", ...overrides };
 }
 
-function post(overrides: Partial<import("#src/features/post/index").PublicPostRecord> = {}) {
+function post(overrides: Partial<import("@jini-ai/cms/posts/post").PublicPostRecord> = {}) {
   return buildPostRecord({
     id: "post-1",
     workspaceId: "ws-1",

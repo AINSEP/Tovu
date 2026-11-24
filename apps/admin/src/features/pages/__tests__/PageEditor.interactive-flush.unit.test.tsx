@@ -7,13 +7,13 @@ import { usePageEditor, type PageEditorController } from "../hooks/use-page-edit
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/posts-host-ports";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
 // branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),

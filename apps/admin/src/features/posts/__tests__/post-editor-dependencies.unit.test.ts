@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFakePostEditorPort, defaultFeaturedImageRenditionUrl, defaultPostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 
 // The hook suite is being edited by another worker. These are the port's own contracts,
 // including its id guards, which the hook cannot reach with its loaded post's id.

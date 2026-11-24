@@ -1,3 +1,6 @@
+import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +9,6 @@ import test, { type TestContext } from "node:test";
 import { sql } from "kysely";
 import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
 import type { MailProviderModule, MailSendLedgerPort, PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { createMailSendLedgerRepo } from "@jini-ai/platform/mail/sql";
 import { createMailSuppressionRepo } from "@jini-ai/platform/mail/sql";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -51,9 +53,9 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
 
 async function seed(db: ContentKernel, recipients: string[]) {
   await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES (${WS}, 'Mail fixture', ${WS}, ${T0})`);
-  await new SqliteFormDefinitionRepo({ store: db }).create({ id: "form", workspaceId: WS, slug: "contact", name: "Contact", fields: [],
+  await formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }).create({ id: "form", workspaceId: WS, slug: "contact", name: "Contact", fields: [],
     notify: { enabled: true, recipients }, version: 1, status: "active", createdAt: T0, updatedAt: T0 });
-  await new SqliteFormSubmissionRepo({ store: db }).create({ id: "submission", workspaceId: WS, formDefinitionId: "form",
+  await formSubmissionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }).create({ id: "submission", workspaceId: WS, formDefinitionId: "form",
     data: { message: "fixture answer" }, sourceIp: null, submittedAt: T0 });
 }
 
@@ -67,7 +69,7 @@ async function boot(db: ContentKernel, send: MailerPort["send"], ledger = create
     providerId: "fixture", provider, mailer: { capabilities, send, sendBatch: async () => { throw new Error("unused"); } },
   });
   const stop = await registerFormNotifySubscriber({ bus, outbox, sender, logger: { warn() {} },
-    formDefinitionRepo: new SqliteFormDefinitionRepo({ store: db }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: db }),
+    formDefinitionRepo: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }), formSubmissionRepo: formSubmissionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
     mailer: { send: ({ message, options }) => mailer.send(message, options) } });
   return { bus, outbox, mailer, stop, drain: (at: number) => processOutbox({ bus, outbox, clock: { nowMs: () => at } }, { random: () => 0 }) };
 }

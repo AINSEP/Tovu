@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { CachedLoader } from "@jini-ai/core/fetch";

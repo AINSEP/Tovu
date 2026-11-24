@@ -3,7 +3,7 @@ import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
 import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
-import { widgetsApi } from "../features/widgets/api/widgets-api";
+import { widgetsApi } from "../features/widgets/widgets-host-ports";
 import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";

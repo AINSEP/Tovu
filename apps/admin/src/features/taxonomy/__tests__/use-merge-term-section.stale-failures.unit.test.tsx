@@ -1,11 +1,12 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
-import { useMergeTermSection } from "../hooks/use-merge-term-section.hooks";
+import { createFakeMergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-dependencies.hooks";
+import { useMergeTermSection } from "@jini-ai/admin/screens/taxonomy/hooks/use-merge-term-section.hooks";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 // The main suite is being edited by another coverage worker. Reuse its port/provider owners
 // here without modifying that worker's file.
@@ -38,7 +39,7 @@ describe("merge wizard stale failures", () => {
       port.executeMergeTerm = () => { attempted = true; return held; };
     }
     const { result, rerender } = renderHook(
-      ({ currentTerm }) => useMergeTermSection({ term: currentTerm, onMerged }, port, "en"),
+      ({ currentTerm }) => useMergeTermSection({ options: { term: currentTerm, onMerged }, port: port, locale: "en", kit: taxonomyHostKit }),
       { initialProps: { currentTerm: term }, wrapper },
     );
     act(() => result.current.setIntoTermId("into1"));

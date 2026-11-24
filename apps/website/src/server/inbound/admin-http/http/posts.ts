@@ -1,4 +1,4 @@
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { AdminPostEnvelope } from "@jini-ai/core/contracts/headless/contracts";
 import { toHeadlessPost } from "#src/server/inbound/public-http/http/shared/post";
 

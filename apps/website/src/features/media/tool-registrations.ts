@@ -1,8 +1,6 @@
-import { captureMediaUploaded } from "./analytics.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
-import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
-export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
-export type { MediaPublicUrlDeps } from "./contracts.js";
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
@@ -15,7 +13,8 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { sniffContentType } from "./index.js";
 import { resolveMediaPublicUrls } from "./public-urls.js";
 import { assertAllowedSniffedContentType } from "@jini-ai/cms/media/site/upload-content-type";
-import type { MediaPublicUrlDeps, RemoveMediaFn } from "./contracts.js";
+import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
+import type { MediaPublicUrlDeps, RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
@@ -191,5 +190,4 @@ export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPub
   return { domain: "media", build: buildMediaRegistrationsForTovu, risk: mediaDerivedRisk };
 }
 
-export { contributeMediaViewImageTools } from "./view-image-tool.js";
 export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

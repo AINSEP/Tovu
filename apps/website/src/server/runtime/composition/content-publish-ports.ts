@@ -1,8 +1,11 @@
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
-import type { PostRepoPort } from "#src/features/post/post";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { createContentTargetPorts } from "@jini-ai/cms/taxonomy/site/content-targets";
-import type { EntryPublishPorts, TovuPublishPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
+import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
 
 /**
  * @file The one place the factory-built types (`repo-handler.ts`) get their ports from.

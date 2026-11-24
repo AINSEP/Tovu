@@ -2,7 +2,24 @@ import { BASE, WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
 import { siteUrl } from "../../../lib/site-url";
-import type { AdminMedia, AdminMediaProviderMap } from "./media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { MediaProviderCredentials } from "@jini-ai/ui/core";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+
+/**
+ * One media-generation vendor's stored credentials, keyed by ENGINE-CANONICAL provider id (`grok`,
+ * `nanobanana`, …) — see `features/media/media-provider-catalog.ts` for why the spelling matters.
+ *
+ * Structurally `@jini-ai/ui`'s `MediaProviderCredentials` and mirrors
+ * `apps/website/src/features/media/provider-credential-store.ts`'s `MediaProviderCredentialView` on the server. `apiKey`
+ * is send-only: the operator types one and it goes up, but no response ever carries it back — a
+ * stored key comes back as `apiKeyConfigured`/`apiKeyTail` instead.
+ */
+export interface AdminMediaProviderCredentials extends MediaProviderCredentials {
+  apiKeyHint?: CredentialTokenHint | null;
+}
+
+export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials>;
 
 /** The admin API calls of the media feature. */
 export const mediaApi = {

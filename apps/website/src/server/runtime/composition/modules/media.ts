@@ -4,21 +4,26 @@ import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 
 import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
+import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
 import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put-providers";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
 import type { MediaRecord } from "#src/features/media/index";
+import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
+import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import {
   getMediaProviderCredentials, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError,
-  purgeMedia, saveMediaProviderCredentials,
+  saveMediaProviderCredentials, uploadMedia,
 } from "#src/features/media/index";
-import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
+import { fetchImage } from "#src/features/media-import/fetch-image";
+import { EgressRefusedError } from "#src/platform/http/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
-import { findMediaWhereUsed } from "#src/features/media/index";
+import { findMediaWhereUsed } from "@jini-ai/cms/media/site/where-used";
 import type { RouteDeps } from "#src/server/routes/types";
 import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
 import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-http/routes/media/replace";
@@ -35,7 +40,6 @@ import { toStoredMediaResponse } from "#src/server/inbound/admin-http/routes/med
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
-import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
 /**
  * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
  * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's
@@ -43,8 +47,6 @@ import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import
  */
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { uploadMedia } from "#src/features/media/index";
-import { fetchImage } from "#src/features/media-import/fetch-image";
-import { EgressRefusedError } from "#src/platform/http/index";
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
@@ -102,10 +104,18 @@ import type { ServerModuleHandle } from "./types.js";
  * parse, so no raw mount is needed. list and original stay hand-written (byte responses — see the K1 report).
  */
 
-/** The two port fields every media mount passes. `authorize` is read per request, as the hand-written
- *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
-function mediaPortDeps({ deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
-  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+/** The host's outward wording of a classified refusal (the specs' REQUIRED `outwardErrorMessage`
+ *  port): this host lets the classified error's own message through. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
+/** The two port fields every media mount passes, plus the outward-copy port the specs that refuse with
+ *  a domain error's copy require. `authorize` is read per request, as the hand-written routes read
+ *  `deps.authorize`, so a later reassignment of it (or a test's later `t.mock.method(deps, …)`) is still honoured. */
+function mediaPortDeps(
+  { deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "authorize"> },
+  _optional: Record<string, never> = {},
+): AdminJsonRoutePortDeps & { outwardErrorMessage: typeof outwardErrorMessage } {
+  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), outwardErrorMessage };
 }
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
@@ -311,6 +321,58 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
   const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
   mountAdminJsonRoute({ app, spec: mediaPutProvidersRoute, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
 };
+
+/** The `RouteDeps` slice the usage route reads (the usage scan's repos plus the port fields). */
+export type MediaWhereUsedDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mediaRepo" | "entryRefsRepo" | "postRepo">;
+
+/** GET where-used (Jini spec `mediaWhereUsedRoute`). It read `deps.authorize` directly, never the
+ *  publishing-credential override, so it mounts with `authorizeDirectOrRespond` semantics. The usage
+ *  scan reads `deps` per request, so a test's later replacement of a repo method is still honoured. */
+export const registerAdminMediaWhereUsedRoute = ({ app, deps }: { app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ app, spec: mediaWhereUsedRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    mediaRepo: { findById: (input) => deps.mediaRepo.findById(input) },
+    findWhereUsed: (input) => findMediaWhereUsed({ deps, input }),
+  } }, mountOptions({ operation: "routes/media/where-used", authorization: "direct" }));
+};
+
+/** The `RouteDeps` slice the URL import reads: the asset routes' deps plus the dedicated egress client. */
+export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
+
+/** POST import-url (Jini spec `mediaImportUrlRoute`). It read `deps.authorize` directly, so it mounts
+ *  with `authorizeDirectOrRespond` semantics. `logEgressRefusal` receives an egress refusal's full
+ *  diagnosis; without it, the operator console does.
+ *  @complexity O(1) setup; per request as the spec. */
+export function registerAdminMediaImportUrlRoute(
+  { app, deps }: { app: Express; deps: MediaImportUrlRouteDeps },
+  optional: { logEgressRefusal?: (line: string) => void } = {},
+): void {
+  mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    // This is the dedicated MEDIA_IMPORT_EGRESS_POLICY client from composition, never the
+    // credentialed-request client (which has a smaller cap and a different redirect policy).
+    fetchImage: ({ url }) => fetchImage({ deps: { httpClient: deps.mediaImportHttpClient }, url }),
+    uploadMedia: (input) => uploadMedia({
+      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+      input,
+    }, { maxUploadBytes: MAX_DOCUMENT_BYTES }),
+    mediaContentTypeStore: { set: (input) => deps.mediaContentTypeStore.set(input) },
+    egressRefusalMessage: ({ error }) => egressRefusalMessage({ error }, { log: optional.logEgressRefusal }),
+    toMediaResponse: async ({ media, contentType, byteSize }) => {
+      const publicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null;
+      return toAdminMediaResponse({ media, contentType, publicUrl, byteSize });
+    },
+  } }, mountOptions({ operation: "routes/media/import-url", authorization: "direct" }));
+}
+
+/** The caller-safe sentence for an egress refusal, or `undefined` for any other failure.
+ *  @complexity O(1). */
+function egressRefusalMessage({ error }: { error: unknown }, optional: { log?: ((line: string) => void) | undefined } = {}): string | undefined {
+  if (!(error instanceof EgressRefusedError)) return undefined;
+  // Full DNS diagnosis is operator-log-only, matching the assistant tool's refusal contract.
+  (optional.log ?? console.warn)(`[media-import] admin URL import refused: ${error.message}`);
+  return error.callerSafeMessage;
+}
 
 export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {
   return {

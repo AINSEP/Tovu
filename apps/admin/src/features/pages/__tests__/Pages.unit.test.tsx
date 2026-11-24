@@ -7,7 +7,7 @@ import { buildPageRowMenuHandleMap } from "@jini-ai/admin/pages/pages-list-rules
 import type { PagesController as JiniPagesController } from "@jini-ai/admin/pages/hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";
 
 /** The screen renders from `@jini-ai/admin/pages/Pages`; this suite drives it through the host

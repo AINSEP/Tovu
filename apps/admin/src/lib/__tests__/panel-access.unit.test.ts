@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { AdminNavGroup } from "@jini-ai/admin/core";
@@ -124,28 +124,36 @@ describe("the direct-URL gate over the real panels", () => {
  */
 const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
 /** Route specs that moved into `@jini-ai/cms` (ex5-fnd-routes): their permission literal now lives in
- *  the package's built route module, which ships in `dist/` for both linked and registry installs. */
+ *  the package's built route module, which ships in `dist/` for both linked and registry installs.
+ *  Used only for a built file the package does not export (SEO's `shared.js`); every exported spec
+ *  resolves through `cmsRoute` below. */
 const CMS_ROUTES = "../../../node_modules/@jini-ai/cms/dist/admin-http/routes";
 /** Users/roles route specs that moved into `@jini-ai/user-management` (w3-rtfnd T7, rv1123l). */
 const USER_ROUTES = "../../../node_modules/@jini-ai/user-management/dist/admin-http/routes";
+// Routes that left the host as `@jini-ai/cms` route specs: the literal is in the spec's built file
+// (or the `shared.js` beside it that holds that feature's permission guard).
+const requireFromHere = createRequire(import.meta.url);
+const cmsRoute = (spec: string, file: string): string =>
+  join(dirname(requireFromHere.resolve(`@jini-ai/cms/admin-http/routes/${spec}`)), file);
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
   // `pages/list` authorizes through `authorizePageRead`; the literal lives in its shared module.
   pages: `${CMS_ROUTES}/pages/shared.js`,
-  posts: `${ROUTES}/posts/list.ts`,
+  // The posts read routes are Jini specs now; their `content.read` check lives in the built guard they share.
+  posts: "../../../node_modules/@jini-ai/cms/dist/admin-http/routes/posts/shared.js",
   media: `${ROUTES}/media/list.ts`,
   // Library lists `media?kind=document` through the same route and permission.
   library: `${ROUTES}/media/list.ts`,
-  collections: `${ROUTES}/content-types/list.ts`,
-  menus: `${CMS_ROUTES}/menus/list.js`,
-  taxonomy: `${ROUTES}/taxonomy/list.ts`,
-  forms: `${ROUTES}/forms/list.ts`,
+  collections: cmsRoute("content-types/list", "list.js"),
+  menus: cmsRoute("menus/list", "list.js"),
+  taxonomy: cmsRoute("taxonomy/list", "shared.js"),
+  forms: cmsRoute("forms/list", "shared.js"),
   users: `${USER_ROUTES}/users/list.js`,
   // `users/list-roles` authorizes through `authorizeRoleManage`; the literal lives in its shared module.
   roles: `${USER_ROUTES}/users/access-shared.js`,
   // `members/list` authorizes through the members shared module, which holds the literal.
   members: `${CMS_ROUTES}/members/shared.js`,
-  comments: `${ROUTES}/comments/moderation-queue.ts`,
+  comments: cmsRoute("comments/moderation-queue", "moderation-queue.js"),
   themes: `${CMS_ROUTES}/themes/list.js`,
   appearance: `${CMS_ROUTES}/themes/list.js`,
   plugins: `${CMS_ROUTES}/plugins/list.js`,
@@ -163,7 +171,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   trash: "../../../../website/src/features/trash/permissions.ts",
   // `seo/get-settings` authorizes through the seo shared module, which holds the literal.
   seo: `${CMS_ROUTES}/seo/shared.js`,
-  redirects: `${CMS_ROUTES}/redirects/shared.js`,
+  redirects: cmsRoute("redirects/list", "shared.js"),
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,

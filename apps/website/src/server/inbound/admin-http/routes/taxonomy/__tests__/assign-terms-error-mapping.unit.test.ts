@@ -6,7 +6,7 @@ import type { TaxonomyRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { ContentTypeMismatchError, WorkspaceMismatchError } from "@jini-ai/cms/taxonomy";
-import { registerAdminTaxonomyAssignedTermsRoute } from "../assign-terms.js";
+import { registerAdminTaxonomyAssignedTermsRoute } from "#src/server/runtime/composition/modules/taxonomy";
 
 /**
  * The shared assign/unassign/assigned-terms error envelope, driven through the assigned-terms read

@@ -1,3 +1,4 @@
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,7 +8,6 @@ import test from "node:test";
 import type { ContentTypeFieldDef } from "@jini-ai/cms/content-types";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteEntryRepo } from "../../repo.sqlite.js";
 import { createEntry } from "@jini-ai/cms/entries";
 
 /**
@@ -44,7 +44,7 @@ function fixedContentTypeLookup(workspaceId: string, key: string, fields: Conten
 test("create -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteEntryRepo({ store: db });
+    const repo = entryRepoFor({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     let idCounter = 0;
 
@@ -62,7 +62,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     assert.equal(created.ok, true);
 
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqliteEntryRepo({ store: dbAfterRestart });
+    const repoAfterRestart = entryRepoFor({ store: dbAfterRestart });
     const found = await repoAfterRestart.findBySlug({ workspaceId: "ws-1", type: "recipe", slug: "banana-bread" });
     assert.ok(found);
     assert.equal(found?.title, "Banana Bread");

@@ -1,5 +1,5 @@
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { isoToLocalDateTimeInput, isScheduledPost, localDateTimeInputToIso, postSlugFollowsTitle, postSlugForTitle } from "../rules";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 export interface PostFormState {

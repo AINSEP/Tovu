@@ -1,5 +1,5 @@
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";

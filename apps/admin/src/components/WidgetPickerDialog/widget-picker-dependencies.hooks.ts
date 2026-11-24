@@ -1,5 +1,5 @@
 import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 
 /**

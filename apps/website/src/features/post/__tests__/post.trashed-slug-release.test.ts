@@ -13,7 +13,7 @@ import { createPost } from "../post-create.js";
 import { deletePost } from "../post-trash.js";
 import { retirePostForReplacement } from "../post-retire.js";
 import { updatePost } from "../post-update.js";
-import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "../post.js";
+import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { removeVia } from "./remove-post-double.js";

@@ -1,11 +1,12 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { menusHostKit } from "@/features/menus/menus-host-ports";
 
 import type { AdminMenu, AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { MenuEditor } from "../MenuEditor";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
-import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
+import { MenuEditor } from "../menu-editor-panel";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
+import { useMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { menuAuthoringForSave, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 
 /**
@@ -32,7 +33,7 @@ const MENU: AdminMenu = {
 };
 
 function deps(port = createFakeMenusPort({ menus: [MENU] })) {
-  return { port, navigate: vi.fn(), t: (key: string) => key };
+  return { kit: menusHostKit, port, navigate: vi.fn(), t: (key: string) => key };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -189,7 +190,7 @@ describe("MenuEditor — tabs and title row", () => {
     const d = deps();
     const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: d })} />);
     const title = await screen.findByRole("textbox", { name: "Menu title" });
-    const row = title.closest(".editor-title-row");
+    const row = title.closest(".jini-editor-title-row");
     expect(row).not.toBeNull();
     expect(row).toContainElement(screen.getByRole("textbox", { name: "Menu slug" }));
 
@@ -199,10 +200,10 @@ describe("MenuEditor — tabs and title row", () => {
 
     await user.click(screen.getByRole("tab", { name: "HTML" }));
     const source = screen.getByRole("textbox", { name: "Menu HTML" });
-    expect(source).toHaveClass("page-html-source");
+    expect(source).toHaveClass("jini-page-html-source");
     expect(source).toHaveValue(menuHtmlStarter({ items: ITEMS }));
     expect(screen.queryByRole("button", { name: "+ Add item" })).not.toBeInTheDocument();
-    expect(container.querySelector(".segmented[role=tablist]")).not.toBeNull();
+    expect(container.querySelector(".jini-segmented[role=tablist]")).not.toBeNull();
 
     fireEvent.keyDown(screen.getByRole("tab", { name: "HTML" }), { key: "ArrowLeft" });
     expect(screen.getByRole("tab", { name: "Options" })).toHaveAttribute("aria-selected", "true");

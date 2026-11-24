@@ -5,7 +5,7 @@
  */
 
 import { readVersionConflict } from "../../../lib/shell-collaborators";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
 import { pagePartialSaveMessage, pageSaveSuccessMessage, pageUnchangedSaveMessage, type PageSavePlan } from "@jini-ai/admin/pages/page-editor-rules";
 import type { PageSaveConflict } from "../rules";

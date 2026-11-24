@@ -11,7 +11,7 @@ import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "../vault-repo.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";

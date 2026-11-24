@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
+import { InMemoryPostRepo } from "../../post/index.js";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";

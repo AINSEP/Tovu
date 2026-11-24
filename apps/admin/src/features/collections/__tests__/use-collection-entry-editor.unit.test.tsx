@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
@@ -7,10 +7,15 @@ import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { KEYS } from "../rules";
+import { KEYS } from "@jini-ai/admin/screens/collections/rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
-import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
+import { createFakeCollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-dependencies.hooks";
+import {
+  useCollectionEntryEditor as useJiniCollectionEntryEditor,
+  type CollectionEntryEditorDependencies,
+  type CollectionEntryEditorProps,
+} from "@jini-ai/admin/screens/collections/hooks/use-collection-entry-editor.hooks";
+import { collectionEntryEditorHostDeps, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
 
 /**
  * @file `useCollectionEntryEditor` — the collection entry editor's load + save + lifecycle-toggle
@@ -24,6 +29,14 @@ import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hook
  * writes now go through `useFetchQuery`/`useFetchMutation`, which throw without a
  * `FetchQueryProvider` ancestor.
  */
+
+/** The `(props, deps)` shape these cases were written against, bound to this host's collaborators. */
+function useCollectionEntryEditor(
+  props: CollectionEntryEditorProps,
+  deps: Pick<CollectionEntryEditorDependencies, "port" | "navigate" | "locale" | "t">,
+) {
+  return useJiniCollectionEntryEditor({ props, ...collectionEntryEditorHostDeps, ...deps });
+}
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <FetchQueryProvider>{children}</FetchQueryProvider>;

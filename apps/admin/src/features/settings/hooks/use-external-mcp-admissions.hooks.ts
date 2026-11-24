@@ -1,7 +1,7 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminExternalMcpAdmissionsSnapshot } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpAdmissionsSnapshot } from "@jini-ai/core/contracts/hosted-mcp";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { authApi } from "@/features/auth/api/auth-api";

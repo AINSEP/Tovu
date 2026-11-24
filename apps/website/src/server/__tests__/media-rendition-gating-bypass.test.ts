@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerTransform, updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
-import type { PostRecord } from "../../features/post/index.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
 import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo } from "@jini-ai/user-management/members/repo.memory";
 

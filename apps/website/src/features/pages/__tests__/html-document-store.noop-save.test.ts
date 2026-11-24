@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { type PostRepoPort } from "../../post/post.js";
+import { type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { createPost } from "../../post/post-create.js";
 import { updatePost } from "../../post/post-update.js";
 import { postRepoFor } from "../../post/repo.js";

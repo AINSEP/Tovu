@@ -2,13 +2,13 @@ import { formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import { escapeHtml } from "@jini-ai/core/text";
 import type { SiteRenderContext } from "../render-context.js";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";
 import { projectPostBody } from "@jini-ai/cms/media/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 
 /** `YYYY-MM-DD` — the calendar day of `iso` in the site's `timeZone` (UTC when absent), so a post
  *  published at 11pm in Los Angeles is not shown as the next day. Bug D follow-up. */

@@ -1,3 +1,7 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,13 +12,10 @@ import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { contributeCollectionEntryPublish } from "../../publish-content.js";
-import { SqliteEntryRepo } from "../../repo.sqlite.js";
-
 const at = "2026-09-01T00:00:00.000Z";
 const soupBody = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Simmer the tomatoes for twenty minutes." }] }] };
 
@@ -36,7 +37,7 @@ function entry(overrides: Partial<EntryRecord> & { id: string; slug: string }): 
 
 async function instance() {
   const db = openContentDb(":memory:");
-  const entries = new SqliteEntryRepo({ store: db });
+  const entries = entryRepoFor({ store: db });
   const contentTypes = new InMemoryContentTypeRepo();
   await contentTypes.save({
     workspaceId: WORKSPACE_ID,
@@ -51,10 +52,10 @@ async function instance() {
     (db as unknown as { $client: Database.Database }).$client.prepare("UPDATE entries SET deleted_at = ? WHERE id = ?").run(at, id);
   // No entry here carries terms; the bag is the real SQLite one so `termIds` reads stay real.
   const terms: TaxonomyPublishPorts = {
-    taxonomies: new SqliteTaxonomyRepo({ db, workspaceId: WORKSPACE_ID }),
-    terms: new SqliteTermRepo({ db, workspaceId: WORKSPACE_ID }),
-    entryTerms: new SqliteEntryTermRepo({ db, workspaceId: WORKSPACE_ID }),
-    revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId: WORKSPACE_ID }),
+    taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    revisions: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
     stampWatermark: () => {},
     contentLookup: new InMemoryContentLookup({}),
     contentTypeTaxonomyPolicy: { taxonomiesFor: async () => null },

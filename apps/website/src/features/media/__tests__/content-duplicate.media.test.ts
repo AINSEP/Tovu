@@ -17,7 +17,8 @@ import {
 
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
-import { contributeMediaDuplicateHandlers } from "../duplicate-asset.js";
+import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
+import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
 
 /**
  * @file Certifies this domain's `"media"` contribution to `content_duplicate` — the third resource,
@@ -111,7 +112,7 @@ type FakeDeps = ReturnType<typeof fakeRouteDeps>["deps"];
 
 function duplicateTool(deps: FakeDeps): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: contributeMediaDuplicateHandlers,
+    listResourceHandlers: () => contributeMediaDuplicateHandlers({ deriveDuplicateName }),
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(found, "expected 'content_duplicate' to be wired");
@@ -158,7 +159,7 @@ async function seedAsset(deps: FakeDeps, overrides: Partial<MediaRecord> = {}): 
 }
 
 test("'media' is a supported resource of content_duplicate, gated on media.upload", async () => {
-  const contributors = contributeMediaDuplicateHandlers();
+  const contributors = contributeMediaDuplicateHandlers({ deriveDuplicateName });
   assert.deepEqual(contributors.map((c) => c.resource), ["media"]);
   assert.equal(contributors[0]!.build({} as unknown as AssistantToolRegistryDeps).permission, "media.upload");
 });

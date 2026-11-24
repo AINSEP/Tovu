@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/hosted-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 
 import { t as tExternalMcp } from '@jini-ai/admin/screens/settings/external-mcp-i18n';

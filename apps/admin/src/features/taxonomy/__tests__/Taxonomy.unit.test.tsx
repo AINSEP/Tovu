@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Taxonomy } from "../Taxonomy";
-import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
+import { Taxonomy } from "../TaxonomyScreen";
+import type { TaxonomyController } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 
 /**
  * @file `Taxonomy` — markup-only assertions driven through the injectable `useTaxonomyHook` seam
@@ -258,7 +258,7 @@ describe("term detail panel", () => {
     renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: child } });
 
     const heading = screen.getByRole("heading", { level: 2, name: "Child Cat" });
-    const grid = within(heading.closest(".settings-detail-panel")!.querySelector(".settings-layer-grid") as HTMLElement);
+    const grid = within(heading.closest(".jini-settings-detail-panel")!.querySelector(".jini-settings-layer-grid") as HTMLElement);
     expect(heading).toBeInTheDocument();
     expect(grid.getByText("Parent Cat")).toBeInTheDocument();
     expect(grid.getByText("4")).toBeInTheDocument();
@@ -321,7 +321,7 @@ describe("merge wizard steps (real useMergeTermSection, mocked fetch) — MergeI
     // Confirmed step (MergeConfirmedStep): its own irreversible-warning copy and Execute button.
     expect(await screen.findByText(/executing merges the terms now/i)).toBeInTheDocument();
     const executeButton = screen.getByRole("button", { name: /execute merge/i });
-    expect(executeButton).toHaveClass("btn-danger");
+    expect(executeButton).toHaveClass("jini-btn-danger");
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ mergedCount: 3 }));
     await user.click(executeButton);
@@ -376,7 +376,7 @@ describe("new-taxonomy form's collapsed resting state (web-design pass, 2026-08-
   it("D-32: an empty taxonomy list has the shared empty card", () => {
     renderTaxonomy({ taxonomies: [] });
     expect(screen.getByRole("status")).toHaveTextContent("No taxonomies yet");
-    expect(screen.getByText("No taxonomies yet").closest(".card")).not.toBeNull();
+    expect(screen.getByText("No taxonomies yet").closest(".jini-card")).not.toBeNull();
   });
   it("starts collapsed behind a 'New taxonomy' page-actions button, not the form itself", () => {
     renderTaxonomy({ taxonomies: [] });
@@ -677,7 +677,7 @@ describe("delete term via RowMenu + ConfirmDialog", () => {
     });
 
     const notice = screen.getByText(/this term has 2 sub-terms/i);
-    expect(notice.closest(".settings-namespace-group")).toHaveTextContent("Category");
+    expect(notice.closest(".jini-settings-namespace-group")).toHaveTextContent("Category");
     // Never a silent disabled control — the message names the count and the remedy.
     expect(notice).toHaveTextContent("2");
     expect(notice).toHaveTextContent(/move them under another parent/i);
@@ -803,7 +803,7 @@ describe("merge section error (real useMergeTermSection, mocked fetch)", () => {
 
     await user.click(screen.getByRole("button", { name: /plan merge/i }));
 
-    expect(await screen.findByText("cycle detected")).toHaveClass("save-error");
+    expect(await screen.findByText("cycle detected")).toHaveClass("jini-save-error");
   });
 });
 
@@ -820,7 +820,7 @@ describe("term detail panel rename (real useTermDetailPanel, mocked fetch)", () 
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [orphan] };
     renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: orphan } });
 
-    const panel = screen.getByRole("heading", { level: 2, name: "Orphan" }).closest(".settings-detail-panel") as HTMLElement;
+    const panel = screen.getByRole("heading", { level: 2, name: "Orphan" }).closest(".jini-settings-detail-panel") as HTMLElement;
     expect(within(panel).getByText("missing-parent")).toBeInTheDocument();
   });
 
@@ -858,7 +858,7 @@ describe("term detail panel rename (real useTermDetailPanel, mocked fetch)", () 
 
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(await screen.findByText("Renamed.")).toHaveClass("save-ok");
+    expect(await screen.findByText("Renamed.")).toHaveClass("jini-save-ok");
     expect(controller.load).toHaveBeenCalledTimes(1);
   });
 
@@ -871,7 +871,7 @@ describe("term detail panel rename (real useTermDetailPanel, mocked fetch)", () 
 
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(await screen.findByText("name already taken")).toHaveClass("save-error");
+    expect(await screen.findByText("name already taken")).toHaveClass("jini-save-error");
   });
 });
 

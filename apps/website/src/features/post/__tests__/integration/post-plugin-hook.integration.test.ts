@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { InMemoryPostRepo, createPost, updatePost } from "#src/features/post/index";
+import { type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**

@@ -1,0 +1,11 @@
+typecheck exit=0
+guard exit=0
+api:check exit=0
+check:cross-package exit=1
+check:size exit=1
+check:complexity exit=1
+check:why-comments exit=1
+check:hooks exit=0
+check:log-safety exit=1
+check:errors exit=0
+GATES-DONE

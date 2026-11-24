@@ -16,7 +16,7 @@ import {
   contributeMediaViewImageTools,
   mediaViewImageDerivedRisk,
   type MediaViewImageToolDeps,
-} from "../view-image-tool.js";
+} from "@jini-ai/cms/media/site/view-image-tool";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
@@ -99,8 +99,11 @@ async function seed(
   return { id: media.id, slug: media.slug, title: media.title };
 }
 
+/** The host's media-asset read card id, bound the same way the tool catalog manifest binds it. */
+const MEDIA_ASSET_READ_TOOL_ID = "content_read.media_asset";
+
 function viewTool(harness: Harness): ToolRegistration {
-  const found = withContentTargets({ registrations: buildMediaViewImageRegistrations(harness.deps), deps: harness.deps }).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
+  const found = withContentTargets({ registrations: buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID }), deps: harness.deps }).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
   assert.ok(found, `expected ${MEDIA_VIEW_IMAGE_TOOL_ID} to be registered`);
   return found;
 }
@@ -306,7 +309,7 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
   const direct = imageBlockOf(await call(viewTool(harness), { mediaId: asset.id }));
 
   const registry = createToolRegistry({});
-  for (const registration of buildMediaViewImageRegistrations(harness.deps)) registry.register(registration);
+  for (const registration of buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID })) registry.register(registration);
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-view-image" });
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
@@ -358,10 +361,27 @@ test("an EXIF orientation below the quarter turns (orientation 1) keeps the stor
 });
 
 test("the catalog contributor installs this tool's own builder and risk map under the media-view domain", () => {
-  const contributor = contributeMediaViewImageTools();
+  const harness = makeHarness();
+  const contributor = contributeMediaViewImageTools({ mediaAssetReadToolId: "host_read.asset" });
   assert.equal(contributor.domain, "media-view");
-  assert.equal(contributor.build, buildMediaViewImageRegistrations);
+  // Behavioural equivalent of "build is this tool's builder": the contributor yields exactly the
+  // builder's registrations, with the injected read tool id bound into the description.
+  const built = contributor.build(harness.deps, undefined);
+  const direct = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset" });
+  assert.deepEqual(built.map((r) => r.descriptor), direct.map((r) => r.descriptor));
+  assert.deepEqual(built.map((r) => r.descriptor.id), [MEDIA_VIEW_IMAGE_TOOL_ID]);
+  assert.match(String(built[0]!.descriptor.description), /find them with host_read\.asset\)/);
   assert.equal(contributor.risk, mediaViewImageDerivedRisk);
+});
+
+test("the not-found refusal names the injected media-asset read tool id", async () => {
+  const harness = makeHarness();
+  const registration = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset" })
+    .find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID)!;
+  await assert.rejects(call(registration, { mediaId: "missing-id" }), (error: Error) => {
+    assert.equal(error.message, "media_view_image: no media asset with id or slug 'missing-id'. Use host_read.asset to list the library and find the right id or slug.");
+    return true;
+  });
 });
 
 

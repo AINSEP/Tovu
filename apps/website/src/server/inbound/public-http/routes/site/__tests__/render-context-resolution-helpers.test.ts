@@ -2,7 +2,7 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMediaAssetMetadataForRender } from "../pages/render-context/media-metadata.js";

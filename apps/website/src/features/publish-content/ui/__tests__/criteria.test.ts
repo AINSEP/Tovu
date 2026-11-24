@@ -9,14 +9,14 @@ import { publishEntityTypeLabel } from "../sections.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/ui";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/ui";
 import {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,
-  encodePublishCriteriaToQuery,
   parsePublishContentToolInput,
-} from "@jini-ai/cms/publish/content/dialog/criteria";
-import { toPublishReportRows } from "@jini-ai/cms/publish/content/dialog/report-rows";
+  toPublishReportRows,
+} from "../index.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
   return {

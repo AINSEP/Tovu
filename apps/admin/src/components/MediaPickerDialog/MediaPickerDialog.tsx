@@ -5,7 +5,7 @@ import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-c
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
 import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 

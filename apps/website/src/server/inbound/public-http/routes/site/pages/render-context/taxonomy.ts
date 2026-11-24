@@ -1,4 +1,4 @@
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
 

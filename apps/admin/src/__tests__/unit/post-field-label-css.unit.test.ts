@@ -34,7 +34,7 @@ describe("post editor field labels", () => {
 
   it("keep the narrow-screen and checkbox layout rules on the jini-* class", () => {
     expect(effectiveDeclarationsFor(styles, ".jini-post-publishing__fields .jini-field-label")).toBe("flex-basis: 100%; text-align: left;");
-    expect(effectiveDeclarationsFor(editor, '.post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .jini-field-label')).toBe("flex-basis: auto;");
+    expect(effectiveDeclarationsFor(editor, '.jini-post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .jini-field-label')).toBe("flex-basis: auto;");
   });
 
   it("leave no post-specific selector on the old bare class", () => {

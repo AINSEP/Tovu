@@ -1,9 +1,9 @@
 import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/core/contracts/site/agentic";
 import { integrationsApi } from "../features/integrations/api/integrations-api";
-import { postsApi } from "../features/posts/api/posts-api";
+import { postsApi } from "../features/posts/posts-host-ports";
 import { pagesApi } from "../features/pages/api/pages-api";
-import { menusApi } from "../features/menus/api/menus-api";
-import { widgetsApi } from "../features/widgets/api/widgets-api";
+import { menusApi } from "../features/menus/menus-host-ports";
+import { widgetsApi } from "../features/widgets/widgets-host-ports";
 
 /** Product lookups use the same authenticated read APIs as each editor. A missing row refuses
  * navigation; an authorization or transport error propagates. No handle suffix is constructed. */

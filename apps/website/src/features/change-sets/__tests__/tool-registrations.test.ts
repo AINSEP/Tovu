@@ -21,7 +21,7 @@ import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } f
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {

@@ -4,7 +4,8 @@ import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } fr
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
-import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
+import { MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";

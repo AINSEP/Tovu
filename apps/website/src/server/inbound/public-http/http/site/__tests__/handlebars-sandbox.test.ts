@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
 import type { SiteRenderContext } from "../render-context.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

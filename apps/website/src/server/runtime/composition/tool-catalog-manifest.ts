@@ -129,7 +129,10 @@ import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-regis
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools, contributeMediaDuplicateHandlers, contributeMediaViewImageTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
+import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
+import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
@@ -513,7 +516,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools() });
-  contributions.contributors.register({ contribution: contributeMediaViewImageTools() });
+  contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
   contributions.contributors.register({ contribution: contributeImageTransformTools() });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
@@ -736,7 +739,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   for (const contributor of [
     ...contributePostDuplicateHandlers(),
     ...contributeFormsDuplicateHandlers(),
-    ...contributeMediaDuplicateHandlers(),
+    ...contributeMediaDuplicateHandlers({ deriveDuplicateName }),
   ]) {
     registerDuplicateResourceHandler(contributor);
   }

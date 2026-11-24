@@ -1,5 +1,6 @@
 import { warnCredentialContent, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ArchiveMediaCopy } from "@jini-ai/devops/backup/site/archive-media";
 import type { ArchiveMediaSource } from "#src/features/site-backup/share-policy";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
@@ -12,7 +13,7 @@ import { validateValueAgainstSchema, type SettingValueSchema } from "@jini-ai/co
 import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
-import { backfillPostSearchIndex } from "#src/features/post/index";
+import { backfillPostSearchIndex } from "@jini-ai/cms/posts/sql";
 import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
@@ -337,7 +338,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
     await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
-    await backfillPostSearchIndex({ kernel: contentKernel({ store: fresh }) });
+    await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: fresh }), config: POST_SEARCH_HOST });
     const documents = await documentReferences({ target });
     const media = [
       ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],

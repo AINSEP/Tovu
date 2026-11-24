@@ -5,10 +5,10 @@ import { DefinitionNotFoundError, ensureSettingDefinitions, ForbiddenError, InMe
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
-import { createCommentsSelectionStore, ensureCommentsProviderDefinition } from "#src/features/comments/provider-selection";
-import type { SetCommentsSettingsDeps } from "#src/features/comments/settings";
+import { createCommentsSelectionStore, ensureCommentsProviderDefinition } from "@jini-ai/cms/comments/site/provider-selection";
+import type { SetCommentsSettingsDeps } from "@jini-ai/cms/comments/site/settings";
 import { contributeSettingsTools, type SettingsToolDeps } from "#src/features/settings/tool-registrations";
-import { clear, refuseCommentsProviderClear, refuseCommentsProviderReset, set } from "#src/features/settings/index";
+import { clear, createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set } from "#src/features/settings/index";
 import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
@@ -33,7 +33,7 @@ async function fixture() {
   const settingsRepo = new InMemorySettingsRepo();
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: granted.has(permission) ? "matched" : "insufficient_permission" });
   const comments: SetCommentsSettingsDeps = { settingsRepo, clock: { nowIso: () => "2026-10-21T00:00:00.000Z" }, ids: { newId: () => { id += 1; return `cp-${id}`; } }, authorize,
-    principals: { findById: async ({ workspaceId, id: principalId }: { workspaceId: string; id: string }) => ({ workspaceId, id: principalId, status: "active" }) } as unknown as SetCommentsSettingsDeps["principals"] };
+    principals: { findById: async ({ workspaceId, id: principalId }: { workspaceId: string; id: string }) => ({ workspaceId, id: principalId, status: "active" }) } as unknown as SetCommentsSettingsDeps["principals"], createPrincipalLookup: createSettingsPrincipalLookup };
   await ensureCommentsProviderDefinition({ deps: comments, systemPrincipalId: "system" });
   const store = createCommentsSelectionStore(comments);
   // The owner switches public comments off through the card-backed store.

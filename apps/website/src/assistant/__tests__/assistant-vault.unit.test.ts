@@ -10,7 +10,7 @@ import {
 } from "@jini-ai/core/contracts/vault";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { assistantVaultContext, assistantVaultId, assistantVaultRepo, createAssistantVault, readAssistantVault } from "../assistant-vault.js";
 
 const clock = { nowMs: () => Date.parse("2026-08-04T00:00:00.000Z"), nowIso: () => "2026-08-04T00:00:00.000Z" };

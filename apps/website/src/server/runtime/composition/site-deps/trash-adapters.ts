@@ -19,7 +19,7 @@ import { createUserTrashAdapter } from "#src/features/trash/index";
 import { forgetPluginActivations } from "@jini-ai/plugins/host";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { outboxEventValues } from "@jini-ai/db/events";
-import { purgeMedia } from "#src/features/media/index";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { randomUUID } from "node:crypto";
 import { withFollowUps } from "@jini-ai/cms/trash";
 import type { composePluginRuntime } from "../plugin-runtime.js";

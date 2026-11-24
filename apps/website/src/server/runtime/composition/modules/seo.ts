@@ -118,6 +118,7 @@ const PUT_ENTRY_FAILURE = {
 export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const putDeps = {
     ...seoPortDeps({ deps }), seoDeps: deps.seoDeps, clock: deps.clock,
+    outwardErrorMessage: ({ error }: { error: Error }) => error.message,
     entryAuthorize: (params: Parameters<SeoRouteDeps["authorize"]>[0]) => deps.authorize(params),
     invalidateSitemapCache: (input: { workspaceId: string }) => deps.sitemapService.invalidateSitemapCache(input),
   };

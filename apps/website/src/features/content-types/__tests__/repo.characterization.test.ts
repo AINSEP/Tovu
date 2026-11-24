@@ -1,15 +1,15 @@
+import type { SqlContentTypeRepo } from "@jini-ai/cms/content-types/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
-import { SqliteContentTypeRepo } from "../repo.sqlite.js";
-
 /**
  * @file S2a T0: the content-type repo's owner rule on the unmoved code, before its query body moves to Jini
  * `@jini-ai/cms/content-types/sql`. Real SQLite kernel (the recorder from the lane-su pins), driven through the
- * `SqliteContentTypeRepo` name that survives the move. Each test names the one-line mutation of `repo.rows.ts` that
+ * `SqlContentTypeRepo` name that survives the move. Each test names the one-line mutation of `repo.rows.ts` that
  * turns it red; the run's report holds the red output of each.
  */
 
@@ -21,7 +21,7 @@ function contentType(key: string, overrides: Partial<ContentTypeRecord> = {}): C
 
 function repoOnFreshKernel() {
   const { kernel } = recordingKernel();
-  return { kernel, repo: new SqliteContentTypeRepo({ store: kernel }) };
+  return { kernel, repo: contentTypeRepoFor({ store: kernel }) };
 }
 
 test("the widget and widget-area types read back with the declared owner", async () => {

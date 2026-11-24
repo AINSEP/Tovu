@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import type { AdminMedia } from "../../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaPickerPort } from "../../MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../MediaContentEditor";
 import { useMediaContentEditor } from "../MediaContentEditor.hooks";

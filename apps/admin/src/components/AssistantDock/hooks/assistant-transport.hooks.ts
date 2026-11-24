@@ -3,7 +3,7 @@ import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/s
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type ChatPaneAgentSelection, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { type ChatMessage, type StartRunInput } from "@jini-ai/chat/core";
-import { type ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";

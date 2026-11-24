@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
-import type { MediaProviderCredentialRecord } from "#src/features/media/provider-credential-store";
+import type { MediaProviderCredentialRecord } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "#src/features/media/provider-credential-store";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";

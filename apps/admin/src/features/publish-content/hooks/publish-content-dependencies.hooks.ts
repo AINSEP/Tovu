@@ -1,11 +1,4 @@
-import type {
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentPeerSummary,
-  PublishContentPlanResult,
-  PublishContentReport,
-  PublishScope,
-} from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishContentReport, PublishScope } from "@jini-ai/cms/publish/content/dialog";
 
 import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 import { publishContentApi } from "@/features/publish-content/api/publish-content-api";

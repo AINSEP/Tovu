@@ -1,3 +1,4 @@
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { executeCommand } from "#src/contracts/core/commands/index";
 import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
@@ -8,8 +9,6 @@ import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflict
 import type { FieldDescriptor, FormDefinitionStatus } from "@jini-ai/cms/forms";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
 import type { HtmlFormDefinitionRecord, FormAuthoring } from "@jini-ai/cms/forms";
-import { FORMS_TABLES } from "./repo.sqlite.js";
-
 /**
  * @file `form` on the publish factory (`features/publish-content/repo-handler.ts`). Carries the form's
  * structure only — submissions are visitor data and never travel (plan §1).

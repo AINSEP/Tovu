@@ -253,7 +253,7 @@ describe("taxonomy", () => {
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/taxonomy", respond: () => jsonResponse({ items: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredTaxonomy } = await import("../features/taxonomy/hooks/use-taxonomy.hooks");
+    const { useWiredTaxonomy } = await import("../features/taxonomy/taxonomy-wired.hooks");
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     await expectRequests(calls, [`GET ${ADMIN}/taxonomy`]);

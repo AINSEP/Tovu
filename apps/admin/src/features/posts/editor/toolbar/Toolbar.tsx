@@ -1,14 +1,14 @@
 import { useEditorState, type Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { useToolbarOverflow } from "../../hooks/use-post-editor-ui.hooks";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { useToolbarOverflow } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
 import { ToolbarColorGroup } from "./ToolbarColorGroup";
-import { ToolbarCharacterCount } from "./ToolbarCharacterCount";
+import { ToolbarCharacterCount } from "@jini-ai/admin/posts/editor/toolbar/ToolbarCharacterCount";
 import { ToolbarAlignGroup, ToolbarBlockGroup, ToolbarHeadingGroup, ToolbarHistoryGroup, ToolbarMarksGroup } from "./ToolbarFormattingGroup";
 import { ToolbarInsertControls } from "./insert-controls";
-import { ToolbarOverflowMenu } from "./ToolbarOverflowMenu";
+import { ToolbarOverflowMenu } from "@jini-ai/admin/posts/editor/toolbar/ToolbarOverflowMenu";
 import { ToolbarTypographyGroup } from "./ToolbarTypographyGroup";
 import { probeToolbar } from "./toolbar-state";
 

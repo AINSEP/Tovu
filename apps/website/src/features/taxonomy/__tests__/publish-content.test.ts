@@ -1,20 +1,21 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "../publish-content.js";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../repo.sqlite.js";
-
-function ports(): TaxonomyPublishPorts & { taxonomies: SqliteTaxonomyRepo; terms: SqliteTermRepo } {
+function ports(): TaxonomyPublishPorts & { taxonomies: SqlTaxonomyRepo; terms: SqlTermRepo } {
   const db = openContentDb(":memory:");
   return {
-    taxonomies: new SqliteTaxonomyRepo({ db, workspaceId: WORKSPACE_ID }),
-    terms: new SqliteTermRepo({ db, workspaceId: WORKSPACE_ID }),
-    entryTerms: new SqliteEntryTermRepo({ db, workspaceId: WORKSPACE_ID }),
-    revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId: WORKSPACE_ID }),
+    taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
+    revisions: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
     stampWatermark: () => {},
     contentLookup: new InMemoryContentLookup({}),
     contentTypeTaxonomyPolicy: { taxonomiesFor: async () => null },

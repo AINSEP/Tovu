@@ -1,8 +1,7 @@
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
 import type { Request, Response } from "express";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { getPublishedPostBySlug, listPublishedPosts } from "#src/features/post/post-read";
-import { PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
+import { type PublicPostRecord as PostRecord, PostNotFoundError, ROOT_SLUG } from "@jini-ai/cms/posts/post";
+import { getPublishedPostBySlug, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
@@ -11,7 +10,7 @@ import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-them
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { comparePostsByDisplayDate } from "#src/contracts/core/scheduled-publish";
+import { comparePostsByDisplayDate } from "@jini-ai/core/scheduled-publish";
 import { renderSite } from "../../../../http/site/render-site.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import type { SiteRequestDeps, PostPreviewsAccess } from "../render-context/deps.js";

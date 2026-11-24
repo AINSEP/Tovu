@@ -11,7 +11,7 @@ import { publishEntityTypeLabel } from "../sections.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/ui";
 import { entityKey } from "../../plan-rows.js";
 import {
   addressHeldByOther,
@@ -27,9 +27,9 @@ import {
   publishRowDisposition,
   selectableRowKeys,
   summarizePublishReport,
-  toPublishReportRows,
-} from "@jini-ai/cms/publish/content/dialog/report-rows";
-import { friendlyPublishReason } from "@jini-ai/cms/publish/content/dialog/report-reasons";
+} from "@jini-ai/cms/publish/content/ui";
+import { toPublishReportRows } from "../index.js";
+import { friendlyPublishReason } from "../host-binding.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
   return {

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 
 import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";

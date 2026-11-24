@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { UploadTab } from '../Library';
-import type { LibraryController } from '../hooks/use-library.hooks';
+import type { LibraryController } from '@jini-ai/admin/screens/library/hooks/use-library.hooks';
 /** Unexecuted. Source RED reason: the prior extension allowlist excludes all seven formats. */
 import { describe, expect, it, vi } from 'vitest';
-import { LIBRARY_ACCEPT, LIBRARY_MAX_BYTES, documentPreviewKind, libraryFileProblem } from '../rules';
+import { LIBRARY_ACCEPT, LIBRARY_MAX_BYTES, documentPreviewKind, libraryFileProblem } from '@jini-ai/admin/screens/library/rules';
 import { t } from '../library-i18n';
 
 const extensions = ['doc', 'xls', 'rtf', 'xlsx', 'pptx', 'pages', 'key'];

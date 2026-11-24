@@ -4,7 +4,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deleteFormSubmission } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
-import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
+import { resolveFormDefinitionByIdOrSlug } from "@jini-ai/cms/admin-http/routes/forms/resolve-definition";
 
 /** DELETE moves one submission to the Trash (`FORMS_DELETE_SUBMISSION`). A submission of another
  *  form reads as not-found, same as a missing one (`deleteFormSubmission`). */

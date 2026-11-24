@@ -1,6 +1,6 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId, type ReactNode } from "react";
-import type { AdminMedia } from "./api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
@@ -19,22 +19,22 @@ import {
   mediaFillsPreview,
   mediaUploadAccept,
   mediaUploadLabel,
-  MEDIA_GRID_SIZES,
-  parseMediaGridSize,
-  type MediaGridSize,
+  MEDIA_GRID_SIZE_STORAGE_KEY,
   type MediaShape,
   mediaShapeBadges,
   type MediaOrderBy,
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
-import { useMediaGridSize } from "./hooks/use-media-grid-size.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
 import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
-import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
-import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
-import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
@@ -706,7 +706,11 @@ interface EditMediaModalProps {
  * `key` has the full incident writeup).
  */
 function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEditMediaModal, t }: EditMediaModalProps) {
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook(item !== null, onCancel);
+  // The Jini hook takes the native-dialog helpers as required args; bind them from the host kit here.
+  const { openLightboxDialog, closeLightboxDialog } = useAdminKitValues();
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook({
+    open: item !== null, onClose: onCancel, openLightboxDialog, closeLightboxDialog,
+  });
 
   return (
     <dialog
@@ -1219,7 +1223,7 @@ function MediaLibraryPanel(
     t,
     locale,
   } = props;
-  const [gridSize, setGridSize] = useMediaGridSize();
+  const [gridSize, setGridSize] = useMediaGridSize({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
 
   return (
     <>

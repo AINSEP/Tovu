@@ -25,7 +25,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { contributeMediaPublish } from "#src/features/media/publish-content";

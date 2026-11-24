@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";

@@ -282,20 +282,6 @@
       "value": 130
     },
     {
-      "file": "apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts",
-      "function": "useTaxonomy#1",
-      "line": 163,
-      "rule": "max-lines-per-function",
-      "value": 102
-    },
-    {
-      "file": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
-      "function": "useTermPicker#1",
-      "line": 132,
-      "rule": "max-lines-per-function",
-      "value": 164
-    },
-    {
       "file": "apps/admin/src/features/themes/ThemeExplore.tsx",
       "function": "<file>",
       "line": 851,

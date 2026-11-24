@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAdminMenuUpdateTreeRoute } from "../runtime/composition/modules/menus.js";
-import { registerAdminMenuListRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuListRoute, registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/composition/modules/menus";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 
 test("admin menu PUT then GET list keeps nested page hints and last-known URLs", async () => {

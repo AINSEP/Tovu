@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { sitesApi } from "../../features/sites/api/sites-api";
-import { postsApi } from "../../features/posts/api/posts-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
 import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";

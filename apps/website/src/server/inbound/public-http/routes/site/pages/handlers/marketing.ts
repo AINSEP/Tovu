@@ -1,7 +1,6 @@
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { getPublishedPostBySlug } from "#src/features/post/post-read";
-import { PostNotFoundError } from "#src/features/post/post";
+import { type PublicPostRecord as PostRecord, PostNotFoundError } from "@jini-ai/cms/posts/post";
+import { getPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 import { isStandaloneThemePage } from "#src/features/theme/theme-page-eligibility";

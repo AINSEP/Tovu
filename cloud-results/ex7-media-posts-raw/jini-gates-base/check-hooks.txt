@@ -1,0 +1,8 @@
+
+> jini@ check:hooks /tmp/claude-0/jini-base
+> node ./scripts/check-hook-injection.mjs
+
+hook-injection: 0 components, 0 direct custom-hook calls
+top hooks: 
+top folders: 
+hook-injection: ok

@@ -6,7 +6,7 @@ import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { PostRecord, PostRevisionInput } from "../post.js";
+import type { PostRecord, PostRevisionInput } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 
 /**

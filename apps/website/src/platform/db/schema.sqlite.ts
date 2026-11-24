@@ -19,7 +19,7 @@ import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqu
  * virtual table or a trigger. That migration was produced with
  * `drizzle-kit generate --custom`. The drizzle chain is frozen since R1h (no `db:generate`): if
  * those objects ever need to change, write a TS migration step in `platform/db/migrations`
- * (ADR-066); do not attempt to express them here. See `features/post/search-index.sqlite.ts` for how they are maintained at runtime.
+ * (ADR-066); do not attempt to express them here. See `@jini-ai/cms/posts/sql`'s `search-index.sqlite.ts` for how they are maintained at runtime.
  */
 export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey(),
@@ -206,7 +206,7 @@ export const posts = sqliteTable(
      * Scheduled publishing (2026-10-05, migration 0008) — ISO UTC instant a `published` row goes
      * live, or `NULL` for "live as soon as published" (every pre-existing row). A `published` row
      * whose `publish_at` is still in the future is SCHEDULED: stored as published, hidden from every
-     * public read until the instant passes (render-time check, `contracts/core/scheduled-publish.ts`).
+     * public read until the instant passes (render-time check, `@jini-ai/core/scheduled-publish`).
      */
     publishAt: text("publish_at"),
     /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a
@@ -417,8 +417,8 @@ export const settingValuesUser = sqliteTable(
  * Menus (ADR-PIPE-012 D-5 — rule-of-two SQLite adapter for `MenuRepoPort`).
  * Mirrors the `posts` table shape: id/workspaceId/slug/title/status +
  * JSON-text columns for the tree (`docJson`) and location assignments
- * (`locationsJson`), + updatedAt/version for OCC. `SqliteMenuRepo`
- * (`apps/website/src/features/navigation/repo.sqlite.ts`) is the adapter that reads/writes this
+ * (`locationsJson`), + updatedAt/version for OCC. `SqlMenuRepo`
+ * (`@jini-ai/cms/navigation/sql`) is the adapter that reads/writes this
  * table; the in-memory adapter (`InMemoryMenuRepo`, `repo.memory.ts`) is the
  * other rule-of-two half, unchanged by this table's existence.
  */
@@ -446,7 +446,7 @@ export const menus = sqliteTable(
  * D-5/D-8). `UNIQUE(workspace_id, location_key)` is the DB-level enforcement
  * of INV-02 (never two menus bound to the same location) — a genuine
  * strengthening over the in-memory adapter's single-threaded-only guarantee
- * (see `SqliteNavLocationBindingRepo.upsert`'s `onConflictDoUpdate`).
+ * (see `SqlNavLocationBindingRepo.upsert`'s `onConflictDoUpdate`).
  */
 export const navLocationBindings = sqliteTable(
   "nav_location_bindings",

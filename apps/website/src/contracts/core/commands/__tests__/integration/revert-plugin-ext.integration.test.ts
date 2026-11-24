@@ -5,7 +5,8 @@ import { revertChangeSet } from "../../index.js";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
-import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
+import type { PostReverterDeps } from "#src/features/post/index";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 

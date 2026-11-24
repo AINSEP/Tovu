@@ -3,13 +3,14 @@ import { ToolInputError } from "@jini-ai/core";
 import { applyContentTargetInputs } from "#src/assistant/content-target-inputs";
 import { currentToolIdFor } from "#src/assistant/content-read-tool";
 import type { AssistantToolContributions } from "#src/assistant/tool-registrations";
-import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { postPreviewAgentToolCatalog } from "#src/features/post/preview-tool";
 import { pagesAgentToolCatalog } from "#src/features/pages/agent-tools";
-import { mediaViewImageAgentToolCatalog } from "#src/features/media/view-image-tool";
+import { buildMediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
-import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
+import { mediaImportAgentToolCatalog } from "#src/features/media-import/tool-registrations";
 import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/tool-registrations";
 import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
@@ -21,7 +22,7 @@ export function bindContentTargetInputs(
   { registrations, routeDeps, beforeLookup }: Parameters<NonNullable<AssistantToolContributions["contentTargetInputs"]>>[0], _options = {},
 ) {
   const permissions = new Map([...postAgentToolCatalog, ...postPreviewAgentToolCatalog, ...pagesAgentToolCatalog,
-    ...mediaAgentToolCatalog, ...mediaViewImageAgentToolCatalog, ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
+    ...mediaAgentToolCatalog, ...buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset" }), ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
     .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor({ toolId: tool.name }), tool.authorization.permission] as const]));
   return applyContentTargetInputs({ registrations, deps: {
     workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize, mediaRepo: routeDeps.mediaRepo, beforeLookup,

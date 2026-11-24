@@ -6,7 +6,7 @@ import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 /**
  * @file Step `0001_post_search`: post full-text search on Postgres/PGlite (storage-adapter plan F1,
  * R1 plan R1f) — the `tovu_search` text-search configuration, the `post_search_document` projection
- * with its stored `tsvector`, and the GIN index `features/post/search-index.postgres.ts` queries.
+ * with its stored `tsvector`, and the GIN index `@jini-ai/cms/posts/sql`'s `search-index.postgres.ts` queries.
  *
  * SQLite: nothing. Its FTS5 index is part of the legacy chain (drizzle 0022), so `0000` already
  * built it.

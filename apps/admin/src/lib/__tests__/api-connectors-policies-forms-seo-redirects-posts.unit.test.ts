@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isAdminDevServerOrigin } from "../admin-dev-origin";
 import { rolesApi } from "../../features/roles/api/roles-api";
-import { postsApi } from "../../features/posts/api/posts-api";
-import { formsApi } from "../../features/forms/api/forms-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
+import { formsApi } from "../../features/forms/forms-host-ports";
 import { ApiError } from "../admin-http/request";
 
 // `templatePreviewUrl` routes through `lib/site-url.ts`, which now asks whether the page is actually

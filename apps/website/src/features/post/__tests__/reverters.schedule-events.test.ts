@@ -10,7 +10,7 @@ import type {
 import { revertChangeSet } from "#src/contracts/core/commands/index";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { buildPostRecord } from "./post-record.fixture.js";

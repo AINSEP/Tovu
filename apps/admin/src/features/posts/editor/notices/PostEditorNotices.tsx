@@ -1,9 +1,10 @@
 import type { StandingDraftAutosaveSnapshot, StandingDraftStaleBasis } from "../../../../hooks/use-standing-draft-autosave.hooks";
 import { PageExternalChangeBanner } from "../../../pages/PageEditor";
-import { PostAutosaveRecoveryBanner } from "./PostAutosaveRecoveryBanner";
-import { PostAutosaveStaleBanner } from "./PostAutosaveStaleBanner";
-import { PostVersionConflictBanner } from "./PostVersionConflictBanner";
-import { type PostSaveConflict } from "../../rules";
+import { PostAutosaveRecoveryBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveRecoveryBanner";
+import { PostAutosaveStaleBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveStaleBanner";
+import { PostVersionConflictBanner } from "@jini-ai/admin/posts/editor/notices/PostVersionConflictBanner";
+import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
+import { type PostSaveConflict, postAutosaveStaleBasisMessage, postVersionConflictMessage } from "../../rules";
 import { type Translate } from "@jini-ai/core/text";
 
 /**
@@ -64,12 +65,14 @@ export function PostEditorNotices({
           onRestore={restoreRecoveredDraft}
           onDiscard={discardRecoveredDraft}
           t={t}
+          standingDraftRecoveryMessage={standingDraftRecoveryMessage}
         />
       ) : null}
-      {autosaveStaleBasis && pendingExternalVersion == null && !saveConflict ? <PostAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {autosaveStaleBasis && pendingExternalVersion == null && !saveConflict ? <PostAutosaveStaleBanner staleBasis={autosaveStaleBasis} staleBasisMessage={postAutosaveStaleBasisMessage} /> : null}
       {saveConflict ? (
         <PostVersionConflictBanner
           saveConflict={saveConflict}
+          versionConflictMessage={postVersionConflictMessage}
           onSaveAnyway={() => void saveOverwritingConflict()}
           onLoadLatest={() => void loadExternalChange()}
           onDismiss={() => { dismissSaveConflict(); dismissExternalChange(); }}

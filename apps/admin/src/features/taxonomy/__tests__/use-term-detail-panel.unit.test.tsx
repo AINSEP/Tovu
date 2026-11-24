@@ -1,10 +1,12 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useTermDetailPanel, useWiredTermDetailPanel } from "../hooks/use-term-detail-panel.hooks";
-import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
+import { useTermDetailPanel } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-detail-panel.hooks";
+import { useWiredTermDetailPanel } from "../taxonomy-wired.hooks";
+import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import { createTaxonomyBlockedError, taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `useTermDetailPanel` — the rename form inside the term detail panel. Pins the no-op guard
@@ -159,7 +161,7 @@ describe("stale rename settlement across a term switch (no key={term.id} remount
   it.each(["success", "failure"])("ignores stale %s after switching from term A to B", async (outcome) => {
     const term1 = termFixture({ id: "t1", name: "Term A" });
     const term2 = termFixture({ id: "t2", name: "Term B" });
-    const port = createFakeTaxonomyPort({
+    const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, {
       groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term1, term2] }],
     });
     let resolveRename!: (v: { term: AdminTerm }) => void;
@@ -167,7 +169,7 @@ describe("stale rename settlement across a term switch (no key={term.id} remount
     port.renameTerm = vi.fn(() => new Promise<{ term: AdminTerm }>((resolve, reject) => { resolveRename = resolve; rejectRename = reject; }));
     const onRenamed = vi.fn();
 
-    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed }, port, "en"), {
+    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ options: { term, onRenamed }, port: port, locale: "en", kit: taxonomyHostKit }), {
       initialProps: { term: term1 },
       wrapper,
     });
@@ -206,10 +208,10 @@ describe("useTermDetailPanel — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const term = termFixture();
-    const port = createFakeTaxonomyPort({ groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] }] });
+    const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] }] });
     const onRenamed = vi.fn();
 
-    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useTermDetailPanel({ options: { term, onRenamed }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setNewName("Renamed via port"));
     await act(async () => {
       await result.current.rename(formEvent());
@@ -223,9 +225,9 @@ describe("useTermDetailPanel — injected port", () => {
   it("shares the same store as useTaxonomy through TaxonomyPort — a rename through THIS hook is visible via the port's own listTaxonomies, not just a bypass call", async () => {
     const term = termFixture();
     const group = { taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] };
-    const port = createFakeTaxonomyPort({ groups: [group] });
+    const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [group] });
 
-    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useTermDetailPanel({ options: { term, onRenamed: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setNewName("Shared Store Rename"));
     await act(async () => {
       await result.current.rename(formEvent());

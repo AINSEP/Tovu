@@ -116,7 +116,7 @@ for (const { file, receiver, call } of [
 
   test(`secret seals in ${file} still fail closed, including on receiver ${receiver}`, () => {
     const src = `
-      import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+      import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
       declare const ${receiver}: SecretSealerPort;
       ${receiver}.seal({ plaintext: token, key });
       ${receiver}.seal(secretInput);

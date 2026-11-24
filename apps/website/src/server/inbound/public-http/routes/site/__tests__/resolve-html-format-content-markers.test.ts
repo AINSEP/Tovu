@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

@@ -1,9 +1,10 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
@@ -42,7 +43,7 @@ function gatedPort() {
 }
 
 function mount(port: ReturnType<typeof createFakePostEditorPort>) {
-  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (key: string) => key } }));
+  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: (key: string) => key } }));
 }
 
 afterEach(() => {

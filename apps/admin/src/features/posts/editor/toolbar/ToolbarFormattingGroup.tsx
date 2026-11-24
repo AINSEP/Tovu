@@ -1,5 +1,5 @@
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
-import type { ToolbarOverflowController } from "../../hooks/use-post-editor-ui.hooks";
+import type { ToolbarOverflowController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
 import { CODE_LANGUAGE_OPTIONS, toolbarBtnClass } from "../../rules";
 import type { ToolbarGroupProps } from "./toolbar-group-props";

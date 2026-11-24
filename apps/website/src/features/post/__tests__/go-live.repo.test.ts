@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import type { PostRecord, PostRepoPort } from "../post.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postRepoFor } from "../repo.js";
 import { buildPostRecord } from "./post-record.fixture.js";

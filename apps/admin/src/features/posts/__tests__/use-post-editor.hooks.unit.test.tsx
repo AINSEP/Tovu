@@ -1,8 +1,9 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia } from "@/features/media/api/media-api.types";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import {
@@ -96,7 +97,7 @@ it.each(["resolve", "reject"])("a superseded Post load cannot overwrite the live
   const oldLoad = new Promise<{ post: AdminPost }>((yes, no) => { resolve = yes; reject = no; });
   const get = vi.spyOn(port, "getPost").mockImplementation(({ id }) => id === "old-route" ? oldLoad : Promise.resolve({ post: current }));
   const navigate = vi.fn();
-  const { result, rerender } = renderHook(({ route }) => usePostEditor({ postId: route, deps: { port, navigate, t: fakeT } }), {
+  const { result, rerender } = renderHook(({ route }) => usePostEditor({ postId: route, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }), {
     initialProps: { route: "old-route" },
   });
   await waitFor(() => expect(get, "route A begins its held read").toHaveBeenCalledWith({ id: "old-route" }));
@@ -136,7 +137,7 @@ describe("new posts stay local until their first Save", () => {
     const gate = new Promise<void>(resolve => { release = resolve; });
     const create = vi.spyOn(port, "createPost").mockImplementation(async input => { await gate; return createPost(input); });
     const update = vi.spyOn(port, "updatePost");
-    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     let saving!: Promise<void>;
     let publishing!: Promise<void>;
@@ -156,7 +157,7 @@ describe("new posts stay local until their first Save", () => {
     const gate = new Promise<void>(resolve => { release = resolve; });
     const create = vi.spyOn(port, "createPost").mockImplementation(async input => { await gate; return createPost(input); });
     const update = vi.spyOn(port, "updatePost");
-    const { result, rerender } = renderHook(({ segment }) => usePostEditor({ postId: segment, deps: { port, navigate: fakeNavigate(), t: fakeT } }), { initialProps: { segment: "" } });
+    const { result, rerender } = renderHook(({ segment }) => usePostEditor({ postId: segment, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }), { initialProps: { segment: "" } });
     await waitFor(() => expect(result.current.post).not.toBeNull());
     let first!: Promise<void>;
     let second!: Promise<void>;
@@ -182,7 +183,7 @@ describe("new posts stay local until their first Save", () => {
     const port = createFakePostEditorPort();
     const get = vi.spyOn(port, "getPost");
     const create = vi.spyOn(port, "createPost");
-    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.title).toBe("Untitled");
     expect(result.current.dirty).toBe(false);
@@ -203,7 +204,7 @@ describe("new posts stay local until their first Save", () => {
     const create = vi.spyOn(port, "createPost");
     const update = vi.spyOn(port, "updatePost");
     const navigate = fakeNavigate();
-    const { result, rerender } = renderHook(({ segment }) => usePostEditor({ postId: segment, deps: { port, navigate, t: fakeT } }), { initialProps: { segment: "" } });
+    const { result, rerender } = renderHook(({ segment }) => usePostEditor({ postId: segment, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }), { initialProps: { segment: "" } });
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => { result.current.setTitle({ next: "My first post" }); result.current.setAuthor("Ada"); result.current.setShowAuthor(true); });
     await act(async () => { await Promise.all([result.current.save({}, { statusOverride: status }), result.current.save({}, { statusOverride: status })]); });
@@ -223,7 +224,7 @@ describe("new posts stay local until their first Save", () => {
     const port = createFakePostEditorPort();
     const create = vi.spyOn(port, "createPost").mockRejectedValueOnce(new Error("quota exceeded"));
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle({ next: "Keep this text" }));
     await act(() => result.current.save({}));
@@ -240,7 +241,7 @@ describe("new posts stay local until their first Save", () => {
   it("a non-Error first-save failure uses the save fallback and keeps the working text", async () => {
     const port = createFakePostEditorPort();
     vi.spyOn(port, "createPost").mockRejectedValue("offline");
-    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle({ next: "Keep this text" }));
     await act(() => result.current.save({}));
@@ -253,7 +254,7 @@ describe("new posts stay local until their first Save", () => {
     const port = createFakePostEditorPort();
     const remove = vi.spyOn(port, "deletePost");
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await act(() => result.current.remove());
     expect(remove).not.toHaveBeenCalled();
@@ -274,7 +275,7 @@ describe("usePostEditor — load", () => {
     });
     const navigate = fakeNavigate();
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
 
     await waitFor(() => expect(result.current.post).toEqual(POST));
     expect(result.current.title).toBe("Hello World");
@@ -294,7 +295,7 @@ describe("usePostEditor — load", () => {
       presentation: { activeThemeTemplates: ["blog-post.html", "page-shell.html"] },
     });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.templateChoice).toBe("blog-post.html");
@@ -306,7 +307,7 @@ describe("usePostEditor — load", () => {
       presentation: { activeThemeStaticPageIds: ["pricing", "about"] },
     });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.slug).toBe("pricing"));
     expect(result.current.hasSlugCollision).toBe(true);
@@ -315,7 +316,7 @@ describe("usePostEditor — load", () => {
   it("reports a load failure via error, leaving post null", async () => {
     const port = createFakePostEditorPort({ getPostError: "post not found" });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "missing", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "missing", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.error).toBe("post not found"));
     expect(result.current.post).toBeNull();
@@ -326,7 +327,7 @@ describe("usePostEditor — load", () => {
       post: { ...POST, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] } },
     });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => {
@@ -354,7 +355,7 @@ describe("usePostEditor — load", () => {
       },
     });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
@@ -377,7 +378,7 @@ describe("usePostEditor — slug redirect on load", () => {
   it("replace-navigates to the slug URL when postId is the post's raw (UUID-shaped) id", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, id: POST_UUID, slug: "hello-world" } });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: POST_UUID, deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: POST_UUID, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
 
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(navigate).toHaveBeenCalledWith("/posts/hello-world", { replace: true });
@@ -386,7 +387,7 @@ describe("usePostEditor — slug redirect on load", () => {
   it("does not navigate when postId already IS the post's slug", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
 
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(navigate).not.toHaveBeenCalled();
@@ -403,7 +404,7 @@ describe("usePostEditor — the URL follows a slug the save changed", () => {
   it("replace-navigates to the title-derived slug after the first save of an untitled post", async () => {
     const port = createFakePostEditorPort({ post: UNTITLED });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "untitled-6", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "untitled-6", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -418,7 +419,7 @@ describe("usePostEditor — the URL follows a slug the save changed", () => {
     const port = createFakePostEditorPort({ post: POST });
     const getPost = vi.spyOn(port, "getPost");
     const navigate = fakeNavigate();
-    const { result, rerender } = renderHook(({ postId }) => usePostEditor({ postId: postId, deps: { port, navigate, t: fakeT } }), {
+    const { result, rerender } = renderHook(({ postId }) => usePostEditor({ postId: postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }), {
       initialProps: { postId: "hello-world" },
     });
     await waitFor(() => expect(result.current.editor).not.toBeNull());
@@ -438,7 +439,7 @@ describe("usePostEditor — the URL follows a slug the save changed", () => {
   it("does not navigate when the slug did not change, or when the URL names the post by id", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await act(async () => { await result.current.save({}); });
@@ -446,7 +447,7 @@ describe("usePostEditor — the URL follows a slug the save changed", () => {
 
     const byId = createFakePostEditorPort({ post: POST });
     const byIdNavigate = fakeNavigate();
-    const byIdHook = renderHook(() => usePostEditor({ postId: "p1", deps: { port: byId, navigate: byIdNavigate, t: fakeT } }));
+    const byIdHook = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port: byId, navigate: byIdNavigate, t: fakeT } }));
     await waitFor(() => expect(byIdHook.result.current.editor).not.toBeNull());
     await waitFor(() => expect(byIdHook.result.current.post).not.toBeNull());
     act(() => byIdHook.result.current.setSlug({ value: "renamed" }));
@@ -459,7 +460,7 @@ describe("usePostEditor — the URL follows a slug the save changed", () => {
 describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, moved out of PostEditor.tsx/PostPreview)", () => {
   it("is empty before the post loads, then reflects the INJECTED port's templatePreviewUrl once loaded", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     expect(result.current.templatePreviewUrl).toBe("");
     expect(result.current.previewFormTarget).toBe("");
@@ -475,7 +476,7 @@ describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, 
 
   it("rebuilds templatePreviewUrl through the port when templateChoice changes", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     act(() => result.current.setTemplateChoice("blog-post.html"));
@@ -487,7 +488,7 @@ describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, 
 describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview fullscreen)", () => {
   it("starts collapsed and flips on togglePreviewExpanded", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     expect(result.current.previewExpanded).toBe(false);
@@ -502,7 +503,7 @@ describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview full
     // itself: expanding hides/covers other chrome, so it must never survive the thing it was
     // expanding going away. Here that thing is the Preview tab, not the whole editor.
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     act(() => result.current.setView("preview"));
@@ -515,7 +516,7 @@ describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview full
 
   it("Escape collapses the expanded preview", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     act(() => result.current.setView("preview"));
@@ -537,7 +538,7 @@ describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview full
     const port = createFakePostEditorPort({ post: POST });
     const addSpy = vi.spyOn(document, "addEventListener");
     const removeSpy = vi.spyOn(document, "removeEventListener");
-    const { result, unmount } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result, unmount } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     act(() => result.current.setView("preview"));
@@ -566,7 +567,7 @@ describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview full
 
   it("writes nothing to localStorage or sessionStorage — must not survive navigation the way the reverted admin.show_site_page overlay did", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
 
     act(() => result.current.setView("preview"));
@@ -600,7 +601,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
 
   it("collapses THREE rapid pending changes into exactly ONE submit, 500ms after the LAST one — not the first, not three", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "published" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     const form = attachFakeForm(result.current.previewFormRef);
@@ -631,7 +632,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
 
   it("cancels the pending submit entirely when the operator leaves the Preview tab before it fires", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "published" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     const form = attachFakeForm(result.current.previewFormRef);
@@ -657,7 +658,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
   // draft is the exact scenario the bug needed and the fix now covers.
   it("schedules and fires the debounced submit for a CLEAN, never-edited DRAFT post — not just a dirty one (2026-09-11 widening)", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     expect(result.current.dirty, "must genuinely be the untouched-draft case, not accidentally already dirty").toBe(false);
     expect(result.current.contentDirty, "must genuinely be the untouched-draft case, not accidentally already dirty").toBe(false);
@@ -675,7 +676,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
   // editor state, so the new, empty iframe was never submitted into and the draft preview went blank.
   it("re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     vi.useFakeTimers();
@@ -695,7 +696,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
 describe("usePostEditor — title/slug/status setters", () => {
   it("setSlug/setStatus update state directly", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     act(() => result.current.setSlug({ value: "new-slug" }));
@@ -707,7 +708,7 @@ describe("usePostEditor — title/slug/status setters", () => {
 
   it("setTitle updates title state AND the editor's own title node text (two-way sync, post-title-in-document feature)", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle({ next: "Renamed" }));
@@ -723,7 +724,7 @@ describe("usePostEditor — title/slug/status setters", () => {
 describe("usePostEditor — dirty guard / confirmLeave", () => {
   it("is not dirty immediately after load, and becomes dirty after a change", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.dirty).toBe(false);
 
@@ -734,7 +735,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
   it("confirmLeave returns true without prompting when not dirty", async () => {
     const confirmSpy = vi.spyOn(window, "confirm");
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     expect(result.current.confirmLeave()).toBe(true);
@@ -743,7 +744,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
 
   it("confirmLeave prompts via window.confirm once dirty, and returns the operator's answer", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setSlug({ value: "changed" }));
     await waitFor(() => expect(result.current.dirty).toBe(true));
@@ -756,7 +757,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
 describe("usePostEditor — save", () => {
   it("saves title/slug/status/bodyJson/templateChoice/overridesThemePage through the injected port, clearing dirty", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => {
@@ -802,7 +803,7 @@ describe("usePostEditor — save", () => {
       port.updatePostCalls.push(patch);
       return { post: port.post }; // the server's no-op answer: the stored row, version unchanged
     };
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => { await result.current.save({}); });
@@ -817,7 +818,7 @@ describe("usePostEditor — save", () => {
 
   it("save('published') forces status to published in the same call, without a separate status change", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
@@ -832,7 +833,7 @@ describe("usePostEditor — save", () => {
   it("a server failure shows a short plain line, not the raw server string the failure notice already carries", async () => {
     const port = createFakePostEditorPort({ post: POST });
     port.updatePost = async () => { throw Object.assign(new Error("boom"), { status: 500 }); };
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.setSlug({ value: "new-slug" }));
     await waitFor(() => expect(result.current.dirty).toBe(true));
@@ -843,7 +844,7 @@ describe("usePostEditor — save", () => {
 
   it("a failed save surfaces the port's error message and leaves dirty state untouched", async () => {
     const port = createFakePostEditorPort({ post: POST, updatePostError: "save failed on the server" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.setSlug({ value: "new-slug" }));
     await waitFor(() => expect(result.current.dirty).toBe(true));
@@ -917,7 +918,7 @@ describe("usePostEditor — save", () => {
       },
     };
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     // Issue Save (keeps `status` at "draft"), then Publish before either settles.
@@ -1010,7 +1011,7 @@ describe("usePostEditor — save", () => {
 
   it("saving is true while a save is in flight and false once it settles", async () => {
     const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     expect(result.current.saving).toBe(false);
@@ -1035,7 +1036,7 @@ describe("usePostEditor — save", () => {
 
   it("an older save settling does not clear saving while a newer save is still in flight", async () => {
     const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     act(() => {
@@ -1070,7 +1071,7 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
   it("saves, autosaves, and deletes by post.id when the editor was opened by slug and the slug is renamed", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setSlug({ value: "renamed-once" }));
@@ -1113,7 +1114,7 @@ describe("usePostEditor — delete", () => {
     const port = createFakePostEditorPort({ post: POST });
     const deletePost = vi.spyOn(port, "deletePost");
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
@@ -1128,7 +1129,7 @@ describe("usePostEditor — delete", () => {
     const port = createFakePostEditorPort({ post: PAGE });
     const deletePost = vi.spyOn(port, "deletePost");
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "pg1", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "pg1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
@@ -1142,7 +1143,7 @@ describe("usePostEditor — delete", () => {
   it("a failed delete surfaces the error and resets deleting/confirmingDelete without navigating", async () => {
     const port = createFakePostEditorPort({ post: POST, deletePostError: "delete failed" });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setConfirmingDelete(true));
 
@@ -1168,7 +1169,7 @@ describe("usePostEditor — injected port is genuinely read (negative verificati
       post: { ...POST, id: "p9", title: "A Totally Different Title", slug: "totally-different-slug" },
     });
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p9", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p9", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
 
     await waitFor(() => expect(result.current.title).toBe("A Totally Different Title"));
     expect(result.current.slug).toBe("totally-different-slug");
@@ -1188,7 +1189,7 @@ describe("usePostEditor — injected t is genuinely returned, not built internal
     const port = createFakePostEditorPort({ post: POST });
     const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
 
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: distinctiveT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: distinctiveT } }));
 
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.t("Save")).toBe("TRANSLATED[Save]");
@@ -1233,7 +1234,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
   it("handleFileDrop inserts a ref-based {assetId, transformName, alt} media node at the drop position (2026-09-11: the generic media node, not the legacy image-only ref) — the SAME node shape insertMediaEmbed (the Media picker's own command) produces, never a data: URL", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const dropPos = editor.state.doc.content.size; // end of doc — a plausible drop position
@@ -1255,7 +1256,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
   it("handleFilePaste inserts through insertMediaEmbed at the current selection (2026-09-11: the generic media node) — same node shape as drop, positioned differently since onPaste carries no pos argument", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     act(() => editor.commands.setContent({
@@ -1284,7 +1285,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
   it("a failed drop or paste upload reaches onError with the file and the cause, and inserts nothing", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaError: "disk is full" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const before = JSON.stringify(editor.getJSON());
@@ -1302,7 +1303,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
   it("shows the editor's error message in plain words when a dropped image fails to upload", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaError: "disk is full" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const handler = editor.extensionManager.extensions.find((extension) => extension.name === "fileHandler")!;
@@ -1324,7 +1325,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
       if (call === 1) throw new Error("first upload failed");
       return { media: UPLOADED_MEDIA };
     });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const dropPos = editor.state.doc.content.size;
@@ -1359,7 +1360,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       savedByPrincipalId: "user-local",
     };
     const port = createFakePostEditorPort({ post: POST, autosave: seeded });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
@@ -1385,7 +1386,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       savedByPrincipalId: "user-local",
     };
     const port = createFakePostEditorPort({ post: POST, autosave: seeded });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
@@ -1413,7 +1414,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       savedByPrincipalId: "user-local",
     };
     const port = createFakePostEditorPort({ post: POST, autosave: seeded });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
@@ -1433,7 +1434,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     };
     const port = createFakePostEditorPort({ post: POST, autosave: seeded });
     port.discardAutosave = vi.fn(async () => { throw new Error("offline"); });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
     await act(async () => result.current.discardRecoveredDraft());
@@ -1446,7 +1447,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     vi.useFakeTimers();
     try {
       const port = createFakePostEditorPort({ post: POST });
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
 
@@ -1473,7 +1474,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
 
   it("a successful save clears the standing draft, even when nothing was ever recovered", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle({ next: "Saved for real" }));
@@ -1522,7 +1523,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
 
     vi.useFakeTimers();
     try {
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
 
@@ -1565,7 +1566,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     vi.useFakeTimers();
     try {
       const port = createFakePostEditorPort({ post: POST });
-      const { result, unmount } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result, unmount } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
 
@@ -1600,7 +1601,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     vi.useFakeTimers();
     try {
       const port = createFakePostEditorPort({ post: POST });
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
       expect(result.current.autosaveStaleBasis).toBeNull();
@@ -1636,7 +1637,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     vi.useFakeTimers();
     try {
       const port = createFakePostEditorPort({ post: POST });
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
 
@@ -1678,7 +1679,7 @@ describe("useWiredPostEditor", () => {
   it("composes the real port and real navigate without throwing", async () => {
     const fetchSpy = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ error: "not found" }), { status: 404 }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { result } = renderHook(() => useWiredPostEditor({ postId: "nonexistent" }));
+    const { result } = renderHook(() => useWiredPostEditor({ postId: "nonexistent", routeKeys: createPostEditorRouteKeyStore() }));
     await waitFor(() => expect(result.current.error).toBe("not found"));
     const postRequest = fetchSpy.mock.calls.find(([url]) => url === "/api/admin/v1/workspaces/workspace-local/posts/nonexistent");
     expect(postRequest).toBeDefined();
@@ -1697,7 +1698,7 @@ describe("useWiredPostEditor", () => {
 describe("usePostEditor — optimistic concurrency", () => {
   it("sends the version the editor loaded as expectedVersion on every save", async () => {
     const port = createFakePostEditorPort({ post: POST }); // POST.version === 3
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1721,7 +1722,7 @@ describe("usePostEditor — optimistic concurrency", () => {
 
   it("rejects a save whose basis another operator superseded, WITHOUT discarding the operator's typed work", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1753,7 +1754,7 @@ describe("usePostEditor — optimistic concurrency", () => {
 
   it("keeps rejecting an ordinary Save after a conflict — nothing silently re-bases", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1775,7 +1776,7 @@ describe("usePostEditor — optimistic concurrency", () => {
 
   it("saveOverwritingConflict re-reads the current version, lands the work, and keeps the publish intent", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1809,7 +1810,7 @@ describe("usePostEditor — optimistic concurrency", () => {
 
   it("saveOverwritingConflict never pulls the other operator's content into the working copy", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1833,7 +1834,7 @@ describe("usePostEditor — optimistic concurrency", () => {
 
   it("dismissSaveConflict hides the banner and saves nothing", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1861,7 +1862,7 @@ describe("usePostEditor — optimistic concurrency", () => {
         throw new ApiError({ message: "slug 'taken' already exists", status: 409 });
       },
     };
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
     // acted while the load effect was still in flight would assert against an unloaded editor and
@@ -1880,7 +1881,7 @@ describe("usePostEditor — optimistic concurrency", () => {
   // editor's empty doc over the stored row with no version to check (client report 2026-11-21).
   it("refuses to save when no post has loaded — the editor would write an empty body with no version to check", async () => {
     const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.error).toBe("boom"));
     expect(result.current.post).toBeNull();
 
@@ -1900,7 +1901,7 @@ describe("templateFor — saved post template remains selectable", () => {
       post: { ...POST, templateChoice: "page.html" },
       presentation: { activeThemeTemplates: templates },
     });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.availableTemplates).toEqual([...templates, "page.html"]);
     expect(result.current.templateChoice).toBe("page.html");
@@ -1912,7 +1913,7 @@ describe("templateFor — saved post template remains selectable", () => {
 describe("postpolish editor save policy", () => {
   it("follows input and document title edits, saves through derivation, then stops on a manual slug", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.title).toBe(POST.title));
     act(() => result.current.setTitle({ next: "Café Launch" }));
@@ -1935,7 +1936,7 @@ describe("postpolish editor save policy", () => {
   });
   it.each([{ status: "published" as const }, { everPublished: true }, { slug: "manual-url" }])("keeps the stored URL when title following is disallowed: %j", async (fields) => {
     const port = createFakePostEditorPort({ post: { ...POST, ...fields } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.title).toBe(POST.title));
     const slug = result.current.slug;
     act(() => result.current.setTitle({ next: "Changed title" }));
@@ -1943,7 +1944,7 @@ describe("postpolish editor save policy", () => {
   });
   it("defaults cover hiding on, saves false only when changed, and reloads the saved choice", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const first = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const first = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(first.result.current.title).toBe(POST.title));
     expect(first.result.current.hideCoverImageInBody).toBe(true);
     act(() => first.result.current.setHideCoverImageInBody(false));
@@ -1952,7 +1953,7 @@ describe("postpolish editor save policy", () => {
     expect(port.updatePostCalls[0].hideCoverImageInBody).toBe(false);
     expect(first.result.current.dirty).toBe(false);
     first.unmount();
-    const second = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const second = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(second.result.current.title).toBe(POST.title));
     expect(second.result.current.hideCoverImageInBody).toBe(false);
     await act(async () => second.result.current.save({}));
@@ -1966,7 +1967,7 @@ it("postpolish: a settling Save preserves a later cover toggle and manual slug e
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   port.updatePost = async ({ target, patch }) => { const result = await update({ target, patch }); await gate; return result; };
-  const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+  const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
   await waitFor(() => expect(result.current.title).toBe(POST.title));
   await waitFor(() => expect(result.current.dirty).toBe(false));
   act(() => { result.current.setTitle({ next: "Saved title" }); result.current.setHideCoverImageInBody(false); });
@@ -1984,7 +1985,7 @@ it("postpolish: a settling Save preserves a later cover toggle and manual slug e
 describe("usePostEditor coverage boundaries", () => {
   it("preserves the working copy when overwriting cannot re-read the current version, then allows retry", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.setTitle({ next: "Keep my work" }));
@@ -2011,7 +2012,7 @@ describe("usePostEditor coverage boundaries", () => {
   for (const operation of ["save", "publish", "delete"] as const) {
     it(`reports the ${operation} fallback for a non-Error rejection`, async () => {
       const port = createFakePostEditorPort({ post: POST });
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await waitFor(() => expect(result.current.post).not.toBeNull());
       await waitFor(() => expect(result.current.editor).not.toBeNull());
       const before = structuredClone(port.post);
@@ -2032,7 +2033,7 @@ describe("usePostEditor coverage boundaries", () => {
     const port = createFakePostEditorPort({ post: POST });
     port.getPost = async () => { throw "offline"; };
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: fakeT } }));
     // A non-HTTP failure is a defect here: the plain line, never the raw value.
     await waitFor(() => expect(result.current.error).toBe("This post didn't finish loading. Reload the page; nothing was changed."));
     await act(async () => { await result.current.remove(); });
@@ -2044,7 +2045,7 @@ describe("usePostEditor coverage boundaries", () => {
   for (const action of ["onDrop", "onPaste"] as const) {
     it(`the configured FileHandler ${action} uploads into the real editor`, async () => {
       const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
-      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+      const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
       await waitFor(() => expect(result.current.post).not.toBeNull());
       await waitFor(() => expect(result.current.editor).not.toBeNull());
       const editor = result.current.editor!;
@@ -2061,7 +2062,7 @@ describe("usePostEditor coverage boundaries", () => {
 
   it("the configured editor drop handler leaves an internal move to ProseMirror", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const before = editor.getJSON();
@@ -2074,7 +2075,7 @@ describe("usePostEditor coverage boundaries", () => {
 
 it("restoring without a recoverable draft leaves the loaded working copy unchanged", async () => {
   const port = createFakePostEditorPort({ post: POST });
-  const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+  const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
   await waitFor(() => expect(result.current.post).not.toBeNull());
   await waitFor(() => expect(result.current.editor).not.toBeNull());
   const before = result.current.editor!.getJSON();
@@ -2094,7 +2095,7 @@ describe("usePostEditor — remaining boundaries", () => {
       if (call === 1) throw new Error("first upload failed");
       return { media: UPLOADED_MEDIA };
     });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     const editor = result.current.editor!;
     const bad = new File(["bytes"], "bad.png", { type: "image/png" });
@@ -2112,7 +2113,7 @@ describe("usePostEditor — remaining boundaries", () => {
 
   it("a key other than Escape leaves the expanded preview open", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).toEqual(POST));
     act(() => result.current.setView("preview"));
     act(() => result.current.togglePreviewExpanded());
@@ -2127,7 +2128,7 @@ describe("usePostEditor — remaining boundaries", () => {
   it("a save before any row has loaded is refused, reaches no server, and parks no local backup", async () => {
     const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
     const update = vi.spyOn(port, "updatePost");
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.error).toBe("boom"));
 
     await act(async () => { await result.current.save({}); });
@@ -2144,7 +2145,7 @@ describe("usePostEditor — remaining boundaries", () => {
       baseVersion: POST.version, savedAt: "2026-10-09T01:00:00Z", savedByPrincipalId: "fake-principal", author: null,
     };
     const port = createFakePostEditorPort({ post: { ...POST, author: "admin", showAuthor: true }, autosave });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
     await waitFor(() => expect(result.current.author).toBe("admin"));
 
@@ -2161,7 +2162,7 @@ describe("usePostEditor — remaining boundaries", () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
     port.updatePost = async ({ target, patch }) => { await gate; return update({ target, patch }); };
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setShowAuthor(true));
     let pending!: Promise<void>;

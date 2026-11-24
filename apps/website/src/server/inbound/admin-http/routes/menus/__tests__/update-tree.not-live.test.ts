@@ -6,7 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryMenuRepo } from "@jini-ai/cms/navigation";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMenuUpdateTreeRoute } from '#src/server/runtime/composition/modules/menus';
+import { registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/composition/modules/menus";
 
 /**
  * `updateMenuTree` refuses a trashed menu with `EntityNotLiveError` (web-high fix plan follow-up,

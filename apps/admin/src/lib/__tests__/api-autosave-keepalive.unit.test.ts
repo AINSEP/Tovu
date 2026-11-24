@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { postsApi } from "../../features/posts/api/posts-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
 import { bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../admin-http/request";
 
 /**

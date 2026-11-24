@@ -11,7 +11,7 @@ import express from "express";
 import { JSDOM } from "jsdom";
 import type { UUID } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps as createSeededRouteDeps } from "#src/server/runtime/composition/app";
-import type { PostRepoPort, PostRecord } from "#src/features/post/index";
+import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";

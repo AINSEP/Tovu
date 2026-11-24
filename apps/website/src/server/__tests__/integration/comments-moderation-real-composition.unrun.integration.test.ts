@@ -12,12 +12,12 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * put-settings}.ts`) through the REAL site composition on both dialects.
  *
  * Every moderation route test today mounts the hermetic root's in-memory comment repo. The Kysely
- * `SqliteCommentRepo` (`p_comments__comments`, a data-module table) is dialect-tested on its own, but
+ * `SqlCommentRepo` (`p_comments__comments`, a data-module table) is dialect-tested on its own, but
  * the composed seam — the module's `entryLookup` reading the collections `entries` table, the ledger
  * settings read per request, the moderation-version compare-and-set, the Trash index following a
  * status flip, and the keyset cursor — has never answered HTTP on Postgres.
  *
- * Comments attach to collection ENTRIES (`createCommentsModule`'s `entryRepo` is `SqliteEntryRepo`),
+ * Comments attach to collection ENTRIES (`createCommentsModule`'s `entryRepo` is `SqlEntryRepo`),
  * not posts, so each test registers a content type and publishes one entry first.
  *
  * Unknown queue cursor: the INTENDED answer is 400 VALIDATION_ERROR (the repo throws

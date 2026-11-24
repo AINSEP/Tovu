@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { toRecord, toRevisionRow, toRow, type PostRow } from "../repo.rows.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 const state: PostRecord = { id: "p1", workspaceId: "ws", title: "Café", slug: "cafe", bodyJson: { type: "doc", content: [] },
   bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: "2026-10-01T12:00:00.000Z", version: 7 };

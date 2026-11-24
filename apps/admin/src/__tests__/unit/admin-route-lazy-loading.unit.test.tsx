@@ -21,7 +21,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/posts", moduleId: "posts", exports: ["PostEditor", "Posts"] },
   { modulePath: "../../features/pages", moduleId: "pages", exports: ["PageEditor", "Pages"] },
   { modulePath: "../../features/members", moduleId: "members", exports: ["Members"] },
-  { modulePath: "../../features/comments", moduleId: "comments", exports: ["Comments"] },
+  { modulePath: "@jini-ai/admin/screens/comments", moduleId: "comments", exports: ["Comments"] },
   { modulePath: "../../integrations/jini-admin/analytics-page", moduleId: "analytics", exports: ["Analytics"] },
   { modulePath: "../../features/library", moduleId: "library", exports: ["Library"] },
   { modulePath: "../../features/menus", moduleId: "menus", exports: ["Menus", "MenuEditor"] },
@@ -33,7 +33,7 @@ const ROUTE_FEATURES = [
   { modulePath: "@jini-ai/admin/screens/seo", moduleId: "seo", exports: ["Seo"] },
   { modulePath: "@jini-ai/admin/screens/redirects", moduleId: "redirects", exports: ["Redirects"] },
   { modulePath: "../../features/plugins", moduleId: "plugins", exports: ["Plugins", "AgentPlugins"] },
-  { modulePath: "../../features/forms", moduleId: "forms", exports: ["FormsList", "FormEditor"] },
+  { modulePath: "@jini-ai/admin/screens/forms", moduleId: "forms", exports: ["FormsList", "FormEditor"] },
   { modulePath: "../../features/collections", moduleId: "collections", exports: ["Collections", "CollectionEntries", "CollectionEntryEditor"] },
   { modulePath: "../../features/taxonomy", moduleId: "taxonomy", exports: ["Taxonomy"] },
   { modulePath: "../../features/trash", moduleId: "trash", exports: ["Trash"] },
@@ -44,7 +44,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/source-control", moduleId: "source-control", exports: ["SourceControl"] },
   { modulePath: "../../features/security", moduleId: "security", exports: ["Security"] },
   { modulePath: "../../features/observability", moduleId: "observability", exports: ["Observability"] },
-  { modulePath: "../../features/widgets", moduleId: "widgets", exports: ["WidgetsLibrary", "WidgetInstanceEditor", "WidgetRegions", "WidgetRegionEditor"] },
+  { modulePath: "@jini-ai/admin/screens/widgets", moduleId: "widgets", exports: ["WidgetsLibrary", "WidgetInstanceEditor", "WidgetRegions", "WidgetRegionEditor"] },
   { modulePath: "../../features/ai-assistant", moduleId: "ai-assistant", exports: ["AiAssistant"] },
   { modulePath: "../../features/playground", moduleId: "playground", exports: ["Playground"] },
   { modulePath: "../../features/sites", moduleId: "sites", exports: ["Sites"] },
@@ -65,6 +65,12 @@ const routeProbes = {
   CollectionEntryEditor: ({ contentTypeKey, entryId }: { contentTypeKey: string; entryId: string | null }) =>
     createElement("h1", null, `Collection ${contentTypeKey} ${entryId ?? "new"}`),
 };
+// panel-mounts.ts binds the host module-panel hook and loading views into the eager bridges. The
+// bridges are faked above and never call them, so stub the host admin scope rather than evaluate it.
+vi.mock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
+vi.mock("../../integrations/jini-admin/comments-module.hooks", () => ({ CommentsModuleLoading: () => null }));
+vi.mock("../../integrations/jini-admin/forms-module.hooks", () => ({ FormsModuleLoading: () => null }));
+vi.mock("../../integrations/jini-admin/widgets-module.hooks", () => ({ WidgetsModuleLoading: () => null }));
 const useAdminLocaleHook: UseAdminLocaleHook = () => "es";
 
 const Placeholder: PanelRenderContext["Placeholder"] = ({ sectionId }) => createElement("h1", null, sectionId);

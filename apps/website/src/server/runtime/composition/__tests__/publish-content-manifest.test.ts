@@ -1,3 +1,6 @@
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
+import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
+import { FORMS_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
 import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
@@ -31,13 +34,11 @@ import { fileURLToPath } from "node:url";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
-import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
@@ -133,9 +134,9 @@ for (const fixture of APPLY_FIXTURES) {
         dir: "/themes/static/registry-theme", source: "site", tokens: {}, tokensLight: {}, templates: {},
         liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {},
       } satisfies DiscoveredTheme);
-      const forms = new SqliteFormDefinitionRepo({ store: site.db });
+      const forms = formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: site.db }), tables: FORMS_TABLES });
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
-        entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
+        entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: widgetRegionBindingRepoFor({ kernel: schemaErasedKernel({ store: site.db }), tables: WIDGETS_TABLES }) };
       const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
       const handler = buildPublishContentCatalog(deps).handlerByType.get(fixture.entityType);
       assert.ok(handler, `${fixture.entityType} must be installed`);

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
@@ -18,7 +18,7 @@ import {
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
-import type { MediaPort } from "./media-port.hooks";
+import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 
 /**
  * @file Everything `EditMediaPanel` does, so the component in `Media.tsx` is only markup.

@@ -19,7 +19,7 @@ import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/searc
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 

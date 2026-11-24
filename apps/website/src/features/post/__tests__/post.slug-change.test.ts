@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type SlugChangeCapture, type SlugChangeCaptureInput } from '@jini-ai/cms/routing';
-import { PostValidationError, ROOT_SLUG, SYSTEM_ACTOR_ID, type PostRecord } from "../post.js";
+import { PostValidationError, ROOT_SLUG, SYSTEM_ACTOR_ID, type PostRecord } from "@jini-ai/cms/posts/post";
 import { updatePost, type UpdatePostDeps } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 

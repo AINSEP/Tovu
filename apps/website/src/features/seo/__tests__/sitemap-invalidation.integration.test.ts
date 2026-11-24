@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
-import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
+import { InMemoryPostRepo, createPost, updatePost } from "../../post/index.js";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import {

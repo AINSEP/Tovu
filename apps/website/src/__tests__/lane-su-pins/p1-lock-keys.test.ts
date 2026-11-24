@@ -1,3 +1,5 @@
+import { SqlTaxonomyRepo, SqlEntryTermRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
@@ -11,7 +13,6 @@ import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sq
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createIdentityTransactions } from "#src/features/identity/repo";
 import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
@@ -67,8 +68,8 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
 describe("P1 lock keys: taxonomy, trash, claims", () => {
   test("taxonomy transaction and term repoint take the same per-workspace key", async () => {
     const { kernel, keys } = recordingKernel();
-    await new SqliteTaxonomyRepo({ db: kernel, workspaceId: WS }).transaction({ fn: async () => "done" });
-    assert.deepEqual(await new SqliteEntryTermRepo({ db: kernel, workspaceId: WS }).repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 0 });
+    await new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId: WS }, {}).transaction({ fn: async () => "done" });
+    assert.deepEqual(await new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId: WS }, {}).repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 0 });
     assert.deepEqual(keys, [`taxonomy:${WS}`, `taxonomy:${WS}`]);
   });
 

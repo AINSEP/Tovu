@@ -25,7 +25,7 @@ import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer as CustomCredentialSealer } from "@jini-ai/platform/secrets";
-import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
+import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";

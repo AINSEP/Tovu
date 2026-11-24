@@ -27,7 +27,8 @@ export function contentKernel({ store }: { store: ContentKernel | SqliteConnecti
 /**
  * The same kernel as {@link contentKernel}, typed without the host schema, for the Jini SQL adapters
  * (the `@jini-ai/<pkg>/.../sql` subpaths) whose `kernel` requirement is `StorageKernel<Kysely<unknown>, unknown>`.
- * Erases the host schema only: a Jini adapter supplies each query's table view on this same kernel.
+ * Erase the host schema only: Jini adds the plugin tables with withTables on this same kernel — a Jini
+ * adapter supplies each query's table view there.
  * It returns the very object `contentKernel` returns (no wrapper), so transactions and lock keys are shared.
  * This is the ONE place the schema-erasing cast lives; bindings call it and add no cast of their own.
  */

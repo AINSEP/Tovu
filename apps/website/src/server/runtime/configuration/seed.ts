@@ -1,5 +1,5 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { DEFAULT_THEME_ID } from "#src/features/theme/index";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";

@@ -5,7 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**

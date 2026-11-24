@@ -2,18 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
-  type MediaProviderCredentialRecord,
-  type MediaProviderCredentialRepoPort,
   resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT } from "@jini-ai/platform/secrets/credential-token";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";

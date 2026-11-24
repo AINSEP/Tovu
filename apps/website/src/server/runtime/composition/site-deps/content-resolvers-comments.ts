@@ -1,28 +1,33 @@
+import type { SqlContentTypeRepo } from "@jini-ai/cms/content-types/sql";
+import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
+import { formSubmissionRepoFor, type SqlFormDefinitionRepo } from "@jini-ai/cms/forms/sql";
+import type { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { commentRepoFor } from "@jini-ai/cms/comments/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { COMMENTS_TABLES, FORMS_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
 import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
-import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
-import { SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { createCommentTargetLookup } from "@jini-ai/cms/comments/site/comment-targets";
-import { createCommentsCapability } from "#src/features/comments/provider-selection";
+import { createCommentsCapability } from "@jini-ai/cms/comments/site/provider-selection";
+import { createCommentsProviderRegistry } from "@jini-ai/capability-providers/comments";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel, resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
+import { createNavMenuReadModel } from "@jini-ai/cms/navigation";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
-import type { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import type { SqliteMediaRepo, SqliteTransformDefinitionRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";
 import type { SqlitePostRepo } from "#src/features/post/index";
-import type { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
-import type { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
@@ -36,14 +41,14 @@ import type { createSqliteIdentityRouteDeps } from "#src/features/identity/wirin
 interface ComposeContentResolversCommentsRequired {
   kernel: SiteStore["content"];
   siteTimeZone: ReturnType<typeof composeIdentitySettings>["siteTimeZone"];
-  entryRepo: SqliteEntryRepo;
+  entryRepo: SqlEntryRepo;
   mediaRepo: () => SqliteMediaRepo;
   transformDefinitionRepo: SqliteTransformDefinitionRepo;
   mediaContentTypeStore: () => SqliteMediaContentTypeStore;
   postRepo: () => SqlitePostRepo;
-  menuRepo: SqliteMenuRepo;
-  navLocationBindingRepo: SqliteNavLocationBindingRepo;
-  formDefinitionRepo: SqliteFormDefinitionRepo;
+  menuRepo: SqlMenuRepo;
+  navLocationBindingRepo: SqlNavLocationBindingRepo;
+  formDefinitionRepo: SqlFormDefinitionRepo;
   formCollectionProviders: () => () => ReturnType<typeof createFormCollectionRegistry>;
   routeDeps: () => NewsletterRouteDeps & ByokToolSurfaceDeps;
   outbox: SqliteOutboxAdapter;
@@ -62,12 +67,12 @@ interface ComposeContentResolversCommentsRequired {
 
 export function composeContentResolversComments(required: ComposeContentResolversCommentsRequired, _optional = {}) {
   const { kernel, siteTimeZone, entryRepo, mediaRepo, transformDefinitionRepo, mediaContentTypeStore, postRepo, menuRepo, navLocationBindingRepo, formDefinitionRepo, formCollectionProviders, routeDeps, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, trashTransaction, commentsReady, commentsSettingsReady, identity, settingsPrincipals } = required;
-  const formSubmissionRepo = new SqliteFormSubmissionRepo({ store: kernel });
+  const formSubmissionRepo = formSubmissionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES });
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
-  // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
+  // the `ContentTaxonomyDeps` object below). Both `SqlContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
   // keeps this identical to `apps/website/src/server/runtime/composition/app.ts`'s hermetic root, where sharing is load-bearing.
-  const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });
+  const contentTypeRepo = contentTypeRepoFor({ store: kernel });
   const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
   // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app
@@ -95,7 +100,7 @@ export function composeContentResolversComments(required: ComposeContentResolver
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new SqliteCommentRepo({ store: kernel }, {}),
+    commentRepo: commentRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: COMMENTS_TABLES }),
     // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
     // read lazily at submit time, after this root has finished constructing it.
     entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo().findById(required) } }),
@@ -116,7 +121,8 @@ export function composeContentResolversComments(required: ComposeContentResolver
   }, {});
   const commentsCapability = createCommentsCapability({
     siteId: workspaceId, module: commentsModule, commentsReady: commentsReady, settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals, createPrincipalLookup: createSettingsPrincipalLookup },
+    createProviderRegistry: createCommentsProviderRegistry,
   });
   return { formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability };
 }
