@@ -3,7 +3,8 @@ import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 import { useEmail, type EmailController, type EmailPort } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
 import { useEmailActivity, type EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { useEmailOverview, type EmailOverviewController } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
-import { useEmailProvider, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
+import { useEmailProvider, useProviderChoices, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
+import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 import { useEmailSender, type EmailSenderController } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 import { useEmailTemplateEditor, type EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
 import { useEmailTemplates, type EmailTemplatesController } from "@jini-ai/admin/screens/email/hooks/use-email-templates.hooks";
@@ -45,7 +46,7 @@ export function useWiredEmailOverview(): EmailOverviewController {
 
 /** The real API ports: the email client, the Plugins client (list + enable) and this app's transport error. */
 export function useWiredEmailProvider(optional: { onChanged?: () => void } = {}): EmailProviderController {
-  return useEmailProvider({ api: emailApi, pluginApi: integrationsApi, ApiError }, optional);
+  return useEmailProvider({ api: emailApi, pluginApi: integrationsApi, ApiError, useLoadHook: useLoad, useProviderChoicesHook: useProviderChoices }, optional);
 }
 
 /** The real API port. */

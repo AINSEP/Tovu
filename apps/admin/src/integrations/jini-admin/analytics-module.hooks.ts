@@ -7,7 +7,6 @@ import { useFetchQuery } from '@jini-ai/ui/fetch-query';
  * the only place they meet the screen.
  */
 import type { AnalyticsPort } from '@jini-ai/admin/screens/analytics/hooks/analytics-port.hooks';
-import { useFetchQuery } from '@jini-ai/ui/fetch-query';
 import { useAnalytics, type AnalyticsController } from '@jini-ai/admin/screens/analytics/hooks/use-analytics.hooks';
 import { t as defaultT } from '@jini-ai/admin/screens/analytics/analytics-i18n';
 import { analyticsApi } from '../../features/analytics/api/analytics-api';

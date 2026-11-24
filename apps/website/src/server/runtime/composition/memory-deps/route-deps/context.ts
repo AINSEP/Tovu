@@ -13,7 +13,6 @@ import type { composeOriginNewsletter } from "../slices/origin-newsletter.js";
 import type { composeMemoryComments } from "../slices/comments.js";
 import type { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import type { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
-import type { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { InMemorySettingsRepo } from "#src/features/settings/index";

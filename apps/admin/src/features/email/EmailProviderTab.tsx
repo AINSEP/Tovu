@@ -99,7 +99,7 @@ function ProviderChips({ provider, locale }: CardProps) {
   return (
     <div className="email-row">
       <strong className="email-provider-name">{provider.label}</strong>
-      {active ? <Chip tone="ok">{t({ locale, key: isFullyActive(provider) ? "Active" : "Active for one lane" })}</Chip> : null}
+      {active ? <Chip tone="ok">{t({ locale, key: isFullyActive({ provider }) ? "Active" : "Active for one lane" })}</Chip> : null}
       {provider.credential.required ? <Chip tone={saved ? "ok" : "warning"}>{t({ locale, key: saved ? "Key saved" : "Key not saved" })}</Chip> : null}
       {provider.hosted ? null : <Chip tone="neutral">{t({ locale, key: "Local only" })}</Chip>}
     </div>
@@ -126,7 +126,7 @@ function ProviderKeyForm({ provider, controller, locale }: CardProps) {
 }
 
 function ProviderSwitch({ provider, controller, locale }: CardProps) {
-  if (isFullyActive(provider)) return null;
+  if (isFullyActive({ provider })) return null;
   return (
     <>
       {/* MOVE: Credential presence is structured state; refusal text contains server internals. */}
@@ -167,7 +167,7 @@ export function shownProviderId(
   { providers, selectedId }: { providers: readonly MailProviderConfiguration[]; selectedId: string | null | undefined },
   _options = {},
 ): string | undefined {
-  const pick = providers.find((p) => p.id === selectedId) ?? providers.find(isFullyActive) ?? providers.find((p) => p.lanes.length > 0) ?? providers[0];
+  const pick = providers.find((p) => p.id === selectedId) ?? providers.find((p) => isFullyActive({ provider: p })) ?? providers.find((p) => p.lanes.length > 0) ?? providers[0];
   return pick?.id;
 }
 

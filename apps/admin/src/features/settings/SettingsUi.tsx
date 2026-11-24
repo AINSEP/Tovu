@@ -150,7 +150,6 @@ import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/setting
 import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
 import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-settings.hooks";
 
-import { agentHandle } from '@jini-ai/core/agent-handles';
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {

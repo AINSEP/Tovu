@@ -3,9 +3,6 @@ import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentRe
 import { useAdminKit } from '@jini-ai/admin/react/kit';
 import { agentHandle } from '@jini-ai/core/agent-handles';
 import { consentErrors, consentUi, defaultConsentRevisionsPort, useConsentTranslate } from './consent-ports';
-import { agentHandle } from '@jini-ai/core/agent-handles';
-import { useAdminKit } from '@jini-ai/admin/react/kit';
-import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '@jini-ai/admin/screens/consent/use-consent-page.hooks';
 import type { CookieConsentHooks } from '@jini-ai/admin/screens/consent/CookieConsent';
 import '@jini-ai/admin/screens/consent/consent-settings.css';
 import './consent-screen.css';

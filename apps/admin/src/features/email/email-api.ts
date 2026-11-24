@@ -5,7 +5,6 @@ import type {
   MailProviderCredentialInput, MailSuppressionPage, MailSuppressionRemovalPlan, MailSuppressionScope, MailTestSendResult,
   MailUseRow,
 } from "@jini-ai/admin/screens/email/email-api.types";
-import type { MailFeedbackSetupReport } from "@jini-ai/core/contracts/site/platform-mail";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
 

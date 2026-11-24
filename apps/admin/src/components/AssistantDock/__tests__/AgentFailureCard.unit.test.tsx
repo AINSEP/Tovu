@@ -23,8 +23,6 @@ import { FolderDropPathHint } from "../FolderDropPathHint";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
-import { formatUserFacingError } from "@jini-ai/core";
-import { isAbortError } from "@jini-ai/core/text";
 
 afterEach(cleanup);
 const reason = "IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google";

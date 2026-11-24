@@ -28,7 +28,6 @@ import { createPostRevertRegistry } from "#src/features/post/index";
 import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import { createSiteMailFeedbackRoute } from "@jini-ai/platform/mail/sql";
 import { MAIL_WEBHOOK_SECRET_LABEL_PREFIX } from "#src/features/mail/index";
-import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import { legacyProviderCredentialCheck } from "../provider-plugins.js";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";

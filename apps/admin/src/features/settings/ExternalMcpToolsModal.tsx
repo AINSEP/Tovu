@@ -3,7 +3,6 @@ import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { useT } from "@jini-ai/ui";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
-import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { useExternalMcpToolsModalEscape } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal.hooks";
 import { ExternalMcpToolPicker } from "./ExternalMcpToolPicker";
 

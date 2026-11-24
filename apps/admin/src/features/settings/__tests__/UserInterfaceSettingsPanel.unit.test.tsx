@@ -1,7 +1,6 @@
 import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { describe, expect, it, vi } from "vitest";
-import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { DEFAULT_INTERFACE } from "@/lib/settings-tabs";
 import { useUserInterfaceTab } from "../hooks/use-user-interface-tab.hooks";

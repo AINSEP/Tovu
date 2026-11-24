@@ -1,6 +1,5 @@
 import { formatUserFacingError } from '@jini-ai/core';
 import { createElement, useLayoutEffect, useState } from "react";
-import { formatUserFacingError } from "@jini-ai/core";
 import {
   createExtEventRendererRegistry,
   createMcpUiToolCaller,
