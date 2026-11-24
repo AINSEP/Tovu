@@ -13,7 +13,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  */
 import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import type { MailerPort, MailSenderIdentityPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import { buildConfirmationDeps } from "#src/features/newsletter/deps-builders";
@@ -21,8 +21,8 @@ import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "#src/features/newsletter/index";
-import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {
   workspaceId: UUID;

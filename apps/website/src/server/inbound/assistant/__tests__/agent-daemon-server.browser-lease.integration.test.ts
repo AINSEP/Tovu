@@ -10,7 +10,7 @@ import { createExclusiveRunLease, type ExclusiveRunLease } from "@jini-ai/daemon
 import { failRunBeforeStart } from "#src/assistant/agent-session-preset";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, readAssistantRuntimePreferences } from "#src/assistant/runtime-preferences";
-import { ADMIN_INTERFACE_NAMESPACE, ensureAdminInterfaceSettingDefinitions, USE_CLAUDE_IN_CHROME_KEY } from "#src/features/settings/admin-interface";
+import { ADMIN_INTERFACE_NAMESPACE, ensureAdminInterfaceSettingDefinitions, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { BROWSER_BUSY_GUIDANCE, CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { daemonEntrySource } from "./helpers/daemon-entry-source.js";
@@ -79,6 +79,7 @@ const SYSTEM_PRINCIPAL = "system-settings-migration";
 function ledgerDeps() {
   return {
     settingsRepo: new InMemorySettingsRepo(),
+    ensureSettingDefinitions,
     clock: { nowIso: () => "2026-11-17T00:00:00.000Z", nowMs: () => Date.parse("2026-11-17T00:00:00.000Z") },
     ids: { newId: (() => { let next = 0; return () => `lease-test-id-${++next}`; })() },
     principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),

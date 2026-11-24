@@ -1,4 +1,5 @@
-import type { PackedEntity, RetireTarget, ReferenceHolder, MediaSourceReplacement } from "./type-registry.js";
+import type { RetireTarget, ReferenceHolder, MediaSourceReplacement } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file The planner's row and report shapes, the natural entity key and the on-screen labels —

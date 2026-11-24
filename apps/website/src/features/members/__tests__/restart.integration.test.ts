@@ -8,7 +8,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMemberRepo, SqliteMemberSessionRepo } from "../repo.sqlite.js";
 import { SqliteMemberSubscriptionRepo, SqliteMemberTierRepo } from "../repo.sqlite.js";
-import { DefaultMemberAccessResolver } from "../access-resolver.js";
+import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Members row: "Restart +

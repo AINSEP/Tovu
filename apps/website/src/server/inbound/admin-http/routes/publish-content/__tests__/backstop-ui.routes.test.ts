@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerPublishBackstopRoutes } from "../backstop.js";
+import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
 
 test("UI status is owner/built-in-admin and session only, even when a custom admin has the permission", async (t) => {

@@ -2,7 +2,7 @@
  * @file The renderer-facing half of the speech feature: exposes `window.tovuVoice` via
  * `contextBridge` so the admin web app (loaded by `createWindow` in `main.ts`, running with
  * `contextIsolation: true, sandbox: true, nodeIntegration: false`) can reach the two IPC handlers
- * `speech-ipc.ts` registers, without gaining any other Node/Electron access.
+ * `@jini-ai/desktop-host/shell/speech/speech-ipc` registers, without gaining any other Node/Electron access.
  *
  * `window.tovuVoice` existing at all is also the renderer's own capability signal: the composer
  * slot on the Tovu-admin side (`apps/admin/src/features/voice-input/`) checks for its presence to
@@ -11,7 +11,7 @@
  * needs the desktop app because transcription runs on-device (see
  * `apps/admin/src/features/voice-input/voice-unavailability.ts`).
  *
- * Wired into `main.ts` as every site window's `webPreferences.preload` — see `speech-ipc.ts`'s own
+ * Wired into `main.ts` as every site window's `webPreferences.preload` — see `@jini-ai/desktop-host/shell/speech/speech-ipc`'s own
  * header and `main.ts`'s `SPEECH_PRELOAD_PATH` doc.
  *
  * **`window.tovuFiles` (SPEC-053) is this file's second, unrelated bridge — same file for the same
@@ -26,7 +26,7 @@
  * synchronous, side-effect-free call, no IPC channel, no filesystem read (`webUtils.getPathForFile`
  * reads a `File` handle's own OS path, already-Chromium-known metadata — it does not open or stat
  * anything). `window.tovuFiles` existing is the renderer's own capability signal here too, the same
- * shape `voice-input-port.ts` uses for `tovuVoice`: `apps/admin/src/features/fs-files/folder-drop-port.ts`
+ * shape `voice-input-port.ts` uses for `tovuVoice`: `@jini-ai/admin/screens/fs-files/folder-drop-port`
  * checks for its presence before attempting to recover a folder path, and does nothing (falls through
  * to the ordinary attachment-upload path) when it is absent — a plain browser tab, not this shell.
  *

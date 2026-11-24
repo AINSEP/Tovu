@@ -21,6 +21,7 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import * as vaultBySubpath from "#src/features/external-mcp/external-mcp-vault";
 import * as vaultByRelativePath from "../../../../features/external-mcp/external-mcp-vault.js";
 
@@ -184,7 +185,6 @@ test("row 6: the tool projection carries one issued-token memory and one frozen-
 // envelope one makes must be readable by the other. The packed-run and P8g halves wait for H0.
 test("row 4: both import forms reach ONE external-mcp-vault module, so an envelope made through one is read through the other", () => {
   assert.ok(vaultBySubpath === vaultByRelativePath, "one module namespace");
-  assert.ok(vaultBySubpath.externalMcpVaultEnvelope === vaultByRelativePath.externalMcpVaultEnvelope, "envelope factory ===");
   assert.ok(vaultBySubpath.externalMcpVaultRecord === vaultByRelativePath.externalMcpVaultRecord, "record reader ===");
   const record = {
     id: "vault-1", workspaceId: "ws-1", kind: "mcp-env" as const, ownerKey: "server-1", principalId: null, binding: null,
@@ -192,7 +192,7 @@ test("row 4: both import forms reach ONE external-mcp-vault module, so an envelo
     createdAt: "2026-11-07T00:00:00.000Z", updatedAt: "2026-11-07T00:00:00.000Z",
     sealed: { keyId: "k1", ciphertext: "c", nonce: "n", alg: "aes-256-gcm" },
   };
-  const sealed = vaultBySubpath.externalMcpVaultEnvelope({ record: record as never });
+  const sealed = externalMcpVaultEnvelope({ record: record as never });
   assert.ok(sealed);
   const read = vaultByRelativePath.externalMcpVaultRecord({ sealed, identity: { workspaceId: "ws-1", serverId: "server-1" }, kind: "mcp-env" });
   assert.equal(read.id, "vault-1", "the other import form recognizes the envelope's context");

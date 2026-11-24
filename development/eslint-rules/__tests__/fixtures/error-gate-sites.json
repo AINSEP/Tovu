@@ -133,9 +133,10 @@
   "findings": [],
   "imports": [
    "import { ToolInputError } from \"@jini-ai/core\";",
-   "import { resolveSitePath } from \"#src/features/site-inspection/site-path-policy\";"
+   "import { resolveSitePath } from \"@jini-ai/diagnostics/web-evidence/site-path-policy\";",
+   "import { RESERVED_SEGMENTS } from \"#src/platform/routing/index\";"
   ],
-  "code": "try { return resolveSitePath({ raw: path, base: 'http://127.0.0.1' }); }\n  catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }"
+  "code": "try { return resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS }); }\n  catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }"
  },
  {
   "site": "apps/website/src/features/media-generation/media-provider-registry.ts:125",

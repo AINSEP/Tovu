@@ -5,7 +5,8 @@ import { InMemoryMcpSession } from "#src/assistant/mcp-federation/adapter.memory
 import { createAssistantServerFederation } from "../assistant-server-federation.js";
 import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "#src/assistant/external-mcp-roster-change";
 import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from "#src/server/runtime/lifecycle/daemon-supervisor";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/features/external-mcp/external-mcp-oauth";
+import { createExternalMcpOAuthService } from "#src/features/external-mcp/external-mcp-oauth";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import { serverFederationFixture } from "./helpers/server-federation-fixture.js";
 

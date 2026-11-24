@@ -13,7 +13,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
-import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
+import { domainDnsAgentToolCatalog } from "@jini-ai/devops/dns/site/tools";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),

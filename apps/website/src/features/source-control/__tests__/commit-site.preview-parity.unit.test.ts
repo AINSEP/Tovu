@@ -8,7 +8,7 @@ import test from "node:test";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 import { commitSiteToSourceControl, previewCommitExport, type CommitSiteInput, type SourceControlCommitAdapter } from "../commit-site.js";
-import type { CommitFile } from "../provider-module.js";
+import type { CommitFile } from "@jini-ai/devops/source-control/site/provider-module";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 
 /**

@@ -7,11 +7,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { readPluginInstallRequest, readPluginInstallArchive } from '../../../features/plugin-runtime/install-source.js';
-import { CHAT_ATTACHMENT_REF_PATTERN } from '../index.js';
+import { CHAT_ATTACHMENT_REF_PATTERN } from '@jini-ai/core/contracts/headless/chat-attachment';
 
-/** `plugin-host` and `plugin-export-catalog` moved to `@jini-ai/core/contracts/headless/*`, where the
+/** `plugin-host`, `plugin-export-catalog` and `chat-attachment` moved to `@jini-ai/core/contracts/headless/*`, where the
  * core contract check (XP4) admits only relative type imports inside core, a stricter rule than this one. */
-for (const filename of ['plugin-install-source.ts', 'chat-attachment.ts']) {
+for (const filename of ['plugin-install-source.ts']) {
   test(`fxpid: ${filename} has no imports or re-exports into feature/server/app layers`, async () => {
     const url = new URL(`../${filename}`, import.meta.url);
     const file = fileURLToPath(url);

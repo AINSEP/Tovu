@@ -17,13 +17,13 @@ import type {
   DeployTargetRegistry,
   HostDeployPublishInput,
   LoadedDeployTarget,
-} from "#src/features/deployments/deploy-targets/types";
+} from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { adaptInstalledTarget, publishStaticSite, type StaticPublishDeps } from "../adapter.js";
-import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
+import type { PublishCredentialSource, StaticPublishConfig } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /**
  * @file The static-publish adapter's plugin path (deploy plan T2, strangler): a target id the

@@ -1,7 +1,7 @@
 import { navAvailability } from '../nav-availability.js';
 import { visibleSections, type RunnerSection, type RunnerSectionId } from '../../contracts/sections.js';
 import { SectionIcon } from '../icons.js';
-import type { ThemePreference } from '../theme.js';
+import type { ColorSchemePreference as ThemePreference } from '@jini-ai/ui/theme';
 import { navLinkClick } from '../App.hooks.js';
 import { useAppVersion } from '../use-app-version.hooks.js';
 import { ResourcesChip } from '../ResourcesPanel.js';

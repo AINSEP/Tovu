@@ -11,7 +11,8 @@ import * as federation from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { readEnabledExternalMcpConfigs, applyExternalMcpAccess, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
 
 const siteLayouts = createTempSiteLayoutFixture({});
 after(siteLayouts.cleanup);

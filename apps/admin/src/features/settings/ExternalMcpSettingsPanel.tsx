@@ -1,4 +1,5 @@
-import { ExternalMcpSharedChoice } from "./ExternalMcpSharedChoice";
+import { ExternalMcpSharedChoice } from "@jini-ai/admin/screens/settings/ExternalMcpSharedChoice";
+import { useHostExternalMcpSharedChoice } from "../../integrations/jini-admin/settings-external-mcp-shared-choice.hooks";
 import { useState } from "react";
 import {
   Icon,
@@ -15,7 +16,10 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
-import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
+import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
+import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 import {
@@ -26,8 +30,9 @@ import {
   useSavedAllowedToolNamesById,
 } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
-import { useExternalMcpOAuthConnect } from "./hooks/use-external-mcp-oauth-connect.hooks";
-import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
+import { EXTERNAL_MCP_PRODUCT_VARS } from "../../integrations/jini-admin/settings-external-mcp-copy";
+import { useHostExternalMcpOAuthConnect } from "../../integrations/jini-admin/settings-external-mcp-oauth-connect.hooks";
+import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -211,7 +216,7 @@ function ExternalMcpConnectionCard({ useExternalMcpDriftCopyHook = useExternalMc
             <span className="source-config-item-card-label">{label}</span>
             <span className="external-mcp-builtin-badge">{tBuiltIn("Built-in")}</span>
             <InfoTip
-              label={tBuiltIn("Lets this site's assistant list your other Tovu sites, add a site pointer, and reveal a site folder.")}
+              label={tBuiltIn("Lets this site's assistant list your other {productName} sites, add a site pointer, and reveal a site folder.").replace("{productName}", () => EXTERNAL_MCP_PRODUCT_VARS.productName)}
               triggerLabel={tBuiltIn("About {name}").replace("{name}", () => label)}
               agentHandle={`${cardHandle}-info`}
             />
@@ -241,7 +246,7 @@ function ExternalMcpConnectionCard({ useExternalMcpDriftCopyHook = useExternalMc
 }
 
 /** The "Connect" button for an OAuth row that isn't signed in (2026-10-23). It disappears once the
- *  roster re-reads the row as `connected` — see `useExternalMcpOAuthConnect` for the flow. While a
+ *  roster re-reads the row as `connected` — see Jini's `useExternalMcpOAuthConnect` for the flow. While a
  *  sign-in is in flight it stays put, disabled, with the same label (no width jump); the line under
  *  the row says what it is waiting on. */
 function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string; busy: boolean; tDrift: Translate; onConnect: () => void }) {
@@ -268,7 +273,7 @@ function displayHost({ uri }: { uri: string }, _options = {}): string {
 
 /** The line under a row while sign-in is in flight, or why it failed. `null` when there is
  *  nothing to say. */
-function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalMcpOAuthConnect>["state"]; tDrift: Translate; onCancel: () => void }) {
+function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useHostExternalMcpOAuthConnect>["state"]; tDrift: Translate; onCancel: () => void }) {
   const { state, tDrift, onCancel } = props;
   if (state.phase === "idle") {
     return state.error ? <p className="external-mcp-connect-status external-mcp-connect-status--error" role="alert">{state.error}</p> : null;
@@ -298,7 +303,7 @@ function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalM
  *  parameter (rather than dropped and re-added) because {@link ExternalMcpToolsModal} needs the same
  *  translator for its own "Tools" kicker and calls it itself; this row has no copy of its own left
  *  to translate. */
-function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...props }: {
+function ExternalMcpSourceRow({ useConnect = useHostExternalMcpOAuthConnect, ...props }: {
   source: SourceConfigItem;
   cardHandle: string;
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
@@ -307,7 +312,7 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
    *  see this file's own "Remove asks first" header note. */
   onRequestRemove: (sourceId: string) => void;
   /** Test seam for the sign-in flow. */
-  useConnect?: typeof useExternalMcpOAuthConnect;
+  useConnect?: typeof useHostExternalMcpOAuthConnect;
 }) {
   const { source, cardHandle, list, tDrift, onRequestRemove } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -366,7 +371,7 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
       </div>
       <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
       {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
-        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} />}
+        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />}
 
       {toolsOpen ? (
         <ExternalMcpToolsModal
@@ -464,6 +469,10 @@ function ExternalMcpRemoveConfirmSection(props: {
       onConfirm={() => onConfirm(source.id)}
       onCancel={onCancel}
       t={tDrift}
+      ConfirmDialog={ConfirmActionDialog}
+      buildCopy={buildExternalMcpRemoveConfirmCopy}
+      useExternalMcpRemoveConfirmHook={useExternalMcpRemoveConfirm}
+      useFocusTrapHook={useFocusTrap}
     />
   );
 }

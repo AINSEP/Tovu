@@ -13,7 +13,7 @@
  * is the one place that decides which.
  *
  * **Opening needs main; everything after does not.** Cmd+F is a menu accelerator
- * (`find-menu.ts`) because it is the one key binding that still fires while focus is inside a
+ * (the Find menu (`main/boot/boot-sequence.ts`)) because it is the one key binding that still fires while focus is inside a
  * project tab's `<webview>` guest — the same gap `App.hooks.ts`'s `useExpandedMode` documents for
  * Escape. Once the bar is open, typing, Enter, Shift+Enter and Escape are ordinary keydowns on the
  * bar's own input, which lives in THIS document (`App.tsx`'s `FindBar`), so only `onFindToggle`

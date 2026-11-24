@@ -90,7 +90,7 @@ export default defineConfig({
       // the alias has to be declared (tsconfig `paths`, `vite.config.ts`, here) — the three configs
       // are independent, and a missing entry fails in a different way in each: a type error, a
       // build-time resolution failure, and "Failed to resolve import" with no tests run.
-      "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
+      "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/sections.ts"),
       // Marker consumers import `@jini-ai/cms/widgets/markers` directly, sharing the server owner.
       // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
       "@tovu/assistant-run-events": path.resolve(__dirname, "../website/src/contracts/core/assistant-run-events.ts"),

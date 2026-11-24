@@ -9,7 +9,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminMediaOriginalRoute } from "../original.js";
 import { registerAdminMediaTrashRoute } from "#src/server/runtime/composition/modules/media";
-import { registerAdminMediaUploadRoute } from "../upload.js";
+import { registerAdminMediaUploadRoute } from "#src/server/runtime/composition/modules/media";
 import type { RouteDeps } from "#src/server/routes/types";
 import { uploadMedia } from "#src/features/media/index";
 

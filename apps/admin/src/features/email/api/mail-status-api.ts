@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminMailStatus } from "./mail-status-api.types";
+import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 
 /** The admin API calls of the email feature. */
 export const mailStatusApi = {

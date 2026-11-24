@@ -1,4 +1,5 @@
-import { createPsqlPostgresTarget } from "../postgres-target.js";
+import { createPsqlPostgresTarget } from "@jini-ai/db/transfer";
+import { TRANSFER_APPLICATION_NAME } from "../copy-engine.js";
 
 /**
  * @file Throwaway-database helpers for this feature's live-Postgres tests, built on the feature's own
@@ -19,7 +20,7 @@ export function connectionFor(database: string, password?: string): string {
 
 /** Runs one statement; rows joined by newlines, cells by tabs. Throws on any error. */
 export async function sql(database: string, statement: string): Promise<string> {
-  const result = await createPsqlPostgresTarget({ connectionString: connectionFor(database) }).query(statement);
+  const result = await createPsqlPostgresTarget({ connectionString: connectionFor(database) }, { applicationName: TRANSFER_APPLICATION_NAME }).query(statement);
   if (!result.ok) throw new Error(`${database}: ${result.error}`);
   return result.value.map((row) => row.join("\t")).join("\n");
 }

@@ -8,7 +8,7 @@ import type { Express } from "express";
 import type { DeployFile } from "@jini-ai/devops/deploy";
 import * as exportEngine from "@jini-ai/devops/static-export";
 import * as exportNode from "@jini-ai/devops/static-export/node";
-import type { LoadedDeployTarget } from "../../deploy-targets/types.js";
+import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-origin";
 
 // Replace only the export engine's socket/disk transport. The CMS page handler, SEO,

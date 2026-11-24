@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { renderBanner } from '@jini-ai/cookie-consent/render';
-import { consentDeclarationReadiness } from '#src/features/consent/readiness';
+import { consentDeclarationReadiness } from '@jini-ai/cookie-consent/site/readiness';
 import { pageShell } from '../../http/site/render/document-shell.js';
 import { useSiteChatBuild } from '../../http/site/__tests__/site-chat.fixture.js';
 import { siteAssistantMarkup } from '../../http/site/render/site-assistant-mount.js';

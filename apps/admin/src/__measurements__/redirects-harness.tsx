@@ -1,8 +1,9 @@
 /** Keep measurement assertions pointed at the real package hooks and the shipped host mount. */
 import { useRedirects, useHitCountCell } from '@jini-ai/admin/redirects/react';
 import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
-import { Redirects as HostRedirects } from '../features/redirects';
-import { useAdminModules, useModuleProviderContent } from '../integrations/jini-admin/modules.hooks';
+import { Redirects as HostRedirects } from '@jini-ai/admin/screens/redirects';
+import { useAdminModules, useModuleProviderContent, useModulePanel, bindModuleLoading } from '../integrations/jini-admin/modules.hooks';
+import { RedirectsModuleLoading } from '../integrations/jini-admin/redirects-module.hooks';
 import { createRedirectsTranslator, redirectsHostPorts } from '../integrations/jini-admin/redirects-ports';
 
 /** Exercise the same real HTTP/refresh owners as the module, retaining the old hook assertions. */
@@ -23,5 +24,5 @@ export function Redirects({
   useAdminModulesHook?: typeof useAdminModules;
   useModuleProviderContentHook?: typeof useModuleProviderContent; } = {}) {
   const runtime = useAdminModulesHook({ permissions: ['*'], useAdminLocaleHook: useHostAdminLocale });
-  return useModuleProviderContentHook({ runtime, children: <HostRedirects useAdminLocaleHook={useHostAdminLocale} /> });
+  return useModuleProviderContentHook({ runtime, children: <HostRedirects useModulePanel={useModulePanel} ModuleLoading={bindModuleLoading({ Loading: RedirectsModuleLoading, useAdminLocaleHook: useHostAdminLocale })} /> });
 }

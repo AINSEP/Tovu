@@ -6,7 +6,7 @@ import { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerP
 import type { RouteDeps } from '../../routes/types.js';
 import type { RateLimiter } from '#src/contracts/core/rate-limit/rate-limit';
 import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
+import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 
 type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
   authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null>;

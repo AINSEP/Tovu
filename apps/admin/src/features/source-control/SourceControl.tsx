@@ -1,11 +1,11 @@
-import { navigateSourceControlTab } from "./SourceControl.hooks";
+import { navigateSourceControlTab } from "@jini-ai/admin/source-control/host/SourceControl.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t } from "./source-control-i18n";
+import { t } from "./source-control-host-i18n";
 import { ProvidersTab } from "./ProvidersTab";
 import { SourceControlIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
@@ -109,7 +109,7 @@ export function SourceControl({
         ariaLabel={t({ locale: locale, key: "Source Control" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={(nextTabId) => navigateSourceControlTab({ nextTabId })}
+        onChange={(nextTabId) => navigateSourceControlTab({ nextTabId, navigate })}
         containerHandle="source-control-tab-bar"
       />
       {/* `providers` is the only tab (SOURCE_CONTROL_TAB_IDS) and `activeTabId` always resolves to

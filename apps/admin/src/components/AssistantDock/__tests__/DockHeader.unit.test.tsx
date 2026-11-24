@@ -1,9 +1,7 @@
-import { cleanup, render as renderWithoutProvider, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
-import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { DockHeader, type DockHeaderProps } from "../DockHeader";
 import { createChatI18nAdapter } from "../assistant-dock-i18n";
 import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
@@ -35,10 +33,6 @@ function headerProps(overrides: Partial<DockHeaderProps> = {}): DockHeaderProps 
     empty: false,
     ...overrides,
   };
-}
-
-function render(ui: ReactElement) {
-  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
 }
 
 async function openSettingsMenu() {

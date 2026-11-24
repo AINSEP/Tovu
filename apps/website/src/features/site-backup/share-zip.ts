@@ -10,7 +10,7 @@ import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import type { StaticSiteCopy } from "./static-copy.js";
 import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
-import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import type { CredentialWarning } from "./credential-warnings.js";
 import { createBundledExportFilePolicy, type BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 

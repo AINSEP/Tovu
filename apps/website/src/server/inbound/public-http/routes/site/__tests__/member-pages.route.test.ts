@@ -8,12 +8,12 @@ import path from "node:path";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createSeoPostPort } from "#src/features/seo/index";
-import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
+import { SITE_CONSENT_DEFAULTS } from "@jini-ai/cookie-consent/site/config";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../member-pages.js";

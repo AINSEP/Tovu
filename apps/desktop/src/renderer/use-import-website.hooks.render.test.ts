@@ -9,7 +9,7 @@ import test from 'node:test';
 import { act } from 'react';
 import { renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
 import { importPageError, useImportWebsite } from './use-import-website.hooks.js';
-import { copyableDetails } from './import-error-details.js';
+import { copyableDetails } from '@jini-ai/ui/app-shell';
 import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
 
@@ -153,10 +153,6 @@ test('useImportWebsite: Cancel against a preload with no stop call leaves the im
   await act(async () => { await hook.current().cancelArchive(); });
   assert.equal(hook.current().archiveRun, 'running');
   await act(async () => { finish(null); await run; });
-});
-
-test('copyableDetails: strips the Electron prefix and user folders on every platform', () => {
-  assert.equal(copyableDetails({ error: new Error("Error invoking remote method 'x': boom in /home/ann/a and C:\\Users\\Bo\\b") }), 'boom in ~/a and ~\\b');
 });
 
 test('importPageError: the address error wins, else the folder error with its details, else none', () => {

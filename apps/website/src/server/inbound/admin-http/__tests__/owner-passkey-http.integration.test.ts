@@ -12,7 +12,7 @@ import { chromium } from '@playwright/test';
 import { createRouteDeps } from '../../../runtime/composition/app.js';
 import { registerAuthRoutes } from '../dev-auth.js';
 import { createSqliteIdentityRouteDeps } from '#src/features/identity/wiring';
-import { createPermissionGrantRegistry } from '#src/features/identity/permission-grants';
+import { createPermissionGrantRegistry } from '@jini-ai/user-management/identity/permission-grants';
 import { freshSqliteContentKernel } from '#src/platform/db/kernel/__tests__/dialect-matrix';
 
 test('real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion', { timeout: 30000 }, async t => {

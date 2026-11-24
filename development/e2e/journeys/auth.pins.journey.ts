@@ -308,12 +308,12 @@ test.describe("admin login when the API is unreachable (symptom reproduction)", 
       const seen: string[] = [];
       (window as unknown as { __bannerTexts: string[] }).__bannerTexts = seen;
       new MutationObserver(() => {
-        const text = document.querySelector(".server-restarting-banner")?.textContent ?? "";
+        const text = document.querySelector(".jini-server-restarting-banner")?.textContent ?? "";
         if (text && seen.at(-1) !== text) seen.push(text);
       }).observe(document, { subtree: true, childList: true, characterData: true });
     });
     await page.goto("/admin/", { waitUntil: "domcontentloaded" });
-    const banner = page.locator(".server-restarting-banner");
+    const banner = page.locator(".jini-server-restarting-banner");
     await expect(banner).toHaveText("Server restarting… reconnecting. Nothing you typed is lost.");
 
     // The failure IS visible — this is not a silent hang. Originally the on-screen text was the

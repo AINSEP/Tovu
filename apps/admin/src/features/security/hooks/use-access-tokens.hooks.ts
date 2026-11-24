@@ -19,7 +19,7 @@ import {
   accessTokenRemoveErrorMessage,
   accessTokenSaveErrorMessage,
   accessTokensLoadErrorMessage,
-} from "../security-i18n";
+} from "../../../integrations/jini-admin/security-i18n";
 import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId, type AccessTokenKind, type AccessTokenRowCategoryId } from "../rules";
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, type AccessTokenFormFields as CredentialAccessTokenFormFields } from "../access-token-forms";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "../custom-credential-forms";

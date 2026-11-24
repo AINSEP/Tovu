@@ -7,11 +7,12 @@
  * order (files, then the web address) as the web admin's Import tab.
  */
 import { useEffect } from 'react';
-import { FileDropzone, useWiredCopyToClipboard } from '@jini-ai/ui';
+import { FileDropzone, useClassifiedPathDrop, useWiredCopyToClipboard } from '@jini-ai/ui';
 
 import type { ImportArchiveInput } from '../contracts/project.js';
 import { InfoTip } from './CreateWebsiteOnboarding.js';
-import { useImportDrop } from './use-import-drop.hooks.js';
+import { classifyImportDrop, classifyImportFiles } from './import-drop.js';
+import { runnerInventoryBridge } from './runner-api.js';
 import { importPageError, type ArchiveRun, type ImportFailure } from './use-import-website.hooks.js';
 
 export interface ImportWebsiteProps {
@@ -68,18 +69,24 @@ function CancelButton({ importing, archiveRun, onBack, onCancelImport }: Pick<Im
   );
 }
 
+/** The preload's real path for a dropped or picked file; `''` when the bridge has none. */
+const getPathForFile = (file: File) => runnerInventoryBridge()?.getPathForFile?.(file) ?? '';
+/** This page's drop classification (copy and file types are the import page's), handed to Jini's drop hook. */
+const classifyDrop = ({ dataTransfer }: { dataTransfer: DataTransfer }) => classifyImportDrop({ dataTransfer, getPathForFile });
+const classifyFiles = ({ files }: { files: File[] }) => classifyImportFiles({ files, getPathForFile });
+
 export function ImportWebsite({ shown, ...page }: ImportWebsiteProps) {
   return shown ? <ImportPage {...page} /> : null;
 }
 
 /** Its own component so the drag state is dropped with the page. */
 function ImportPage({
-  onBack, adding, onChooseFolder, onDropFolder, onImportArchive, onRefuse, address, onAddressChange, importing, archiveRun, onCancelImport, onPageOpen, onImportAddress, failure, addError, addDetails, useImportDropHook = useImportDrop,
-}: (Omit<ImportWebsiteProps, 'shown'>) & { useImportDropHook?: typeof useImportDrop; }) {
+  onBack, adding, onChooseFolder, onDropFolder, onImportArchive, onRefuse, address, onAddressChange, importing, archiveRun, onCancelImport, onPageOpen, onImportAddress, failure, addError, addDetails, useImportDropHook = useClassifiedPathDrop,
+}: (Omit<ImportWebsiteProps, 'shown'>) & { useImportDropHook?: typeof useClassifiedPathDrop; }) {
   useEffect(onPageOpen, [onPageOpen]);
   const error = importPageError({ failure, addError, addDetails });
   const busy = adding || importing;
-  const { dragging, dropProps, onPicked } = useImportDropHook({ busy, onRefused: onRefuse,
+  const { dragging, dropProps, onPicked } = useImportDropHook({ busy, onRefused: onRefuse, classifyDrop, classifyFiles,
     onFolder: ({ path: folder }, _options = {}) => void onDropFolder(folder),
     onArchive: ({ path: file }, _options = {}) => void onImportArchive({ file }),
   });

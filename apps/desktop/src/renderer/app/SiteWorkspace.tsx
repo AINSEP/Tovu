@@ -1,6 +1,6 @@
 import { reportShellTelemetry } from '../product-telemetry.js';
 import { NavIcon } from '../icons.js';
-import { workspaceOnScreen } from '../expanded-mode.js';
+import { workspaceOnScreen } from '@jini-ai/ui/app-shell';
 import { useSiteWorkspace } from '../use-site-workspace.hooks.js';
 import { useLiveViews } from '../use-live-views.hooks.js';
 import type { LiveGuest, ParkedView } from '@jini-ai/ui/core';

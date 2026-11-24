@@ -5,7 +5,7 @@ import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { BASE, fixture, WS, type Deps } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaUploadRoute } from '../upload.js';
+import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
 import { forbiddenBody, PNG_BASE64 } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media';

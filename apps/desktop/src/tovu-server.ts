@@ -361,7 +361,7 @@ interface BuildServeEnvInput {
   baseEnv?: NodeJS.ProcessEnv;
   desktopCredential?: DesktopCredential;
   adminDevProxyUrl?: string | null;
-  /** The two-key env contract `node-toolchain.ts`'s `buildNodeToolchainEnv` returns
+  /** The two-key env contract `@jini-ai/desktop-host/shell/node-toolchain`'s `buildNodeToolchainEnv` returns
    *  (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`), read by the website's
    *  `stdioLaunchResolverFromEnv` (plan `plan-desktop-bundled-npx-2026-09-24.md` §2). `main.ts` is
    *  the only real caller; every other caller and every existing test omits it, which is what MUST

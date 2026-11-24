@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "../../panels";
 import { Recovery, type RecoveryProps } from "../../features/recovery/Recovery";
-import { t } from "../../features/recovery/recovery-i18n";
-import type { RecoveryController } from "../../features/recovery/hooks/use-recovery.hooks";
+import { t } from "@jini-ai/admin/recovery/recovery-i18n";
+import type { RecoveryController } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
 
 /**
  * @file REQ-01/REQ-22/REQ-27 (SPEC-019) — re-homed from

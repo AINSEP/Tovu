@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 import { assertToolIsWirable } from "@jini-ai/core";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
@@ -19,7 +19,7 @@ import {
   InMemorySiteStatusRepo,
 } from "../../features/database/repo.memory.js";
 import { type AgentToolDefinition as RecoveryAgentToolDefinition } from "@jini-ai/core";
-import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
+import { recoveryAgentToolCatalog } from "../../features/recovery/tool-registrations.js";
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,

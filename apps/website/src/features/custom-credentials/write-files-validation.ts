@@ -1,5 +1,5 @@
 import { isNonArrayRecord } from "@jini-ai/core";
-import type { RepositoryTargetValidator } from "../source-control/provider-module.js";
+import type { RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
 import { repositoryTargetError } from "@jini-ai/devops/source-control";
 
 import { CustomCredentialValidationError } from "./store.js";

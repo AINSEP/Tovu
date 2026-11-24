@@ -9,7 +9,10 @@
  */
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createDnsProviderRegistry, type AuthoritativeDnsPort } from "@jini-ai/devops/dns";
-import { createDomainBindingStore, verifyDueDomainBindings, type DnsChangePorts, type DnsChangeToolDeps } from "#src/features/domain-dns/index";
+import { sql } from "kysely";
+import { createDomainBindingStore } from "@jini-ai/devops/dns/site/binding.repo";
+import { verifyDueDomainBindings, type DnsChangePorts } from "@jini-ai/devops/dns/site/dns-changes";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import type { RouteDeps } from "../../routes/types.js";
 import { createAuthoritativeDnsResolver } from "./authoritative-dns.js";
 
@@ -31,7 +34,7 @@ function workspaceDnsPorts(shared: DnsShared, routeDeps: Pick<RouteDeps, "worksp
     resolver,
     // Vendor credentials are resolved per provider in a later lot; `manual` needs none.
     context: { workspaceId: routeDeps.workspaceId, mode: "live", credentials: {}, httpClient, now },
-    ...(routeDeps.contentKernel ? { bindings: createDomainBindingStore({ kernel: routeDeps.contentKernel, workspaceId: routeDeps.workspaceId }) } : {}),
+    ...(routeDeps.contentKernel ? { bindings: createDomainBindingStore({ kernel: routeDeps.contentKernel, sql, workspaceId: routeDeps.workspaceId }) } : {}),
     now,
   };
 }
@@ -72,6 +75,6 @@ export function createDomainBindingSweep(
   optional: { resolver?: AuthoritativeDnsPort; now?: () => number } = {},
 ): (required: { limit: number }) => Promise<string[]> {
   const ports = workspaceDnsPorts(sharedDnsPorts(required, optional), { workspaceId: required.workspaceId });
-  const bindings = createDomainBindingStore({ kernel: required.contentKernel, workspaceId: required.workspaceId });
+  const bindings = createDomainBindingStore({ kernel: required.contentKernel, sql, workspaceId: required.workspaceId });
   return ({ limit }) => verifyDueDomainBindings({ limit }, { ...ports, bindings });
 }

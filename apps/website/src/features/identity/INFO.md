@@ -30,14 +30,20 @@ evaluator the command gateway calls before every mutation.
 
 The tenth identity table, and the only one whose rows carry a secret. It lives
 here rather than in `@jini-ai/cms/identity`, whose own `INFO.md` scopes API keys
-out; the port is declared locally in `api-key-types.ts` with two adapters
-(`repo.memory.ts`, `repo.sqlite.ts`).
+out. The port, the in-memory adapter, the secret lifecycle and the transitions
+now live in Jini (`@jini-ai/user-management/identity/{api-key-types,repo.memory,api-key-secret,api-key-service}`);
+`repo.sqlite.ts` (the SQL adapter) stays here.
 
-- `api-key-secret.ts` — minting (`randomBytes(32)`, 256 bits), parsing, and the
+- `api-key-binding.ts` — the host binding: the only place the `tovu_ak_`
+  scheme marker lives. It binds Jini's `createApiKeySecret({ prefix })` and
+  `createApiKeyService({ keySecret })`; routes and `dev-auth` import the bound
+  `issueApiKey`/`authenticateApiKey` from here. Changing the literal would make
+  every issued key unparseable.
+- `api-key-secret` (Jini) — minting (`randomBytes(32)`, 256 bits), parsing, and the
   scrypt hasher. The raw key is `tovu_ak_<12 hex>.<43 base64url>`: only the
   secret half is hashed; the prefix is stored in the clear as the lookup handle
   so verification is one indexed read plus one constant-time compare.
-- `api-key-service.ts` — `createApiKeyPrincipal` / `issueApiKey` /
+- `api-key-service` (Jini) — `createApiKeyPrincipal` / `issueApiKey` /
   `revokeApiKey`, plus `authenticateApiKey`, the Bearer counterpart of
   `validateSession` (returns `null` for every rejection reason, never a
   distinguishable error).
@@ -65,3 +71,31 @@ served by `repo.sqlite.ts` against Drizzle, with `@jini-ai/cms/identity`'s own
 tenth table, `api_keys`, has no library-supplied in-memory half, so this repo
 owns both: `SqliteApiKeyRepo` (`repo.sqlite.ts`) and `InMemoryApiKeyRepo`
 (`repo.memory.ts`).
+
+## Wiring
+
+What this host injects into the Jini identity modules (`@jini-ai/user-management/identity/*`):
+- `api-key-binding.ts` passes the product scheme marker `"tovu_ak_"` to `createApiKeySecret` and the
+  bound secret to `createApiKeyService` (K3: the literal stays here).
+- `wiring.ts` builds `ScryptApiKeySecretHasher` and the `ApiKeyRepoPort` (`InMemoryApiKeyRepo` or
+  `SqliteApiKeyRepo`); the api-keys routes and `dev-auth` assemble `ApiKeyServiceDeps` from them.
+- `reset-owner.ts` / `site-deps/identity-settings.ts` call `applyOwnerPasswordReset` with the host's
+  pre-write backup as `beforeReset`.
+- `tool-registrations.ts` / `routes/users/deps.ts` call `createUsernameChangePort` with the host's
+  outbox, id generator, Trash membership check and seeded owner id.
+- `user-purge.ts` (`SqlUserPurge`) implements Jini's `UserPurgePort`.
+- `server/runtime/composition/app-permission-grants.ts` calls `registerSiteKeyPermissionGrants`
+  (`@jini-ai/user-management/identity/site-key-permission`) with `siteKeyName: SITE_KEY_ENV_VAR_NAME`
+  (`features/webhooks/site-key-sources.ts`, K3: the product env var name stays here);
+  `__tests__/site-key-permission.test.ts` pins the bound reason and the real SQLite boot.
+- `trash-user-binding.ts` calls `createTrashUserService({})` ONCE for the process (one workspace per
+  process, CIC U-001) so the admin `DELETE users/:principalId` route and the assistant's `trash_item`
+  user port share one INV-08 serialization queue; each call injects `DeleteUserDeps` (the Trash-bound
+  `removeUser` and `isInTrash`). The stateless account-contract checks and error identities are
+  imported from `@jini-ai/user-management/identity/delete-user-service` at each call site.
+- `boot-session-token-binding.ts` calls `createBootSessionTokenStore()` ONCE for the process and
+  exports its `mint`/`redeem`: `cli/commands/serve-listen.ts` mints the `--emit-boot-token` token and
+  `server/inbound/admin-http/dev-auth.ts`'s boot-session route redeems it from the same store
+  (`__tests__/boot-session-token-binding.test.ts`, `serve-command-wiring.unit.test.ts` and
+  `admin-boot-session-route.test.ts` pin the sharing). The local-boot-session route builds its own
+  request-scoped store and never touches this one.

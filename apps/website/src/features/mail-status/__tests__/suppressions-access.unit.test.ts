@@ -5,7 +5,7 @@ import {
   listMailSuppressions, MailActivityForbiddenError, planMailSuppressionRemoval, readMailSuppressionQuery, runMailSuppressionRemoval,
   type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry, type MailSuppressionRemovalInput,
 } from "@jini-ai/platform/mail";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "../permissions.js";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 
 /**
  * @file Security acceptance for the suppression list and its removal, written against the code

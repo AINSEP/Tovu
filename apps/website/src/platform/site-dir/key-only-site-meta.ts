@@ -2,7 +2,7 @@ import { resolveSiteDatabasePaths } from "./site-databases.js";
 import fs from "node:fs";
 import path from "node:path";
 
-import { writeJsonFileAtomic } from "./atomic-write.js";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { SiteDirInvalidError } from "./errors.js";
 import { readAppliedSchemaIdentityOfFile } from "./read-applied-schema-identity.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
@@ -233,7 +233,7 @@ export async function completeKeyOnlySiteMeta(
     if (keyOnly === undefined) return undefined;
     const completed = await buildCompletedMeta({ dir, keyOnly });
     if (readText({ dir }) !== before) continue;
-    writeJsonFileAtomic({ filePath: path.join(dir, SITE_META_FILENAME), data: completed }, {});
+    writeJsonFileAtomic({ filePath: path.join(dir, SITE_META_FILENAME), data: completed, fs: createNodeAtomicFilesystem({}, {}) }, {});
     return completed;
   }
   return undefined;

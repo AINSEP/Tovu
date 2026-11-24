@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, renderHook, screen } from '../../../__tests__/render-with-jini-kits';
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/cookie-consent/react';
 import { adminKit } from '@/integrations/jini-kits';
-import { CONSENT_DICT, translate } from '../consent-dictionary';
-import { useConsentTranslate } from '../consent-i18n';
+import { CONSENT_DICT, translate } from '@jini-ai/admin/screens/consent/consent-dictionary';
+import { useConsentTranslate } from '@/integrations/jini-admin/consent-ports';
 import { CONSENT_CONFIG } from './consent-fixtures';
 
 const locale = vi.hoisted(() => ({ current: 'de' }));

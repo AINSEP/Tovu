@@ -767,7 +767,7 @@ webview { display: flex; }
 /* Floats over whichever surface is on screen, top right — the same corner Chrome's own Cmd+F bar
    uses. `z-index` above `.workspace__overlay` (1) and the chat pane, so it is reachable however
    the app is laid out underneath it. */
-.findbar {
+.jini-findbar {
   position: fixed;
   top: 0.75rem;
   right: 0.75rem;
@@ -782,7 +782,7 @@ webview { display: flex; }
   box-shadow: var(--shadow-md);
 }
 
-.findbar__input {
+.jini-findbar__input {
   width: 13rem;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -792,9 +792,9 @@ webview { display: flex; }
   font: inherit;
   font-size: 0.8125rem;
 }
-.findbar__input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.jini-findbar__input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
-.findbar__count {
+.jini-findbar__count {
   min-width: 4.5rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -802,7 +802,7 @@ webview { display: flex; }
   white-space: nowrap;
 }
 
-.findbar__act {
+.jini-findbar__act {
   display: grid;
   place-items: center;
   width: 26px;
@@ -814,12 +814,12 @@ webview { display: flex; }
   padding: 0;
   cursor: pointer;
 }
-.findbar__act svg { width: 14px; height: 14px; }
-.findbar__act:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
-.findbar__act:disabled { opacity: 0.45; cursor: not-allowed; }
+.jini-findbar__act svg { width: 14px; height: 14px; }
+.jini-findbar__act:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
+.jini-findbar__act:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.findbar__close { border-color: transparent; background: none; }
-.findbar__close:hover { background: var(--surface-2); color: var(--fg); }
+.jini-findbar__close { border-color: transparent; background: none; }
+.jini-findbar__close:hover { background: var(--surface-2); color: var(--fg); }
 
 /* ---------- chat ---------- */
 
@@ -2286,19 +2286,19 @@ webview { display: flex; }
 .resources-error { margin: 0 0 0.75rem; color: var(--warning); overflow-wrap: anywhere; }
 /* Process | PID | Memory | CPU, one <tbody> per owner. Numbers right-aligned in tabular figures so
    digits line up down a column. */
-.resources-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.resources-table th, .resources-table td { padding: 0.4rem 0.5rem; text-align: left; vertical-align: middle; }
-.resources-table .num { text-align: right; white-space: nowrap; }
-.resources-table thead th { color: var(--muted); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-strong); }
-.resources-table__group > * { border-top: 1px solid var(--border); padding-top: 0.75rem; font-weight: 600; }
-.resources-table tbody:first-of-type .resources-table__group > * { border-top: 0; }
-.resources-table tbody tr:not(.resources-table__group) td { color: var(--muted); }
-.resources-table td.resources-table__process { padding-left: 1.25rem; overflow-wrap: anywhere; }
-.resources-table__role { margin-left: 0.5rem; font-size: 0.7rem; color: var(--muted); opacity: 0.8; }
-.resources-table__warning { color: var(--warning); font-weight: 500; }
-.resources-table__action { width: 1%; text-align: right; white-space: nowrap; }
-.resources-table__action button { border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--fg); padding: 0.2rem 0.65rem; font-size: 0.75rem; cursor: pointer; }
-.resources-table__action button:hover:not(:disabled) { background: var(--surface); }
-.resources-table__action button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.resources-table__action button:disabled { opacity: 0.6; cursor: default; }
+.jini-resources-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.jini-resources-table th, .jini-resources-table td { padding: 0.4rem 0.5rem; text-align: left; vertical-align: middle; }
+.jini-resources-table .jini-resources-table__num { text-align: right; white-space: nowrap; }
+.jini-resources-table thead th { color: var(--muted); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-strong); }
+.jini-resources-table__group > * { border-top: 1px solid var(--border); padding-top: 0.75rem; font-weight: 600; }
+.jini-resources-table tbody:first-of-type .jini-resources-table__group > * { border-top: 0; }
+.jini-resources-table tbody tr:not(.jini-resources-table__group) td { color: var(--muted); }
+.jini-resources-table td.jini-resources-table__process { padding-left: 1.25rem; overflow-wrap: anywhere; }
+.jini-resources-table__role { margin-left: 0.5rem; font-size: 0.7rem; color: var(--muted); opacity: 0.8; }
+.jini-resources-table__warning { color: var(--warning); font-weight: 500; }
+.jini-resources-table__action { width: 1%; text-align: right; white-space: nowrap; }
+.jini-resources-table__action button { border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--fg); padding: 0.2rem 0.65rem; font-size: 0.75rem; cursor: pointer; }
+.jini-resources-table__action button:hover:not(:disabled) { background: var(--surface); }
+.jini-resources-table__action button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.jini-resources-table__action button:disabled { opacity: 0.6; cursor: default; }
 .resources-note { margin: 1rem 0 0; color: var(--muted); font-size: 0.75rem; }

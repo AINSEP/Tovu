@@ -20,7 +20,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
-import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
+import { createVaultProviderConfigSource } from "./provider-config-source.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 
 /**
  * @file One owner project.db in resolved app-data, shared by desktop and localhost regardless of

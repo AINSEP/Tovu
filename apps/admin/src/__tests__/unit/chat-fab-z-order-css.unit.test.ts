@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, relative, resolve } from "node:path";
 import { parse } from "postcss";
 import { describe, expect, it } from "vitest";
@@ -13,6 +14,14 @@ import { describe, expect, it } from "vitest";
  */
 const srcRoot = resolve(process.cwd(), "src");
 
+/** Shell notices whose stylesheets ship in `@jini-ai/admin` but stack inside this admin page
+ *  (mounted by `lib/shell-notices-wiring.tsx`); read by package subpath, labelled by that subpath. */
+const PACKAGE_CSS = [
+  "@jini-ai/admin/shell/components/ServerRestartingBanner/server-restarting-banner.css",
+  "@jini-ai/admin/shell/components/AdminFailureNotice/admin-failure-notice.css",
+];
+const requireFromTest = createRequire(import.meta.url);
+
 /** Selectors allowed above the FAB, each with the reason it may cover it. */
 const ABOVE_FAB = new Map<string, string>([
   [".settings-dialog-backdrop", "shared blocking-modal backdrop (confirm dialogs, pickers)"],
@@ -21,8 +30,8 @@ const ABOVE_FAB = new Map<string, string>([
   [".select-panel.select-panel", "portaled panel opened from WidgetPickerDialog's modal; must clear its backdrop"],
   [".info-tip-bubble", "portaled hint bubble used inside modals; pointer-events: none"],
   [".skip-link", "keyboard-focus skip link, off screen until focused, top-left"],
-  [".server-restarting-banner", "server-down status pill, top-centre"],
-  [".admin-failure-notice", "floating failure card, top-right; a failure must never be hidden behind the dock or the FAB"],
+  [".jini-server-restarting-banner", "server-down status pill, top-centre"],
+  [".jini-admin-failure-notice", "floating failure card, top-right; a failure must never be hidden behind the dock or the FAB"],
 ]);
 
 function cssFiles(dir: string): string[] {
@@ -41,12 +50,16 @@ interface Layer {
 
 function zIndexLayers(): Layer[] {
   const layers: Layer[] = [];
-  for (const file of cssFiles(srcRoot)) {
-    parse(readFileSync(file, "utf8")).walkDecls("z-index", (decl) => {
+  const sources = [
+    ...cssFiles(srcRoot).map((file) => ({ path: file, label: relative(srcRoot, file) })),
+    ...PACKAGE_CSS.map((specifier) => ({ path: requireFromTest.resolve(specifier), label: specifier })),
+  ];
+  for (const { path, label } of sources) {
+    parse(readFileSync(path, "utf8")).walkDecls("z-index", (decl) => {
       const rule = decl.parent;
       if (rule?.type !== "rule") return;
       for (const selector of (rule as unknown as { selectors: string[] }).selectors) {
-        layers.push({ file: relative(srcRoot, file), selector, value: decl.value });
+        layers.push({ file: label, selector, value: decl.value });
       }
     });
   }
@@ -81,6 +94,16 @@ describe("chat FAB z-order", () => {
       .filter((layer) => !ABOVE_FAB.has(layer.selector))
       .map((layer) => `${layer.file} ${layer.selector} z-index: ${layer.value}`);
     expect(above).toEqual([]);
+  });
+
+  it("reads the shell notices' layers from their @jini-ai/admin stylesheets, above the FAB", () => {
+    const fab = fabZIndex();
+    const layers = zIndexLayers();
+    for (const selector of [".jini-server-restarting-banner", ".jini-admin-failure-notice"]) {
+      const values = layers.filter((layer) => layer.selector === selector).map((layer) => Number(layer.value));
+      expect(values.length, selector).toBeGreaterThan(0);
+      for (const value of values) expect(value, selector).toBeGreaterThan(fab);
+    }
   });
 
   it("keeps blocking modals above the FAB", () => {

@@ -7,7 +7,8 @@ import { buildDevChildEnv } from '../dev.mjs';
 import { buildCliEnv, buildServeEnv } from '../../../apps/desktop/src/tovu-server.ts';
 import { localSiteChildEnv } from '../../../apps/website/src/server/runtime/lifecycle/local-site-process.ts';
 import { resolveAgentPluginLayout } from '../../../apps/website/src/features/agent-plugins/layout.ts';
-import { resolveSkillLayout } from '../../../apps/website/src/features/skills/layout.ts';
+import { resolveSkillLayout } from '@jini-ai/agentic/skills/site/layout';
+import { SKILL_SITE_HOST } from '../../../apps/website/src/features/skills/site-host.ts';
 import { pluginsInstallDir } from '../../../apps/website/src/server/runtime/composition/deps.ts';
 
 const repoRoot = path.join(os.tmpdir(), 'plugdir-product');
@@ -24,7 +25,7 @@ const overrides = Object.freeze({
 function roots(siteDir, env) {
   return {
     plugins: pluginsInstallDir({ siteDir }, { env }),
-    skills: resolveSkillLayout({ siteDir, env }).forWorkspace({ workspaceId: 'workspace-local' }).root,
+    skills: resolveSkillLayout({ siteDir, env, host: SKILL_SITE_HOST }).forWorkspace({ workspaceId: 'workspace-local' }).root,
     agentPlugins: resolveAgentPluginLayout({ siteDir }, { env }).forWorkspace({ workspaceId: 'workspace-local' }).root,
   };
 }

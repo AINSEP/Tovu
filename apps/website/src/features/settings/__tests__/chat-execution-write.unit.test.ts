@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
-import type { DetectedAgent } from "@jini-ai/agent-runtime";
-import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "../chat-execution-write.js";
+import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
+import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "@jini-ai/cms/settings/site/chat-execution-write";
 
 type Write = Parameters<typeof prepareChatExecutionWrite>[0];
 const agent: DetectedAgent = {
@@ -30,13 +31,13 @@ function fixture({ defaults = ["fixture", "", ""] }: { defaults?: string[] } = {
     },
   };
   const request: Write["request"] = { namespace: "core.execution", key: "localCli.model", scope: "user", value: "model-a", ctx: { principal: { id: "person" } }, toolId: "settings_set_value" };
-  return { deps, request, calls };
+  return { deps, request, calls, validateRuntimeSelection };
 }
 
 test("unrelated and missing definitions bypass chat authorization", async () => {
   const f = fixture();
   for (const coordinate of [{ namespace: "missing", key: "missing" }, { namespace: "core.execution", key: "missing" }]) {
-    assert.equal(await prepareChatExecutionWrite({ deps: f.deps, request: { ...f.request, ...coordinate } }), null);
+    assert.equal(await prepareChatExecutionWrite({ deps: f.deps, validateRuntimeSelection, request: { ...f.request, ...coordinate } }), null);
   }
   assert.deepEqual(f.calls, []);
 });

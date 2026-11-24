@@ -12,7 +12,7 @@ import type { composeTrashStores } from "./trash-stores.js";
 import type { composeOutboundConnections } from "./outbound-connections.js";
 import type { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import { DefaultMemberAccessResolver } from "#src/features/members/index";
+import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { SqlFormPullLeaseRepo, SqlFormSubmissionReceiptRepo } from "@jini-ai/cms/forms/sql";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";

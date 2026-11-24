@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { seedPrincipals } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { type ContentKernel, eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts, type UserPurgePort } from "../user-purge-types.js";
+import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts, type UserPurgePort } from "@jini-ai/user-management/identity/user-purge-types";
 import { SqlUserPurge } from "../user-purge.js";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";

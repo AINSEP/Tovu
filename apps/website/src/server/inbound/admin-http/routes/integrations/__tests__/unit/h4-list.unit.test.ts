@@ -3,8 +3,8 @@ import test from 'node:test';
 import express from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
-import type { IntegrationsRouteDeps } from '../../deps.js';
-import { registerAdminIntegrationsListRoute } from '../../list.js';
+import type { IntegrationsRouteDeps } from '#src/server/runtime/composition/modules/integrations-admin';
+import { registerAdminIntegrationsListRoute } from '#src/server/runtime/composition/modules/integrations-admin';
 
 test('integration list handles equal timestamps and empty histories independently for each subscription', async () => {
   const app = express();

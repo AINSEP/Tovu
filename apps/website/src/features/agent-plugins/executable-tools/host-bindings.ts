@@ -12,7 +12,7 @@ import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers
 import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../../contracts/headless/index.js';
 import type { ApplyExtensionApprovalPolicy } from '#src/contracts/headless/assistant-tool-approval-policy';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
-import { APPROVAL_FAMILY_BY_EFFECT } from './approval.js';
+import { APPROVAL_FAMILY_BY_EFFECT } from '@jini-ai/agent-plugins/connect/executable';
 import { agentPluginDisclosureMessages } from './approval-bindings.js';
 
 /** The file a plugin ships at its package root to contribute executable tools. */

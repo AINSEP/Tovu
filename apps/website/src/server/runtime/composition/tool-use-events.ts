@@ -1,5 +1,5 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 /**
  * @file `assistant_tool_used` product events (provider wave 2, 2026-10-25), read off the tool-attempt

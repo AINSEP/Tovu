@@ -1,6 +1,6 @@
 import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
-import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource, UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -20,7 +20,7 @@ import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../
 import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpOAuthStatus } from "@jini-ai/core/contracts/hosted-mcp";
-import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 
 /**
  * @file The in-chat re-auth NOTICE for one external MCP connection — the surface half of the flow

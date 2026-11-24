@@ -7,7 +7,7 @@ import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../rules";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own

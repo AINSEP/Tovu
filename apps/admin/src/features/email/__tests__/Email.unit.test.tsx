@@ -1,9 +1,9 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 import { Email } from "../Email";
-import type { EmailController, EmailStatusView } from "../hooks/use-email.hooks";
+import type { EmailController, EmailStatusView } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
 
 vi.mock("../../../admin-themes/use-admin-theme.hooks", () => ({ useAdminThemeBoundary: () => ({}) }));

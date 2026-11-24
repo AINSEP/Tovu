@@ -1,5 +1,5 @@
 import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
-import type { FrontendHookInput } from '@jini-ai/daemon/http';
+import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
 import type { Express, Request, Response } from "express";
 import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL, allowsVisitorRequestOrigin } from "#src/assistant/visitor-services";

@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

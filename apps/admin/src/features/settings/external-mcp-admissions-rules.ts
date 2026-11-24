@@ -1,3 +1,4 @@
+import { EXTERNAL_MCP_PRODUCT_VARS } from "@/integrations/jini-admin/settings-external-mcp-copy";
 import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/features/integrations/api/integrations-api.types";
 
 /**
@@ -136,23 +137,27 @@ const SERVER_SIDE_DEFECT = "server-side-defect" as const satisfies AdmissionDrif
  * anything the operator can change — deliberately not invented in 21 locales for a case that
  * should be rare, since `createDictionaryTranslator` falls back to the English key.
  */
-const REFUSAL_COPY: Readonly<Record<Exclude<AdminToolRefusalReason, typeof ROUTINE_REFUSAL>, { kind: AdmissionDriftKind; key: string }>> = {
+const REFUSAL_COPY: Readonly<Record<Exclude<AdminToolRefusalReason, typeof ROUTINE_REFUSAL>, { kind: AdmissionDriftKind; key: string; vars?: Readonly<Record<string, string>> }>> = {
   "remote-declares-not-read-only": { kind: "needs-write-grant", key: "Tick 'Allow changes' to enable this tool." },
   "remote-declares-destructive": {
     kind: "destructive",
-    key: "The server marks this tool as destructive. Tovu does not enable destructive external tools.",
+    key: "The server marks this tool as destructive. {productName} does not enable destructive external tools.",
+    vars: EXTERNAL_MCP_PRODUCT_VARS,
   },
   "missing-or-invalid-input-schema": {
     kind: SERVER_SIDE_DEFECT,
-    key: "This server published no usable input schema for this tool, so Tovu cannot offer it.",
+    key: "This server published no usable input schema for this tool, so {productName} cannot offer it.",
+    vars: EXTERNAL_MCP_PRODUCT_VARS,
   },
   "invalid-remote-tool-name": {
     kind: SERVER_SIDE_DEFECT,
-    key: "This server advertised a tool under a name Tovu will not register.",
+    key: "This server advertised a tool under a name {productName} will not register.",
+    vars: EXTERNAL_MCP_PRODUCT_VARS,
   },
   "duplicate-remote-tool-name": {
     kind: SERVER_SIDE_DEFECT,
-    key: "This server advertised the same tool name twice, so Tovu kept only the first.",
+    key: "This server advertised the same tool name twice, so {productName} kept only the first.",
+    vars: EXTERNAL_MCP_PRODUCT_VARS,
   },
   "connection-tool-cap-reached": {
     kind: SERVER_SIDE_DEFECT,
@@ -293,7 +298,8 @@ function refusalEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntr
       remoteName: refusal.remoteName,
       kind: copy?.kind ?? SERVER_SIDE_DEFECT,
       messageKey: copy?.key ?? "The assistant refused this tool at startup.",
-      messageVars: {},
+      // The product-naming keys carry `{productName}`; their vars are the host's product copy.
+      messageVars: copy?.vars ?? {},
     });
   }
   return rows;

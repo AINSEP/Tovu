@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
-import type { SearchServiceResult } from "@jini-ai/search";
+import type { SearchServiceResult } from "@jini-ai/core/contracts/site/search";
 import { parseSearchRequest, type SearchQueryIssue } from "@jini-ai/search/http-query";
 
 import { readRequestCookie } from "#src/server/http/request-cookie";

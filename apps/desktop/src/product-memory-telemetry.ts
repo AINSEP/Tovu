@@ -4,7 +4,8 @@ import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryR
 import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import type { ProductConsent } from '@tovu/contracts/product-telemetry';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import type { ResourcesSnapshot, ResourceProcess } from './contracts/resources.ts';
+import type { ResourcesSnapshot } from './contracts/resources.ts';
+import type { ResourceProcess } from "@jini-ai/core/contracts/site/contracts-resources";
 
 type Kind = 'main' | 'renderer' | 'server' | 'daemon' | 'other';
 interface ProductMemoryTelemetry { tick(): Promise<void>; dispose(): void }

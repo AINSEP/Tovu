@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Recovery } from "../Recovery";
-import { t as recoveryT } from "../recovery-i18n";
-import type { RecoveryController } from "../hooks/use-recovery.hooks";
+import { t as recoveryT } from "@jini-ai/admin/recovery/recovery-i18n";
+import type { RecoveryController } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@jini-ai/admin/core";
 
 // Tabs (2026-09-10): `Recovery` now navigates between "restore-points" and "restore" via `?tab=`,
 // The inline SettingsDialogShell stays URL-controlled; Database's test file mocks

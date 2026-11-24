@@ -5,7 +5,8 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
 // suffix — unlike a relative specifier, which does. `#src/assistant/mcp-services` below is the same shape.
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contracts.js";
+import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
 /**
  * @file The exact slice of a composition root's deps bag this domain's tool handlers read.
@@ -17,7 +18,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contr
  *
  * `ExternalMcpServerRepoPort`/`ExternalMcpOAuthService` are type-imported from `#src/assistant/
  * index` rather than restated, unlike `AuthorizeFn`/`ClockPort` (an external package) and
- * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/features/webhooks/index.js`,
+ * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `@jini-ai/integrations/webhooks`,
  * ADR-058's shared sealer/keyring types, the same instances the BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
  * `listExternalMcpServerViews`/etc. from that same `#src/assistant/mcp-services` barrel — the identical

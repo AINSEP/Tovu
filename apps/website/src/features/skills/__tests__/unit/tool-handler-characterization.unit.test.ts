@@ -3,7 +3,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { buildSkillToolRegistrations } from "../../tool-registrations.js";
+import { buildSkillToolRegistrations } from "@jini-ai/agentic/skills/site/tool-registrations";
 import type { InstalledSkillToolSource as SkillToolSource } from "@jini-ai/agentic/skills/tools";
 
 function context({ input }: { input?: unknown }, _options = {}): ToolExecutionContext {

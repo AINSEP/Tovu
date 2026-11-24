@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AdminDockerfileSource } from "./api/deployment-api.types";
 
-import { dockerfileLineCountLabel } from "./deployment-i18n";
+import { dockerfileLineCountLabel } from "@jini-ai/admin/deployment/deployment-i18n";
 import { LayersIcon } from "./deployment-visuals";
 import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
 

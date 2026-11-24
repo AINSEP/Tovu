@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import { SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "#src/features/settings/site-title";
+import { SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "#src/server/runtime/configuration/seed";

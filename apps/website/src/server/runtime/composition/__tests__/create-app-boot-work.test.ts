@@ -5,8 +5,8 @@ import { test } from "node:test";
 import { createApp, createRouteDeps } from "../app.js";
 import { createServingApp } from "../serving-app.js";
 import { getEffective } from "@jini-ai/core/settings";
-import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
-import { InMemorySiteTitlePreservationStore } from "#src/features/settings/site-title";
+import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
+import { InMemorySiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title";
 import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
 
 /**

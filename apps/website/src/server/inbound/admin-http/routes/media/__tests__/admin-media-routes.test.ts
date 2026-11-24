@@ -12,7 +12,7 @@ import { registerAdminMediaDeleteRoute } from "#src/server/runtime/composition/m
 import { registerAdminMediaListRoute } from "../list.js";
 import { registerAdminMediaTrashRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
-import { registerAdminMediaUploadRoute } from "../upload.js";
+import { registerAdminMediaUploadRoute } from "#src/server/runtime/composition/modules/media";
 import { registerTransform } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import type { RouteDeps } from "#src/server/routes/types";

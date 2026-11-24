@@ -3,7 +3,7 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { KNOWN_SERVER_LABELS, PluginMetadataLabel, RecipientLabel, ServerLabel, pluginMetadataLabel, recipientLabel, serverLabel } from "../status-labels";
-import { SHARED_COMPONENTS_DICT } from "../shared-components-i18n";
+import { SHARED_COMPONENTS_DICT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 
 vi.mock("@/hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "es" }));
 

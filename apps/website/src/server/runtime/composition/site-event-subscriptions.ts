@@ -6,8 +6,8 @@
 import { hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '#src/features/forms/form-file-purge';
 import { SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
 import { withSha256Lock } from "#src/features/media/index";
-import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "#src/features/newsletter/send-pipeline";
-import type { SendBatchJob } from "#src/features/newsletter/index";
+import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "@jini-ai/user-management/newsletter/send-pipeline";
+import type { SendBatchJob } from "@jini-ai/user-management/newsletter/ports";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createFormsModule } from "./modules/forms.js";
@@ -92,6 +92,31 @@ function subscribeNewsletterEvents(required: { routeDeps: NewsletterRouteDeps },
   // (d) is no longer the blocker — hosted-API (plugin) and SMTP adapters resolve (`boot/resolve-mailer.ts`),
   // corrected 2026-09-16. Wired now anyway so the pipeline is genuinely complete end to end the
   // moment (a) and (b) are met, not silently half-wired.
+  /**
+   * @file `send-pipeline.ts` — `NewsletterSendPipeline` (ADR-PIPE-011 C-017, orchestrator.spec.md §4,
+   * REQ-16/17/18/19/20/24/28/29, INV-02/06/08/10).
+   *
+   * `authorizeSend` calls `launch-gate.ts`'s `evaluateLaunchGate` (T018, CERTIFIED FIRST in Phase 2)
+   * EXACTLY ONCE, inside its own transaction — no other call site may duplicate or bypass it (INV-05).
+   * `dispatchRow` never constructs, stores, or imports a concrete `MailerPort` adapter (INV-08) — it
+   * only ever receives one as a call-time dependency. `claimBatch` delegates to the EXISTING generic
+   * `processOutbox` primitive unmodified (W-003) — Newsletter does not fork the claim loop; the actual
+   * per-row fan-out happens in `handleSendBatchClaimed`, the bus-subscriber handler `apps/website/src/server/runtime/composition/app.ts`
+   * wires onto `newsletter.send.batch.claimed` (T040), mirroring the existing
+   * `bus.subscribe("workspace.created", ...)` demonstration.
+   */
+  /**
+   * The bus-subscriber handler `apps/website/src/server/runtime/composition/app.ts` wires onto `newsletter.send.batch.claimed` (T040).
+   * Per-row fixed order: `recipient.filter` -> `beforeSend` -> `send()` -> `recordResult`; one row's
+   * failure never aborts sibling rows in the same batch.
+   *
+   * Each row is leased (`claimSendRow`) before any hook or send (2026-09-16), so overlapping runs of
+   * the same batch never send one row twice. A terminal or missing row is skipped without
+   * re-recording. A row leased by another live run is skipped here, and once every row in the job has
+   * been attempted, the whole batch fails so the outbox retries it after backoff — that is what lets a
+   * run that died mid-batch (holding a lease) release its rows once the lease expires, instead of
+   * stranding them.
+   */
   void routeDeps.bus.subscribe<SendBatchJob>({
     eventName: SEND_BATCH_CLAIMED_EVENT,
     handler: async (event) => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_EDITOR_DICT, t } from "../page-editor-i18n";
-import { PAGE_EXTERNAL_CHANGE_MESSAGE } from "../rules";
+import { t } from "../page-editor-i18n";
+import { PAGE_EDITOR_DICT } from "@jini-ai/admin/pages/page-editor-i18n";
+import { PAGE_EXTERNAL_CHANGE_MESSAGE } from "@jini-ai/admin/pages/page-editor-rules";
 import { COMMON_I18N } from "../../../lib/i18n-common";
 
 /**
@@ -128,7 +129,7 @@ describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
 
 describe("scriptblocks translated host copy", () => {
   it("covers every admin locale with exact keys and keeps the English fallback", async () => {
-    const { SCRIPT_BLOCK_DICT } = await import("../page-editor-i18n");
+    const { SCRIPT_BLOCK_DICT } = await import("@jini-ai/admin/pages/page-editor-i18n");
     expect(Object.keys(SCRIPT_BLOCK_DICT).sort()).toEqual(Object.keys(PAGE_EDITOR_DICT).sort());
     const keys = ["Animation · Kuinetic", "Canvas", "Autoplay video", "Scripted section", "Locked · Edit in HTML · Preview plays it", "Edit HTML", "Can't edit this source visually. Use HTML."];
     for (const [locale, dictionary] of Object.entries(SCRIPT_BLOCK_DICT)) {
@@ -145,4 +146,41 @@ it("translates the preview consent note in every admin locale", () => {
   for (const locale of Object.keys(PAGE_EDITOR_DICT)) {
     expect(t({ locale, key }), locale).not.toBe(key);
   }
+});
+
+/**
+ * Pins the Page editor translator's routing across the move of its dictionaries to
+ * `@jini-ai/admin/pages/page-editor-i18n`: one key per branch (script-block copy, the Posts editor's
+ * shared vocabulary, editor controls, markup copy, hook copy, a `COMMON_I18N` fallback, an unknown
+ * key) in two locales, values captured from the pre-move module.
+ */
+describe("t: per-branch routing is unchanged by the dictionary move", () => {
+  const EXPECTED: Record<string, Record<string, string>> = {
+    de: {
+      Canvas: "Leinwand",
+      Back: "Zurück",
+      Desktop: "Desktop",
+      "Load latest": "Neueste Version laden",
+      Saved: "Gespeichert",
+      Save: "Speichern",
+      "No changes found · nothing new saved (version {version})": "Keine Änderungen gefunden · nichts Neues gespeichert (Version {version})",
+      "totally unknown key": "totally unknown key",
+    },
+    ja: {
+      Canvas: "キャンバス",
+      Back: "戻る",
+      Desktop: "デスクトップ",
+      "Load latest": "最新を読み込む",
+      Saved: "保存しました",
+      Save: "保存",
+      "No changes found · nothing new saved (version {version})": "変更はありません · 新たに保存されたものはありません（バージョン {version}）",
+      "totally unknown key": "totally unknown key",
+    },
+  };
+
+  it.each(Object.keys(EXPECTED))("resolves the representative keys in %s exactly as before", (locale) => {
+    for (const [key, value] of Object.entries(EXPECTED[locale])) {
+      expect(t({ locale, key }), `${locale}:${key}`).toBe(value);
+    }
+  });
 });

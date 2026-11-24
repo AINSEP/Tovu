@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSettingsPrincipalLookup, ensureSettingsUiTabDefinitions, InMemorySettingsRepo } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup, InMemorySettingsRepo } from "#src/features/settings/index";
+import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
 
 /** A real in-memory settings ledger with the admin settings tabs registered, plus a writer for one
  *  operator's `core.language.locale` - what the admin Language selector saves. */

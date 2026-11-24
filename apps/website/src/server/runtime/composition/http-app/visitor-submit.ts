@@ -7,6 +7,8 @@
 import { statfs } from "node:fs/promises";
 import { createFormMediaCleanup } from '#src/features/forms/form-file-purge';
 import { analyticsProviderRouteDeps } from "../analytics-providers.js";
+import { analyticsSaltContext } from "#src/features/analytics/salt-context";
+import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { resolveCommentsIpHashSalt } from "@jini-ai/cms/comments/site/ip-hash-salt";
@@ -61,6 +63,8 @@ export function registerAnalyticsIngest({ app, routeDeps }: MountInput, _optiona
     config: routeDeps.analyticsConfig,
     resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
     analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
+    saltContext: analyticsSaltContext,
+    reportForwardFailure: reportAnalyticsForwardFailure,
     ...analyticsProviderRouteDeps(routeDeps),
   } });
 }

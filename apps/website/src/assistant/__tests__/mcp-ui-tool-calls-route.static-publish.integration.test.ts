@@ -12,7 +12,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { bindSiteConsentService } from "#src/server/runtime/composition/site-consent";
 import { buildStaticPublishRegistrations, type StaticPublishToolDeps } from "#src/features/deployments/publish-agent-tools";
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
-import type { PublishCredentialSource } from "#src/features/deployments/static-publish/index";
+import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";

@@ -7,15 +7,13 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import {
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-} from "#src/features/publish-content/type-registry";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { uploadMedia } from "#src/features/media/index";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentContributor, PackedEntity } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —

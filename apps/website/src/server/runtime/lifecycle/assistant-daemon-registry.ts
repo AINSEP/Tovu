@@ -1,7 +1,10 @@
 import { join } from "node:path";
 import { readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
-import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 type RegistrySite = { siteDir: string };
 type RegistryEnvironment = { env?: NodeJS.ProcessEnv };

@@ -36,8 +36,10 @@ import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
-import { PLUGIN_STATE_MAX_KEYS, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
-import { createSurfaceConnections, type IssuedSignIn } from "../surface-connections.js";
+import { PLUGIN_STATE_MAX_KEYS } from "@jini-ai/agent-plugins/admin-surfaces";
+import { PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state-bindings.js";
+import { createSurfaceConnections } from "../surface-connections.js";
+import { type IssuedSignIn } from "@jini-ai/agent-plugins/admin-surfaces/connections";
 import { runApiConnectionConnect } from "../connect.js";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 

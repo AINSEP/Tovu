@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 
 /** @file The external-MCP row auth-mode readers (`auth-mode.ts`): the pre-column default and the static-token check. */

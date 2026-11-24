@@ -1,7 +1,7 @@
 import { renderHumanApproval } from "../../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
+import { describeUninstallApproval } from "@jini-ai/plugins/runtime/uninstall-confirmation-ui";
 
 test("site plugin uninstall surface encodes both decisions for plugins_uninstall with the exact exchange", async () => {
   const resource = await renderHumanApproval({ spec: describeUninstallApproval({ preview: { pluginId: "site/x", name: "Site Plugin", version: "3.2.1" } }), exchangeId: "uninstall-42" });

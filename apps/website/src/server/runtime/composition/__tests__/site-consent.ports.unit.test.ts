@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { siteConsentPorts } from "../site-consent.js";
+import { reportPrivacyDefaultsFailure } from "#src/features/consent/privacy-defaults-reporter";
 
 /** The consent service's site-bound ports: consent readiness, region trust, receipt-storage health
  * and the local published-page render, each driven with a hand-built deps object. */
@@ -66,19 +67,20 @@ test("renderPage renders the same-origin path through a consent-audit site app",
 });
 
 test('privacy defaults wait for the dependency literal, then bind title, owner, settings and outbox', async () => {
-  const { InMemorySettingsRepo } = await import('@jini-ai/core/settings');
-  const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('#src/features/consent/settings');
+  const { InMemorySettingsRepo, ensureSettingDefinitions } = await import('@jini-ai/core/settings');
+  const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('@jini-ai/cookie-consent/site/settings');
   const { InMemoryOutbox } = await import('#src/contracts/core/events/index');
   const { ensureSiteConsentPrivacy } = await import('../site-consent.js');
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
-  const { InMemorySiteTitlePreservationStore } = await import('#src/features/settings/site-title');
-  const { ensureSiteTitleSettingDefinition } = await import('#src/features/settings/site-title');
+  const { InMemorySiteTitlePreservationStore } = await import('@jini-ai/cms/settings/site/site-title');
+  const { ensureSiteTitleSettingDefinition } = await import('@jini-ai/cms/settings/site/site-title');
+  const { LEGACY_SITE_TITLE } = await import('#src/features/settings/site-title-legacy');
   const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo({});
   let count = 0; const ids = { newId: () => `binding-${++count}` };
   const clock = { nowMs: () => Date.parse('2026-10-22T00:00:00.000Z'), nowIso: () => '2026-10-22T00:00:00.000Z' };
   const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
   const settingDeps = { settingsRepo, clock, ids, principals };
-  await ensureSiteTitleSettingDefinition(settingDeps, { systemPrincipalId: 'system' });
+  await ensureSiteTitleSettingDefinition({ ...settingDeps, ensureSettingDefinitions }, { systemPrincipalId: 'system', legacySiteTitle: LEGACY_SITE_TITLE });
   await ensureSiteConsentDefinitions(settingDeps, { systemPrincipalId: 'system' });
   const users: unknown[] = []; const html: string[] = [];
   const outbox = new InMemoryOutbox();
@@ -87,6 +89,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   let attempted = false, settled = false;
   const ready = createSiteConsentReadiness({ ...settingDeps, after: Promise.resolve(), systemPrincipalId: 'system' }, {
     ensurePrivacyDefaults: () => { attempted = true; return ensureSiteConsentPrivacy({ deps: routeDepsBuilt }); },
+    reportPrivacyDefaultsFailure,
   });
   void ready.then(() => { settled = true; });
   // Reproduce boot settings finishing while the composition literal is suspended on plugin I/O.
@@ -140,7 +143,7 @@ test('theme-off declarations use the managed shell and publication refresh is fo
 });
 
 test('a full-document published bare Page reports a missing runtime slot with theme off; a fragment remains supported', async () => {
-  const { consentDeclarationReadiness } = await import('#src/features/consent/readiness');
+  const { consentDeclarationReadiness } = await import('@jini-ai/cookie-consent/site/readiness');
   let reads = 0;
   let bodyHtml = '<!doctype html><html><body><iframe src="/frame"></iframe></body></html>';
   let themeId = 'none';

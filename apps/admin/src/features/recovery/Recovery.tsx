@@ -1,21 +1,24 @@
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
+import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 
 
-import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "./api/recovery-api.types";
+import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "@jini-ai/admin/core";
 import {
   categoryLabel,
   costClassLabel,
   isAssertiveRecoveryBanner,
   recoveryBannerTone,
   restoreButtonAccessibleName,
-} from "./rules";
-import { useWiredRecovery } from "./hooks/use-recovery.hooks";
-import { useRecoveryNavigation } from "./hooks/use-recovery-navigation.hooks";
+} from "@jini-ai/admin/recovery/rules";
+import { useWiredRecovery } from "./hooks/recovery-dependencies.hooks";
+import { useRecoveryNavigation } from "@jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ServerLabel } from "@/components/status-labels";
-import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
+import { useWiredRestoreFlow } from "./hooks/restore-flow-dependencies.hooks";
+import type { CeremonyStep } from "@jini-ai/admin/recovery/hooks/use-restore-flow.hooks";
 import {
   t,
   sinceDiscardMessage,
@@ -23,10 +26,13 @@ import {
   baselineUnavailableMessage,
   restorePlanReadyMessage,
   restoreDoneMessage,
-} from "./recovery-i18n";
+} from "@jini-ai/admin/recovery/recovery-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+
+/** This stylesheet's discard-count row classes (`.recovery-loss-qty` carries the numeral's weight). */
+const RECOVERY_LOSS_CLASSES = { row: "recovery-loss-row", quantity: "recovery-loss-qty", category: "recovery-loss-what" };
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
  *
@@ -169,7 +175,7 @@ function RestorePointsList(props: {
                 // `rules.ts`'s `restoreButtonAccessibleName` doc comment for why that is ambiguous
                 // to anything resolving elements by accessible name rather than table position, and
                 // why this is the one screen where that ambiguity matters most.
-                aria-label={restoreButtonAccessibleName({ locale: locale, point: p })}
+                aria-label={restoreButtonAccessibleName({ locale: locale, point: p, viewerTimeZone: VIEWER_TIME_ZONE })}
                 {...agentHandle({ handle: `${rowHandleById.get(p.id)}-restore` }, { role: "button", label: "Begin the restore ceremony for this restore point" })}
               >
                 {t({ locale: locale, key: "Restore…" })}
@@ -235,7 +241,7 @@ function DisclosurePanel(props: {
         <p className="recovery-loss-lede">{sinceDiscardMessage({ locale: locale, createdAt: props.point.createdAt })}</p>
         <ul className="recovery-loss-list">
           {categories.map(([category, count]) => (
-            <li key={category}>{discardCountLine({ locale: locale, count: count, categoryLabelText: categoryLabel({ category: category, locale: locale }) })}</li>
+            <li key={category}>{discardCountLine({ locale: locale, count: count, categoryLabelText: categoryLabel({ category: category, locale: locale }), classNames: RECOVERY_LOSS_CLASSES })}</li>
           ))}
         </ul>
         <p className="recovery-loss-caveat">{t({ locale: locale, key: "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here." })}</p>
@@ -519,10 +525,13 @@ export interface RecoveryProps {
   useRecoveryNavigationHook?: typeof useRecoveryNavigation;
 }
 
+/** Module-level so `useRecoveryNavigation`'s memoized handlers stay stable across renders. */
+const recoveryNavigationPort = { navigate };
+
 export function Recovery({ useRecoveryHook = useWiredRecovery, tabId,
   useRecoveryNavigationHook = useRecoveryNavigation }: RecoveryProps = {}) {
   const { status, points, error, creating, createRestorePoint, selected, setSelected, t, locale } = useRecoveryHook();
-  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigationHook({ tabId, setSelected });
+  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigationHook({ tabId, setSelected, port: recoveryNavigationPort });
 
   if (error && !points) return <div className="notice error">{error}</div>;
   if (!points || !status) return <div className="notice">{t("Loading restore points…")}</div>;

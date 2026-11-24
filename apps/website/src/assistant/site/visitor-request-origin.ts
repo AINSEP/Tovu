@@ -1,4 +1,4 @@
-import type { FrontendHookInput } from '@jini-ai/daemon/http';
+import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 import { normalizeOriginCandidate } from '@jini-ai/core/contracts/server/verified-origin';
 import { readRequestFacts } from '@jini-ai/core/contracts/site/request-facts';
 

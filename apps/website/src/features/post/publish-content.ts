@@ -7,13 +7,9 @@ import { collectBodyReferences } from "#src/features/publish-content/content-ref
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { addressHeldByOther, trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type {
-  PublishContentContributor,
-  PublishContentDeps,
-  PackedEntity,
-  PublishContentReference,
-  RetireTarget,
-} from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentReference, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 

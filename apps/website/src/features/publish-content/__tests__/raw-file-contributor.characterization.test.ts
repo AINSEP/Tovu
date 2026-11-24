@@ -22,7 +22,8 @@ import type { RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const REL = "snippets/footer.html";
 

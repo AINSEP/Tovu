@@ -1,5 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { PluginInstallError, type PluginInstallerPort } from "@jini-ai/plugins/host/node";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
+import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { raw, type Express, type Request, type Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

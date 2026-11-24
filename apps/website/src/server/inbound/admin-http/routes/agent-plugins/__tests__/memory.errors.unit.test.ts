@@ -8,7 +8,7 @@ let writeFailure: Error = new Error('invalid note');
 mock.module('#src/features/agent-plugins/memory', { namedExports: { pluginMemory: () => ({
   writeNote: async () => { throw writeFailure; }, list: async () => [],
 }) } });
-const { registerAgentPluginMemoryRoutes } = await import('../memory.js');
+const { registerAgentPluginMemoryRoutes } = await import('#src/server/runtime/composition/modules/agent-plugin-memory-routes');
 
 test('note validation is a refusal while filesystem errors report a redacted incident', async (t) => {
   const logs: unknown[][] = [];

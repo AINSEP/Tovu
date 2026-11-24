@@ -1,0 +1,10 @@
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts | ℹ pass 39 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/config.settings.test.ts | ℹ pass 12 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/forwarding.test.ts | ℹ pass 10 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/index.test.ts | ℹ pass 2 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/jini-adapters.test.ts | ℹ pass 4 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/jini-adapters.unit.test.ts | ℹ pass 3 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/recent-hits-tool.test.ts | ℹ pass 11 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/repo.contract.test.ts | ℹ pass 22 ℹ fail 0  | exit 0
+apps/website/src/features/analytics/__tests__/salt.test.ts | ℹ pass 6 ℹ fail 0  | exit 0
+apps/website/src/server/__tests__/routes/analytics-ingest.test.ts | ℹ pass 11 ℹ fail 0  | exit 0

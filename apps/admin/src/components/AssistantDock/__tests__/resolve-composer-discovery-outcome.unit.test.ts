@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resolveComposerDiscoveryOutcome } from "../hooks/resolve-composer-discovery-outcome";
-import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
-import type { ComposerHostBinding, TovuComposerCapability } from "@/features/plugins/composer-capabilities";
+import { projectComposerCapabilities } from "@jini-ai/admin/screens/plugins/composer-capabilities";
+import type { ComposerHostBinding, ComposerCapability as TovuComposerCapability } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
 /**

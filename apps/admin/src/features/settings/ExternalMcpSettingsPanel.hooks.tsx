@@ -4,7 +4,7 @@ import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type Source
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
-import { t as tExternalMcp } from "./external-mcp-i18n";
+import { t as tExternalMcp } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
 import {
   buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,

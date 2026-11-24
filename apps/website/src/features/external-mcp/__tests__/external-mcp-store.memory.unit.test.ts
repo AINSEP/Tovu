@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { SealedSecret } from "../../webhooks/index.js";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import type { ExternalMcpServerRecord } from "../contracts.js";
+import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 
 const keyring = new InMemoryKeyring();
 const deps = { keyring, sealer: new AesGcmSecretSealer(keyring) };
