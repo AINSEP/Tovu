@@ -1,6 +1,7 @@
 import type { SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import { groupPresets, isProviderConfigured, nextConfigForPresetSelect, resolveSelectedPreset, type ExecutionPort } from "@jini-ai/ui";
+import { groupPresets, isProviderConfigured, nextConfigForPresetSelect, resolveSelectedPreset } from "@jini-ai/ui";
+import type { ExecutionPort } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { useVisitorCredentialForm } from "@jini-ai/admin/screens/assistant-settings/use-visitor-credential-form.hooks";
 import type {
   VisitorCredentialFormController,

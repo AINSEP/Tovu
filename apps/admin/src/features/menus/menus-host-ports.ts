@@ -1,3 +1,5 @@
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
+import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { ApiError, request } from "@/lib/admin-http/request";
 import type { MenusHostKit } from "@jini-ai/admin/screens/menus/menus-host-kit";
@@ -10,7 +12,8 @@ import { trashApi } from "@/features/trash/api/trash-api";
 import { pagePublicPath } from "../pages/rules";
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
-import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { isClipboardRefusal } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
+import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 
@@ -51,4 +54,7 @@ export const menusHostKit: MenusHostKit = {
   useMenuItemActions,
   useMenuCopyEmbed,
   useMenuSave,
+  useCachedLoader,
+  useDirtyGuard,
+  useFetchQuery,
 };
