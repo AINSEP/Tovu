@@ -9,8 +9,8 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerTransform, updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
-import type { MemberSessionRecord } from "../../features/members/index.js";
-import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo } from "../../features/members/index.js";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo } from "@jini-ai/user-management/members/repo.memory";
 
 /**
  * @file The member/paid gate on `routes/site/media-rendition.ts`'s TWO public routes, exercised

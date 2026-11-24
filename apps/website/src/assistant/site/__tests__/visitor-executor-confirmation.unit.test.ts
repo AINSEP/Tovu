@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit/repo.memory.js";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorExecutionPorts } from "../visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "../visitor-tool-presentation.js";
 import { parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";

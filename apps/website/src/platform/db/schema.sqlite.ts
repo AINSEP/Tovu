@@ -919,7 +919,7 @@ export const memberRevisions = sqliteTable(
  * Newsletter (SPEC-011, ADR-PIPE-011 Decision §2). The campaign editorial row is a BESPOKE Drizzle
  * table pair (not the ADR-023 `dataModule` path) — the 5 relational `p_newsletter__*` tables (lists/
  * subscriptions/audience_snapshots/sends/confirmation_tokens) are `declareDataModule()`-owned instead
- * (see `apps/website/src/features/newsletter/data-module-manifest.ts`), NOT declared here. `countersJson`/`stateJson` are
+ * (see `@jini-ai/user-management/newsletter/data-module-manifest`), NOT declared here. `countersJson`/`stateJson` are
  * JSON-serialized text columns, mirroring `settingRevisions`/`redirectRevisions`'s convention.
  */
 export const newsletterCampaigns = sqliteTable(

@@ -1,4 +1,4 @@
-/* Same warning tokens as `server-restarting-banner.css`, but in flow above the page content. */
+/* Same warning tokens as `@jini-ai/admin`'s `server-restarting-banner.css`, but in flow above the page content. */
 .mail-status-banner {
   display: flex;
   align-items: center;

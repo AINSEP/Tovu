@@ -6,12 +6,14 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { MembersWriteServiceDeps } from "../ports.js";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
-import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
-import { issueMemberSession } from "../member-credentials.js";
-import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "../types.js";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
+import { memberSqlDeps } from "../repo.sqlite.js";
+import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
 
 const WS = "password-lifecycle";
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -22,9 +24,9 @@ type Workflow = "change" | "reset" | "first-password";
 function harness(kernel: ContentKernel) {
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   let sequence = 0;
-  const members = new SqlMemberRepo(kernel);
-  const sessions = new SqlMemberSessionRepo(kernel);
-  const magicLinks = new SqlMagicLinkTokenRepo(kernel);
+  const members = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
+  const magicLinks = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel }));
   const deps: MembersWriteServiceDeps = {
     credentialLifecycle: kernel, clock, ids: { newId: () => `password-${++sequence}` }, members, sessions, magicLinks,
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),

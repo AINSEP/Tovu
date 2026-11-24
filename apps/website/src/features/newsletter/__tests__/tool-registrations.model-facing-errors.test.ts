@@ -18,7 +18,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { newsletterAgentToolCatalog } from "../agent-tools.js";
-import { createHookRegistry } from "../hooks.js";
+import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -26,7 +26,7 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/newsletter/repo.memory";
 import { buildNewsletterRegistrations, contributeNewsletterTools, newsletterDerivedRisk, type NewsletterToolDeps } from "../tool-registrations.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 

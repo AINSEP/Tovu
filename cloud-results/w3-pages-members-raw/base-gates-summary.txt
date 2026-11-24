@@ -1,0 +1,22 @@
+jini guard 1
+jini typecheck 0
+jini api:check 0
+jini check:cross-package 1
+jini check:size 1
+jini check:complexity 1
+jini check:why-comments 1
+jini check:hooks 0
+jini check:errors 0
+jini check:log-safety 1
+tovu check:size 1
+tovu check:boundaries 0
+tovu typecheck 0
+tovu typecheck:tests 0
+tovu typecheck:scripts 2
+tovu check:errors 0
+tovu check:complexity 0
+tovu check:hooks 0
+tovu check:architecture 1
+tovu check:why-comments 1
+tovu admin-tsc 0
+GATES-DONE

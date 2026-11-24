@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -15,7 +16,9 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { type MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { type OutboundEmail } from "#src/platform/mail/index";
 import type { MailerSendOptions } from "#src/platform/mail/index";
 
 /**
@@ -122,6 +125,7 @@ for (const mode of ["local", "production"] as const) {
       magicLinks: route.magicLinkRepo, principals: route.principalRepo, origin: route.originRegistry,
       passwordHasher: { hash: async () => "fixture-code-hash", verify: async () => false },
       senderIdentity: { resolve: async () => ({ email: "members@example.test" }) },
+      mailTransport: membersMailTransport,
       mailer: { ...mailer, capabilities: () => ({ ...mailer.capabilities(), driver: "memory" }),
         send: async (message, options) => { sent.push(message); return mailer.send(message, options); } },
     };

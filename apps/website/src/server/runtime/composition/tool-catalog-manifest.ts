@@ -41,8 +41,10 @@ import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
-import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
-import { contributeObservabilityTools } from "#src/features/observability/tool-registrations";
+import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool-registrations";
+import { processServerLogSource } from "#src/features/server-logs/process-source";
+import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
+import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-error-message";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
@@ -427,8 +429,10 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
   contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
-  contributions.contributors.register({ contribution: contributeServerLogsTools() });
-  contributions.contributors.register({ contribution: contributeObservabilityTools({}) });
+  /** Defaults to this process's captured console buffer. */
+  // Now: the server-logs tool's log source is `ServerLogsToolDeps.serverLogs`, bound here to that buffer.
+  contributions.contributors.register({ contribution: contributeServerLogsTools({ serverLogs: processServerLogSource }) });
+  contributions.contributors.register({ contribution: contributeObservabilityTools({ testErrorMessage: TELEMETRY_TEST_ERROR_MESSAGE }) });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`

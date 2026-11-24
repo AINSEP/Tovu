@@ -1,11 +1,12 @@
 // Before any catalog module: the hosting plugins ship from @jini-ai/agent-plugins (see the fixture).
 import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
 import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
-import { observabilityAgentToolCatalog } from '#src/features/observability/tool-registrations';
+import { createObservabilityAgentToolCatalog } from '@jini-ai/diagnostics/observability/tool-registrations';
+import { TELEMETRY_TEST_ERROR_MESSAGE } from '#src/features/observability/test-error-message';
 import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
+import { serverLogsAgentToolCatalog } from "@jini-ai/diagnostics/server-logs/agent-tools";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
 import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../../features/agent-plugins/automatic-agent-plugins.js";
@@ -109,7 +110,7 @@ import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-too
 import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
 import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
-import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
@@ -243,7 +244,7 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * and actorClassRule), so structural casts adapt them to this map's common catalog type.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
-  observability: observabilityAgentToolCatalog,
+  observability: createObservabilityAgentToolCatalog({ testErrorMessage: TELEMETRY_TEST_ERROR_MESSAGE }),
   "project-keys": projectKeysCatalog,
   consent: consentAgentToolCatalog,
   "tool-gaps": toolGapsAgentToolCatalog,
@@ -476,6 +477,14 @@ test("identity_user_create's published schema/description are a real derivation 
 
   assert.deepEqual(registration.descriptor.inputSchema, withoutPassword({ schema: catalog.inputSchema }), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
   assert.equal(registration.descriptor.description, `${catalog.description}${USER_CREATE_DESCRIPTION_SUFFIX}`);
+});
+
+test("observability_send_test_error publishes the host's own test-error message, byte-identical", () => {
+  // The wired descriptor appends the shared batch guidance; the catalog-owned prefix is what is pinned.
+  const expected = "Send the fixed diagnostic 'Tovu test error — safe to ignore', one test span and one telemetry_test analytics event through this site's tracker. Requires admin system.write. No confirmation needed. Returns provider ids and signals accepted locally; this is not proof of remote delivery. Analytics still requires telemetry consent. Takes no arguments.";
+  const published = wiredRegistration("observability_send_test_error").descriptor.description;
+  assert.ok(published, "observability_send_test_error must publish a description");
+  assert.equal(published.slice(0, expected.length + 1), `${expected} `);
 });
 
 test("requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever", () => {

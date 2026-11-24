@@ -45,7 +45,7 @@ import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
 import { SqliteContentTypeRepo } from '#src/features/content-types/repo.sqlite';
 import { discoverAllBuiltInThemes } from '#src/features/theme/index';
 import { SqliteCommentRepo } from '#src/features/comments/repo.sqlite';
-import { SqliteMemberRepo, SqliteMemberTierRepo, SqliteMemberSubscriptionRepo } from '#src/features/members/index';
+import { SqliteMemberRepo, SqliteMemberTierRepo, SqliteMemberSubscriptionRepo } from '#src/features/members/repo.sqlite';
 import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo, SqliteNewsletterSubscriptionRepo, SqliteNewsletterAudienceSnapshotRepo, SqliteNewsletterSendRepo } from '#src/features/newsletter/repo.sqlite';
 import { SqliteRedirectRepo } from '#src/features/redirects/index';
 import { createSeoDeps } from '#src/features/seo/index';

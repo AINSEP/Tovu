@@ -58,7 +58,7 @@ test("search preserves an explicit limit before and after rebind", () => {
 // F2.3: the actual daemon onAdmitted callback must rebind the object already mounted.
 test("server admission refreshes the next daemon run while retaining boot tools", async t => {
   const { createToolRegistry } = await import("@jini-ai/core");
-  const { createInMemoryToolAttemptAuditSink } = await import("../../features/tool-audit/repo.memory.js");
+  const { createInMemoryToolAttemptAuditSink } = await import("@jini-ai/diagnostics/tool-audit/repo.memory");
   const { mountDaemonCatalog } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-catalog.js");
   const registry = createToolRegistry({});
   const registration = (id: string) => ({ descriptor: { id, description: "reload discovery probe" }, handler: async () => "ok", policy: { authorize: () => "allow" as const } });
@@ -82,7 +82,7 @@ test("server admission refreshes the next daemon run while retaining boot tools"
 
 test("the daemon describe route exposes the read family and refreshes its registered cards", async t => {
   const { createToolRegistry } = await import("@jini-ai/core");
-  const { createInMemoryToolAttemptAuditSink } = await import("../../features/tool-audit/repo.memory.js");
+  const { createInMemoryToolAttemptAuditSink } = await import("@jini-ai/diagnostics/tool-audit/repo.memory");
   const { mountDaemonCatalog } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-catalog.js");
   const registry = createToolRegistry({});
   const registration = ({ id, description }: { id: string; description: string }, _options = {}) => ({ descriptor: { id, description, readOnly: true }, handler: async () => "ok", policy: { authorize: () => "allow" as const } });

@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -22,19 +23,19 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory.js";
-import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "../member-admin-writes.js";
-import { completeSignIn, createMember } from "../member-sign-in.js";
-import { requestSignInLink } from "../member-challenge-request.js";
+} from "@jini-ai/user-management/members/repo.memory";
+import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
+import { completeSignIn, createMember } from "@jini-ai/user-management/members/member-sign-in";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import {
   MemberAuthError,
   MemberSignInUnavailableError,
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
-} from "../types.js";
-import { DefaultMemberAccessResolver } from "../access-resolver.js";
-import type { MembersWriteServiceDeps } from "../ports.js";
+} from "@jini-ai/user-management/members/types";
+import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -94,6 +95,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
     sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(),
     mailer,
+    mailTransport: membersMailTransport,
     principals,
     origin: makeOriginRegistry({ canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: clock.nowIso(), source: "dev-capability" }) }),
     ...overrides,

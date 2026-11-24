@@ -149,13 +149,6 @@
       "value": 125
     },
     {
-      "file": "apps/admin/src/features/pages/Pages.tsx",
-      "function": "Pages#1",
-      "line": 100,
-      "rule": "max-lines-per-function",
-      "value": 169
-    },
-    {
       "file": "apps/admin/src/features/pages/ThemePagesTab.tsx",
       "function": "ThemePagesTab#1",
       "line": 291,

@@ -2,15 +2,14 @@ import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describeEachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
-import { createToolGapReader } from '../tool-gaps.repo.js';
-import { SqlToolAttemptAuditSink } from '../repo.js';
+import { SqliteToolAttemptAuditSink, createSqliteToolGapReader } from '../repo.sqlite.js';
 import { createToolGapCollector, TOOL_GAP_AUDIT_ID, type ToolGapEntry } from '@jini-ai/daemon/tool-audit';
 import { createToolRegistry } from '@jini-ai/core';
 import { createToolExecutor, createRunLifecycle, createInMemoryEventLog } from '@jini-ai/daemon';
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { Express, Request, Response } from 'express';
 import { buildToolGapsRegistrations } from '../../../assistant/tool-gaps-tool.js';
-import { registerAdminToolGapsRoute } from '../../../server/inbound/admin-http/routes/system/tool-gaps.js';
+import { registerAdminToolGapsRoute } from '../../../server/runtime/composition/http-app/mount-admin-system.js';
 import { redactSecretShapes } from '../../../contracts/core/secret-redaction.js';
 
 /** The existing audit table on SQLite/PGlite: latest revision, scoped reads and no catalog noise. */
@@ -19,7 +18,7 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     const kernel = makeKernel();
     const secret = 'Sw0rdFish!'.repeat(2);
     const collector = createToolGapCollector({
-      sink: new SqlToolAttemptAuditSink(kernel), workspaceId: 'w', principalId: 'owner',
+      sink: new SqliteToolAttemptAuditSink({ store: kernel }), workspaceId: 'w', principalId: 'owner',
       site: 'site-a', chatId: 'chat-a', runId: 'r', provider: 'claude',
       redact: text => redactSecretShapes({ text }).text,
     }, {});
@@ -34,7 +33,7 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     assert.equal(raw.length, 1);
     assert.equal(JSON.stringify(raw).includes(secret), false, 'secrets must never enter durable audit rows');
     assert.match(raw[0]!.detail!, /REDACTED/);
-    const toolGaps = createToolGapReader({ kernel }, {});
+    const toolGaps = createSqliteToolGapReader({ store: kernel }, {});
     const entries = await toolGaps.list({ workspaceId: 'w', principalId: 'owner' }, {});
     assert.equal(entries.length, 1);
     assert.deepEqual({ ...entries[0], id: 'generated' }, {
@@ -52,14 +51,14 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     let handler!: (req: Request, res: Response) => Promise<void>;
     registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps });
     let body: unknown;
-    const res = { locals: { principal: { id: 'owner' } }, json(value: unknown) { body = value; return this; } };
+    const res = { locals: { principal: { id: 'owner' } }, status() { return this; }, json(value: unknown) { body = value; return this; } };
     await handler({ params: { workspaceId: 'w' } } as unknown as Request, res as unknown as Response);
     assert.deepEqual(body, { entries });
   });
 
   test('keeps latest explanations and filters workspace, principal and non-gap events before limiting', async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel);
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel });
     const base = { executionId: null, workspaceId: 'w', principalId: 'owner', runId: 'r', toolId: TOOL_GAP_AUDIT_ID, phase: 'requested' as const, at: '2026-10-17T00:00:00Z' };
     const entry: ToolGapEntry = { id: 'gap-a', at: base.at, site: 'a', chatId: 'c', runId: 'r', provider: 'claude', toolUsed: 'Bash', summary: 'ls', type: 'tool_gap', gapLine: null };
     await sink.append({ ...base, attemptId: 'gap-a' }, { detail: JSON.stringify(entry) });
@@ -67,24 +66,24 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     for (const override of [{ workspaceId: 'other' }, { principalId: 'admin' }, { toolId: 'content_read' }]) {
       await sink.append({ ...base, ...override, attemptId: 'excluded' }, { detail: JSON.stringify({ ...entry, id: 'excluded' }) });
     }
-    const entries = await createToolGapReader({ kernel }, {}).list({ workspaceId: 'w', principalId: 'owner' }, { limit: 1 });
+    const entries = await createSqliteToolGapReader({ store: kernel }, {}).list({ workspaceId: 'w', principalId: 'owner' }, { limit: 1 });
     assert.equal(entries.length, 1);
     assert.equal(entries[0]?.id, 'gap-a');
     assert.match(entries[0]?.gapLine ?? '', /Tool gap: list/);
     // A separately constructed reader sees the same durable row.
-    assert.deepEqual(await createToolGapReader({ kernel }, {}).list({ workspaceId: 'w', principalId: 'owner' }, {}), entries);
+    assert.deepEqual(await createSqliteToolGapReader({ store: kernel }, {}).list({ workspaceId: 'w', principalId: 'owner' }, {}), entries);
   });
 
   test('skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)', async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel);
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel });
     const base = { executionId: null, workspaceId: 'w', principalId: 'owner', runId: 'r', toolId: TOOL_GAP_AUDIT_ID, phase: 'requested' as const, at: '2026-10-17T00:00:00Z' };
     const entryFor = (id: string): ToolGapEntry => ({ id, at: base.at, site: 'a', chatId: 'c', runId: 'r', provider: 'claude', toolUsed: 'Bash', summary: id, type: 'tool_gap', gapLine: null });
     for (let i = 0; i < 3; i += 1) await sink.append({ ...base, attemptId: `gap-${i}` }, { detail: JSON.stringify(entryFor(`gap-${i}`)) });
     await sink.append({ ...base, attemptId: 'garbled' }, { detail: '{ not json' });
     await sink.append({ ...base, attemptId: 'wrong-shape' }, { detail: JSON.stringify({ hello: 'world' }) });
     // Reader and list both called with their optional arguments omitted: the defaults apply.
-    const reader = createToolGapReader({ kernel });
+    const reader = createSqliteToolGapReader({ store: kernel });
     const scope = { workspaceId: 'w', principalId: 'owner' };
 
     const all = await reader.list(scope);

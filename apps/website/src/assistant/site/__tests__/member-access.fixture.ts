@@ -1,7 +1,5 @@
-import {
-  DefaultMemberAccessResolver, resolvePostMemberAccess,
-  InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
-} from "#src/features/members/index";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
+import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 
 /** Real members policy, with empty DI repositories: no test can acquire an entitlement. */
 export function anonymousMemberAccess(_required = {}, _options = {}) {

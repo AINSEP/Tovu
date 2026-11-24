@@ -11,7 +11,7 @@ import type { composeSiteTitleSettings } from "../slices/site-title-settings.js"
 import type { composePublishContentStores } from "../slices/publish-content-stores.js";
 import type { composeOriginNewsletter } from "../slices/origin-newsletter.js";
 import type { composeMemoryComments } from "../slices/comments.js";
-import type { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import type { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import type { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";

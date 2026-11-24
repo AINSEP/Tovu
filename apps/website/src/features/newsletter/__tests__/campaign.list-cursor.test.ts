@@ -11,10 +11,10 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { registerAdminNewsletterListCampaignsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
-import { SqlNewsletterCampaignRepo } from "../repo.js";
-import { InMemoryNewsletterCampaignRepo } from "../repo.memory.js";
-import type { NewsletterCampaignRepoPort } from "../ports.js";
-import type { CampaignRecord } from "../types.js";
+import { SqliteNewsletterCampaignRepo } from "../repo.sqlite.js";
+import { InMemoryNewsletterCampaignRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+import type { NewsletterCampaignRepoPort } from "@jini-ai/user-management/newsletter/ports";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "workspace-local";
 const T0 = "2026-11-13T00:00:00.000Z";
@@ -49,7 +49,7 @@ function listCases(make: () => NewsletterCampaignRepoPort): void {
   });
 }
 
-describeEachDialect("newsletter campaign cursor", { tables: ["newsletter_campaigns"], make: (kernel: ContentKernel) => new SqlNewsletterCampaignRepo(kernel) }, make => listCases(make));
+describeEachDialect("newsletter campaign cursor", { tables: ["newsletter_campaigns"], make: (kernel: ContentKernel) => new SqliteNewsletterCampaignRepo({ store: kernel }) }, make => listCases(make));
 describe("newsletter campaign cursor (memory)", () => listCases(() => new InMemoryNewsletterCampaignRepo()));
 
 function routeDeps(): NewsletterRouteDeps {

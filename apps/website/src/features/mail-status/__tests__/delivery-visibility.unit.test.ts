@@ -6,7 +6,7 @@ import type { MailerPort } from "../../../platform/mail/index.js";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
-import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
+import type { LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,

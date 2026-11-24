@@ -52,7 +52,15 @@ import { InMemorySettingsRepo, set } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
+/**
+ * @file In-memory {@link ToolAttemptAuditSink} — the test double for the SQLite adapter, and the
+ * sink `TOVU_DB=memory` gets.
+ *
+ * Architectural role:
+ * `features/tool-audit` adapter. Depends only on this package's own `types.ts`.
+ */
+// Now: the sink lives in `@jini-ai/diagnostics/tool-audit/repo.memory`; this hermetic composition binds it.
 import { builtInThemesDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/index";

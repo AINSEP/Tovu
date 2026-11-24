@@ -1,55 +1,98 @@
 /**
  * @file The six newsletter repos on a site's SQLite `content.db`: the one Kysely query body in
- * `repo.ts` (`SqlNewsletter…Repo`) behind their historical `SqliteNewsletter…Repo` names used by the
+ * `@jini-ai/user-management/newsletter/repo*` (`SqlNewsletter…Repo`) behind their historical `SqliteNewsletter…Repo` names used by the
  * composition root; new code constructs `SqlNewsletter…Repo`
- * with a kernel directly. The campaign pair lives in the migrated core schema; the other five tables
- * are the `p_newsletter__*` dataModule tables `declareDataModule()` creates (`data-module-manifest.ts`,
+ * with a schema-erased kernel and {@link NEWSLETTER_SQL_TABLES} directly. The campaign pair lives in the migrated core schema; the other five tables
+ * are the `p_newsletter__*` dataModule tables `declareDataModule()` creates (`@jini-ai/user-management/newsletter/data-module-manifest`,
  * ADR-023 §7/§8).
+ *
+ * The query bodies are Jini's (`@jini-ai/user-management/newsletter/repo*`); this binding supplies
+ * this site's table names ({@link NEWSLETTER_SQL_TABLES}) and the campaign body reporter
+ * ({@link logUnreadableCampaignBody}).
  */
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+
+import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "./repo-sends.js";
-import { SqlNewsletterCampaignRepo } from "./repo.js";
-import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "./repo-subscribers.js";
+import { NEWSLETTER_TABLE_NAMES } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "@jini-ai/user-management/newsletter/repo-sends";
+import { SqlNewsletterCampaignRepo } from "@jini-ai/user-management/newsletter/repo";
+import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo-subscribers";
+import type { CampaignBodyReporter, NewsletterSqlTables } from "@jini-ai/user-management/newsletter/repo.rows";
+
+/**
+ * @file Newsletter — core domain types (INTERFACES & TYPES ONLY; no feature logic).
+ *
+ * Draft ADR-034 (PROPOSED). These types encode the Newsletter design's data model,
+ * permission catalog, event/hook vocabulary, and own-table row shapes so the design is
+ * compile-checked against the real repo primitives before any implementation exists.
+ *
+ * Placement (tovu-v2-design.md §3.5): Newsletter is a **Tier-3 bundled plugin**
+ * (`plugins/newsletter`) resting on the **Tier-2 `MailerPort` core primitive** (see
+ * `./ports.ts`). Campaigns reuse the ADR-022 `entries` editorial substrate; the relational,
+ * high-volume audience/delivery state lives in core-mediated own-tables (ADR-023 `dataModule`,
+ * namespace `p_newsletter__*`).
+ *
+ * Grounding imports (typecheck against real code):
+ * - `../core/ports` — UUID/ISODateTime/JsonObject/DomainEvent (ADR-007/009 spine).
+ * - `../features/plugins` — the ADR-023 declared-schema shape core executes.
+ */
+/** Registered catalog (declaration, not logic) — enumerable via `tovu permissions list` (ADR-021). */
+// Now: these types (and `NEWSLETTER_PERMISSIONS`) live in `@jini-ai/user-management/newsletter/types`; Tovu maps its own-table rows here.
+
+/** This site's newsletter table names (the Jini adapters have no default): the migrated campaign pair plus the dataModule tables. */
+export const NEWSLETTER_SQL_TABLES: NewsletterSqlTables = {
+  campaigns: "newsletter_campaigns",
+  campaignRevisions: "newsletter_campaign_revisions",
+  ...NEWSLETTER_TABLE_NAMES,
+};
+
+/** This site's unreadable-revision log line (the Jini campaign repo has no console default). Identity/sequence only. */
+export const logUnreadableCampaignBody: CampaignBodyReporter = ({ campaignId, seq }) =>
+  console.warn(`[newsletter] Cannot read campaign ${campaignId} body (seq=${seq}). Open the campaign and restore a valid revision.`);
+
+/** The shared constructor object every binding passes: this connection's schema-erased kernel and the site's tables. */
+function sqlDeps({ store }: { store: ContentKernel | ContentDb }) {
+  return { kernel: schemaErasedKernel({ store }), tables: NEWSLETTER_SQL_TABLES };
+}
 
 export class SqliteNewsletterCampaignRepo extends SqlNewsletterCampaignRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super({ ...sqlDeps({ store }), onUnreadableBody: logUnreadableCampaignBody });
   }
 }
 
 export class SqliteNewsletterListRepo extends SqlNewsletterListRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super(sqlDeps({ store }));
   }
 }
 
 export class SqliteNewsletterSubscriptionRepo extends SqlNewsletterSubscriptionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super(sqlDeps({ store }));
   }
 }
 
 export class SqliteNewsletterAudienceSnapshotRepo extends SqlNewsletterAudienceSnapshotRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super(sqlDeps({ store }));
   }
 }
 
 export class SqliteNewsletterSendRepo extends SqlNewsletterSendRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super(sqlDeps({ store }));
   }
 }
 
 export class SqliteNewsletterConfirmationTokenRepo extends SqlNewsletterConfirmationTokenRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super(sqlDeps({ store }));
   }
 }
