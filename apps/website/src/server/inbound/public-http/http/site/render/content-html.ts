@@ -55,9 +55,9 @@ const WIDGET_DOC_RENDERING: WidgetDocRendering = {
  *  unrecognized id. */
 const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, optional?: Record<string, never>) => string> = {
   text: ({ ir }) => `<div class="widget widget-text">${escapeHtml({ text: str({ value: ir.props.body }) }).replaceAll("\n", "<br/>")}</div>`,
-  "social-links": ({ ir }) => renderWidgetSocialLinks({ props: ir.props }),
+  "social-links": ({ ir }) => renderWidgetSocialLinks({ props: ir.props, host: TOVU_WIDGET_RENDER_HOST.entries }),
   "recent-entries": ({ ir }) => renderWidgetRecentEntries({ ir, host: TOVU_WIDGET_RENDER_HOST.entries }),
-  "entry-summary": ({ ir }) => renderWidgetEntrySummary({ props: ir.props }),
+  "entry-summary": ({ ir }) => renderWidgetEntrySummary({ props: ir.props, host: TOVU_WIDGET_RENDER_HOST.entries }),
   menu: ({ ir }) => renderWidgetMenu({ props: ir.props }),
   "taxonomy-list": ({ ir }) => renderHtmlTaxonomy({
     attributes: { section: "data-tovu-taxonomy", list: "data-tovu-taxonomy-list", term: "data-tovu-term", label: "data-tovu-term-label" },
