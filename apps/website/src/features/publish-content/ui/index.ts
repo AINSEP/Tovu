@@ -5,8 +5,10 @@
  *
  * ## What belongs in this folder, and what does not
  *
- * Everything here is **pure TypeScript with no runtime dependency at all** — no React, no `node:*`,
- * no repo, no `planner.ts`. It holds the publish dialog's *semantics*: which rows a run writes, what
+ * Everything here is **pure TypeScript with no runtime dependency beyond `@jini-ai/cms/publish/content/ui`** — no React,
+ * no `node:*`, no repo, no `planner.ts`. (K5: the neutral mechanics now live in that Jini subpath; this
+ * folder is the HOST BINDING — `policy.ts`, `sections.ts`, `host-binding.ts` — that injects this product's
+ * policy into them, and this barrel is the one surface admin imports.) It holds the publish dialog's *semantics*: which rows a run writes, what
  * each outcome is called, and when the ceremony may advance. It lives in `apps/website` rather than
  * `apps/admin` because a second copy of those rules in the admin package could drift from
  * `planner.ts`'s real behaviour without anything going red.
@@ -21,39 +23,51 @@
  * `__tests__/ui-stays-client-safe.boundary.test.ts` enforces both rules.
  */
 export type {
+  CriteriaSelection,
   PublishContentConfirmResult,
   PublishContentExecuteResult,
   PublishContentOutcomeKind,
   PublishContentOutcomeRow,
   PublishContentPeerSummary,
   PublishContentNotSupportedByLive,
+  PublishContentPhase,
   PublishContentPlanResult,
   PublishContentReport,
+  PublishCriteria,
+  PublishOrderGroup,
+  PublishOrderKey,
+  PublishReportRow,
+  PublishReportSummary,
+  PublishRequestResult,
+  PublishRowDisposition,
   PublishScope,
-} from "./contract.js";
-
-export type { PublishReportRow, PublishReportSummary, PublishRowDisposition } from "./report-rows.js";
+} from "@jini-ai/cms/publish/content/ui";
 export {
+  canConfirmPlan,
+  canRequestPlan,
+  confirmationTokenFor,
   countSelectedPublishing,
+  encodePublishCriteriaToQuery,
+  overwriteReplanIsConsistent,
+  planOnScreen,
+  publishOrderComparator,
+  PublishPlanDriftError,
   publishRowDisposition,
+  reportOnScreen,
   rowPublishesWithSelection,
   selectableRowKeys,
+  sortPublishReportRows,
   summarizePublishReport,
-  toPublishReportRows,
-} from "./report-rows.js";
+} from "@jini-ai/cms/publish/content/ui";
 
-export type { PublishOrderGroup, PublishOrderKey } from "./publish-order.js";
-export { publishOrderComparator, sortPublishReportRows } from "./publish-order.js";
-
-export type { CriteriaSelection, PublishCriteria, PublishRequestResult } from "./criteria.js";
 export {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,
-  encodePublishCriteriaToQuery,
   parsePublishContentToolInput,
-  PUBLISH_CONTENT_CAPABILITY,
-  PUBLISH_CRITERIA_QUERY_PARAM,
-} from "./criteria.js";
+  preparePublishConfirmation,
+  toPublishReportRows,
+} from "./host-binding.js";
+export { PUBLISH_CONTENT_CAPABILITY, PUBLISH_CRITERIA_QUERY_PARAM } from "./policy.js";
 
 export type { PublishSection, PublishSectionId } from "./sections.js";
 export {
@@ -63,8 +77,3 @@ export {
   publishSectionById,
   publishSectionForEntityTypes,
 } from "./sections.js";
-
-export type { PublishContentPhase } from "./phase.js";
-export { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, reportOnScreen } from "./phase.js";
-
-export { overwriteReplanIsConsistent, preparePublishConfirmation, PublishPlanDriftError } from "./replan.js";

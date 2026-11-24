@@ -8,14 +8,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "../index.js";
 import {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,
   encodePublishCriteriaToQuery,
   parsePublishContentToolInput,
-} from "../criteria.js";
-import { toPublishReportRows } from "../report-rows.js";
+  toPublishReportRows,
+} from "../index.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
   return {

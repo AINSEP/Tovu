@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { decodePublishCriteriaFromQuery } from "../criteria.js";
+import { decodePublishCriteriaFromQuery } from "../index.js";
 
 test("query decoder rejects runtime non-string arguments before reading their length", () => {
   for (const raw of [undefined, null, 0, false, {}, []]) {

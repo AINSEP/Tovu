@@ -43,6 +43,11 @@ const REPORT_CONTRACT_SPECIFIER = "@jini-ai/core/contracts/site/cms-publish-cont
 /** The published module behind the specifier; resolved from this test process (Node ESM). */
 const REPORT_CONTRACT_FILE = fileURLToPath(import.meta.resolve(REPORT_CONTRACT_SPECIFIER));
 
+/** K5 — the neutral mechanics live here now; this folder is only the host binding over it. The one bare
+ *  package specifier allowed to leave `ui/` (see the closure test below for why it is client-safe). */
+const NEUTRAL_UI_SPECIFIER = "@jini-ai/cms/publish/content/ui";
+const NEUTRAL_UI_FILE = fileURLToPath(import.meta.resolve(NEUTRAL_UI_SPECIFIER));
+
 const REACT_SPECIFIER_PATTERN = /^react(-dom)?(\/|$)/;
 
 /** Value-import specifiers that would put server-only code into a browser bundle. Checked as
@@ -164,6 +169,7 @@ test("no file under features/publish-content/ui/ takes a VALUE import on server 
         }
         continue;
       }
+      if (edge.specifier === NEUTRAL_UI_SPECIFIER) continue;
       const hit = SERVER_VALUE_IMPORT_PATTERNS.find((rule) => rule.test(edge.specifier));
       if (hit) offenders.push(`${relative(file)} -> ${edge.specifier} (${hit.label})`);
       else offenders.push(`${relative(file)} -> ${edge.specifier} (an unvetted bare package)`);
@@ -188,6 +194,7 @@ test("everything reachable from index.ts stays in ui/ or the one neutral report-
     visited.add(file);
     for (const edge of edgesOf(file)) {
       if (edge.specifier === REPORT_CONTRACT_SPECIFIER && edge.typeOnly) continue;
+      if (edge.specifier === NEUTRAL_UI_SPECIFIER) continue;
       const resolved = resolveRelative(file, edge.specifier);
       if (
         resolved === null ||
@@ -212,10 +219,7 @@ test("everything reachable from index.ts stays in ui/ or the one neutral report-
 test("the shared report contract is a dependency-free client-safe leaf, not a planner mirror", () => {
   assert.ok(fs.existsSync(REPORT_CONTRACT_FILE));
   assert.deepEqual(edgesOf(REPORT_CONTRACT_FILE), [], "the neutral DTO must not import server or UI implementation code");
-  const contractFile = path.join(UI_ROOT, "contract.ts");
-  const reportEdge = edgesOf(contractFile).find((edge) => edge.specifier === REPORT_CONTRACT_SPECIFIER);
-  assert.ok(reportEdge, "ui/contract.ts must consume the shared report DTO instead of redeclaring it");
-  assert.equal(reportEdge.typeOnly, true);
+  assert.ok(fs.existsSync(NEUTRAL_UI_FILE), "the neutral @jini-ai/cms/publish/content/ui subpath must be built");
   assert.equal(
     fs.existsSync(path.join(UI_ROOT, "planner-contract-check.ts")),
     false,
@@ -234,4 +238,24 @@ test("the client boundary sees side-effect, re-export and dynamic imports while 
   assert.deepEqual(edgesInSource('import type { X } from "../report-contract.js";'),
     [{ specifier: "../report-contract.js", typeOnly: true }]);
   assert.deepEqual(edgesInSource('// import "node:fs";'), []);
+});
+
+test("the neutral publish-content-ui closure the host binding imports is itself client-safe", () => {
+  // The host's `ui/` closure may leave the folder only through NEUTRAL_UI_SPECIFIER, so what THAT module
+  // reaches is part of the admin bundle: it must stay inside its own folder, with no bare package
+  // (no React, no node:*, no server code) — its report-contract import is type-only and erased in dist.
+  const visited = new Set<string>();
+  const bare: string[] = [];
+  const queue = [NEUTRAL_UI_FILE];
+  while (queue.length > 0) {
+    const file = queue.pop() as string;
+    if (visited.has(file)) continue;
+    visited.add(file);
+    for (const edge of edgesOf(file)) {
+      if (!edge.specifier.startsWith(".")) bare.push(`${path.basename(file)} -> ${edge.specifier}`);
+      else queue.push(path.resolve(path.dirname(file), edge.specifier));
+    }
+  }
+  assert.deepEqual(bare, [], "the neutral module may not depend on any package at runtime");
+  assert.ok(visited.size >= 6, `expected the neutral index to reach its modules, walked only ${visited.size}`);
 });
