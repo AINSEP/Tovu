@@ -1,7 +1,7 @@
 /**
  * @file Filesystem-reading/writing helpers `scripts/stage-payload.ts` uses to walk source trees,
  * resolve Jini's pnpm-hoisted transitive dependencies, and verify the staged tree is complete —
- * extracted for the same reason `shell-staleness.ts` was: `stage-payload.ts` itself runs its
+ * extracted for the same reason the shell-staleness predicate was: `stage-payload.ts` itself runs its
  * entire staging pipeline (real `rmSync`/`cpSync` against the live repo) the moment it is
  * imported, so nothing defined inside it can be exercised by a test that imports the script
  * directly. **This module has no import-time side effects at all** — importing it does nothing to
@@ -18,10 +18,9 @@ import type { Dirent } from "node:fs";
 import path from "node:path";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
-import { createNodePackagingFilesystem, missingClosureDependencies, stageTransitiveDependencies as stageClosure } from "@jini-ai/devops/packaging/electron";
+import { createNodePackagingFilesystem, isBundleInput, missingClosureDependencies, stageTransitiveDependencies as stageClosure, type StalenessShell } from "@jini-ai/devops/packaging/electron";
 
 import { lacksExecuteBits, ptyHelperPaths } from "@jini-ai/desktop-host/shell/pty-helpers";
-import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
 const NODE_MODULES = "node_modules";
 const PACKAGE_JSON = "package.json";

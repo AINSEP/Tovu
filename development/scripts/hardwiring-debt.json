@@ -80,20 +80,6 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/shell-staleness.ts",
-      "line": 42,
-      "reason": "Export isBundleInput duplicates a Jini function without using its owner.",
-      "fingerprint": "ca871d03228242ffafd1d683d6e5f7066c790fbf6f4975019384eee29f13d097"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/shell-staleness.ts",
-      "line": 64,
-      "reason": "Export shellStalenessFailure duplicates a Jini function without using its owner.",
-      "fingerprint": "d5c594ad5b71bb8617746a873dbea5493600c84c82cc9c2c9cb33dca29cc72d0"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/desktop/src/tree-quiet.ts",
       "line": 88,
       "reason": "Export treeQuietProblems duplicates a Jini function without using its owner.",
