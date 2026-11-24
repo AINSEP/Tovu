@@ -4631,7 +4631,7 @@
     },
     {
       "id": "4b969c204d59",
-      "reason": "Moved to Jini: @jini-ai/daemon byok-meta-tool-result.ts (ProviderToolResultBlock-identical type doc) and @jini-ai/agent-runtime providers/tool-turn-types.ts ProviderToolResultBlock doc (restored this audit), reworded neutral."
+      "reason": "Moved to Jini: the shared text/image result-block type doc now lives once at @jini-ai/core contracts/tool-result-block.ts (ToolResultContentBlock, w5 rv1123r fix 16), used by daemon byok-meta-tool-result.ts and agent-runtime providers/tool-turn-types.ts; reworded neutral."
     },
     {
       "id": "e939c362227d",
@@ -5328,6 +5328,74 @@
     {
       "id": "c4fc15f69e0c",
       "reason": "Pointer comment of the deleted oauth/errors.ts re-export shell (\"declarations live in Jini errors.ts\"); importers now import @jini-ai/oauth directly, so there is nothing left for it to point from."
+    },
+    {
+      "id": "9ce6b031ea22",
+      "reason": "Moved to Jini packages/daemon/src/http/a2ui-actions.ts (w5 rv1123r fix 17: the A2UI action route spec now lives there; reworded neutral)."
+    },
+    {
+      "id": "d5453d0c7466",
+      "reason": "Moved to Jini packages/daemon/src/core-rpc-schema.ts (w5 DISAGREE split of daemon-core-protocol; reworded neutral)."
+    },
+    {
+      "id": "71a6d49d4378",
+      "reason": "Explained the ClientDirective re-export that w5 removed from assistant/index.ts (no forwarding exports); the human-only directive rationale lives at Jini packages/core/src/contracts/site/client-directives.ts header."
+    },
+    {
+      "id": "02f7e8e18093",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17: server-neutral MCP-UI callback handler, Shape 1)."
+    },
+    {
+      "id": "05b3344d2e00",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts deliverTypedAnswer (w5 rv1123r fix 17, Shape 3 typed-answer correlation)."
+    },
+    {
+      "id": "b586d8c648ef",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-request.ts / surface-callback-route.ts (same 409 refusal rationale; w5 rv1123r fix 17)."
+    },
+    {
+      "id": "4dc5e256a07d",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 2 legacy two-call redemption)."
+    },
+    {
+      "id": "f739a51421a1",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 1 dispatch marker)."
+    },
+    {
+      "id": "467140cbfd44",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 3 ordering before Shape 2)."
+    },
+    {
+      "id": "8f2053bcd941",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 2 dispatch marker)."
+    },
+    {
+      "id": "4f388d95ea9f",
+      "reason": "Moved to Jini packages/core/src/contracts/site/client-directives.ts header (w5 DISAGREE move of site/client-directives.ts; SPEC ref dropped for neutrality)."
+    },
+    {
+      "id": "70f3aff81394",
+      "reason": "Moved to Jini packages/core/src/extension-capability-vocabulary.ts (identical literals; Tovu copy deleted in w5, importers use @jini-ai/core/extension-capability-vocabulary)."
+    },
+    {
+      "id": "5eacf2ecb372",
+      "reason": "Moved to Jini packages/platform/src/fs/__tests__/resolve-directory-target.test.ts (unit test moved with the code in w5)."
+    },
+    {
+      "id": "5b788fdcf7f9",
+      "reason": "Moved to Jini packages/platform/src/fs/resolve-directory-target.ts header (w5 DISAGREE move of resolve-install-dir-target; reworded neutral)."
+    },
+    {
+      "id": "4cf0918121ed",
+      "reason": "Moved to Jini packages/platform/src/fs/resolve-directory-target.ts resolveDirectoryTarget doc (w5 DISAGREE move)."
+    },
+    {
+      "id": "c3ac8082cde4",
+      "reason": "Header rewritten in w5 when the served-vs-stopped copy and owner-lock lifecycle moved to Jini packages/db/src/pglite/copy-source.ts (its \"Reaching the source\" paragraph lives there); the Tovu header keeps the host half (chat-table purge, title reset)."
+    },
+    {
+      "id": "9cd5168611b9",
+      "reason": "Moved to Jini packages/platform/src/fs/leased-directory-move.ts (w5 DISAGREE split of move-sites-home; release-after-move rationale)."
     }
   ]
 }
