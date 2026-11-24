@@ -8,7 +8,7 @@ mock.module(import.meta.resolve("@jini-ai/cms/publish/content/content-hash"), {
   namedExports: { CONTENT_HASH_VERSION: 2, contentHash },
 });
 const { planImport } = await import("@jini-ai/cms/publish/content/planner");
-const { registerPublishContentContributor, resetPublishContentContributorsForTests } = await import("../type-registry.js");
+const { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } = await import("../type-registry.js");
 
 test("v2 planner re-baselines stored v1/unknown history without trusting obsolete hashes", async () => {
   resetPublishContentContributorsForTests();
@@ -30,7 +30,7 @@ test("v2 planner re-baselines stored v1/unknown history without trusting obsolet
   const bundle = { artifactFormatVersion: 1, hashVersion: 2, entities };
   const before = JSON.stringify([...destination]);
   for (const version of [1, 99]) {
-    const deps = { publishContentDeps: {} as Parameters<typeof planImport>[0]["deps"]["publishContentDeps"],
+    const deps = { catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as Parameters<typeof planImport>[0]["deps"]["publishContentDeps"],
       getBaseline: async () => ({ hashVersion: version, hashAtLastSync: "old-hash" }), hasBlob: async () => true };
     const report = await planImport({ bundle, deps });
     assert.equal(report.refused, false);
@@ -44,7 +44,7 @@ test("v2 planner re-baselines stored v1/unknown history without trusting obsolet
 });
 
 test("v2 importer tells a v1 exporter to upgrade and re-export; v3 bundles require this importer to upgrade", async () => {
-  const deps = { publishContentDeps: {} as Parameters<typeof planImport>[0]["deps"]["publishContentDeps"],
+  const deps = { catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as Parameters<typeof planImport>[0]["deps"]["publishContentDeps"],
     getBaseline: async () => { assert.fail("incompatible bundles must refuse before reading history"); }, hasBlob: async () => true };
   const older = await planImport({ bundle: { artifactFormatVersion: 1, hashVersion: 1, entities: [] }, deps });
   assert.equal(older.refused, true);
@@ -93,7 +93,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
     hashAtLastSync: "obsolete", syncedAt: "2026-10-01T00:00:00Z", runId: "v1-run" } });
   const publishContentDeps = { workspaceId: "ws", ports: {}, clock, idGen };
   const bundle = { artifactFormatVersion: 1, hashVersion: 2, entities };
-  const report = await planImport({ bundle, deps: { publishContentDeps,
+  const report = await planImport({ bundle, deps: { catalog: { build: buildPublishContentCatalog }, publishContentDeps,
     getBaseline: input => baselineRepo.findOne(key(input.entityId)), hasBlob: async () => true } });
   assert.deepEqual(report.rows.map(row => row.outcome), ["unchanged", "applied", "conflict"]);
   const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "peer", blobManifest: [] }, deps: { repo: bundleRepo, clock, idGen } });

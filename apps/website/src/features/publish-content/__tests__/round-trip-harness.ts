@@ -92,7 +92,7 @@ export async function plan(entities: readonly PackedEntity[], destination: Publi
   return planImport(
     {
       bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-      deps: { publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
+      deps: { catalog: { build: buildPublishContentCatalog }, publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
     }
   );
 }

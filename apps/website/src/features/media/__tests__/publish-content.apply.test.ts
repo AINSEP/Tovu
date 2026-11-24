@@ -45,7 +45,7 @@ import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { planImport } from "@jini-ai/cms/publish/content/planner";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
@@ -677,7 +677,7 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   const report = await planImport({
                                     bundle: { artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities },
                                     deps: {
-      publishContentDeps: destinationDeps, getBaseline: async () => null,
+      catalog: { build: buildPublishContentCatalog }, publishContentDeps: destinationDeps, getBaseline: async () => null,
       hasBlob: async ({ sha256 }) => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
     }
                                   });

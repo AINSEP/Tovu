@@ -6,6 +6,7 @@
  * walker, and a DESTINATION themes dir standing in for a peer site. Bytes reach the destination the
  * way the real transport delivers them: into its blob store under `computeBlobStorageKey`.
  */
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, type PathLike } from "node:fs";
@@ -389,7 +390,7 @@ test("discovery never lists .publish-staging or .publish-previous as themes", as
 
 function planDeps(fixture: Fixture, forced?: ReadonlySet<string>) {
   return {
-    publishContentDeps: fixture.deps,
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: fixture.deps,
     getBaseline: async () => null,
     hasBlob: async () => true,
     ...(forced ? { forcedEntityKeys: forced } : {}),

@@ -3,6 +3,7 @@ import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/rou
 import { exportRoute, type ExportRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/export";
 import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { packAuthorizedEntities } from "@jini-ai/cms/publish/content/export-bundle";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
@@ -28,7 +29,7 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
     ...blobPortDeps({ deps }),
     workspaceRepo: { findById: (input) => deps.workspaceRepo.findById(input) },
     isPublishingCredential: ({ context }) => Boolean(adminPublishTrustFor({ context: context as OperatorPrincipalRecord | undefined })),
-    packEntities: ({ principalId }) => packAuthorizedEntities({ workspaceId: deps.workspaceId, principalId, authorize: deps.authorize, publishContentDeps: toPublishContentDeps(deps) }),
+    packEntities: ({ principalId }) => packAuthorizedEntities({ workspaceId: deps.workspaceId, principalId, authorize: deps.authorize, catalog: { build: buildPublishContentCatalog }, publishContentDeps: toPublishContentDeps(deps) }),
   };
   mountAdminRawRoute({ app, spec: exportRoute, deps: routeDeps }, { authorization: "guarded", failure: { operation: "routes/publish-content/export", code: "INTERNAL_ERROR" } });
 };

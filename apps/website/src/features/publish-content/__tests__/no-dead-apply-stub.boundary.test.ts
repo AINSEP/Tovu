@@ -1,4 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { buildPublishContentCatalog } from "../type-registry.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -59,7 +60,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const report = await planImport({
       bundle,
       deps: {
-        publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
+        catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
           ports: { post: { repo: deps.postRepo } } },
         getBaseline: async () => null, hasBlob: async () => true,
       },

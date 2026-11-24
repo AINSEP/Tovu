@@ -14,7 +14,7 @@ import { resolvePublishDestinationCredential } from "#src/features/publish-conte
 import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport";
 import { saveConnectedDestination, InMemoryPublishContentPeerRepo, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
-import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
+import { buildPublishContentCatalog, listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, findCandidateDestination } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import {
@@ -228,7 +228,7 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
       workspaceId: s.sourceDeps.workspaceId,
       principalId: "test-operator",
       authorize: async () => ({ allowed: true }) as never,
-      publishContentDeps: toPublishContentDeps(s.sourceDeps),
+      catalog: { build: buildPublishContentCatalog }, publishContentDeps: toPublishContentDeps(s.sourceDeps),
       sourceLabel: workspace?.name ?? "source",
     }
                                          });
@@ -338,7 +338,7 @@ test("a fresh install connects and then publishes, with no key displayed or copi
         workspaceId: s.sourceDeps.workspaceId,
         principalId: "test-operator",
         authorize: async () => ({ allowed: true }) as never,
-        publishContentDeps: toPublishContentDeps(s.sourceDeps),
+        catalog: { build: buildPublishContentCatalog }, publishContentDeps: toPublishContentDeps(s.sourceDeps),
         sourceLabel: workspace?.name ?? "source",
       }
                                            });

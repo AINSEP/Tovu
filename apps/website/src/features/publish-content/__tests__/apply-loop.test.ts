@@ -48,7 +48,7 @@ import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publ
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
 import { planImport } from "@jini-ai/cms/publish/content/planner";
 import { entityKey, type PublishContentBundle, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
 import type { EntityReplacement, PublishContentHandler, RepointResult, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentApplyPort } from "../apply-port.js";
@@ -298,6 +298,7 @@ async function plan(
   return planImport({
                       bundle,
                       deps: {
+      catalog: { build: buildPublishContentCatalog },
       publishContentDeps,
       getBaseline: async ({ entityType, entityId }) => {
         const record = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: sourcePrincipalId, entityType, entityId });
@@ -415,6 +416,7 @@ async function planWithForce(
   return planImport({
                       bundle,
                       deps: {
+      catalog: { build: buildPublishContentCatalog },
       publishContentDeps,
       getBaseline: async () => null,
       hasBlob: async () => true,
@@ -1324,7 +1326,7 @@ async function planWithSeed(
   entities: readonly PackedEntity[]
 ): Promise<PublishContentReport> {
   const bundle: PublishContentBundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities };
-  return planImport({ bundle, deps: { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash } });
+  return planImport({ bundle, deps: { catalog: { build: buildPublishContentCatalog }, publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash } });
 }
 
 test("D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time", async () => {

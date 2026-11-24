@@ -1,7 +1,7 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
-import { outboxWorkerArgs } from "@jini-ai/infra/events/domain-outbox";
+import { outboxWorkerArgs, trackOutboxDelivery } from "@jini-ai/infra/events/domain-outbox";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
@@ -57,18 +57,5 @@ export function startOutboxDrainer(
 ): OutboxDrainer {
   const { tracker = createNoopTracker({}), ...drainOptions } = optional;
   const args = outboxWorkerArgs({ ...required, ...createOutboxHostServices({}) });
-  return startJiniOutboxDrainer({ ...args, bus: trackedDelivery({ bus: args.bus, tracker }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
-}
-
-type DeliveryBus = ReturnType<typeof outboxWorkerArgs>["bus"];
-
-/** Outbox/job-queue chokepoint: each background delivery is one `outbox.deliver` operation labelled
- * with the event's stable name only (never its payload); a failed delivery is reported and still
- * rethrown, so retry/backoff stays `processOutbox`'s. Without a port the bus is used as-is. */
-function trackedDelivery({ bus, tracker }: { bus: DeliveryBus; tracker: Tracker }): DeliveryBus {
-  return { publish: (input) => tracker.trace({ name: "outbox.deliver", run: async (span) => {
-    const result = await bus.publish(input);
-    span.setOutcome({ outcome: "delivered", failed: false });
-    return result;
-  } }, { attributes: { "event.name": input.event.name } }) };
+  return startJiniOutboxDrainer({ ...args, bus: trackOutboxDelivery({ bus: args.bus, tracker }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }

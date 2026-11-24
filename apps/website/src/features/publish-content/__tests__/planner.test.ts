@@ -23,7 +23,7 @@ import test from "node:test";
 
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { planImport, type PlanImportDeps } from "@jini-ai/cms/publish/content/planner";
@@ -115,7 +115,7 @@ function makeDeps(options: {
   const baselines = options.baselines ?? new Map();
   const availableBlobs = options.availableBlobs ?? new Set();
   return {
-    publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
     getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey({ entityType, entityId })) ?? null,
     hasBlob: async ({ sha256 }) => availableBlobs.has(sha256),
     forcedEntityKeys: options.forcedEntityKeys,
@@ -854,7 +854,7 @@ test("refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no
 
   let baselineReads = 0;
   const deps: PlanImportDeps = {
-    publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
     getBaseline: async () => {
       baselineReads += 1;
       return null;
@@ -1023,7 +1023,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     state: newPostState,
   };
   const deps: PlanImportDeps = {
-    publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };
@@ -1071,7 +1071,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     state: incomingState,
   };
   const deps: PlanImportDeps = {
-    publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };

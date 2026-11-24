@@ -50,6 +50,7 @@ async function selectBundleToPush(
       workspaceId: deps.workspaceId,
       principalId,
       authorize: deps.authorize,
+      catalog: { build: buildPublishContentCatalog },
       publishContentDeps,
       sourceLabel: workspace?.name ?? deps.workspaceId,
     }

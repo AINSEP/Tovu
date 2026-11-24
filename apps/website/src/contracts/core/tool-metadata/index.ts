@@ -5,7 +5,7 @@ import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metad
 
 import { createAgentPluginsToolMetadata } from '@jini-ai/core/tool-metadata/agent-plugins';
 import { toolMetadata as analytics } from '@jini-ai/core/tool-metadata/analytics';
-import { toolMetadata as assistant } from './assistant.js';
+import { toolMetadata as assistant } from '@jini-ai/chat/core/assistant-tool-metadata';
 import { toolMetadata as change_sets } from '@jini-ai/core/tool-metadata/change-sets';
 import { toolMetadata as comments } from '@jini-ai/core/tool-metadata/comments';
 import { toolMetadata as content_duplication } from '@jini-ai/core/tool-metadata/content-duplication';
