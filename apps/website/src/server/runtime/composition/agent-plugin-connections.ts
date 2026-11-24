@@ -124,6 +124,8 @@ type AgentPluginConnectionsRequired = {
   readonly customCredentialRepo: CustomCredentialSetRepoPort;
   readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
   readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
+  /** Setting names the bundled plugins' manifests declare as public config (`bundledPublicConfigNames`); absent, only the host's own shapes are readable. */
+  readonly publicConfigNames?: readonly string[];
 };
 
 /** The shared connection host and the runtime it was resolved for. */
@@ -185,7 +187,7 @@ export function composeAgentPluginConnections(
   const delivery = optional.deliveryBindings;
   const deliveryBindingsFor = delivery && deliveryBindingsPortFor({ delivery, host, workspaceId, loadContributions });
   const capabilities = createAdminSurfaceCapabilities({
-    tools, publicConfig: createAdminSurfacePublicConfig({ env }),
+    tools, publicConfig: createAdminSurfacePublicConfig({ env, publicNames: required.publicConfigNames ?? [] }),
     stateFor: (scope) => host.pluginState.forPlugin(scope),
     connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId, signal }) => createSurfaceConnections({
       host, pluginId, workspaceId: scopeWorkspaceId, principalId, signal, frozen, onSignInIssued: (issued) => signIns.record(issued),
