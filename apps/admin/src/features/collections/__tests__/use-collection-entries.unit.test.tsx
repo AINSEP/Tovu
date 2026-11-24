@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeCollectionEntriesPort } from "@jini-ai/admin/screens/collections/hooks/collection-entries-dependencies.hooks";
-import { useCollectionEntries } from "-ai/admin/screens/collections/hooks/use-collection-entries.hooks";
+import { useCollectionEntries } from "@jini-ai/admin/screens/collections/hooks/use-collection-entries.hooks";
 import { collectionsHostKit } from "../collections-host-ports";
 
 /**

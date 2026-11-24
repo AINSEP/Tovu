@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
 import { PostSettingsDialog, type PostSettingsDialogProps } from "@jini-ai/admin/posts/PostSettingsDialog";

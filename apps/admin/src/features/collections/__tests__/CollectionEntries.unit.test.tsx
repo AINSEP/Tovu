@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { CollectionEntries } from "../CollectionEntries";
-import type { CollectionEntriesController } from "-ai/admin/screens/collections/hooks/use-collection-entries.hooks";
+import type { CollectionEntriesController } from "@jini-ai/admin/screens/collections/hooks/use-collection-entries.hooks";
 
 /**
  * @file `CollectionEntries` — pins the fix for the audit's live-verified blocker (exec summary

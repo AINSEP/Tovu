@@ -5,7 +5,7 @@ import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/co
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { EditFieldsDialog } from "../EditFieldsDialog";
 import { createFakeEditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-dependencies.hooks";
-import { useEditFieldsDialog } from "-ai/admin/screens/collections/hooks/use-edit-fields-dialog.hooks";
+import { useEditFieldsDialog } from "@jini-ai/admin/screens/collections/hooks/use-edit-fields-dialog.hooks";
 import { useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 import { collectionsHostKit } from "../collections-host-ports";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";

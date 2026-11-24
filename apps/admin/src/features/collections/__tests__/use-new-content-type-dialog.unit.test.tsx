@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { NewContentTypeDialog } from "../NewContentTypeDialog";
 import { createFakeNewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-dependencies.hooks";
-import { useNewContentTypeDialog } from "-ai/admin/screens/collections/hooks/use-new-content-type-dialog.hooks";
+import { useNewContentTypeDialog } from "@jini-ai/admin/screens/collections/hooks/use-new-content-type-dialog.hooks";
 import { useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
 import { collectionsHostKit } from "../collections-host-ports";
 import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";

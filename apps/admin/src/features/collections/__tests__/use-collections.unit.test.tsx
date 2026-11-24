@@ -5,14 +5,13 @@ import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/co
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeCollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-dependencies.hooks";
-import { useCollections } from "-ai/admin/screens/collections/hooks/use-collections.hooks";
+import { useCollections } from "@jini-ai/admin/screens/collections/hooks/use-collections.hooks";
 import { useWiredCollections } from "../hooks/use-collections.hooks";
 import { collectionsHostKit } from "../collections-host-ports";
 import { lifecycleFailureMessage } from "../collections-i18n";
 
 /** The host collaborators every direct `useCollections` call below binds, as the wired hook does. */
 const collectionsHostDeps = { kit: collectionsHostKit, lifecycleFailureMessage };
-
 
 /**
  * @file `useCollections` — the Collections list screen's content-type registry load + dialog

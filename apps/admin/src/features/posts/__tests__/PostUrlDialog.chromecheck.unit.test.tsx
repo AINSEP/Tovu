@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { expect, it } from "vitest";
 import { PostUrlDialog } from "@jini-ai/admin/posts/PostUrlDialog";
 import { usePostUrlDialog, type PostUrlEditorPort } from "../hooks/use-post-url-dialog.hooks";
