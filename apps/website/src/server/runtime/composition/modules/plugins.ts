@@ -11,7 +11,7 @@ import {
 } from "@jini-ai/plugins/host";
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "#src/contracts/core/tool-access-change";
-import { lowerPluginToolAccess } from "#src/features/plugin-runtime/lower-tool-access";
+import { lowerPluginToolAccess } from "@jini-ai/plugins/runtime/lower-tool-access";
 import {
   mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
 } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -44,7 +44,7 @@ import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 export interface PluginsRouteDeps {
   notifyRosterChanged: import("#src/contracts/core/tool-access-change").NotifyToolAccessChanged;
   /** Existing provider/assistant-face owner, bound by the site composition. */
-  providerFaces?: Pick<import('#src/features/plugin-runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
+  providerFaces?: Pick<import('@jini-ai/plugins/runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
   /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */
   tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
@@ -177,7 +177,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
     onPluginDisabled: ({ pluginId }: { pluginId: string }) => deps.onPluginDisabled(pluginId),
     recordApproval: ({ record }: { record: PluginDiscoveryRecord }) => recordSiteApproval({ deps, record }),
     lowerToolAccess: ({ pluginId }: { pluginId: string }) =>
-      lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {}),
+      lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, LoweringError: ToolAccessLoweringError, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {}),
     tracker: deps.tracker, toAdminPluginResponse,
     setEnabledErrors: {
       toolAccessLowering: ToolAccessLoweringError, install: PluginInstallError, notFound: PluginNotFoundError, incompatible: PluginIncompatibleError,

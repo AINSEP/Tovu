@@ -11,7 +11,7 @@ import { describeUninstallApproval } from './uninstall-confirmation-ui.js';
 import { describeEnableApproval } from './enable-confirmation-ui.js';
 import { pluginSourceAgentToolCatalog } from './source-tool-catalog.js';
 import { pluginToolMessages } from './plugin-tool-messages.js';
-import { lowerPluginToolAccess } from './lower-tool-access.js';
+import { lowerPluginToolAccess } from '@jini-ai/plugins/runtime/lower-tool-access';
 import { bindAgentPluginIdentity, bindAgentPluginTools } from './agent-plugin-tool-binding.js';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToolsRequired } from '@jini-ai/plugins/host/tools';
@@ -54,7 +54,7 @@ export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToo
     pluginActivationRepo: deps.pluginActivationRepo, listPluginConflicts: deps.listPluginConflicts,
     removePlugin: deps.removePlugin, pluginSource: deps.pluginSource, onPluginEnabled: deps.onPluginEnabled, onPluginDisabled: deps.onPluginDisabled,
     agentPlugins: bindAgentPluginTools({ deps, surfaces }), pluginExports: deps.pluginExports, providerFaces: deps.providerFaces,
-    lowerToolAccess: input => lowerPluginToolAccess({ ...input, providerFaces: deps.providerFaces, notifyRosterChanged: deps.notifyRosterChanged }, {}),
+    lowerToolAccess: input => lowerPluginToolAccess({ ...input, providerFaces: deps.providerFaces, notifyRosterChanged: deps.notifyRosterChanged, LoweringError: ToolAccessLoweringError }, {}),
     extraModelFacingErrors: [{ error: ToolAccessLoweringError, code: 'TOOL_ACCESS_STOP_FAILED', guidance: 'The OFF decision was saved. Report that stopping affected answers failed; do not claim cleanup succeeded.' }],
     executeCommand: input => executeCommand({ ...input, deps: { clock: deps.clock, idGen: deps.idGen, changeSets: deps.changeSets, outbox: deps.outbox, authorize: deps.authorize } }),
     approvals: refuseNotReadyBeforeConfirm(approvals(surfaces), deps), descriptions: { enable: describeEnableApproval, uninstall: describeUninstallApproval }, messages: pluginToolMessages,

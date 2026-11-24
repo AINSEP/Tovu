@@ -18,7 +18,7 @@ import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/age
 import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
-import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
+import type { PluginProviderFacesPort } from '@jini-ai/plugins/runtime/service-ports';
 
 /** Preserve persistence and error identity over the site's bound sealing capability. O(1). */
 export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpServicesPort {

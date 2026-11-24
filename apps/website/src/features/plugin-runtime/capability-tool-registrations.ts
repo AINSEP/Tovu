@@ -15,7 +15,7 @@ import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-
 // read it FROM. Read-only (`PluginPostReadPort`/`PostRecord` only) — this
 // file never imports anything that could write a post.
 import type { PostRecord } from "../post/index.js";
-import type { PluginPostReadPort } from "./service-ports.js";
+import type { PluginPostReadPort } from "@jini-ai/plugins/runtime/service-ports";
 
 /**
  * @file Tovu binder for the plugin capability tools (`plugin_capability_<pluginId>`). The registrar
