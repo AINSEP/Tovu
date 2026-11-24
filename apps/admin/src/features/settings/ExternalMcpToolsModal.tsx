@@ -1,4 +1,5 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { useT } from "@jini-ai/ui";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
@@ -66,7 +67,7 @@ export function ExternalMcpToolsModal({
   saving,
   onSave, useExternalMcpToolsModalEscapeHook = useExternalMcpToolsModalEscape, useTHook = useT, useExternalMcpDriftCopyHook = useExternalMcpDriftCopy,
 }: ExternalMcpToolsModalProps) {
-  const { dialogRef, closeRef } = useExternalMcpToolsModalEscapeHook({ onClose });
+  const { dialogRef, closeRef } = useExternalMcpToolsModalEscapeHook({ onClose, useFocusTrapHook: useFocusTrap });
   const t = useTHook();
   const tDrift = useExternalMcpDriftCopyHook();
   const titleId = `${cardHandle}-tools-modal-title`;

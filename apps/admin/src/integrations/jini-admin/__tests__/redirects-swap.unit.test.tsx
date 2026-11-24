@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { createMemoryRedirectsApi } from '@jini-ai/admin/redirects/adapters/memory';
 import { Redirects } from '@jini-ai/admin/screens/redirects';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../modules.hooks';
 import { RedirectsModuleLoading } from '../redirects-module.hooks';
 import { redirectsEvents } from '../redirects-ports';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';

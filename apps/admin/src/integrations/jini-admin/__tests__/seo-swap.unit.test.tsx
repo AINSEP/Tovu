@@ -5,7 +5,7 @@ import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper
 import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';
 import { Seo } from '@jini-ai/admin/screens/seo';
-import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../modules.hooks';
 import { seoEvents } from '../seo-ports';
 import { SeoMediaPickerSlot, SeoModuleLoading } from '../seo-module.hooks';
 import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';

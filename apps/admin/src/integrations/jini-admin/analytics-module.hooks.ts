@@ -6,6 +6,7 @@
  * the only place they meet the screen.
  */
 import type { AnalyticsPort } from '@jini-ai/admin/screens/analytics/hooks/analytics-port.hooks';
+import { useFetchQuery } from '@jini-ai/ui/fetch-query';
 import { useAnalytics, type AnalyticsController } from '@jini-ai/admin/screens/analytics/hooks/use-analytics.hooks';
 import { t as defaultT } from '@jini-ai/admin/screens/analytics/analytics-i18n';
 import { analyticsApi } from '../../features/analytics/api/analytics-api';
@@ -28,5 +29,5 @@ export const analyticsHostPort: AnalyticsPort = {
 export function useWiredAnalytics(): AnalyticsController {
   const locale = useAdminLocale();
   const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale: locale, key: key });
-  return useAnalytics({ port: analyticsHostPort, t });
+  return useAnalytics({ port: analyticsHostPort, t, useFetchQueryHook: useFetchQuery });
 }

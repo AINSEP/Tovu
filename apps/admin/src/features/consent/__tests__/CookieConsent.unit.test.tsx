@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '@jini-ai/admin/screens/consent/use-consent-page.hooks';
+import { useAdminKit } from '@jini-ai/admin/react/kit';
+import { agentHandle } from '@jini-ai/core/agent-handles';
 import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
 import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@jini-ai/admin/shell/lib/router';
@@ -20,7 +23,7 @@ const withDraft = consentSnapshot({ draft: revision('d1'), published: revision('
 const cookieConsentSnapshot = consentSnapshot({ ...withDraft, editor: { ...withDraft.editor, bannerModes: ['jini', 'headless', 'off'] } });
 
 function renderPage(port: ConsentRevisionsPort, tabId: string | null = 'banner') {
-  return render(<CookieConsent tabId={tabId} port={port} useTranslate={useTranslate} errors={consentErrors} ui={consentUi} delays={delays} />);
+  return render(<CookieConsent tabId={tabId} port={port} useTranslate={useTranslate} errors={consentErrors} ui={consentUi} delays={delays} hooks={{ useConsentPage, useConsentReadiness, useConsentPreview, useConsentPreviewScale, useAdminKit }} agentHandle={agentHandle} />);
 }
 
 const publishButton = () => screen.getByRole('button', { name: /^Publish/ });

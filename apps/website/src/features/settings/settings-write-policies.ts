@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { ForbiddenError, ValueValidationFailedError, type ClearValueRequired, type ResetNamespaceRequired, type SetValueRequired } from "@jini-ai/core/settings";
+import { ForbiddenError, ValueValidationFailedError, resolveDefinitionRaw, type ClearValueRequired, type ResetNamespaceRequired, type SetValueRequired } from "@jini-ai/core/settings";
 import {
   clear as clearWithPolicies, dedicatedSettingsWriters, refuseDedicatedSettingClear as refuseClearWithPolicies,
   refuseDedicatedSettingReset as refuseResetWithPolicies, resetNamespace as resetWithPolicies, set as setWithPolicies,
@@ -37,7 +37,7 @@ export const VISITOR_TOOLS_HOST: VisitorToolsHostContract = {
   setting: VISITOR_TOOLS_SETTING, permission: VISITOR_TOOLS_PERMISSION,
   defaultLimits: VISITOR_TOOL_DEFAULT_LIMITS, callsPerTurn: VISITOR_TOOL_CALLS_PER_TURN,
   ValidationError: VisitorToolPolicyValidationError, object: visitorToolsObject,
-  parsePolicy: parseVisitorToolPolicy, resolveChoice: resolveVisitorToolChoice,
+  parsePolicy: parseVisitorToolPolicy, resolveChoice: resolveVisitorToolChoice, resolveDefinitionRaw,
 };
 
 /** The host's dedicated writers, passed on every chokepoint call and to the writers that wrap it. */

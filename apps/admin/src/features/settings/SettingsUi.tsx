@@ -144,6 +144,7 @@ import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settin
 import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
 import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
 import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { UserInterfaceSettingsPanel } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel";
 import "@jini-ai/admin/screens/settings/user-interface-settings.css";
 import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
@@ -468,7 +469,7 @@ export function SettingsUi({
           <circle cx="12" cy="11.5" r="1.5" />
         </TabIcon>
       ),
-      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} useUserInterfaceTabHook={useUserInterfaceTab} />,
+      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />,
     },
     {
       id: "memory",
