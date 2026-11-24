@@ -5,15 +5,14 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 
-import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
+import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sniffContentType, lookupMediaOriginalBlob, sanitizeOriginalBytes, decideMediaOriginalReply, inlineOriginalType, SVG_CONTENT_SECURITY_POLICY, type MediaRecord } from "@jini-ai/cms/media";
 import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";
-import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
-import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
+import { sendMediaOriginalTrashed, writeMediaOriginalReply } from "#src/server/inbound/shared/media-original-writer";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
@@ -343,7 +342,7 @@ interface AssetAliasResolution {
  * plan S2a/S2b).
  *
  * THE BUG THIS CLOSES (id/slug half): both public routes here gate on the RAW `:assetId` path
- * segment, while the byte lookups they guard (`resolveMediaRendition`, `resolveMediaOriginalBlob`)
+ * segment, while the byte lookups they guard (`resolveMediaRendition`, `lookupMediaOriginalBlob`)
  * both went through `findMediaByIdOrSlug` the moment media gained an editable slug. So the two
  * halves keyed off different identifiers, and the reference scan simply missed — in BOTH directions:
  *   - a members-only entry embedding an asset BY ID was served anonymously through `/m/{slug}/…`
@@ -641,8 +640,8 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = ({ app,
  * is served byte-identical to how it was uploaded, same as every image's own `"original"`
  * passthrough rendition row already is, just without a transform-definition lookup gating it.
  *
- * So this route bypasses the transform system entirely: {@link resolveMediaOriginalBlob} +
- * {@link sendMediaOriginalResponse} are the SAME functions `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s
+ * So this route bypasses the transform system entirely: `lookupMediaOriginalBlob` +
+ * `decideMediaOriginalReply` (written by `writeMediaOriginalReply`) are the SAME functions `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s
  * authenticated admin-preview route already uses (content-type sniffed fresh from bytes, SVG sanitized, HTML
  * forced to `application/octet-stream` + `attachment`, `nosniff`/CSP/CORP headers, `Range` support
  * for video seeking) — reused, not reimplemented, so the two routes' security posture can't drift
@@ -658,11 +657,11 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = ({ app,
  * even fetched, same as {@link registerMediaRenditionRoute} above — a denied caller gets the SAME
  * "video rendition not found" 404 the not-a-video branch below already uses, so a gated video is
  * indistinguishable from one that was never a video at all. No cache-header special-casing is
- * needed on the ALLOW path here: {@link sendMediaOriginalResponse} already sends `private, no-store`
+ * needed on the ALLOW path here: `decideMediaOriginalReply` already sends `private, no-store`
  * unconditionally for every successful response, gated or not.
  *
  * @complexity O(1) plus the byte copy for a partial range (inherited from
- * {@link sendMediaOriginalResponse}), plus {@link resolveMediaAccessDecision}'s own O(p) cost.
+ * `decideMediaOriginalReply`), plus {@link resolveMediaAccessDecision}'s own O(p) cost.
  */
 export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ app, deps }, _options = {}) => {
   // Both URL generations use the same gate, byte sniffing and response headers. The suffix is
@@ -678,12 +677,16 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ 
       }
 
       // Unknown-asset 404s through the SAME `sendMediaNotFound` writer as the gate-denied branch
-      // just above (2026-09-23 oracle close, S2b) — `resolveMediaOriginalBlob`'s own default 404
-      // (a bare `{error: "media '<x>' was not found"}`, no Cache-Control at all) stays reserved for
-      // its authenticated admin caller; see that function's `onNotFound` doc.
-      const resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: deps.workspaceId, mediaId: assetId } }, { onNotFound: (r) =>
-        sendMediaNotFound({ res: r, error: "video rendition not found" }) });
-      if (!resolved) {
+      // just above (2026-09-23 oracle close, S2b) — the admin original route's own bare
+      // `{error: "media '<x>' was not found"}` (no Cache-Control at all) stays reserved for its
+      // authenticated admin caller; see `lookupMediaOriginalBlob`'s doc.
+      const resolved = await lookupMediaOriginalBlob({ deps, params: { workspaceId: deps.workspaceId, mediaId: assetId } });
+      if (resolved.outcome === "not-found") {
+        sendMediaNotFound({ res, error: "video rendition not found" });
+        return;
+      }
+      if (resolved.outcome === "trashed") {
+        sendMediaOriginalTrashed({ res });
         return;
       }
       const { blob } = resolved;
@@ -701,13 +704,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ 
       }
 
       // Reuse ingest sanitization for legacy blobs before applying byte ranges.
-      const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
-      const totalLength = bytes.byteLength;
-      const range = parseRangeHeader({ header: req.get("range"), totalLength });
-      sendMediaOriginalResponse({ res, bytes, range, contentType: {
-        safe: sniffed,
-        forceDownload: DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed),
-      } });
+      const bytes = await sanitizeOriginalBytes({ sniffed, sourceBytes });
+      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ bytes, rangeHeader: req.get("range"), type: inlineOriginalType({ sniffed }) }) });
     } catch {
       res.status(500).json({ error: "internal error" });
     }

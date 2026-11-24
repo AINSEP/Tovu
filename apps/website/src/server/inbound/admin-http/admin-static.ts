@@ -4,7 +4,7 @@ import path from "node:path";
 import express from "express";
 import type { Express, Response } from "express";
 
-import { createAdminDevProxyRequestHandler } from "./admin-dev-proxy.js";
+import { createDevProxyRequestHandler } from "@jini-ai/http-kit/dev-proxy";
 import { seaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 import type { SeaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 
@@ -76,7 +76,7 @@ export function registerAdminStatic({ app, distDir }: { app: Express; distDir: s
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler({ devProxyUrl }));
+    app.all(["/admin", "/admin/*"], createDevProxyRequestHandler({ devProxyUrl, basePath: "/admin" }));
     return;
   }
 

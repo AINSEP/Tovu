@@ -3,11 +3,8 @@ import type { Express } from "express";
 
 import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { parseRangeHeader } from "@jini-ai/http-kit/range";
-import {
-  DISALLOWED_INLINE_CONTENT_TYPES,
-  sendMediaOriginalResponse,
-} from "#src/server/inbound/admin-http/routes/media/original";
+import { decideMediaOriginalReply, inlineOriginalType } from "@jini-ai/cms/media";
+import { writeMediaOriginalReply } from "#src/server/inbound/shared/media-original-writer";
 
 /**
  * @file `GET /api/attachments/:ref` — serves one staged chat attachment's bytes back to the
@@ -36,9 +33,9 @@ import {
  * second mount, which would be a second thing to keep in sync. `get-chat-attachment-route.test.ts`
  * asserts the unauthenticated 401 through a real request rather than assuming that.
  *
- * SECURITY — this route serves attacker-influenced bytes, so it reuses `routes/media/original.ts`'s
- * response writer verbatim rather than hand-rolling headers (the same reuse
- * `routes/site/media-rendition.ts` already makes of it):
+ * SECURITY — this route serves attacker-influenced bytes, so it reuses `@jini-ai/cms/media`'s
+ * original-bytes decisions (written by `inbound/shared/media-original-writer.ts`) verbatim rather than hand-rolling headers (the same reuse
+ * `routes/site/media-rendition.ts` already makes of them):
  *  - `Content-Type` is ALWAYS `sniffContentType(bytes)`, computed from the bytes this response is
  *    about to send. The `kind` the store recorded at upload is never consulted for it — and could
  *    not be trusted for it anyway: `detectAttachmentKind` classifies a real AVIF as `'file'` today
@@ -91,12 +88,8 @@ export function registerAdminChatAttachmentReadRoute(
         return;
       }
 
-      const sniffed = sniffContentType({ bytes: result.bytes });
-      const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
-      sendMediaOriginalResponse({ res, bytes: result.bytes, range: parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), contentType: {
-        safe: forceDownload ? "application/octet-stream" : sniffed,
-        forceDownload,
-      } });
+      const type = inlineOriginalType({ sniffed: sniffContentType({ bytes: result.bytes }) });
+      writeMediaOriginalReply({ res, reply: decideMediaOriginalReply({ bytes: result.bytes, rangeHeader: req.get("range"), type }) });
     } catch (error) {
       // `readChatAttachmentForOwner` classifies every expected failure as a refusal rather than
       // throwing, so anything reaching here is genuinely unexpected (a filesystem fault between the
