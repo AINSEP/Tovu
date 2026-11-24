@@ -12,7 +12,8 @@ import { createApp } from "./app.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
-import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";
+import { startDomainBindingSweeper, type DomainBindingSweeper } from "@jini-ai/devops/dns";
+import { nodeWebhookDeliveryScheduler } from "@jini-ai/integrations/webhooks";
 import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./modules/site-search.js";
 
 // Only the website serving runtime starts this service. Recomposition/site switches replace its
@@ -53,7 +54,7 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  * module enqueued, so it too runs only here: a POST of a site's data from a process nobody serves
  * is the drainer's loss in reverse.
  *
- * The due-bindings DNS sweep (`domain-binding-sweeper.ts`, 2026-10-21) re-checks `domain_binding`
+ * The due-bindings DNS sweep (`@jini-ai/devops/dns` `startDomainBindingSweeper`, 2026-10-21) re-checks `domain_binding`
  * rows on their backoff schedule; same rule — only a serving process writes a site's tracking state.
  * It runs only when the root pre-bound `verifyDueDomainBindings` (the hermetic root does not).
  */
@@ -110,7 +111,7 @@ export function createServingApp(
   );
   const verifyDue = routeDeps.verifyDueDomainBindings;
   const domainBindingSweeper = startDomainBindingSweeper(
-    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })) },
+    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })), scheduler: nodeWebhookDeliveryScheduler },
     optional.domainBindingSweepIntervalMs === undefined ? {} : { intervalMs: optional.domainBindingSweepIntervalMs }
   );
   // After `createApp`: the pulled submissions' events need their subscribers attached.
