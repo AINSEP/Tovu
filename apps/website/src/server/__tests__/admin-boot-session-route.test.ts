@@ -160,7 +160,8 @@ test("boot-session: the loopback guard runs BEFORE the token is even looked at",
   };
   const fakeReq = { socket: { remoteAddress: "203.0.113.5" }, body: { token } };
 
-  await handler(fakeReq, fakeRes);
+  // Express sets `res.req`; the K1 route reads the request only through it (U-AUTH-T1).
+  await handler(fakeReq, Object.assign(fakeRes, { req: fakeReq }));
 
   assert.equal(statusCode, 403);
   assert.deepEqual(jsonCalls, [{ error: "boot-session is loopback-only", code: "FORBIDDEN" }]);
