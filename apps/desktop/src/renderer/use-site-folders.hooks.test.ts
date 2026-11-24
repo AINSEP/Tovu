@@ -20,7 +20,9 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
   const source = fs.readFileSync(new URL('./app/SettingsControl.tsx', import.meta.url), 'utf8');
   let menuOpen = true;
   const settings = { open: false, databases: 'appData', show() { this.open = true; } };
+  const updateCheckMenuItem = sourceFunction({ source, name: 'UpdateCheckMenuItem' }, { bindings: { MenuIcon: () => null, reportShellTelemetry() {} } });
   const component = sourceFunction({ source, name: 'SettingsControl' }, { bindings: {
+    UpdateCheckMenuItem: updateCheckMenuItem,
     useDismissibleDropdown: () => ({ open: menuOpen, setOpen: (value: boolean) => { menuOpen = value; }, containerRef: {} }),
     useSiteStorageSettings: () => settings, navAvailability: () => ({}),
     settingsControlHandlers: () => ({ toggleOpen() {}, chooseTheme() {}, openAppearancePage() {} }),
