@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
 
-import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type {
   PostAutosaveSnapshot,
   PostRecord,
@@ -16,7 +16,7 @@ import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { currentIso } from "@jini-ai/core/scheduled-publish";
-import { postSearchFor } from "./search-index.js";
+import { postSearchFor, type PostSearchProjection } from "@jini-ai/cms/posts/sql";
 
 /**
  * @file THE post repository: one Kysely query body for every database the storage kernel drives
@@ -35,18 +35,19 @@ import { postSearchFor } from "./search-index.js";
  * what makes a later restore searchable again with no extra step. See `search-index.ts`.
  */
 
-import type { PostSearchProjection } from "./search-index.contract.js";
-export type { PostSearchProjection } from "./search-index.contract.js";
 
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   protected readonly kernel: ContentKernel;
   private readonly search: PostSearchProjection;
+  /** The same kernel, schema erased, for the Jini search adapters. */
+  private readonly searchKernel: ReturnType<typeof schemaErasedKernel>;
   constructor(
     kernel: ContentKernel,
     search: PostSearchProjection
   ) {
     this.kernel = kernel;
     this.search = search;
+    this.searchKernel = schemaErasedKernel({ store: kernel });
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PostRecord | null> {
@@ -160,7 +161,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .onConflict((oc) => oc.column("id").doUpdateSet(updatableColumns(row)))
           .execute()
       );
-      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(record) });
+      await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(record) });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -188,7 +189,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .execute()
       );
       if (updated.length === 0) return { applied: false };
-      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(required.record) });
+      await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
     if (result.applied) invalidateMediaAccessEvidence({ owner: this });
@@ -246,7 +247,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       // Keyed on the post id alone (no workspace column on the projection), so it is dropped only
       // when the scoped delete above actually removed the row it projects.
-      if (removed.length > 0) await this.search.remove({ kernel: this.kernel, postId: required.id });
+      if (removed.length > 0) await this.search.remove({ kernel: this.searchKernel, postId: required.id });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -358,5 +359,5 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
 /** The post repo for `kernel`, with its dialect's search projection. */
 export function postRepoFor(kernel: ContentKernel, _optional: Record<string, never> = {}): SqlPostRepo {
-  return new SqlPostRepo(kernel, postSearchFor(kernel));
+  return new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
 }

@@ -38,7 +38,8 @@ import { createSitesWorkspace, type SitesWorkspace } from '#src/platform/site-di
 import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases';
 import { resolveSiteStorage } from '#src/platform/site-dir/site-storage';
 import { resolveWorkspace } from '#src/platform/site-dir/resolve-workspace';
-import { SqlitePostRepo, postSearchIndexFor } from '#src/features/post/index';
+import { SqlitePostRepo } from '#src/features/post/index';
+import { postSearchIndexFor } from '@jini-ai/cms/posts/sql';
 import { PagesHtmlDocumentStore } from '#src/features/pages/index';
 import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
@@ -228,7 +229,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     // Optional build-time settings are explicit so builders don't iterate a poison value.
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
-    postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
+    postRepo, postSearch: postSearchIndexFor(schemaErasedKernel({ store: kernel })), entryRefsRepo,
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo({ store: kernel }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: kernel }), mediaContentTypeStore, transformDefinitionRepo,

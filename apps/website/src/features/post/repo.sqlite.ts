@@ -1,7 +1,7 @@
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlPostRepo } from "./repo.js";
-import { postSearchFor } from "./search-index.js";
+import { postSearchFor } from "@jini-ai/cms/posts/sql";
 
 /**
  * @file The post repo on a site's SQLite `content.db`: {@link SqlPostRepo} (the one Kysely query
@@ -12,6 +12,6 @@ export class SqlitePostRepo extends SqlPostRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
     const kernel = contentKernel({ store });
-    super(kernel, postSearchFor(kernel));
+    super(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
   }
 }

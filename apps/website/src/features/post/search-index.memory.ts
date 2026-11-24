@@ -1,10 +1,9 @@
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import { openContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { toRow } from "./repo.rows.js";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "@jini-ai/cms/posts/search";
-import type { SearchProjectionTables } from "./search-index.js";
-import { sqlitePostSearch } from "./search-index.sqlite.js";
+import { type SearchProjectionTables, sqlitePostSearch } from "@jini-ai/cms/posts/sql";
 
 /**
  * @file The rule-of-two partner to `search-index.sqlite.ts`: the `PostSearchPort` the hermetic
@@ -66,7 +65,7 @@ export class InMemoryPostSearchIndex implements PostSearchPort {
     // mirrored rows out from under this one.
     return kernel.transaction(async () => {
       await mirrorPosts(kernel, posts);
-      return sqlitePostSearch.search(kernel, required);
+      return sqlitePostSearch.search(schemaErasedKernel({ store: kernel }), required);
     });
   }
 }
@@ -86,6 +85,6 @@ async function mirrorPosts(kernel: ContentKernel, posts: readonly PostRecord[]):
   await kernel.run((db) => db.deleteFrom("posts").execute());
   for (const post of posts) {
     await kernel.run((db) => db.insertInto("posts").values(toRow(post)).execute());
-    await sqlitePostSearch.upsert({ kernel, document: toPostSearchDocument(post) });
+    await sqlitePostSearch.upsert({ kernel: schemaErasedKernel({ store: kernel }), document: toPostSearchDocument(post) });
   }
 }

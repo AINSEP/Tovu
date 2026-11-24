@@ -13,7 +13,7 @@ import { resolveMenuDoc, type NavMenuDoc } from "@jini-ai/cms/navigation";
 import { createMenuPageTargetResolver } from "../page-target-resolver.js";
 import { toAdminMenuResponse } from "@jini-ai/cms/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
-import { postSearchFor } from "#src/features/post/search-index";
+import { postSearchFor } from "@jini-ai/cms/posts/sql";
 import { renderHtmlMenu } from "#src/platform/html/menu-render";
 
 test("footer repair counts no conversion or watermark when the database refuses the menu update", async (t) => {
@@ -147,7 +147,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
       .where("id", "=", "menu-footer-nav").execute());
     assert.equal((await kernel.run((db) => db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirstOrThrow())).value, 1);
     assert.equal((await kernel.run((db) => db.selectFrom("menus").select("version").where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow())).version, 2);
-    const postRepo = new SqlPostRepo(kernel, postSearchFor(kernel));
+    const postRepo = new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
     const resolveTargetHref = createMenuPageTargetResolver({ postRepo });
     const pageOnly = { ...converted, items: [converted.items[0]] };
     const resolve = () => resolveMenuDoc({ doc: pageOnly, context: { workspaceId: "ws", currentPath: "/" }, resolveTargetHref });
