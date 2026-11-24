@@ -1249,3 +1249,10 @@ export const workspaces = pgTable("workspaces", {
   createdAt: text("created_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull().default(1),
 });
+
+/** Migration 0044: one row per workspace while agent-created work is held by the assistant switch;
+ *  deleted only by an approved resume card (`server/runtime/composition/agent-pause-gate.ts`). */
+export const agentPauseHolds = pgTable("agent_pause_holds", {
+  workspaceId: text("workspace_id").primaryKey(),
+  heldSince: text("held_since").notNull(),
+});

@@ -2414,3 +2414,10 @@ export const ownerPasskeys = sqliteTable("owner_passkeys", {
   primaryKey({ columns: [t.workspaceId, t.credentialId], name: "owner_passkeys_workspace_credential_pk" }),
   index("idx_owner_passkeys_scope").on(t.workspaceId, t.principalId),
 ]);
+
+/** Migration 0044: one row per workspace while agent-created work is held by the assistant switch;
+ *  deleted only by an approved resume card (`server/runtime/composition/agent-pause-gate.ts`). */
+export const agentPauseHolds = sqliteTable("agent_pause_holds", {
+  workspaceId: text("workspace_id").primaryKey(),
+  heldSince: text("held_since").notNull(),
+});

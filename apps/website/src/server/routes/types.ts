@@ -1,3 +1,4 @@
+import type { AgentPauseGate } from "../runtime/composition/agent-pause-gate.js";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult } from "@jini-ai/plugins/host";
 import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
@@ -1310,6 +1311,12 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * request itself 404ing.
    */
   adminAssistantEnabled: boolean;
+  /**
+   * The switch's resume hold (`composition/agent-pause-gate.ts`, H4): agent-created work loops ask it
+   * instead of `adminAssistantEnabled` alone, so turning the assistant back on resumes agent work only
+   * after an approved resume card. Absent in compositions without a content store.
+   */
+  agentPauseGate?: AgentPauseGate;
   /**
    * Boots the real Express app for the export engine's in-process HTTP crawl. Injection
    * avoids an export-to-server runtime dependency. Both composition roots bind the same

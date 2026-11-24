@@ -10,6 +10,7 @@ export type GeneratedBool = ColumnType<SqlBool, boolean | undefined, boolean>;
 export type NullableBool = ColumnType<SqlBool | null, boolean | null | undefined, boolean | null>;
 
 export interface ContentDatabase {
+  agent_pause_holds: AgentPauseHoldsTable;
   agent_tool_attempts: AgentToolAttemptsTable;
   analytics_events: AnalyticsEventsTable;
   api_keys: ApiKeysTable;
@@ -92,6 +93,11 @@ export interface ContentDatabase {
   webhook_subscriptions: WebhookSubscriptionsTable;
   widget_region_bindings: WidgetRegionBindingsTable;
   workspaces: WorkspacesTable;
+}
+
+export interface AgentPauseHoldsTable {
+  workspace_id: string;
+  held_since: string;
 }
 
 export interface AgentToolAttemptsTable {
@@ -576,6 +582,7 @@ export interface NewsletterCampaignsTable {
   counters_json: string;
   version: number;
   created_by_principal: string;
+  created_by_kind: Generated<string>;
   created_at: string;
   updated_at: string;
 }
@@ -717,6 +724,7 @@ export interface PostsTable {
   created_by_principal_id: string | null;
   created_at: string | null;
   publish_at: string | null;
+  created_by_kind: Generated<string>;
   featured_media_id: string | null;
   author: string | null;
   show_author: GeneratedBool;
