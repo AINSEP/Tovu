@@ -16,10 +16,11 @@ import { exportSite } from "../site-exporter.js";
 import { captureStaticSite } from "../../site-backup/static-copy.js";
 import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
-import type { LoadedDeployTarget } from "../../deployments/deploy-targets/types.js";
+import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static-export/site/public-origin-policy";
 import { exportHtml } from "../export-html-policy.js";
-import { downloadForms } from "#src/features/site-backup/static-download-html";
+import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
+import * as sourceEdits from "#src/platform/html/source-edits";
 
 const PUBLIC = "https://public.example.test";
 const MEDIA = "/m/cover/public.v1/image.webp";
@@ -167,14 +168,14 @@ test("registry absence, dev evidence and configured loopback never provide expor
 
 test("download form edits preserve external and mailto actions, theme attributes and unrelated script bytes", () => {
   const html = `<div>${FORM}<form action="https://receiver.example.test/forms/send" method="post"></form><form action="mailto:help@example.test" method="post"></form><script>const path = "/about";</script></div>`;
-  const result = downloadForms({ html, page: "/contact", publicOrigin: PUBLIC });
+  const result = downloadForms({ html, page: "/contact", publicOrigin: PUBLIC, sourceEdits });
   assert.deepEqual(result.removed, [{ page: "/contact", url: "/forms/contact/submit", attribute: "action", reason: "needs-server" }]);
   assert.match(result.html, /<\/form><p>This form needs a server to send messages\.<\/p>/);
   assert.match(result.html, /action="https:\/\/receiver.example.test\/forms\/send" method="post"/);
   assert.match(result.html, /action="mailto:help@example.test" method="post"/);
   assert.match(result.html, /data-contact-form-slug="contact"/);
   assert.match(result.html, /<script>const path = "\/about";<\/script>/);
-  assert.deepEqual(downloadForms({ html: result.html, page: "/contact", publicOrigin: PUBLIC }).removed, []);
+  assert.deepEqual(downloadForms({ html: result.html, page: "/contact", publicOrigin: PUBLIC, sourceEdits }).removed, []);
 });
 
 test("fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML", () => {

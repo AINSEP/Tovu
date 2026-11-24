@@ -2,11 +2,11 @@ import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import { ToolInputError, type AgentToolDefinition as SharedAgentToolDefinition, type SurfaceEmission, type ToolContributor } from "@jini-ai/core";
-import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy-targets/types.js";
+import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/deployments';
 import { inspectStaticPublish } from './static-publish/inspection.js';
 import { approvalToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
@@ -49,7 +49,7 @@ import type { UIResource, UIResourceUri } from "@jini-ai/core/contracts/site/pro
 import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { PublishExecutionMode } from "./publish-credentials/index.js";
+import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
 
@@ -63,27 +63,13 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
-import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
+import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 // Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
 // tab writes, so a row saved from chat is the row a publish resolves.
 import { createPublishCredential, updatePublishCredential, type PublishCredentialWriteDeps } from "./publish-credentials/index.js";
-import {
-  composePublishCredentialSource,
-  getPublishRunSnapshot,
-  getPublishJobSnapshot,
-  startPublishRun,
-  planStaticPublish,
-  readStaticPublishConfig,
-  unknownTargetMessage,
-  type PublishCredentialSource,
-  type PublishCredentialVerificationCache,
-  type PublishHistoryStore,
-  type StaticPublishConfig,
-  type StaticPublishDeps,
-  type StaticPublishOutcome,
-  type StaticPublishTargetId,
-} from "./static-publish/index.js";
+import { composePublishCredentialSource, getPublishRunSnapshot, getPublishJobSnapshot, startPublishRun, planStaticPublish, readStaticPublishConfig, unknownTargetMessage, type PublishCredentialVerificationCache, type PublishHistoryStore, type StaticPublishDeps } from "./static-publish/index.js";
+import { type PublishCredentialSource, type StaticPublishConfig, type StaticPublishOutcome, type StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 export type AgentToolDefinition = SharedAgentToolDefinition;
 

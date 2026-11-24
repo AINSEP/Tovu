@@ -9,7 +9,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations, type TrashToolDeps } from "../tool-registrations.js";
-import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/agent-tools.js";
+import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/tool-registrations.js";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
 import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashActor } from "@jini-ai/core/contracts/site/cms-trash";

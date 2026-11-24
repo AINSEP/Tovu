@@ -11,7 +11,8 @@ import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PlanImportDeps } from "./planner.js";
 import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
-import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —

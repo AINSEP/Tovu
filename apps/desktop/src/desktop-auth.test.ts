@@ -21,7 +21,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 
 import { assertLoopbackAdminUrl, sitePartition, redeemBootSession, hasActiveSessionCookie, hasValidSession, ensureSiteSession, endSiteSession } from "./desktop-auth.ts";
-import type { AuthRequestOptions } from "./desktop-auth.ts";
+import type { SessionRequestOptions as AuthRequestOptions } from "@jini-ai/desktop-host/electron/session-bootstrap";
 
 // --------------------------------------------------------------------------
 // assertLoopbackAdminUrl — the network guard

@@ -17,7 +17,7 @@
  */
 
 /** push (main → renderer): the app menu's Find (Cmd+F) fired. Opens the find bar, or refocuses it
- *  if already open. Carries no payload. Inlined in `find-menu.ts`, which tests that the two match. */
+ *  if already open. Carries no payload. Bound by `main/boot/boot-sequence.ts`'s Find menu; `find-menu.test.ts` pins the value. */
 export const FIND_TOGGLE_CHANNEL = 'runner:find:toggle';
 
 /** invoke (renderer → main): run/re-run a search, or stop one, against the SITES HOME WINDOW'S OWN

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { checkRawFilePath, checkRawValues } from "../backstop-policy.js";
 import { readBackstopMetadata, validateBackstopRequest } from "../backstop-service.js";
-import type { PackedEntity } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 
 const metadata: BackstopMetadata = { mode: "backstop", reason: " Emergency footer fix ", sourceActor: "owner", destinationHost: "live.example", gapLabels: ["untrusted"] };

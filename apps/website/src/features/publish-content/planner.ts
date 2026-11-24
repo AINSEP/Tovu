@@ -5,12 +5,9 @@ import type {
   BaselineRecord, PublishContentBundle, PublishContentOutcomeRow, PublishContentReport,
 } from "./plan-rows.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
-import type {
-  PublishContentDeps,
-  PublishContentHandler,
-  PackedEntity,
-  ReferenceHolder,
-} from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { PublishContentHandler, ReferenceHolder } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 5 of the publish-content (Publish Content) feature —

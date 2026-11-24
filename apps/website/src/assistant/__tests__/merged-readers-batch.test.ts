@@ -13,13 +13,15 @@ import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { InMemoryNewsletterCampaignRepo } from "../../features/newsletter/repo.memory.js";
-import type { CampaignRecord } from "../../features/newsletter/types.js";
+import { InMemoryNewsletterCampaignRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 import { contributeNewsletterTools } from "../../features/newsletter/tool-registrations.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { buildPostRecord } from "../../features/post/__tests__/post-record.fixture.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
-import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
@@ -81,7 +83,7 @@ async function harness() {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-  for (const contribution of [contributePostTools(), contributeNewsletterTools(), contributeRedirectsTools(), contributeWidgetsTools()]) {
+  for (const contribution of [contributePostTools(), contributeNewsletterTools(), contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }), contributeWidgetsTools()]) {
     contributions.contributors.register({ contribution });
   }
   const build = (workspaceId = WORKSPACE, batch = true) => buildAssistantToolRegistrations(

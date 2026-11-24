@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 
 import { MAX_DOCUMENT_BYTES, type BlobStorePort } from "#src/features/media/index";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";

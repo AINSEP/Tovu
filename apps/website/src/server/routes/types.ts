@@ -34,28 +34,22 @@ import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.j
 import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
-import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
+import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
-import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
-import type {
-  MagicLinkTokenRepoPort,
-  MemberRepoPort,
-  MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
-} from "../../features/members/index.js";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
-import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
+import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
 import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
-import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
@@ -120,8 +114,11 @@ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord, PluginPackageFiles } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { ExportEngine } from "../../features/deployments/index.js";
-import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
+import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
+import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
+import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
+import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
@@ -418,6 +415,9 @@ export interface MembersDeps {
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
    *  Absent in roots without a resolved mailer: that include then refuses. */
   mailDomainRequirements?: (required: { workspaceId: string }) => Promise<import("@jini-ai/core/provider-registry").DomainRequirement | null>;
+  /** The host mail transport the Jini member challenge flow runs on (`features/members/mail-transport.ts`),
+   *  bound by the composition root; the route deps builders pass it as `MembersWriteServiceDeps.mailTransport`. */
+  membersMailTransport: import("@jini-ai/user-management/members/ports").MembersMailTransport;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
@@ -441,7 +441,7 @@ export interface MembersDeps {
   /** Feedback setup's persisted product-prefixed signing-secret labels (`features/mail/index.ts`). */
   mailWebhookSecretLabels: typeof import("../../features/mail/index.js").mailWebhookSecretLabels;
   /** Mail readiness's Newsletter launch gate (`@jini-ai/platform/mail/use-readiness`): the one gate the send path runs. */
-  evaluateNewsletterLaunchGate: typeof import("../../features/newsletter/index.js").evaluateLaunchGate;
+  evaluateNewsletterLaunchGate: typeof import("@jini-ai/user-management/newsletter/launch-gate").evaluateLaunchGate;
 }
 
 /**
@@ -621,8 +621,8 @@ export interface SettingsDeps {
    */
   settingsRepo: SettingsRepoPort;
   /** Site-owned immutable policies; omitted only by hermetic callers without a durable store. */
-  consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
-  siteConsent?: import('#src/features/consent/service').SiteConsentService;
+  consentStore?: import('@jini-ai/cookie-consent/site/revisions').SiteConsentStore;
+  siteConsent?: import('@jini-ai/cookie-consent/site/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
   /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps;
@@ -737,10 +737,10 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
-  browserAnalytics?: import('#src/features/analytics/contracts').BrowserAnalyticsSource;
+  browserAnalytics?: import('@jini-ai/analytics/site/contracts').BrowserAnalyticsSource;
   /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
-  visitorAnalyticsProof?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
-  visitorAnalyticsDeliveryAllowed?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
+  visitorAnalyticsProof?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
+  visitorAnalyticsDeliveryAllowed?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
   /** One facade for product events, redacted/deduplicated errors and scoped tracing.
@@ -797,7 +797,7 @@ export interface AnalyticsDeps {
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
-   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`features/analytics/forwarding.ts`,
+   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`@jini-ai/analytics/site/forwarding`,
    * `.cloud-coord/analytics-DESIGN.md`). Real composition only: the hermetic root leaves it absent,
    * so its beacon keeps the built-in sink alone and no hooks — the pre-forwarding path.
    */
@@ -828,7 +828,7 @@ export interface AnalyticsDeps {
    * Independent of title preservation: public reads must work while a title pin is pending. */
   siteConsentReady: Promise<void>;
   /**
-   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
+   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `@jini-ai/cms/settings/site/site-timezone`).
    * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.
    */
   siteTimeZone?: SiteTimeZonePort;
@@ -1416,7 +1416,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
-  loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
+  loadInstalledDeployTargets?: import("@jini-ai/devops/deploy/site/deploy-targets/types").LoadInstalledDeployTargets;
   /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/index").DeployOpsRegistry>;
   /**

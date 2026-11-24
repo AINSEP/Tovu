@@ -1,13 +1,14 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "../../members/repo.memory.js";
-import type { MemberRecord } from "../../members/types.js";
+  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
-import { issueMemberSession } from "../../members/member-credentials.js";
-import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";
 
@@ -26,6 +27,7 @@ function fixture() {
     magicLinks: new InMemoryMagicLinkTokenRepo(), tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}), identities: new InMemoryMemberExternalIdentityRepo({}), origin: originFixture(),
     passwordHasher: { hash: async ({ password }) => `hash:${hash(password)}`, verify: async ({ password, hash: saved }) => saved === `hash:${hash(password)}` },
+    mailTransport: membersMailTransport,
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: clock.nowIso() }; }, sendBatch: async () => [] },
     transaction: async run => {
@@ -34,6 +36,7 @@ function fixture() {
       try { return await run(); } finally { inTransaction = false; }
     },
     lockKey: async key => { assert.equal(inTransaction, true); locks.push(key); },
+    reportFailure: () => undefined,
   };
   async function seed(status: MemberRecord["status"] = "active", email = identity.email) {
     const member: MemberRecord = { id: "member-1", workspaceId: "ws", email, status,

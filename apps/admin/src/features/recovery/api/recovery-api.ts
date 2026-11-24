@@ -1,6 +1,6 @@
 import { request } from "../../../lib/admin-http/request";
 import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
-import type { AdminDisclosureResult, AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope, RestoreExecuteResult } from "./recovery-api.types";
+import type { AdminDisclosureResult, AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope, RestoreExecuteResult } from "@jini-ai/admin/core";
 
 /** The admin API calls of the recovery feature. */
 export const recoveryApi = {

@@ -1,7 +1,8 @@
 import { executeCommand } from "@jini-ai/cms/core";
+import { evaluateLaunchGate } from "@jini-ai/user-management/newsletter/launch-gate";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
-import { evaluateLaunchGate } from "#src/features/newsletter/index";
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
 import type { composeEventsOrigin } from "./events-origin.js";
@@ -19,10 +20,10 @@ import type { composeContentStores } from "./content-stores.js";
 import type { composePublishingStoresThemes } from "./publishing-stores-themes.js";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
 import { SharpImageTransformer } from "#src/features/media/index";
-import { SqliteMagicLinkTokenRepo } from "#src/features/members/index";
-import { SqliteMemberSessionRepo } from "#src/features/members/index";
-import { SqliteMemberSubscriptionRepo } from "#src/features/members/index";
-import { SqliteMemberTierRepo } from "#src/features/members/index";
+import { SqliteMagicLinkTokenRepo } from "#src/features/members/repo.sqlite";
+import { SqliteMemberSessionRepo } from "#src/features/members/repo.sqlite";
+import { SqliteMemberSubscriptionRepo } from "#src/features/members/repo.sqlite";
+import { SqliteMemberTierRepo } from "#src/features/members/repo.sqlite";
 import { SqliteNewsletterAudienceSnapshotRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteNewsletterCampaignRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteNewsletterConfirmationTokenRepo } from "#src/features/newsletter/repo.sqlite";
@@ -85,7 +86,7 @@ interface RouteDepsMailFormsNewsletterRequired {
   mediaContentTypeStore: ReturnType<typeof composePublishingStoresThemes>["mediaContentTypeStore"];
 }
 
-export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "principalRepo" | "removeUser" | "isInTrash" | "redirectRepo" | "redirectHitSink" | "originRegistry" | "redirectsWriteDeps" | "memberRepo" | "removeMember" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "settleMailer" | "mailStatus" | "setAgentPluginEnabled" | "mailProviderControl" | "mailDomainRequirements"> {
+export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "principalRepo" | "removeUser" | "isInTrash" | "redirectRepo" | "redirectHitSink" | "originRegistry" | "redirectsWriteDeps" | "memberRepo" | "removeMember" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "membersMailTransport" | "mailer" | "settleMailer" | "mailStatus" | "setAgentPluginEnabled" | "mailProviderControl" | "mailDomainRequirements"> {
   const { kernel, settingsPrincipals, originRegistry, redirectRepo, redirectHitSink, trash, removeUser, isInTrash, redirectsWriteDeps, runtimeMode, memberRepo, resolvedMailer, mailDurableOutboxReady } = required;
   return {
     principalRepo: settingsPrincipals,
@@ -105,6 +106,7 @@ export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _op
     memberSubscriptionRepo: new SqliteMemberSubscriptionRepo({ store: kernel }),
     memberSessionRepo: new SqliteMemberSessionRepo({ store: kernel }),
     magicLinkRepo: new SqliteMagicLinkTokenRepo({ store: kernel }),
+    membersMailTransport,
     // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
     // had a durable outbox path in Phase 1 (see capability-inventory.ts's "outbox" entry). Forms
     // now has isolated recipient jobs; other capabilities still fail the readiness gate; in `local` mode (the

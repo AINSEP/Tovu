@@ -7,15 +7,15 @@ import {
   isBackstopEntityType,
   PUBLISH_TRUST_GRANT_VERSION,
   type PublishTrustGrant,
-} from "./grant.js";
+} from "@jini-ai/cms/publish/trust/grant";
 import { fetchDestinationIdentity, PUBLISH_TRUST_GENERATION, PublishTrustHandshakeError, type DestinationIdentity, type HandshakeClientDeps } from "./handshake-client.js";
-import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
+import { deriveInstallationId, derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import {
   grantNotAfterFrom,
   type ProvisioningFileIo,
   type ProvisioningTarget,
   type PublishTrustProvisioningPort,
-} from "./provisioning.js";
+} from "@jini-ai/cms/publish/trust/provisioning";
 
 /**
  * @file Zero-setup publishing auth — the one action a person takes: "this site is mine".

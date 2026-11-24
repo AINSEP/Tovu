@@ -4,8 +4,9 @@ import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { closeSqliteConnection } from '#src/platform/db/kernel/drivers/sqlite';
 import { createSiteConsentStore } from '../revisions.repo.js';
-import { createSiteConsentService, type ConsentServicePorts } from '../service.js';
-import { SITE_CONSENT_DEFAULTS } from '../config.js';
+import { createSiteConsentService, type ConsentServicePorts } from '@jini-ai/cookie-consent/site/service';
+import { consentServiceHostPorts } from '../host-bindings.js';
+import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
 import { onTeardown } from '#src/__tests__/fixtures/teardown';
 
 export function consentFixture({ t }: { t: TestContext }, _options = {}) {
@@ -17,7 +18,7 @@ export function consentFixture({ t }: { t: TestContext }, _options = {}) {
   const calls: string[] = [];
   const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' };
   const ports: ConsentServicePorts = {
-    workspaceId: 'ws', store, ready: Promise.resolve(),
+    ...consentServiceHostPorts, workspaceId: 'ws', store, ready: Promise.resolve(),
     authorize: async ({ permission }) => { calls.push(permission); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; },
     clock: { nowIso: () => '2026-10-20T12:00:00.000Z' }, ids: { newId: () => `revision-${++count}` },
     trustedRegion: false, readLegacy: async () => ({ ...SITE_CONSENT_DEFAULTS, enabled: false }), defaultOnly: async () => false, privacyPageExists: async () => true,

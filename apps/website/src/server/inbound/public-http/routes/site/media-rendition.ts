@@ -9,8 +9,8 @@ import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sa
 import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
-import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
-import type { MemberAccessResolver } from "#src/features/members/index";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
+import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";

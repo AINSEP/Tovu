@@ -36,7 +36,7 @@ export interface SiteBackupPlanContent extends SiteBackupCommonContent {
 
 export interface SiteSharePlanContent extends SiteBackupCommonContent {
   readonly notices?: readonly string[];
-  readonly encryptedKeys?: typeof import("./saved-keys-port.js").ENCRYPTED_KEYS_DESCRIPTOR;
+  readonly encryptedKeys?: typeof import("@jini-ai/devops/backup/site/saved-keys-port").ENCRYPTED_KEYS_DESCRIPTOR;
   readonly sealedPassword?: import("@jini-ai/core/contracts/vault").SealedSecret;
 
   readonly target: { readonly kind: "zip" };

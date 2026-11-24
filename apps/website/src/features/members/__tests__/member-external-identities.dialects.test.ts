@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { InMemoryMemberExternalIdentityRepo } from "../repo.memory.js";
-import { SqlMemberExternalIdentityRepo } from "../repo.js";
+import { InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
+import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../repo.sqlite.js";
 import { runExternalIdentityContract } from "./member-external-identities.contract.js";
 
 runExternalIdentityContract({ name: "memory", open: async () => new InMemoryMemberExternalIdentityRepo({}) });
@@ -11,12 +12,12 @@ for (const adapter of eachDialect({ tables: ["member_external_identities"], make
   runExternalIdentityContract({ name: adapter.name, open: async t => {
     const kernel = adapter.make();
     if (adapter.dialect === "sqlite") t.after(() => kernel.close());
-    return new SqlMemberExternalIdentityRepo({ kernel });
+    return new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel }));
   } });
   test(`[${adapter.name}] identity changes roll back with the caller's member transaction`, async t => {
     const kernel = adapter.make();
     if (adapter.dialect === "sqlite") t.after(() => kernel.close());
-    const repo = new SqlMemberExternalIdentityRepo({ kernel });
+    const repo = new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel }));
     await assert.rejects(kernel.transaction(async () => {
       await repo.save({ id: "rollback", workspaceId: "w", memberId: "m", providerId: "google",
         issuer: "https://accounts.google.com", subject: "rollback-sub", linkedAt: "2026-10-24T20:00:00.000Z" });

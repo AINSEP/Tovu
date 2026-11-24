@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -16,8 +17,10 @@ import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
 import type { MailerSendOptions } from "@jini-ai/platform/mail";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { type MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`
@@ -123,6 +126,7 @@ for (const mode of ["local", "production"] as const) {
       magicLinks: route.magicLinkRepo, principals: route.principalRepo, origin: route.originRegistry,
       passwordHasher: { hash: async () => "fixture-code-hash", verify: async () => false },
       senderIdentity: { resolve: async () => ({ email: "members@example.test" }) },
+      mailTransport: membersMailTransport,
       mailer: { ...mailer, capabilities: () => ({ ...mailer.capabilities(), driver: "memory" }),
         send: async (message, options) => { sent.push(message); return mailer.send(message, options); } },
     };

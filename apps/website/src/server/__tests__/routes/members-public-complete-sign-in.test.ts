@@ -9,7 +9,7 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from ".
 
 import express from "express";
 
-import { requestSignInLink } from "#src/features/members/index";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
@@ -36,6 +36,7 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
     memberSubscriptionRepo: routeDeps.memberSubscriptionRepo,
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
+    membersMailTransport: routeDeps.membersMailTransport,
     mailer: routeDeps.mailer,
     origin: routeDeps.originRegistry,
     clock: routeDeps.clock,

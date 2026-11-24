@@ -27,7 +27,7 @@ import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validate
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
-import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
+import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/index.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";

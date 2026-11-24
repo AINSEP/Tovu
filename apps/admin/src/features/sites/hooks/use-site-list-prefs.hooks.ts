@@ -12,7 +12,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { loadNamespaceValues, saveChangedEntries } from "@/lib/ledger-slice";
 import { INTERFACE_NAMESPACE } from "@/lib/settings-tabs";
 
-/** Registered by the server in `apps/website/src/features/settings/admin-interface.ts`. */
+/** Registered by the server in `@jini-ai/cms/settings/site/admin-interface`. */
 export const SITE_LIST_KEY = "sitesList";
 
 export const defaultSiteListPrefsPort: SiteListPrefsPort = {

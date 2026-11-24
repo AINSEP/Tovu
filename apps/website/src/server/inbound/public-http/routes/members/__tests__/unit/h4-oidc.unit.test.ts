@@ -5,9 +5,9 @@ import { createCapturingResponse, extractRouteHandler } from '#src/server/__test
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { originFixture } from '#src/features/member-login/__tests__/fixtures';
 import { MemberLoginError } from '@jini-ai/user-management/server';
-import * as memberLogin from '#src/features/member-login/index';
-import type { MemberRecord, MemberSessionRecord } from '#src/features/members/index';
-import { InMemoryMemberExternalIdentityRepo } from '#src/features/members/repo.memory';
+import * as memberLogin from '@jini-ai/user-management/member-login/oidc-login';
+import type { MemberRecord, MemberSessionRecord } from '@jini-ai/user-management/members/types';
+import { InMemoryMemberExternalIdentityRepo } from '@jini-ai/user-management/members/repo.memory';
 import type { MemberPublicRouteDeps } from '../../deps.js';
 import { MEMBER_OIDC_PATH } from '@jini-ai/core/contracts/headless/member-login';
 import { currentOidcMember, memberOidcCookie, MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from '../../oidc-deps.js';
@@ -15,7 +15,7 @@ import { registerMemberOidcStartRoute } from '../../oidc-start.js';
 import { registerMemberLoginProvidersRoute, registerPublicMemberMeRoute } from '#src/server/runtime/composition/modules/public-members';
 
 let completions = 0;
-mock.module('#src/features/member-login/index', { namedExports: { ...memberLogin, completeOidcLogin: async () => {
+mock.module('@jini-ai/user-management/member-login/oidc-login', { namedExports: { ...memberLogin, completeOidcLogin: async () => {
   completions++; throw new MemberLoginError({ code: 'LOGIN_UNAVAILABLE' });
 } } });
 const { registerMemberOidcCallbackRoute } = await import('../../oidc-callback.js');

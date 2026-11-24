@@ -5,13 +5,13 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
-import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "../deploy-targets/types.js";
+import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";
 import { resolveForPublish } from "../publish-credentials/store.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
-import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
+import type { PublishCredentialSource, StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /**
  * @file Verifies a static-publish credential against its REAL host — the fix for "ready means a

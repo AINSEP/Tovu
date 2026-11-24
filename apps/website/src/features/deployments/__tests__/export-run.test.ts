@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
 
-import { getExportRunSnapshot, startExportRun, type ExportRunReportLike } from "../export-run.js";
+import { getExportRunSnapshot, startExportRun } from "../export-run-binding.js";
+import type { ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
 
 function deps() {
   let calls = 0;

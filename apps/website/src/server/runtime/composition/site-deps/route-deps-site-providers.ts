@@ -16,6 +16,7 @@ import type { composePublishingStoresThemes } from "./publishing-stores-themes.j
 import type { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import type { compositionProjectKeys } from "./project-keys.js";
 import { POST_ENTITY_TYPE } from "#src/features/trash/index";
+import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-error-message";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -24,9 +25,9 @@ import { buildAnalyticsProviders } from "../analytics-providers.js";
 import { builtInThemesDir } from "../site-paths.js";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createPostRevertRegistry } from "#src/features/post/index";
-import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import { createSiteMailFeedbackRoute } from "@jini-ai/platform/mail/sql";
 import { MAIL_WEBHOOK_SECRET_LABEL_PREFIX } from "#src/features/mail/index";
+import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import { legacyProviderCredentialCheck } from "../provider-plugins.js";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
@@ -153,7 +154,7 @@ export function routeDepsSiteThemesTelemetry(required: RouteDepsSiteThemesTeleme
     browserAnalytics: providerPlugins.browserAnalytics,
     consentAdapters: providerPlugins.consentAdapters,
     telemetryStatus: providerPlugins.telemetryStatus,
-    sendTelemetryTest: () => providerPlugins.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") }),
+    sendTelemetryTest: () => providerPlugins.sendTelemetryTest({ error: new Error(TELEMETRY_TEST_ERROR_MESSAGE) }),
     aiTraceSink,
     providerConfig: providerConfigSource,
     reapplyProvider: input => providerPlugins.reapply(input),

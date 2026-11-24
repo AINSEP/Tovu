@@ -10,6 +10,7 @@ import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS
 import type { VisitorToolPolicy, VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { ClientDirective } from "./client-directives.js";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
+import type { VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
 import { createVisitorConfirmationGate, VisitorPlanRefused } from "./visitor-confirmation-gate.js";
 

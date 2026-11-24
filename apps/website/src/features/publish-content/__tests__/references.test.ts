@@ -7,7 +7,8 @@ import { contributePagePublish, contributePostPublish } from "#src/features/post
 import { contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
 
-import type { PackedEntity, PublishContentContributor, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentContributor, PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Plan G3 — each registered type's `references()`: what a scoped publish carries along with it

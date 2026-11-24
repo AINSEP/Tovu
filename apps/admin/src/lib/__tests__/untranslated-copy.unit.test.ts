@@ -9,6 +9,7 @@ import * as importExportI18n from "@jini-ai/admin/screens/import-export/import-e
 import * as skillsI18n from "@jini-ai/admin/screens/skills/skills-i18n";
 import * as webmcpI18n from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
 import * as sharedComponentsI18n from "@jini-ai/admin/shell/components/shared-components-i18n";
+import * as pageEditorI18n from "@jini-ai/admin/pages/page-editor-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -45,6 +46,9 @@ const MODULES: Record<string, Record<string, unknown>> = {
   "../../features/skills/skills-i18n.ts": skillsI18n,
   "../../features/webmcp/webmcp-i18n.ts": webmcpI18n,
   "../../components/shared-components-i18n.ts": sharedComponentsI18n,
+  // The Page editor's dictionaries moved to @jini-ai/admin/pages; the host module now only binds its
+  // translator, so the copy the admin still ships is checked here under the host module's path.
+  "../../features/pages/page-editor-i18n.ts": pageEditorI18n,
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */
@@ -103,7 +107,6 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Referrer: ["de", "it"],
   Repository: ["de", "it"],
   Scripts: ["es", "pt-BR", "fr"],
-  server: ["id", "it"],
   Sitemap: ["de", "pt-BR", "it"],
   "Sitemap · {count} URLs": ["de"],
   Slug: LATIN_SCRIPT_LOCALES,

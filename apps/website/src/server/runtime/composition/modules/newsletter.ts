@@ -23,16 +23,31 @@ import { newsletterScheduleCampaignRoute } from "@jini-ai/cms/admin-http/routes/
 import { newsletterSendCampaignRoute, type NewsletterSendPipeline } from "@jini-ai/cms/admin-http/routes/newsletter/send-campaign";
 import { newsletterSendTestCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/send-test-campaign";
 import { newsletterUpdateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/update-campaign";
-import { cancelCampaign, saveCampaign, scheduleCampaign } from "#src/features/newsletter/campaign-write-service";
+import { cancelCampaign, saveCampaign, scheduleCampaign } from "@jini-ai/user-management/newsletter/campaign-write-service";
 import { issueConfirmationToken } from "#src/features/newsletter/confirmation";
 import { newsletterErrorResponse } from "#src/features/newsletter/http-error-responses";
-import { archiveList, saveList } from "#src/features/newsletter/lists";
-import { authorizeSend, claimBatch, freezeAudience, pauseCampaign, resumeCampaign, sendTestCampaign, type SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import { archiveList, saveList } from "@jini-ai/user-management/newsletter/lists";
+import { authorizeSend, claimBatch, freezeAudience, pauseCampaign, resumeCampaign, sendTestCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { importSubscriptions, saveSubscription, unsubscribeSubscription } from "#src/features/newsletter/subscriptions";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toCampaignWriteServiceDeps, toConfirmationDeps, toListsDeps, toSendPipelineDeps, toSubscriptionsDeps, toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+/**
+ * @file Barrel for newsletter's cross-module data contract (ADS-memory/reports/architecture/
+ * 2026-08-13-api-surface-trace-A.md, proposal N-1).
+ *
+ * Composition-root wiring (repo adapters, hooks, send pipeline, campaign/list/subscription/
+ * confirmation/unsubscribe services, data-module manifest) is deliberately NOT re-exported here —
+ * same boundary as `comments/index.ts`'s existing precedent and the `forms/index.ts` barrel this
+ * mirrors. Only the typed domain errors and the port interfaces — including the dependency-
+ * inversion seam into Members (`SubscriberContact`/`SubscriberDirectoryPort`, ADR-030 §4) and the
+ * send-pipeline job payload (`SendBatchJob`) — live behind this door. `MailerPort` is re-exported
+ * from `ports.ts` itself for internal use only; it is not re-exported here because no external
+ * importer reaches it through `newsletter/ports` (every external caller already gets it directly
+ * from `../mail`).
+ */
+// Now: the barrel is gone; the errors and ports are the leaf subpaths `@jini-ai/user-management/newsletter/{errors,ports}`.
 
 /**
  * @file SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin

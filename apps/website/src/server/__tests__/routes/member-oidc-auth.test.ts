@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 /** Google login S3: real HTTP + real sealed state/JWT/link owners, entirely local protocol I/O.
  * Binding changes and owner 2026-10-24 require first-link inbox proof and member-only cookies.
  * Deliberately not executed by the shard worker; central commands are in the handoff.
@@ -7,10 +8,11 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo, type MemberRecord, type OutboundEmail } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/member-credentials";
-import { cryptoFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
+import { type MemberRecord } from "@jini-ai/user-management/members/types";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { cryptoFixture, oidcOperationsFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { registerMemberOidcStartRoute } from "../../inbound/public-http/routes/members/oidc-start.js";
@@ -20,6 +22,7 @@ import { registerMemberUnlinkIdentityRoute } from "../../inbound/public-http/rou
 import { registerMemberLoginProvidersRoute, registerPublicMemberMeRoute } from "#src/server/runtime/composition/modules/public-members";
 import { MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 const BASE = "/api/members/v1/workspaces/ws";
 const OIDC = `${BASE}/oidc/google`;
@@ -43,6 +46,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
     memberRepo: new InMemoryMemberRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(),
     memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}), origin: originFixture(),
+    membersMailTransport,
     passwordHasher: { hash: async ({ password }) => `hash:${password}`, verify: async ({ hash, password }) => hash === `hash:${password}` },
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: crypto.clock.nowIso() }; }, sendBatch: async () => [] },
@@ -53,8 +57,9 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
   const deps: MemberOidcRouteDeps = { members, listProviders: async () => enabled ? [provider] : [],
     links: { ...toPublicMembersWriteServiceDeps(members), identities,
       transaction: async body => { inTransaction = true; try { return await body(); } finally { inTransaction = false; } },
-      lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); } },
-    protocol: { ...crypto, origin: originFixture(),
+      lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); },
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } },
+    protocol: { ...crypto, ...oidcOperationsFixture, origin: originFixture(),
       resolveProvider: async () => enabled ? provider : null,
       resolveClient: async () => ({ clientId: "client", clientSecret: "secret-never-returned", authMethod: "client_secret_post" }),
       httpPorts: { guard: { assertSafeUrl: ({ raw }) => new URL(raw) }, fetchFn: async ({ url }, init) => {

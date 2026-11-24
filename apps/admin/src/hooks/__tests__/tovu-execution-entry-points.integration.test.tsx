@@ -13,7 +13,7 @@ import type { SettingsSlice } from '../use-settings-slice.hooks';
 import { emptyComposerCapabilityProjection } from '@jini-ai/admin/screens/plugins/composer-capabilities';
 import { useTovuExecutionPolicy } from '../use-tovu-execution-policy.hooks';
 import { DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
-import { t } from '@/features/settings/settings-execution-i18n';
+import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 
 let style: HTMLStyleElement;
 beforeEach(() => {

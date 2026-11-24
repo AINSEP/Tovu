@@ -9,13 +9,15 @@ import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/pro
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
-import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import path from "node:path";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { bindContentTargetInputs } from "./content-target-inputs.js";
-import { contributeConsentTools } from '#src/features/consent/tool-registrations';
+import { contributeConsentTools } from '@jini-ai/cookie-consent/site/tool-registrations';
+import { consentToolHost } from '#src/features/consent/host-bindings';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
@@ -33,15 +35,17 @@ import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createToolHumanConfirmer } from '#src/assistant/tool-approval-policy';
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
-import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
+import { contributeAnalyticsTools } from "@jini-ai/analytics/site/tool-registrations";
 import { toolMetadata as commerceToolMetadata } from '#src/contracts/core/tool-metadata/commerce';
 import { toMajorString } from '@jini-ai/commerce/money';
 import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@jini-ai/commerce/tools";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
-import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
-import { contributeObservabilityTools } from "#src/features/observability/tool-registrations";
+import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool-registrations";
+import { processServerLogSource } from "#src/features/server-logs/process-source";
+import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
+import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-error-message";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
@@ -62,7 +66,7 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
-import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
+import { contributeDomainDnsAndChangeTools } from "@jini-ai/devops/dns/site/dns-tools";
 import { createDefaultHttpClient } from "#src/platform/http/index";
 import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
@@ -82,7 +86,7 @@ import { RenderServiceError } from "@jini-ai/desktop-host";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { DOMAIN_DNS_EGRESS_POLICY, DOMAIN_DNS_PUBLIC_NAMES, bindDomainDnsChecks, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -132,9 +136,15 @@ import { contributeMembersTools } from "#src/features/members/tool-registrations
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
-import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
-import { contributeSeoTools } from "#src/features/seo/tool-registrations";
-import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
+import { contributeSettingsTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
+import { VISITOR_TOOLS_TOOL_HOST_POLICY } from "#src/features/settings/visitor-tools-agent-tools";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
@@ -431,8 +441,10 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
   contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
-  contributions.contributors.register({ contribution: contributeServerLogsTools() });
-  contributions.contributors.register({ contribution: contributeObservabilityTools({}) });
+  /** Defaults to this process's captured console buffer. */
+  // Now: the server-logs tool's log source is `ServerLogsToolDeps.serverLogs`, bound here to that buffer.
+  contributions.contributors.register({ contribution: contributeServerLogsTools({ serverLogs: processServerLogSource }) });
+  contributions.contributors.register({ contribution: contributeObservabilityTools({ testErrorMessage: TELEMETRY_TEST_ERROR_MESSAGE }) });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
@@ -486,9 +498,8 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools<AssistantToolRegistryDeps>({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
-    resolver: publicDnsResolver,
-    probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
-    listExpectedHosts: () => listSavedHostingHosts(routeDeps),
+    publicNames: DOMAIN_DNS_PUBLIC_NAMES,
+    createChecks: bindDomainDnsChecks({ resolver: publicDnsResolver, probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics), listExpectedHosts: () => listSavedHostingHosts(routeDeps) }),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
@@ -553,14 +564,14 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Idempotent: re-registering replaces by entity type.
   installFirstPartyPublishContentTypes();
   contributions.contributors.register({ contribution: contributeRecoveryTools() });
-  contributions.contributors.register({ contribution: contributeRedirectsTools() });
-  contributions.contributors.register({ contribution: contributeSeoTools() });
+  contributions.contributors.register({ contribution: contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }) });
+  contributions.contributors.register({ contribution: contributeSeoTools({ toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings }) });
   // Site search (S6, 2026-10-21): query/status reads plus the human-confirmed reindex and provider
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
-  contributions.contributors.register({ contribution: contributeVisitorTools() });
-  contributions.contributors.register({ contribution: contributeConsentTools() });
+  contributions.contributors.register({ contribution: contributeVisitorTools({ hostPolicy: VISITOR_TOOLS_TOOL_HOST_POLICY }) });
+  contributions.contributors.register({ contribution: contributeConsentTools({ host: consentToolHost }) });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.

@@ -1,14 +1,16 @@
 import type { DetectedAgent, ExecutionPort } from '@jini-ai/ui';
 import { getFolderDropPort } from '@jini-ai/admin/screens/fs-files/folder-drop-port';
 import { getVoiceInputPort } from '../voice-input/voice-input-port';
-import { t } from './settings-execution-i18n';
+import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 
 /** Detection runs on the server; preload bridge presence identifies when that server is local.
+ * Returns the dictionary KEY: the server-scope one carries `{productName}`, filled at each render site
+ * from `SETTINGS_EXECUTION_PRODUCT_VARS` (`integrations/jini-admin/settings-execution-copy.ts`).
  * Do not infer desktop from screen size, localhost URLs, or the site-switcher flag. */
 export function localCliScopeCopy(
   { desktop }: { desktop: boolean }, _optional = {},
 ): string {
-  return desktop ? 'Detected on this computer.' : 'Detected on the Tovu server, not on your own computer.';
+  return desktop ? 'Detected on this computer.' : 'Detected on the {productName} server, not on your own computer.';
 }
 
 export function isDesktopAdmin(

@@ -5,7 +5,7 @@ import test from "node:test";
 import type { Express, Request, Response } from "express";
 
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
-import type { PublishTrustResolution } from "#src/features/publish-trust/provisioning";
+import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { registerPublishTrustHandshakeRoutes, type PublishTrustHandshakeDeps } from "#src/server/runtime/composition/modules/publish-trust";
 
 // A process started without its site key cannot derive its own installation id. Express 4 does not

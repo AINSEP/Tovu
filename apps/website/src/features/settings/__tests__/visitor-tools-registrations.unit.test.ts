@@ -4,7 +4,8 @@ import { ForbiddenError } from "@jini-ai/core/settings";
 import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { buildVisitorToolsRegistrations, contributeVisitorTools } from "../visitor-tools-registrations.js";
+import { buildVisitorToolsRegistrations, contributeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
+import { VISITOR_TOOLS_TOOL_HOST_POLICY as hostPolicy } from "../visitor-tools-agent-tools.js";
 import { visitorManagementFixture, readTool, pluginTool, createdTool } from "./visitor-tools-management.fixture.js";
 import { nativeToolMetadata } from "../../../contracts/core/tool-metadata/index.js";
 
@@ -17,7 +18,7 @@ async function harness(t: TestContext) {
   // An unrelated saved plugin-escalation grant is deliberately present; this adapter must never use it.
   const deps = { workspaceId: f.input.workspaceId, visitorToolsManagement: f.service, nativeApprovalMemory: { has: async () => { memoryCalls++; return true; }, grant: async () => { memoryCalls++; } } };
   const surfaces = { surfaceExchanges: store, assertAccessApprover: async () => {} };
-  const registrations = buildVisitorToolsRegistrations({ deps, surfaces });
+  const registrations = buildVisitorToolsRegistrations({ deps, surfaces, hostPolicy });
   const context = (input: unknown): ToolExecutionContext => ({ executionId: "execution-1", principal: { id: "owner" }, run: { id: "run-1" }, signal: controller.signal, input });
   const handler = (id: string) => registrations.find(r => r.descriptor.id === id)!.handler;
   const configure = async (input: Record<string, unknown>) => handler("visitor_tool_configure")(context({ expectedRevisionSeq: (await f.list()).revisionSeq, ...input }));
@@ -43,7 +44,7 @@ test("exactly four closed category tools expose metadata and the configure callb
     assert.equal(r.descriptor.metadata?.approval, nativeToolMetadata.approvals[r.descriptor.id]);
   }
   assert.equal(nativeToolMetadata.redeemableIds.has("visitor_tool_configure"), true);
-  const contribution = contributeVisitorTools();
+  const contribution = contributeVisitorTools({ hostPolicy });
   assert.equal(contribution.domain, "visitor-tools");
   const contributed = contribution.build({ workspaceId: h.input.workspaceId, visitorToolsManagement: h.service } as Parameters<typeof contribution.build>[0], h.surfaces);
   assert.deepEqual(await contributed[0].handler(h.context({})), await h.list());
@@ -191,9 +192,9 @@ test("deferred save/delete check permissions and refuse unknown fields without w
   }
   for (const input of [{}, { toolId: 1 }, { toolId: " " }]) await assert.rejects(h.handler("visitor_tool_delete")(h.context(input)), ToolInputError);
   await assert.rejects(h.handler("visitor_tools_list")(h.context({ bogus: true })), ToolInputError);
-  const unwired = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId }, surfaces: h.surfaces });
+  const unwired = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId }, surfaces: h.surfaces, hostPolicy });
   await assert.rejects(unwired[0].handler(h.context({})), /unavailable in this server/);
-  const broken = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId, visitorToolsManagement: { ...h.service, list: async () => { throw new Error("storage down"); } } }, surfaces: h.surfaces });
+  const broken = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId, visitorToolsManagement: { ...h.service, list: async () => { throw new Error("storage down"); } } }, surfaces: h.surfaces, hostPolicy });
   await assert.rejects(broken[0].handler(h.context({})), /storage down/);
   assert.equal(await h.repo.maxRevisionSeq(), before);
 });

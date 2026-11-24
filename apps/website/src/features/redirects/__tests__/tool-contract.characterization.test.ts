@@ -1,6 +1,6 @@
 /**
  * @file Characterization of the Redirects agent-tool contract, built THROUGH THE HOST CONTRIBUTOR
- * (`contributeRedirectsTools().build(deps, surfaces)`), so it pins what the assistant's composition
+ * (`contributeRedirectsTools(policy).build(deps, surfaces)`), so it pins what the assistant's composition
  * root receives regardless of which package the catalog and handlers live in. It must stay green,
  * unedited, across the move of the tool catalog and handlers into `@jini-ai/cms/redirects`.
  *
@@ -23,7 +23,10 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
-import { contributeRedirectsTools, type RedirectsToolDeps } from "../tool-registrations.js";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { removeVia, restoreVia } from "./remove-redirect-double.js";
 
 const WORKSPACE_ID = "ws-redirects-contract";
@@ -104,7 +107,7 @@ function makeFixture(options: { allow?: boolean } = {}): Fixture {
 
 function buildThroughContributor(deps: RedirectsToolDeps): ToolRegistration[] {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  return contributeRedirectsTools().build(deps, { surfaceExchanges });
+  return contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }).build(deps, { surfaceExchanges });
 }
 
 function toolById(registrations: ToolRegistration[], id: string): ToolRegistration {
@@ -139,7 +142,7 @@ test("(b) every descriptor equals the committed golden, metadata included", () =
 });
 
 test("(c) the contributor's derived-risk map is the seven authored entries", () => {
-  assert.deepEqual([...contributeRedirectsTools().risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
+  assert.deepEqual([...contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }).risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
 });
 
 for (const toolId of TOOL_IDS) {

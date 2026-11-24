@@ -5,8 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createMacOnDeviceTranscriptionPort } from './mac-on-device-transcriber.ts';
-import { buildDefaultPort, registerSpeechIpc, IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from './speech-ipc.ts';
+import { createNativeMacTranscriptionPort } from '@jini-ai/desktop-host/shell/speech/mac-on-device-transcriber';
+import { buildDefaultTranscriptionPort, registerNativeSpeechIpc } from '@jini-ai/desktop-host/shell/speech/speech-ipc';
+import { SPEECH_HOST, IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from './speech-host-config.ts';
+// Bound with Tovu's product values exactly as `main/index.ts` binds them.
+type RegisterArgs = Omit<Parameters<typeof registerNativeSpeechIpc>[0], 'host'>;
+const registerSpeechIpc = (args: RegisterArgs, options: Parameters<typeof registerNativeSpeechIpc>[1] = {}) => registerNativeSpeechIpc({ ...args, host: SPEECH_HOST }, options);
+type MacOverrides = Parameters<typeof createNativeMacTranscriptionPort>[1];
+const createMacOnDeviceTranscriptionPort = (_required: Record<string, never>, overrides: MacOverrides = {}) => createNativeMacTranscriptionPort(SPEECH_HOST.mac, overrides);
+const buildDefaultPort = ({ platform }: { platform: NodeJS.Platform }, overrides: MacOverrides = {}) => buildDefaultTranscriptionPort({ platform, host: SPEECH_HOST }, overrides);
 
 test('the native speech adapter passes WAV bytes and locale to its helper and removes scratch audio',
   { skip: process.platform === 'win32' }, async (t) => {

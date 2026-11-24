@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createSearchProviderRegistry, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProviderContext, type SearchSourceRecord, type SearchStatus } from "@jini-ai/search";
 import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
@@ -10,7 +10,7 @@ import { createInMemorySearchProvider, createInMemorySearchState, createStaticAc
 import type { LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
-import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
+import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
@@ -524,7 +524,7 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
   const ids = { newId: () => { counter += 1; return `setting-${counter}`; } };
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-  await ensureSearchProviderSetting({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureSearchProviderSetting({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const memberCalls: unknown[] = [];
   const credentialCalls: unknown[] = [];
   const contributionCalls: unknown[] = [];

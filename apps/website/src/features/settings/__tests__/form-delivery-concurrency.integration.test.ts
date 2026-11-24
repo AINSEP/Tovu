@@ -7,10 +7,13 @@ import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "@jini-ai/agent-plugins/site/admin-surfaces/delivery-bindings";
-import { ensureFormDeliverySettings, FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "../index.js";
+import { FormDeliveryBindingsConflictError, writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
+import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file forms-multidest-owned / G15 T3: two panels share one bindings setting. Real settings
@@ -44,11 +47,11 @@ async function fixture(required: { t: TestContext; initial?: readonly FormDelive
   const principals = { findActiveById: async () => null };
   const settings = { repo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: "test admin" }) };
   db.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: clock.nowIso() }).run();
-  await ensureFormDeliverySettings({ deps: { settingsRepo: repo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo: repo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const write = (input: { value: readonly FormDeliveryBinding[] }, optional: { expectedValue?: readonly FormDeliveryBinding[] } = {}) =>
-    writeFormDeliveryBindings({ deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "admin", value: input.value }, optional);
+    writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "admin", value: input.value }, optional);
   await write({ value: required.initial ?? [] });
-  const read = () => readFormDeliveryBindings({ settingsRepo: repo, workspaceId: WORKSPACE });
+  const read = () => readFormDeliveryBindings({ settingsRepo: repo, workspaceId: WORKSPACE, getEffective });
   let pendingRead: { captured: ReturnType<typeof barrier>; resume: ReturnType<typeof barrier> } | undefined;
   const bindings: FormDeliveryBindingsStore = {
     isConflict: ({ error }) => error instanceof FormDeliveryBindingsConflictError,

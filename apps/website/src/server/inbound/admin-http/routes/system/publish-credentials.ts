@@ -7,8 +7,8 @@ import {
   PublishCredentialNotFoundError,
   PublishCredentialSecretStoreUnconfiguredError,
   PublishCredentialValidationError,
-  type PublishCredentialSummary,
 } from "#src/features/deployments/publish-credentials/index";
+import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";

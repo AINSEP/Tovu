@@ -1,14 +1,14 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "#src/features/seo/index";
+import { createSeoDeps, seoSettingsHostBindings } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { setSeoSettings } from "#src/features/seo/settings";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -108,7 +108,7 @@ test("get-settings: returns workspace seo settings (200)", async (t) => {
     defaultRobots: { noindex: true, nofollow: true }, sitemapEnabled: false,
     robotsRules: [{ userAgent: "CanaryBot", allow: ["/public"], disallow: ["/private"] }],
   };
-  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+  await setSeoSettings({ ...seoSettingsHostBindings, settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "test-principal", patch: expected });
   const app = buildApp({ settingsRepo: base.settingsRepo, seoReady: base.seoReady });

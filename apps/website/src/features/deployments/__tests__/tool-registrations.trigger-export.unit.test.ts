@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { getExportRunSnapshot, type ExportRunReportLike } from "../export-run.js";
+import { getExportRunSnapshot } from "../export-run-binding.js";
+import type { ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
 import { buildDeploymentsRegistrations, contributeDeploymentsTools, deploymentsDerivedRisk, pickExportSiteOptions, type DeploymentsToolDeps } from "../tool-registrations.js";
 
 /** deployment_trigger_export's input contract and option forwarding, the Dockerfile conflict text

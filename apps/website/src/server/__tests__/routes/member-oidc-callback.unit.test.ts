@@ -3,9 +3,10 @@ import { EventEmitter } from "node:events";
 import test from "node:test";
 import express, { type Request, type Response } from "express";
 
-import * as memberLogin from "#src/features/member-login/index";
+import type * as memberLogin from "@jini-ai/user-management/member-login/link-service";
+import * as oidcLogin from "@jini-ai/user-management/member-login/oidc-login";
 import { originFixture } from "#src/features/member-login/__tests__/fixtures";
-import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "#src/features/members/index";
+import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
@@ -22,16 +23,16 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
   let completed = 0;
   // Protocol verification is outside this HTTP test: return its verified identity contract,
   // then exercise the real link policy and HTTP limits without a provider, socket or key.
-  t.mock.module("#src/features/member-login/index", { namedExports: {
-    ...memberLogin,
-    completeOidcLogin: async ({ input }: Parameters<typeof memberLogin.completeOidcLogin>[0]) => {
+  t.mock.module("@jini-ai/user-management/member-login/oidc-login", { namedExports: {
+    ...oidcLogin,
+    completeOidcLogin: async ({ input }: Parameters<typeof oidcLogin.completeOidcLogin>[0]) => {
       assert.deepEqual(input, { workspaceId: "ws", providerId: "google", browserBinding: binding,
         params: { code: "one-time-code", state: "sealed-state" } });
       completed++;
       assert.equal(completed, 1, "the callback must not retry the one-time code");
       return { identity: { providerId: "google", issuer: "https://accounts.google.com", subject: "subject",
         email, emailAuthoritative: false }, startedAt: clock.nowIso(), authenticatedAt: clock.nowIso(),
-        returnPath: "/account" } satisfies memberLogin.CompletedOidcLogin;
+        returnPath: "/account" } satisfies oidcLogin.CompletedOidcLogin;
     },
   } });
   const { registerMemberOidcCallbackRoute } = await import("../../inbound/public-http/routes/members/oidc-callback.js");
@@ -47,9 +48,9 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
   const memberRepo = new InMemoryMemberRepo();
   const identities = new InMemoryMemberExternalIdentityRepo({});
   const deps: MemberOidcRouteDeps = { members,
-    protocol: portFake<memberLogin.OidcLoginDeps>({ origin: originFixture() }),
+    protocol: portFake<oidcLogin.OidcLoginDeps>({ origin: originFixture() }),
     links: portFake<memberLogin.MemberLoginLinkDeps>({ clock, members: memberRepo, identities,
-      transaction: async run => run(), lockKey: async () => undefined }),
+      transaction: async run => run(), lockKey: async () => undefined, reportFailure: () => undefined }),
     listProviders: async () => [],
   };
   const app = express();

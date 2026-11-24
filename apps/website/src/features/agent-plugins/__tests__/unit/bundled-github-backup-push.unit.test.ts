@@ -5,8 +5,9 @@ import test from "node:test";
 
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { CustomProviderConnectionInput } from "#src/features/custom-credentials/types";
-import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
-import type { CommitBackupTreeInput, SourceControlProviderOperations } from "#src/features/source-control/provider-module";
+import { createSourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-kit";
+import { sourceControlKitHost } from "#src/features/source-control/provider-kit-host";
+import type { CommitBackupTreeInput, SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
@@ -26,7 +27,7 @@ test.beforeEach(() => {
 function githubProvider(httpClient: HttpClientPort): SourceControlProviderOperations {
   const loaded = registry.get({ providerId: "github" });
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
-  return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient, sleep: async (ms) => void sleeps.push(ms) }) });
+  return loaded.module.create({ kit: createSourceControlProviderKit({ host: sourceControlKitHost() }, { httpClient, sleep: async (ms) => void sleeps.push(ms) }) });
 }
 
 /** Core hands the provider the `Authorization` header it built from the saved connection. */

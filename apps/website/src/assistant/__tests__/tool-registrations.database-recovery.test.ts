@@ -19,7 +19,7 @@ import {
   InMemorySiteStatusRepo,
 } from "../../features/database/repo.memory.js";
 import { type AgentToolDefinition as RecoveryAgentToolDefinition } from "@jini-ai/core";
-import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
+import { recoveryAgentToolCatalog } from "../../features/recovery/tool-registrations.js";
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,

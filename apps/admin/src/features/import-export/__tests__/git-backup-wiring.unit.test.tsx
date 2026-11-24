@@ -1,7 +1,7 @@
 import { act, render, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
-import { defaultGitBackupPort, useWiredGitBackup } from "../hooks/use-git-backup.hooks";
+import { defaultGitBackupPort, useWiredGitBackup } from "../hooks/git-backup-dependencies.hooks";
 
 /**
  * @file The host wiring of the Git backup card: the live port's request shapes and the wired hook on

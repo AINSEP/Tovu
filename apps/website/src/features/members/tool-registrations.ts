@@ -1,6 +1,7 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import { trashMember } from "./trash-member.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
+import { toolMetadata } from '@jini-ai/core/tool-metadata/members';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -13,7 +14,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
-import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, resolveHostReadRefs, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
@@ -23,8 +24,9 @@ import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { membersAgentToolCatalog } from "./agent-tools.js";
-import { buildMembersWriteServiceDeps } from "./ports.js";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { buildMembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -32,17 +34,72 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
   MembersWriteServiceDeps,
-} from "./ports.js";
-import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
-import { createMember } from "./member-sign-in.js";
-import { disableMember, updateProfile } from "./member-admin-writes.js";
-import { requestSignInLink } from "./member-challenge-request.js";
+} from "@jini-ai/user-management/members/ports";
+import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { createMember } from "@jini-ai/user-management/members/member-sign-in";
+import { disableMember, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { membersMailTransport } from "./mail-transport.js";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
 
 const DURABLE_MUTATION = "mutates-durable-state" as const;
 
-const CATALOG_BY_ID = indexCatalogById({ catalog: membersAgentToolCatalog });
+/**
+ * @file The Members agent-tool catalog (ADR-030/ADR-PIPE-013), instantiating SPEC-016 REQ-22's
+ * naming/callability convention for this domain — the same shape `forms/agent-tools.ts` and
+ * `Jini packages/user-management/src/server/agent-tools.ts` use, including the `inputSchema` contract.
+ *
+ * Purpose:
+ * A static, in-process catalog describing every agent-callable tool this domain exposes and the
+ * permission each carries. Every entry maps 1:1 onto a real operation the admin HTTP surface
+ * (`server/routes/admin/members/*.ts`) already exposes to a human operator — not merely onto a
+ * `write-service.ts` export. That distinction matters here specifically: see the deliberate
+ * absences below.
+ *
+ * Deliberate absences (the point of a catalog, not an oversight):
+ * Owner 2026-10-09 supersedes the profile/create exclusion below for this CRUD pass;
+ * billing and authentication exclusions remain binding. Historical rationale is retained.
+ * - `updateProfile`, `compSubscription`, `setSubscriptionStatus` (`write-service.ts`) have NO
+ *   admin HTTP route at all today — `apps/website/src/server/runtime/composition/modules/members.ts` wires exactly 4 admin registrars
+ *   (list/get/disable/request-magic-link) plus 2 public sign-in routes, nothing else. Wiring an
+ *   agent tool for a write-service function the admin UI does not yet expose would give the
+ *   assistant MORE capability than a human clicking through the admin screens has today — the
+ *   opposite of this pattern's own premise (the tool is gated by "the SAME gate the human admin
+ *   routes use," which presupposes a human admin route exists to share a gate with). Promoting
+ *   these three to tools is a decision for whoever ships their admin routes, not this pass.
+ * - `requestConsent`/`confirmConsent`/`revokeConsent`/`checkConsent` (`consent-service.ts`) are
+ *   excluded for the same "no admin route" reason, with extra weight: these are the INV-NEW-02
+ *   consent-ledger chokepoint (the ONLY path that may ever assert `status: 'granted'`), and the
+ *   dispatch directive for this pass explicitly calls out consent/unsubscribe operations in
+ *   Members as deserving "the same scrutiny as Identity's password reset." No admin surface
+ *   reviews or exposes them today, so an agent must not gain a capability with no human-reachable
+ *   equivalent to compare it against.
+ * - `completeSignIn` is the MEMBER's own self-service session-mint (consumes a magic-link token,
+ *   authenticates as that member) — never an operator action, and has no admin route. A tool that
+ *   let an assistant complete a sign-in "on behalf of" a member would let it authenticate as an
+ *   arbitrary member, which is an account-access primitive in the same family Identity's
+ *   `resetUserPassword` exclusion warns about, just reached from the other side (session-minting
+ *   instead of password-setting).
+ * - No `members_comp_subscription`/`members_set_subscription_status`: see the write-service
+ *   bullet above — these two also touch billing/entitlement state with no admin UI review path.
+ *
+ * How it relates to the project:
+ * `assistant/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s.
+ * Members' own `write-service.ts` does NOT call `authorize()` internally — `MembersWriteServiceDeps`
+ * has no `authorize` field at all, and every admin route (`disable.ts`/`list.ts`/`get-by-id.ts`/
+ * `request-magic-link.ts`) calls `deps.authorize()` itself, directly, before calling into the
+ * write-service or repo. `tool-registrations.ts`'s handlers mirror that exact sequence rather than
+ * relying on a self-enforcing domain function the way Forms/Identity do — see that file's Members
+ * section header for the full disclosure.
+ *
+ * Architectural role:
+ * `members` domain declaration. Performs no I/O and no enforcement itself.
+ */
+// Now: the catalog lives in `@jini-ai/user-management/members/agent-tools`; its model-facing text names the
+// member read as `{{read:member}}`, and Tovu binds `contentReadVocabulary` here so the model keeps seeing
+// `content_read.member` (pinned by `__tests__/host-read-wording.test.ts`).
+const CATALOG_BY_ID = indexCatalogById({ catalog: resolveHostReadRefs({ value: membersAgentToolCatalog }, { hostReads: contentReadVocabulary }) });
 
 /**
  * The rate-limiter shape `members_request_magic_link` actually calls (`await limiter.check({ key })`), declared
@@ -179,7 +236,7 @@ function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
       ctx.signal.throwIfAborted();
-      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
+      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
         void deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
         } });
@@ -192,7 +249,7 @@ function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       const memberId = requireString({ input, key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
       ctx.signal.throwIfAborted();
-      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
+      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
   };
@@ -252,7 +309,7 @@ function memberRemovalHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
       ctx.signal.throwIfAborted();
-      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId } });
+      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },
 
@@ -288,7 +345,7 @@ function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: buildMembersWriteServiceDeps({ deps }),
+        deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync, mailTransport: membersMailTransport } }),
         input: {
           workspaceId: deps.workspaceId,
           email,

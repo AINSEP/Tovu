@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import { createPublishContentModule } from "../publish-content.js";

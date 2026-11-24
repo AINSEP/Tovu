@@ -4,10 +4,11 @@ import { InMemoryPostRepo } from '../../post/repo.memory.js';
 import { createPost } from '../../post/index.js';
 import { InMemoryPagesHtmlDocumentStore } from '../../pages/html-document-store.memory.js';
 import { createPrivacyPageCheck } from '#src/server/inbound/public-http/middleware/site-consent';
-import { createSiteConsentService } from '../service.js';
-import { SITE_CONSENT_DEFAULTS } from '../config.js';
-import type { SiteConsentRevision } from '../revisions.js';
-import { ensureSitePrivacyDefaults, type PrivacyDefaultsDeps } from '../ensure-privacy-defaults.js';
+import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
+import { consentServiceHostPorts } from '../host-bindings.js';
+import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
+import type { SiteConsentRevision } from '@jini-ai/cookie-consent/site/revisions';
+import { ensureSitePrivacyDefaults, type PrivacyDefaultsDeps } from '@jini-ai/cookie-consent/site/ensure-privacy-defaults';
 
 const clock = { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' };
 function fixture() {
@@ -21,7 +22,7 @@ function fixture() {
     try { return await fn(); } finally { inTransaction = previous; }
   } });
   const deps: PrivacyDefaultsDeps = {
-    workspaceId: 'site-a', post: { repo, clock }, ids: { newId: () => `id-${++counter}` },
+    workspaceId: 'site-a', post: { repo }, createPost: ({ input }) => createPost({ deps: { repo, clock }, input }), ids: { newId: () => `id-${++counter}` },
     readUrl: async () => url,
     setUrl: async ({ url: value }) => { url = value; writes++; },
     readIdentity: async () => ({ siteTitle: 'A & B', email: 'owner@example.test', principalId: 'owner' }),
@@ -163,7 +164,7 @@ test('ensuring an unpublished policy retains PRIVACY_PAGE_MISSING and cannot pub
   let draft: SiteConsentRevision | null = null;
   const config = { ...SITE_CONSENT_DEFAULTS, privacyPolicyUrl: f.state().url };
   const service = createSiteConsentService({ ports: {
-    workspaceId: 'site-a', ready: Promise.resolve(), clock, ids: { newId: () => 'revision' },
+    ...consentServiceHostPorts, workspaceId: 'site-a', ready: Promise.resolve(), clock, ids: { newId: () => 'revision' },
     authorize: async () => ({ allowed: true, reason: 'test owner' }), trustedRegion: false,
     readLegacy: async () => config,
     defaultOnly: async () => false,

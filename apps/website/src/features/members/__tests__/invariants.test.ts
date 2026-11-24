@@ -19,8 +19,8 @@ import type express from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { MemberContext, MemberRecord } from "../types.js";
 import type { PositionalMailer as MailerPort, OutboundEmail } from "@jini-ai/platform/mail";
+import type { MemberContext, MemberRecord } from "@jini-ai/user-management/members/types";
 
 const EMAIL = "signup@example.com";
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { categoryLabel, costClassLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
-import type { AdminDegradedBanner } from "@/features/recovery/api/recovery-api.types";
+import { categoryLabel, costClassLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "@jini-ai/admin/recovery/rules";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import type { AdminDegradedBanner } from "@jini-ai/admin/core";
 
 /**
  * @file Pure logic for `features/recovery` — `categoryLabel`, `isAssertiveRecoveryBanner`,
@@ -122,17 +123,17 @@ describe("parseDeepLinkEnvelope", () => {
 
 describe("restoreButtonAccessibleName", () => {
   it("appends the row's timestamp AFTER the visible 'Restore…' label", () => {
-    expect(restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" } })).toBe("Restore… 2026-08-01 12:34");
+    expect(restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" }, viewerTimeZone: VIEWER_TIME_ZONE })).toBe("Restore… 2026-08-01 12:34");
   });
 
   it("starts with the exact visible text, per-locale (WCAG 2.5.3 Label in Name)", () => {
-    const name = restoreButtonAccessibleName({ locale: "es", point: { createdAt: "2026-08-01T12:34:00.000Z" } });
+    const name = restoreButtonAccessibleName({ locale: "es", point: { createdAt: "2026-08-01T12:34:00.000Z" }, viewerTimeZone: VIEWER_TIME_ZONE });
     expect(name.startsWith("Restaurar…")).toBe(true);
   });
 
   it("gives two restore points captured at different times two DIFFERENT accessible names", () => {
-    const a = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" } });
-    const b = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-02T09:00:00.000Z" } });
+    const a = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" }, viewerTimeZone: VIEWER_TIME_ZONE });
+    const b = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-02T09:00:00.000Z" }, viewerTimeZone: VIEWER_TIME_ZONE });
     expect(a).not.toBe(b);
   });
 });

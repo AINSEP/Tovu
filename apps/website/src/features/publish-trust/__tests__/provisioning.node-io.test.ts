@@ -4,7 +4,8 @@ import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../provisioning.node-io.js";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 
 test("nodeProvisioningFileIo reads missing files as null and replaces complete UTF-8 documents", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "tovu-provisioning-io-"));

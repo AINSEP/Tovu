@@ -8,13 +8,8 @@ import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor } f
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import {
-  t as defaultT,
-  publishCredentialSaveErrorMessage,
-  publishCredentialsLoadErrorMessage,
-  publishCredentialSelectErrorMessage,
-  publishCredentialVerifyErrorMessage,
-} from "../deployment-i18n";
+import { t as defaultT } from "../deployment-host-i18n";
+import { publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage, publishCredentialSelectErrorMessage, publishCredentialVerifyErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,

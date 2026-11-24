@@ -10,7 +10,7 @@ import { type Translate } from '@jini-ai/core/text';
  * and (2026-09-20 platform review, Finding 4) the Tab focus trap — so the dialog component itself is
  * only markup. Mirrors `use-agent-plugin-disable-confirm.hooks.ts` (same split, same reason: `copy`
  * is a derived value, not something the component should compute inline) and
- * `features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts` (the precedent both dialogs
+ * `@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks` (the precedent both dialogs
  * follow for a genuinely destructive remove).
  *
  * Not sharing either of those hooks directly: each is feature-local by its own header's stated

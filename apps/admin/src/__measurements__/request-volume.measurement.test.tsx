@@ -569,7 +569,7 @@ describe("database", () => {
   it("timeline: initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { useWiredTimelineSection } = await import("../features/database/hooks/timeline-section-dependencies.hooks");
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     await expectRequests(calls, [`GET ${ADMIN}/database/timeline`]);
@@ -580,7 +580,7 @@ describe("database", () => {
   it("timeline: filter change", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { useWiredTimelineSection } = await import("../features/database/hooks/timeline-section-dependencies.hooks");
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     calls.length = 0;

@@ -49,7 +49,9 @@ import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publ
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import { entityKey, type PublishContentBundle, type PublishContentReport } from "../plan-rows.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type EntityReplacement, type PackedEntity, type PublishContentDeps, type PublishContentContributor, type PublishContentHandler, type RepointResult, type RetireTarget } from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
+import type { EntityReplacement, PublishContentHandler, RepointResult, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { publishContentItemIdempotencyKey } from "../idempotency.js";
 

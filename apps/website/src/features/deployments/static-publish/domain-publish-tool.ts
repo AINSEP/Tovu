@@ -8,10 +8,10 @@ import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
 import type { StaticPublishToolDeps } from '../publish-tool-deps.js';
-import type { StaticPublishConfig, PublishCredentialSource } from './types.js';
+import type { StaticPublishConfig, PublishCredentialSource } from '@jini-ai/devops/deploy/site/static-publish/types';
 import { inspectStaticPublish, type StaticPublishInspection } from './inspection.js';
 import { getPublishRunSnapshot, startPublishRun, type PublishRunSnapshot } from './publish-run.js';
-import { domainPublishRows } from './domain-publish-rows.js';
+import { domainPublishRows } from '@jini-ai/devops/deploy/site/static-publish/domain-publish-rows';
 import type { PublishHistoryStore } from './publish-history.js';
 import { checkToolPublishConsent } from './publish-consent.js';
 

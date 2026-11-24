@@ -56,3 +56,11 @@ never described as a server receipt. Disabled exports use ordinary asset deliver
 Receipt storage remains Jini's immutable bounded file adapter with 180-day expiry, a 10k-record
 capacity and amortized maintenance. Receipt ids are not exposed as visitor analytics properties.
 Detached server delivery rechecks the current policy and active receipt before sending.
+
+## Moved to Jini (K5-consent-1)
+
+`service`, `tool-registrations`, `region-plugins` and `ensure-privacy-defaults` now live in
+`@jini-ai/cookie-consent/site/*`. This folder keeps the host side: `host-bindings.ts` (the
+`[consent]` console lines, `consentServiceHostPorts`, `consentToolHost`), `request.ts`,
+`revisions.repo.ts` (Kysely kernel) and `privacy-defaults-reporter.ts`. Composition binds them in
+`server/runtime/composition/{site-consent,site-cookie-consent,tool-catalog-manifest}.ts`.

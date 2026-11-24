@@ -36,7 +36,7 @@ import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { removeFrozenPackageTree } from "../../agent-plugins/lifecycle.js";
 import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/data-modules.js";
 import { declareDataModule } from "@jini-ai/db/data-modules";
-import { ensureDefaultList } from "../../newsletter/lists.js";
+import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";

@@ -4,12 +4,12 @@ import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import { createDnsProviderRegistry, type AuthoritativeDnsPort } from "@jini-ai/devops/dns";
 import type { SenderDomainVerification } from "@jini-ai/core/contracts/mail";
-import type { DomainBinding } from "../binding.repo.js";
-import { inspectDomainDns } from "../dns-changes.js";
-import type { DnsChangeToolDeps } from "../dns-tools.js";
+import type { DomainBinding } from "@jini-ai/devops/dns/site/binding.repo";
+import { inspectDomainDns } from "@jini-ai/devops/dns/site/dns-changes";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import { DMARC_HINT_VALUE } from "@jini-ai/devops/dns/site/mail-requirements";
-import { mailDnsRecordStatus, readMailDnsStatus, verifyMailDnsStatus, type MailDnsRecordView, type MailDnsStatusPorts } from "../mail-dns-status.js";
-import { buildMailDnsRegistrations, mailDnsAgentToolCatalog, mailDnsDerivedRisk, mailDnsPorts } from "../mail-dns-tools.js";
+import { mailDnsRecordStatus, readMailDnsStatus, verifyMailDnsStatus, type MailDnsRecordView, type MailDnsStatusPorts } from "@jini-ai/devops/dns/site/mail-dns-status";
+import { buildMailDnsRegistrations, mailDnsAgentToolCatalog, mailDnsDerivedRisk, mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { context, fakeAuthoritative, memoryBindings } from "./dns-fakes.js";
 
 /**

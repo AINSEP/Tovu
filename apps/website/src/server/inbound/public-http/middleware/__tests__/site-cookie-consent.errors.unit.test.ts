@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import type { Express, Request, Response } from 'express';
-import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
+import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
 import type { RouteDeps } from '#src/server/routes/types';
 import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 

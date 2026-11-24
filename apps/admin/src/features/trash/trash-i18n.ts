@@ -5,7 +5,7 @@ import { createDictionaryTranslator } from '@jini-ai/core/text';
  * @file Dictionary for the Trash feature.
  *
  * Every copy string on this screen goes through `t(locale, key)` with the English copy AS the key,
- * which is this app's convention (`comments-i18n.ts`, `apps/admin/src/features/redirects/redirects-i18n.tsx`, …). `createDictionaryTranslator`
+ * which is this app's convention (`comments-i18n.ts`, `@jini-ai/admin/screens/redirects/redirects-i18n`, …). `createDictionaryTranslator`
  * falls through to the shared `COMMON_I18N` (which already carries "Trash", "Delete permanently", "Cancel",
  * "Delete", "Kind", "Title", "Status") and then to the English key itself, so a locale/key this file does
  * not carry renders the English source string rather than a placeholder.
