@@ -9,7 +9,7 @@ import type { RememberedApprovalPort, ToolContributor, ToolRegistration } from '
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/core/contracts/site/plugins-host';
 import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugins/host/node';
-import type { PluginProviderFacesPort } from './service-ports.js';
+import type { PluginProviderFacesPort } from '@jini-ai/plugins/runtime/service-ports';
 import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';
 import { bindPluginApprovalIdentity, bindPluginManagementTools } from './host-tool-binding.js';
 import type { PluginFamily } from './agent-tools.js';

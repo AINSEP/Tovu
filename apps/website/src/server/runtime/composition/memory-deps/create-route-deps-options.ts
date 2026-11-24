@@ -1,5 +1,5 @@
 import type { RouteDeps } from "../../../routes/types.js";
-import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
+import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 
 export interface CreateRouteDepsOptions {
   readonly publishContentPeerHttpClient?: RouteDeps["publishContentPeerHttpClient"];

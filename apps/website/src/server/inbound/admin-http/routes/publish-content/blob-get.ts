@@ -3,7 +3,7 @@ import { isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -100,7 +100,7 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
       const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 });
       // S18 (S-F3) — checks the blob store first, falling back to `RouteDeps.fileBlobIndex` (a
       // file-tree type's `pack()` fill) for a blob that was never copied into the blob store. See
-      // `composite-blob-source.ts`'s header for why bytes are re-hashed on the fallback path.
+      // `@jini-ai/cms/publish/content/composite-blob-source`'s header for why bytes are re-hashed on the fallback path.
       const blobSource = createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex });
       if (!(await blobSource.exists({ sha256, storageKey }))) {
         res.status(404).json({ error: "blob was not found", code: "BLOB_NOT_FOUND" });

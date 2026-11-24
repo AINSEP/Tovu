@@ -6,7 +6,7 @@ import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/toke
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
-import { InMemoryPublishContentRunRepo } from "../run-repo.js";
+import { InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";

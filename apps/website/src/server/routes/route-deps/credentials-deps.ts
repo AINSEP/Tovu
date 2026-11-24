@@ -88,7 +88,7 @@ export interface CredentialsDeps {
   bundledSourceRoot: string;
   mcp: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpPort & import("@jini-ai/agent-plugins/site/service-ports").AgentPluginMcpContext;
   preferences: import("@jini-ai/agent-plugins/site/service-ports").AgentPluginPreferencesPort;
-  providerFaces: import("../../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
+  providerFaces: import("@jini-ai/plugins/runtime/service-ports").PluginProviderFacesPort;
   notifyRosterChanged: import("../../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
   /** Runtime-owned connections declared by the desktop host, independent of labels. */
   builtInExternalMcpServerIds?: readonly string[];

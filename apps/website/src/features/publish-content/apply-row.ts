@@ -5,7 +5,7 @@ import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/conten
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
-import type { PublishContentSeedHashFn } from "./seed-hash.js";
+import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { PackedEntity, PublishContentHandler } from "./type-registry.js";
 
 /**

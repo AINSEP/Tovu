@@ -1,4 +1,4 @@
-import type { CredentialWarning } from "./credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";

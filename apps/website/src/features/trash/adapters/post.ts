@@ -6,7 +6,8 @@
  */
 import { tableExists } from "@jini-ai/db/kernel";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { compareAndDelete, flipMarker, lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
+import type { TrashDb as MarkerStore } from "../db-port.js";
 import { loose } from "@jini-ai/cms/trash/sql";
 
 export const POST_ENTITY_TYPE = "post";
@@ -24,7 +25,7 @@ const POST_SEARCH_DOCUMENT_TABLE = "post_search_document";
  * @complexity O(1) to build.
  */
 export function createPostTrashAdapter(store: MarkerStore): TrashAdapter {
-  const kernel = lazyKernel(store);
+  const kernel = lazyKernel({ store });
   // The search projection exists only where the database has a full-text index built on it (SQLite's
   // FTS5); asked once, on the first purge.
   let hasSearchDocument: Promise<boolean> | undefined;

@@ -8,8 +8,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPublishContentSeedHash, NO_PUBLISH_CONTENT_SEED_HASH } from "../seed-hash.js";
+import { createPublishContentSeedHash, NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
 import {
+  buildPublishContentCatalog,
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
   type PublishContentDeps,
@@ -47,7 +48,7 @@ test("NO_PUBLISH_CONTENT_SEED_HASH answers null for any row", async () => {
 
 test("a found seed row answers its inspect() hash; an absent row answers null", async () => {
   registerInspect("page", async ({ id }) => (id === "p-1" ? { hash: "seed-hash-p1" } as never : null));
-  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps });
+  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps, buildCatalog: buildPublishContentCatalog });
 
   assert.equal(await lookup({ entityType: "page", entityId: "p-1" }), "seed-hash-p1");
   assert.equal(await lookup({ entityType: "page", entityId: "p-missing" }), null);
@@ -56,7 +57,7 @@ test("a found seed row answers its inspect() hash; an absent row answers null", 
 test("loadSeedDeps runs once even across misses, and a throwing loader reads as no seed", async () => {
   registerInspect("page", async () => ({ hash: "never" }) as never);
   let loads = 0;
-  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => { loads += 1; throw new Error("seed copy failed"); } });
+  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => { loads += 1; throw new Error("seed copy failed"); }, buildCatalog: buildPublishContentCatalog });
 
   assert.equal(await lookup({ entityType: "page", entityId: "p-1" }), null);
   assert.equal(await lookup({ entityType: "page", entityId: "p-2" }), null);
@@ -65,7 +66,7 @@ test("loadSeedDeps runs once even across misses, and a throwing loader reads as 
 
 test("an inspect() that throws against the seed answers null instead of rejecting", async () => {
   registerInspect("page", async () => { throw new Error("seed table missing"); });
-  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps });
+  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps, buildCatalog: buildPublishContentCatalog });
 
   assert.equal(await lookup({ entityType: "page", entityId: "p-1" }), null);
 });
@@ -73,7 +74,7 @@ test("an inspect() that throws against the seed answers null instead of rejectin
 test("a type the registry no longer knows answers null without inspecting anything", async () => {
   let inspected = 0;
   registerInspect("page", async () => { inspected += 1; return { hash: "page-hash" } as never; });
-  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps });
+  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps, buildCatalog: buildPublishContentCatalog });
 
   assert.equal(await lookup({ entityType: "retired-type", entityId: "r-1" }), null);
   assert.equal(inspected, 0);

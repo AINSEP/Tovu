@@ -8,7 +8,8 @@ import test from "node:test";
 import type { NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { PostRecord } from "#src/features/post/post";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
-import { createPublishContentSeedHash } from "#src/features/publish-content/seed-hash";
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
+import { createPublishContentSeedHash } from "@jini-ai/cms/publish/content/seed-hash";
 import { createRedirect } from "@jini-ai/cms/redirects";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { toPublishContentDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
@@ -99,7 +100,7 @@ test("publish types: nav, an override redirect and a doc->html page land on a ne
   await writeSeedContent(seed);
 
   const destinationDeps = createRouteDeps({
-    publishContentSeedHash: createPublishContentSeedHash({ loadSeedDeps: () => toPublishContentDeps(seed) }),
+    publishContentSeedHash: createPublishContentSeedHash({ loadSeedDeps: () => toPublishContentDeps(seed), buildCatalog: buildPublishContentCatalog }),
   });
   await writeSeedContent(destinationDeps);
   // Someone edited the FAQ on the destination after it was seeded — this one must NOT be overwritten.

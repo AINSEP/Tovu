@@ -1,5 +1,5 @@
 import { requireShareSecretFree } from "../share-file-policy.js";
-import type { CredentialWarning } from "../credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { lstat, readdir } from "node:fs/promises";

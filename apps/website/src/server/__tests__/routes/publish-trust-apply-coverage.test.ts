@@ -23,7 +23,7 @@ import {
   type PackedEntity,
   type PublishContentDeps,
 } from "#src/features/publish-content/type-registry";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import type { BackstopSelection } from "@jini-ai/cms/publish/transfer";
 import { entityKey } from "#src/features/publish-content/plan-rows";
 import { contentKernel } from "#src/platform/db/content-kernel";

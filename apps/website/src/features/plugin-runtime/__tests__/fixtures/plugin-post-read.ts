@@ -1,5 +1,5 @@
 import { PostNotFoundError, type PostRepoPort, type PostRecord } from "../../../post/index.js";
-import type { PluginPostReadPort } from "../../service-ports.js";
+import type { PluginPostReadPort } from "@jini-ai/plugins/runtime/service-ports";
 
 /** Adapt the existing post fakes without replacing the post owner's not-found error. */
 export function requiredPostReader({ repo }: { repo: Pick<PostRepoPort, "findById"> }, _optional = {}): PluginPostReadPort<PostRecord> {

@@ -7,8 +7,8 @@ import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
-import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
-import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
+import { buildPublishContentCatalog, type PublishContentDeps } from "#src/features/publish-content/type-registry";
 import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
@@ -21,7 +21,7 @@ import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 
 /**
- * @file The SQLite composition root's D1 seed-version lookup: `features/publish-content/seed-hash.ts`
+ * @file The SQLite composition root's D1 seed-version lookup: `@jini-ai/cms/publish/content/seed-hash`
  * over the stock `content.seed.db` this instance was hydrated from
  * (`builtInContentSeedDbPath()`, the same file `hydrateContentDbFromSeed()` copied into `content.db`
  * on first boot).
@@ -135,5 +135,5 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
  *   later lookup is one indexed read.
  */
 export function createSqlitePublishContentSeedHash(input: CreateSqlitePublishContentSeedHashInput): PublishContentSeedHashFn {
-  return createPublishContentSeedHash({ loadSeedDeps: () => loadSqliteSeedDeps(input) });
+  return createPublishContentSeedHash({ loadSeedDeps: () => loadSqliteSeedDeps(input), buildCatalog: buildPublishContentCatalog });
 }

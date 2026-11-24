@@ -1,6 +1,6 @@
 import { requireShareSecretFree } from "./share-file-policy.js";
 import { readPlannedFile } from "./sources.js";
-import type { CredentialWarning } from "./credential-warnings.js";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";

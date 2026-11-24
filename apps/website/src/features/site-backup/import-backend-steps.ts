@@ -19,7 +19,7 @@ export interface SiteImportView {
   importId: string; source: SiteImportSource; newSiteId: string | null; newSiteName: string | null;
   state: SiteImportRecord["status"]; status: SiteImportRecord["status"]; createdAt: string;
   warnings?: readonly string[];
-  credentialWarnings: readonly import("./credential-warnings.js").CredentialWarning[];
+  credentialWarnings: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   hasEncryptedKeys?: boolean;
   setupUrl?: string; adminUrl?: string | null; error?: string; instructions: string;
 }

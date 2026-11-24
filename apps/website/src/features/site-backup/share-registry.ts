@@ -17,7 +17,7 @@ export interface SiteShareRecord {
   readonly hasEncryptedKeys?: boolean;
   readonly sealedPassword?: import("@jini-ai/platform/secrets").SealedSecret;
   readonly notices?: readonly string[];
-  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  readonly credentialWarnings?: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   readonly needsAcknowledgement?: boolean;
   readonly notes?: readonly string[];
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };

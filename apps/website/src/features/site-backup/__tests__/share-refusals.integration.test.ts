@@ -415,7 +415,7 @@ test("portable paths enforce depth, private-file omissions, content scanning and
   for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/foo.sqlite-wal", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
   // 0638e581a preserves credential-looking files with warnings; private runtime trees stay excluded.
   for (const name of ["themes/.env.production", "themes/id_ed25519.pub", "themes/private_key.txt", "themes/.mcp.a.json"]) {
-    const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+    const credentialWarnings: import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[] = [];
     assert.equal(excludedSharePath({ path: name }), false);
     assert.equal(requireShareSecretFree({ path: name, bytes: Buffer.from("fixture") }, { credentialWarnings }), true);
     assert.ok(credentialWarnings.some(warning => warning.path === name && warning.kind === "credential filename"));

@@ -67,7 +67,7 @@ export interface ArchiveMediaSource {
 }
 
 export interface ShareDatabaseProjection {
-  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  readonly credentialWarnings?: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
   readonly notices?: readonly string[];
   readonly archiveMedia?: readonly ArchiveMediaSource[];
   readonly bytes: Buffer;

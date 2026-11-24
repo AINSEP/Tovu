@@ -20,7 +20,7 @@ import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey } from "./plan-rows.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./plan-rows.js";
-import { NO_PUBLISH_CONTENT_SEED_HASH } from "./seed-hash.js";
+import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
 import { buildPublishContentCatalog } from "./type-registry.js";
 import type { EntityReplacement, PackedEntity, PublishContentHandler } from "./type-registry.js";
 
