@@ -1,7 +1,7 @@
 import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
@@ -123,8 +123,10 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
   } catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }, { cause: error }); }
 }
 
-/** Acknowledge the owner download; warned exports stay private. */
 /**
+ * Acknowledge this immutable archive, then reuse its original delivery lifecycle. Public uploads
+ * are deferred until this explicit action; replays return the acknowledged row without reuploading.
+ * Acknowledging records the owner download; an export with credential warnings stays private.
  * Revocation tombstones remain authoritative across racing updates.
  * @throws SiteShareRefusal for a missing/revoked export or unavailable original storage.
  * @complexity O(archive bytes) for a pending remote delivery, O(1) for ZIP-only exports/retries.

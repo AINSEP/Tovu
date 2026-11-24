@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ForbiddenError, InMemorySettingsRepo } from "@jini-ai/core/settings";
-import { createVisitorToolsManagement } from "../visitor-tools-service.js";
-import { VisitorToolsRevisionConflictError } from "../visitor-tools-write.js";
+import { createVisitorToolsManagement } from "@jini-ai/cms/settings/site/visitor-tools-service";
+import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
+import { SETTINGS_WRITE_POLICIES, VISITOR_TOOLS_HOST } from "../settings-write-policies.js";
 import { VisitorToolPolicyValidationError } from "../../../contracts/site-assistant/visitor-tools.js";
 import { visitorManagementFixture, readTool, pluginTool, createdTool } from "./visitor-tools-management.fixture.js";
 import { ws } from "./visitor-tools.fixture.js";
@@ -81,7 +82,7 @@ test("permission is fresh on list, prepare and apply; missing definitions remain
   await assert.rejects(f.list(), ForbiddenError);
   await assert.rejects(f.prepare({ toolId: "list_categories", mode: "off" }), ForbiddenError);
   await assert.rejects(f.service.apply({ callerPrincipalId: f.callerPrincipalId, prepared }), ForbiddenError);
-  const absent = createVisitorToolsManagement({ deps: { workspaceId: ws, settings: { ...f.deps, repo: new InMemorySettingsRepo() }, ready: Promise.resolve(), listCatalog: async () => [] } });
+  const absent = createVisitorToolsManagement({ deps: { visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, workspaceId: ws, settings: { ...f.deps, repo: new InMemorySettingsRepo() }, ready: Promise.resolve(), listCatalog: async () => [] } });
   f.grants.add("visitor-tools.manage");
   await assert.rejects(absent.list({ callerPrincipalId: "owner" }), /unavailable/);
 });

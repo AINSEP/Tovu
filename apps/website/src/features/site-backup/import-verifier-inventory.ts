@@ -5,7 +5,7 @@ import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-w
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
-import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { isStaticSitePath } from "./static-copy.js";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 

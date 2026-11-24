@@ -15,7 +15,7 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { SourceControlCommitAdapter } from "../commit-site.js";
-import type { SourceControlCommitResult } from "../provider-module.js";
+import type { SourceControlCommitResult } from "@jini-ai/devops/source-control/site/provider-module";
 import { type LoadSourceControlProviders } from "../provider-registry.js";
 import { createSourceControlCredential } from "../store.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";

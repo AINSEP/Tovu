@@ -13,7 +13,8 @@ import { InMemoryVaultRepo, type SecretsVaultService } from "@jini-ai/platform/s
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { AdminSurfaceStateValue } from "@jini-ai/agent-plugins/admin-surfaces";
 
-import { createAgentPluginStateStore, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
+import { createAgentPluginStateStore } from "../plugin-state.js";
+import { PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state-bindings.js";
 import { createApiConnectionVault } from "../vault-stores.js";
 
 const SCOPE = { workspaceId: "ws-1", pluginId: "acme-office" };

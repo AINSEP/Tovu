@@ -13,7 +13,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
+import { registerPublishContentPeerTransportRoutes } from "../../../../../runtime/composition/modules/publish-content-transport.js";
 import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { BASE, FailingPeerRepo, recordingAuthorize, routeApp, routeDeps } from "./route-fixture.js";
 

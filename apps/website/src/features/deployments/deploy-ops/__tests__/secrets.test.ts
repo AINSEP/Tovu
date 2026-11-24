@@ -8,7 +8,7 @@ import type { SurfaceEmitter } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { fingerprintSiteKeyHex } from "../../../webhooks/keyring.env.js";
-import { SITE_KEY_MANAGE_PERMISSION } from "../../../identity/site-key-permission.js";
+import { SITE_KEY_MANAGE_PERMISSION } from "@jini-ai/user-management/identity/site-key-permission";
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { runListSecrets, runSetSecret, runUnsetSecret } from "../secrets.js";
 import { secretFingerprint } from "../run-ops.js";

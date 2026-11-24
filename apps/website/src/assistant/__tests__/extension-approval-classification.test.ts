@@ -2,7 +2,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
-import { buildSkillToolRegistrations } from '../../features/skills/tool-registrations.js';
+import { buildSkillToolRegistrations } from '@jini-ai/agentic/skills/site/tool-registrations';
 import { buildAgentPluginToolRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { buildPluginCapabilityToolRegistrations } from '../../features/plugin-runtime/capability-tool-registrations.js';
 import { requiredPostReader } from '../../features/plugin-runtime/__tests__/fixtures/plugin-post-read.js';

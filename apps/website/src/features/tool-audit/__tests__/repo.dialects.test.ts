@@ -4,9 +4,10 @@ import test from "node:test";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { MAX_VISITOR_ROWS_PER_WORKSPACE, SqlToolAttemptAuditSink } from "../repo.js";
-import { createInMemoryToolAttemptAuditSink } from "../repo.memory.js";
-import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import { MAX_VISITOR_ROWS_PER_WORKSPACE } from "@jini-ai/diagnostics/tool-audit/repo";
+import { SqliteToolAttemptAuditSink } from "../repo.sqlite.js";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
+import type { ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 /** @file The tool-attempt audit sink's one Kysely body on SQLite and PGlite (storage plan §4). */
 
@@ -32,7 +33,7 @@ async function rows(kernel: ContentKernel, workspaceId: string) {
 describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], make: (kernel) => kernel }, (makeKernel) => {
   test("visitor floods prune only their bucket; admin floods preserve visitors and other sites", async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel, { maxRowsPerWorkspace: 3, maxVisitorRowsPerWorkspace: 2, pruneCheckInterval: 1 });
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel }, { maxRowsPerWorkspace: 3, maxVisitorRowsPerWorkspace: 2, pruneCheckInterval: 1 });
     await sink.append(event({ workspaceId: "other-site", principalId: "anonymous-visitor", attemptId: "other" }));
     await sink.append(event({ attemptId: "admin-original" }));
     for (let i = 0; i < 8; i++) await sink.append(event({ principalId: "anonymous-visitor", attemptId: `visitor-${i}` }));
@@ -45,7 +46,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
 
   test("prune cadence is tracked per workspace and bucket, so interleaved traffic cannot starve pruning", async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel, { maxRowsPerWorkspace: 1, maxVisitorRowsPerWorkspace: 1, pruneCheckInterval: 2 });
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel }, { maxRowsPerWorkspace: 1, maxVisitorRowsPerWorkspace: 1, pruneCheckInterval: 2 });
     for (let i = 0; i < 4; i++) {
       await sink.append(event({ principalId: "anonymous-visitor", attemptId: `visitor-${i}` }));
       await sink.append(event({ attemptId: `admin-${i}` }));
@@ -60,19 +61,19 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
     const messages: unknown[][] = [];
     t.mock.method(console, "error", (...args: unknown[]) => { messages.push(args); });
     const broken: ContentKernel = { ...kernel, run: async () => { throw failure; } };
-    await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken).append(event()));
+    await assert.doesNotReject(() => new SqliteToolAttemptAuditSink({ store: broken }).append(event()));
     assert.deepEqual(messages, [["[tool-audit] append failed", failure]]);
     assert.deepEqual(await rows(kernel, "ws-1"), []);
   });
   test("daemon options preserve cross-site detail and explicit null clears legacy detail", async () => {
-    const kernel = makeKernel(), sink = new SqlToolAttemptAuditSink(kernel);
+    const kernel = makeKernel(), sink = new SqliteToolAttemptAuditSink({ store: kernel });
     await sink.append(event(), { detail: "cross-site read: B (B)" });
     await sink.append(event({ attemptId: "cleared" }), { detail: null });
     assert.deepEqual((await rows(kernel, "ws-1")).map(row => row.detail), ["cross-site read: B (B)", null]);
   });
   test("append writes every column, scoped by workspace", async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel);
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel });
     await sink.append(event());
     await sink.append(event({ workspaceId: "ws-2", executionId: null, phase: "unknown-tool", detail: undefined }));
     const [row] = await rows(kernel, "ws-1");
@@ -87,8 +88,8 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
 
   test("the per-workspace cap prunes oldest-first, keeps the boundary, and leaves other workspaces alone", async () => {
     const kernel = makeKernel();
-    const sink = new SqlToolAttemptAuditSink(kernel, { maxRowsPerWorkspace: 10, pruneCheckInterval: 4 });
-    await new SqlToolAttemptAuditSink(kernel).append(event({ workspaceId: "ws-other", attemptId: "other-1" }));
+    const sink = new SqliteToolAttemptAuditSink({ store: kernel }, { maxRowsPerWorkspace: 10, pruneCheckInterval: 4 });
+    await new SqliteToolAttemptAuditSink({ store: kernel }).append(event({ workspaceId: "ws-other", attemptId: "other-1" }));
     for (let i = 0; i < 40; i += 1) await sink.append(event({ attemptId: `attempt-${i}` }));
     const remaining = (await rows(kernel, "ws-1")).map((r) => r.attempt_id);
     assert.deepEqual(remaining, Array.from({ length: 10 }, (_, i) => `attempt-${30 + i}`));
@@ -98,7 +99,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
   for (const [stage, failingRun] of [["cutoff query", 2], ["retention delete", 3]] as const) {
     test(`append preserves its successful insert when the ${stage} fails`, async () => {
       const kernel = makeKernel();
-      await new SqlToolAttemptAuditSink(kernel).append(event({ attemptId: "older" }));
+      await new SqliteToolAttemptAuditSink({ store: kernel }).append(event({ attemptId: "older" }));
       const failure = new Error(`${stage} failed`);
       const errors: unknown[] = [];
       let calls = 0;
@@ -110,7 +111,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
           return kernel.run(work);
         },
       };
-      const sink = new SqlToolAttemptAuditSink(broken, { maxRowsPerWorkspace: 1, pruneCheckInterval: 1, onError: ({ error: e }) => errors.push(e) });
+      const sink = new SqliteToolAttemptAuditSink({ store: broken }, { maxRowsPerWorkspace: 1, pruneCheckInterval: 1, onError: ({ error: e }) => errors.push(e) });
       await assert.doesNotReject(() => sink.append(event({ attemptId: "newest" })));
       assert.equal(calls, failingRun, "the selected retention operation must be reached");
       assert.deepEqual(errors, [failure]);
@@ -123,7 +124,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
     const kernel = makeKernel();
     const errors: unknown[] = [];
     const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
-    await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken, { onError: ({ error: e }) => errors.push(e) }).append(event()));
+    await assert.doesNotReject(() => new SqliteToolAttemptAuditSink({ store: broken }, { onError: ({ error: e }) => errors.push(e) }).append(event()));
     assert.equal(errors.length, 1);
   });
 });

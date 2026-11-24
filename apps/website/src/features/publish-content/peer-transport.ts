@@ -6,7 +6,7 @@ import type { PublishContentExportEnvelope } from "./export-bundle.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
-import type { PackedEntity } from "./type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 
 /**

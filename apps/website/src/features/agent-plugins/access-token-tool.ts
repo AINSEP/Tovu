@@ -24,7 +24,6 @@ import {
   type AgentPluginAccessTokenMessages, type AgentPluginTokenValidator, type AgentPluginAccessTokenHost,
   type SetAccessTokenResult, type TokenAuthTarget,
 } from "@jini-ai/agent-plugins/connect";
-export type { TokenAuthTarget, SetAccessTokenResult, AgentPluginAccessTokenMessages, AgentPluginTokenValidator, AgentPluginAccessTokenHost } from "@jini-ai/agent-plugins/connect";
 
 /** Same permission `agent_plugin_connect` restates (`connect-tool.ts`). */
 const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";

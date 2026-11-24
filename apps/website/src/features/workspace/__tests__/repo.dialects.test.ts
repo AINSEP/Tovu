@@ -6,7 +6,7 @@ import { workspaceRepoFor } from "@jini-ai/cms/workspace/sql";
 
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { WORKSPACE_TABLES } from "../repo.sqlite.js";
+import { WORKSPACE_TABLES } from "@jini-ai/cms/workspace/site/repo.sqlite";
 
 /** @file The workspace repo's one Kysely body on SQLite and PGlite (storage plan §4). */
 

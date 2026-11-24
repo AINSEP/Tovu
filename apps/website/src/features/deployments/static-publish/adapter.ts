@@ -12,8 +12,9 @@ import { createDeployHostKit } from "#src/features/deployments/deploy-targets/ho
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import type { DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget  } from "#src/features/deployments/deploy-targets/types";
-import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";
+import type { DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget  } from "@jini-ai/devops/deploy/site/deploy-targets/types";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
+import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
 // the barrel would add the plugin loader and the credential vault to it.
 import { rewriteFormActions } from "@jini-ai/cms/forms/destinations/rewrite-actions";
@@ -44,7 +45,7 @@ import type { ExportReport } from "#src/contracts/core/export-report";
 import { firstExportFailure } from "#src/features/site-export/export-failure-summary";
 
 import { redactDeployTargetMessage, toDeployTargetCredential } from "./credentials.js";
-import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
+import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /**
  * @file Publishes Tovu's own static export through a deploy target that an Agent Plugin contributes
@@ -271,7 +272,7 @@ export interface StaticPublishInput {
   /** Server-held approval from the existing human exchange/gateway; never read from JSON input. */
   readonly domainApproval?: {
     readonly credentialBinding: string;
-    readonly plan: NonNullable<import("../deploy-targets/types.js").DeployTargetInspection["domains"]>;
+    readonly plan: NonNullable<import("@jini-ai/devops/deploy/site/deploy-targets/types").DeployTargetInspection["domains"]>;
     readonly authorize: (required: { readonly fingerprint: string; readonly accountId: string }) => Promise<boolean>;
   };
   readonly workspaceId: string;

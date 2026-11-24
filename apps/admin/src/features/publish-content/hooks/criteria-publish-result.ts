@@ -4,7 +4,7 @@ import {
   type CriteriaSelection,
   type PublishReportRow,
   type PublishRequestResult,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 
 /**
  * A `skipped` row, named with its reason; `null` for any other row. `toPublishReportRows` gives every

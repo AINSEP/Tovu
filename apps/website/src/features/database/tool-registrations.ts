@@ -28,14 +28,9 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
-import {
-  confirm as gatewayConfirm,
-  execute as gatewayExecute,
-  plan as gatewayPlan,
-  type GatedMutationHooks,
-  type GatewayDeps,
-} from "../../contracts/core/gated-mutations/gateway.js";
-import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

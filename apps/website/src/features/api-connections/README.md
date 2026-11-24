@@ -15,7 +15,7 @@ names no provider.
 | `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts); attempt row ids also use the full SHA-256 state digest. |
 | `contribution.ts` | Loads `jini-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
-| `byo-client.ts` | Bring-your-own OAuth client: `byoClientLabel({ pluginId, connectionId })` (the custom-credential label an admin saves it under) and `resolveByoClient({ credentials, workspaceId, connection })` (the saved client, an actionable refusal, or none). |
+| `byo-client.ts` | Bring-your-own OAuth client binding: `resolveByoClient({ credentials, workspaceId, connection })` (the saved client, an actionable refusal, or none). The label helper `byoClientLabel({ pluginId, connectionId })` (the custom-credential label an admin saves it under) is imported from `@jini-ai/integrations/api-connections` directly. |
 | `hook-http.ts` | `createConnectionHookHttp({ http, connection })`: the HTTP a connection's hooks get, limited to its declared `apiOrigins` plus its token endpoint's origin (exact origin match; anything else is refused before it is sent). |
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. `startApiConnectionSignIn` is the shared start (declared start parameters; desktop completion returns the declared callback fields). |
 | `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields` keyed by the service's attempt id). `status.lastSignInAttempt` is `{ code, nextAction: 'reconnect' }` after a desktop sign-in failed once the browser had opened (our own code, from `host.lastSignInAttempts`), `null` otherwise; a later successful desktop sign-in clears it. |
@@ -165,3 +165,14 @@ Moved to Jini (`@jini-ai/integrations/api-connections`):
   (`project-keys/site-references.ts`), `attachments`/`transaction` (`project-keys/attachments.ts`)
   structurally as `SharedApiConnectionDeps`; bound in `host-bindings.ts`, assembled in
   `server/runtime/composition/agent-plugin-connections.ts`.
+## Wiring (plugin state)
+
+`plugin-state.ts` binds the vault-backed persistence and the host's unavailable-state copy
+(`plugin-state-bindings.ts`) into Jini's `createAgentPluginStateStore`. It forwards nothing:
+callers take `PLUGIN_STATE_UNAVAILABLE_MESSAGE` from `./plugin-state-bindings.js` and the
+`AgentPluginStateStore` type from `@jini-ai/agent-plugins/admin-surfaces`.
+
+## Wiring (forwarding lines removed)
+
+`surface-connections.ts` binds `createAdminSurfaceConnections` to the host's `surface-connection-bindings.ts` and
+forwards nothing: callers take the `IssuedSignIn` type from `@jini-ai/agent-plugins/admin-surfaces/connections`.

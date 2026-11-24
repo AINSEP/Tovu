@@ -6,7 +6,8 @@ import express from "express";
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 
@@ -79,7 +80,7 @@ const TOOL_ID = "webhooks_delete_subscription";
 /** Builds the real tool surface: one registry, one production-shaped executor (no `delegate`, no
  * mocks), over in-memory webhook repos so a real delete can be asserted directly on the row. */
 function buildRealWebhooksToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const originRegistry = { isAllowedEgressTarget: async () => true };
   let counter = 0;
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };

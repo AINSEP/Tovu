@@ -5,40 +5,45 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { parsePageLimit, parseSections } from "../profile.js";
 
 /**
- * @file `GET .../site/profile`'s query parsing (`parseSections`, `parsePageLimit`) and whether the
+ * @file `GET .../site/profile`'s query parsing (the Jini spec's `parseSections`, `parsePageLimit`) and whether the
  * parsed `pageLimit` actually reaches the profile builder. `site-profile-route.test.ts` proves an
  * unknown section and five bad limits are 400s and that one good request is a 200 — but not that
  * the limit is honoured (dropping it from the `buildSiteProfile` call shipped green), nor the
  * repeated-param, whitespace, empty and upper-bound edges of the parsers.
  */
 
-test("parseSections: absent or blank means every section (undefined), never an empty selection", () => {
-  assert.equal(parseSections({ raw: undefined }), undefined);
-  assert.equal(parseSections({ raw: "" }), undefined);
-  assert.equal(parseSections({ raw: " , ," }), undefined);
-});
+/**
+ * The query parsers moved into the Jini spec (`@jini-ai/cms/admin-http/routes/site/profile`, unit-tested
+ * there against an injected vocabulary). This is the same rule at the wire: the section vocabulary and
+ * page cap are the builder's own constants, bound by the registrar.
+ */
+test("GET site/profile: query parsing at the wire (blank means every section, names trim and merge, bad values are 400s)", async (t) => {
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const get = (query: string) => fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/site/profile${query}`, { headers: { cookie } });
+  const keysOf = async (query: string): Promise<string[]> => {
+    const res = await get(query);
+    assert.equal(res.status, 200, `${query} should be accepted`);
+    return Object.keys(((await res.json()) as { sections: Record<string, unknown> }).sections).sort();
+  };
+  const every = ["contentTypes", "pages", "plugins", "settings", "theme"];
+  for (const blank of ["", "?sections=", "?sections=%20,%20,"]) assert.deepEqual(await keysOf(blank), every, `${blank || "no query"} means every section`);
+  assert.deepEqual(await keysOf("?sections=%20theme%20,%20pages%20"), ["pages", "theme"]);
+  assert.deepEqual(await keysOf("?sections=theme&sections=plugins,settings"), ["plugins", "settings", "theme"]);
+  assert.deepEqual(await keysOf("?sections=pages&pageLimit=1"), ["pages"]);
+  assert.deepEqual(await keysOf("?sections=pages&pageLimit=200"), ["pages"]);
 
-test("parseSections: trims names and merges a repeated ?sections= param in order", () => {
-  assert.deepEqual(parseSections({ raw: " theme , pages " }), ["theme", "pages"]);
-  assert.deepEqual(parseSections({ raw: ["theme", "plugins,settings"] }), ["theme", "plugins", "settings"]);
-});
-
-test("parseSections: an unknown name or a non-string (nested query object) is refused", () => {
-  assert.throws(() => parseSections({ raw: "pages,Theme" }), {
-    message: "unknown section 'Theme' — valid sections are: pages, theme, plugins, settings, contentTypes",
-  });
-  assert.throws(() => parseSections({ raw: { a: "pages" } }), { message: "sections must be a comma-separated string of section names" });
-});
-
-test("parsePageLimit: accepts 1 and 200 inclusive, refuses 201, a repeated param, and absence is undefined", () => {
-  assert.equal(parsePageLimit({ raw: undefined }), undefined);
-  assert.equal(parsePageLimit({ raw: "1" }), 1);
-  assert.equal(parsePageLimit({ raw: "200" }), 200);
-  assert.throws(() => parsePageLimit({ raw: "201" }), { message: "pageLimit must be an integer between 1 and 200, got '201'" });
-  assert.throws(() => parsePageLimit({ raw: ["5", "6"] }), { message: "pageLimit must be a single integer value" });
+  const refused = async (query: string, error: string): Promise<void> => {
+    const res = await get(query);
+    assert.equal(res.status, 400, `${query} should be refused`);
+    assert.deepEqual(await res.json(), { error, code: "VALIDATION_ERROR" });
+  };
+  await refused("?sections=pages,Theme", "unknown section 'Theme' — valid sections are: pages, theme, plugins, settings, contentTypes");
+  await refused("?sections[a]=pages", "sections must be a comma-separated string of section names");
+  await refused("?pageLimit=201", "pageLimit must be an integer between 1 and 200, got '201'");
+  await refused("?pageLimit=5&pageLimit=6", "pageLimit must be a single integer value");
 });
 
 test("GET site/profile: pageLimit caps the pages section's items while total still counts every page", async (t) => {

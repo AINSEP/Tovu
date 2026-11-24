@@ -317,9 +317,9 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   const app = await renderApp(t, { findInPage: async (input) => { finds.push(input); } });
   /** The find requests issued since the last call — so each interaction is checked on its own. */
   const issued = () => finds.splice(0);
-  assert.equal(app.container.querySelector('.findbar'), null);
+  assert.equal(app.container.querySelector('.jini-findbar'), null);
   await act(async () => { for (const listener of app.listeners.find) listener(); });
-  const input = app.container.querySelector<HTMLInputElement>('.findbar__input')!;
+  const input = app.container.querySelector<HTMLInputElement>('.jini-findbar__input')!;
   assert.ok(input);
   assert.equal(app.byLabel({ label: 'Next match' })?.hasAttribute('disabled'), true, 'nothing typed, nothing to step through');
   await act(async () => {
@@ -343,10 +343,10 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }]);
   app.key({ el: input, init: { key: 'Escape' } });
   await settle();
-  assert.equal(app.container.querySelector('.findbar'), null);
+  assert.equal(app.container.querySelector('.jini-findbar'), null);
   await act(async () => { for (const listener of app.listeners.find) listener(); });
   await app.click({ el: app.byLabel({ label: 'Close find bar' }) });
-  assert.equal(app.container.querySelector('.findbar'), null);
+  assert.equal(app.container.querySelector('.jini-findbar'), null);
 });
 
 test('App: re-adding a tracked site opens its tab with the notice, and an overflowing strip shows scroll arrows', async (t) => {

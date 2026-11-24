@@ -6,7 +6,7 @@ import test from "node:test";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteImportBackend } from "../../import-backend.js";
 import { buildShareZip } from "../../share-zip.js";
-import { ENCRYPTED_KEYS_DESCRIPTOR, SAVED_KEYS_PATH, type SiteSavedKeysPort } from "../../saved-keys-port.js";
+import { ENCRYPTED_KEYS_DESCRIPTOR, SAVED_KEYS_PATH, type SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";

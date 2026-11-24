@@ -6,8 +6,9 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { type AgentToolDefinition as WorkspaceAgentToolDefinition } from "@jini-ai/core";
-import { getWorkspaceAgentToolCatalog, InMemoryWorkspaceRepo } from "../../features/workspace/index.js";
-import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
+import { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
+import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-registrations";
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -30,7 +31,7 @@ const contributions = {
  * Reset the registry to isolate this file's own registrations.
  */
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeWorkspaceTools() });
+contributions.contributors.register({ contribution: contributeWorkspaceTools({ readToolId: "content_read.workspace" }) });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";

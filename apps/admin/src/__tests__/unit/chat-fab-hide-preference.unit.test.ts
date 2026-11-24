@@ -52,7 +52,7 @@ describe("hide-while-open CSS is gated on the preference class", () => {
   });
 
   it("keeps the inset token equal to the FAB hook's edge margin", async () => {
-    const { FAB_EDGE_MARGIN } = await import("../../components/ChatFab/ChatFab.hooks");
+    const { FAB_EDGE_MARGIN } = await import("@jini-ai/admin/shell/components/ChatFab/ChatFab.hooks");
     let inset: string | undefined;
     parse(assistantCss).walkDecls("--admin-chat-fab-inset", (decl) => {
       inset = decl.value;

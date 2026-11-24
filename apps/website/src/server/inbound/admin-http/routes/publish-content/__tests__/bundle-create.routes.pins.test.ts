@@ -13,7 +13,8 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 
-import { registerPublishContentBundleCreateRoute, validateBundleBody } from "../bundle-create.js";
+import { registerPublishContentBundleCreateRoute } from "#src/server/runtime/composition/modules/publish-content-ingest";
+import { validateBundleBody } from "@jini-ai/cms/admin-http/routes/publish-content/bundle-create";
 import { BASE, routeApp, routeDeps } from "./route-fixture.js";
 
 /**

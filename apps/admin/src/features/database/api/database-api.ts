@@ -1,7 +1,7 @@
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
 import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
-import type { AdminLedgerRow, AdminRestorePointSummary, AdminSchemaState, MigrateForwardExecuteResult } from "./database-api.types";
+import type { AdminLedgerRow, AdminRestorePointSummary, AdminSchemaState, MigrateForwardResult } from "@jini-ai/admin/core";
 
 /** The admin API calls of the database feature. */
 export const databaseApi = {
@@ -43,7 +43,7 @@ export const databaseApi = {
       body: JSON.stringify({ planId, planHash }),
     } }),
   executeMigrateForward: ({ confirmationToken }: { confirmationToken: string }, _optional: Record<string, never> = {}) =>
-    request<MigrateForwardExecuteResult>({ path: "/database/migrate-forward/execute" }, { init: {
+    request<MigrateForwardResult>({ path: "/database/migrate-forward/execute" }, { init: {
       method: "POST",
       body: JSON.stringify({ confirmationToken }),
     } }),

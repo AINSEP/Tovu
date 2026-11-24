@@ -11,7 +11,8 @@ import { loadCredentialSchemeRegistry } from "@jini-ai/agent-plugins/site/auth-s
 import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
+import { resolveSkillLayout } from "@jini-ai/agentic/skills/site/layout";
+import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,7 +39,7 @@ export function createTempSiteLayoutFixture(_input: Record<string, never>, _opti
     siteDir,
     deps: {
       agentPluginLayout: resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }),
-      skillLayout: resolveSkillLayout({ siteDir, env: {} }),
+      skillLayout: resolveSkillLayout({ siteDir, env: {}, host: SKILL_SITE_HOST }),
       siteBinding: describeSiteBinding({ cwd: siteDir, env: { TOVU_SITE_DIR: siteDir, TOVU_SITE_BINDING_NOT_SWITCHABLE: "1" } }),
     },
     cleanup: () => rmSync(siteDir, { recursive: true, force: true }),
@@ -62,7 +63,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
     loadDeployOps: { enumerable: true, configurable: true, get: () => (ctx: { workspaceId: string }) => loadDeployOpsRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
     loadSourceControlProviders: { enumerable: true, configurable: true, get: () => ({ workspaceId }: { workspaceId: string }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
     loadAuthSchemes: { enumerable: true, configurable: true, get: () => async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: context.agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules },
-    skillLayout: { enumerable: true, configurable: true, get: () => resolveSkillLayout() },
+    skillLayout: { enumerable: true, configurable: true, get: () => resolveSkillLayout({ host: SKILL_SITE_HOST }) },
     siteBinding: { enumerable: true, configurable: true, get: () => describeSiteBinding() },
   };
   for (const key of Object.keys(descriptors)) {

@@ -1,5 +1,5 @@
 import type { CredentialSetSummary } from "@jini-ai/core/contracts/credentials";
-import type { DeployTargetRegistry } from "../contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { invalidatePublishCredentialCompatibility } from "./store.js";
 
 /** The two optional host values the invalidation has always read. Read at call time, never at bind time. */

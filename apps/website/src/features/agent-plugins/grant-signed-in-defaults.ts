@@ -4,13 +4,13 @@
 import type { Clock as ClockPort } from '@jini-ai/core/primitives';
 import {
   grantDeclaredToolsToSignedInRows as grantWithPorts, grantDeclaredToolsAtBoot as bootWithPorts,
-  type GrantSignedInDefaultsDeps as PortableGrantDeps,
+  type GrantSignedInDefaultsDeps as PortableGrantDeps, type InstalledAgentPluginServers, type TokenImportLog,
 } from '@jini-ai/agent-plugins/connect';
 import { tovuEnableAccessMessages } from './enable-access.js';
 import { agentPluginActivations } from './activation-effects.js';
 import { tovuConnectActors, isPluginOffByOperator, switchPluginOnUnlessOperatorOff } from './apply-connect-defaults.js';
 import { resolveAgentPluginMcpServers } from './federate-mcp.js';
-import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from './import-access-token.js';
+import { listInstalledAgentPluginServers } from './import-access-token.js';
 import { withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from '@jini-ai/agent-plugins/site/service-ports';

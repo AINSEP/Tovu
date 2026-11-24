@@ -34,21 +34,20 @@ import {
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
 import {
-  createAccountLabelHealScheduler,
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
   deletePublishCredential,
   describeCredential as describePublishCredential,
   healAccountLabel,
-  idsNeedingAccountLabelHeal,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
   PublishCredentialSecretStoreUnconfiguredError,
   PublishCredentialValidationError,
   updatePublishCredential,
-  type PublishCredentialSummary,
   type UpdatePublishCredentialInput,
 } from "#src/features/deployments/publish-credentials/index";
+import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
+import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
 import {
   canYieldAccountLabel,
   verifyPublishCredentialById,
@@ -347,7 +346,10 @@ function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPu
   // heal does exactly what a human clicking "Verify" already does, through the same function, never a
   // parallel code path that could drift from it. See this file's own header ("second pass") and
   // `account-label-heal-scheduler.ts`'s header for the full reasoning.
-  const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
+  const accountLabelHealScheduler = createAccountLabelHealScheduler({
+    heal: verifyAfterSave,
+    onHealError: ({ id, err }) => console.error(`[publish-credentials] background account-label heal failed for '${id}'`, err),
+  });
   return async function triggerAccountLabelHeal(credentials: readonly PublishCredentialSummary[]): Promise<void> {
     try {
       const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });

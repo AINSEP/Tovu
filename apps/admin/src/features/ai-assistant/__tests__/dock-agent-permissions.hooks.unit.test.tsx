@@ -4,7 +4,7 @@ import { ChatSettingsDialog } from "@jini-ai/chat/react";
 import { describe, expect, it, vi } from "vitest";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { useDockAgentPermissions } from "../hooks/use-admin-subagents.hooks";
-import type { AssistantSubagentsPort, AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import type { AssistantSubagentsPort, AssistantSubagentsSettings } from "@jini-ai/admin/shell/lib/assistant-subagents";
 
 function fixture(initial: AssistantSubagentsSettings = { ...assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }), canEdit: true }) {
   let stored = initial;

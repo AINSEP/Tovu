@@ -94,9 +94,10 @@ export async function invokeRouteDirectly(
   if (!handler) throw new Error(`invokeRouteDirectly: no ${method} route registered for "${path}"`);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: principalId };
-  // Some routes set response headers before their workspace check (e.g. media text's cache policy);
-  // accept them so the guard under test, not a missing `res.set`, decides the response.
-  Object.assign(res, { set: () => res });
+  // Some routes set response headers before their workspace check (e.g. media text's cache policy,
+  // written by http-kit's `setHeader` since w3 C4c); accept them so the guard under test, not a
+  // missing `res.set`/`res.setHeader`, decides the response.
+  Object.assign(res, { set: () => res, setHeader: () => res });
   await unwrapRouteHandle(handler.handle)(req, res);
   return capture;
 }

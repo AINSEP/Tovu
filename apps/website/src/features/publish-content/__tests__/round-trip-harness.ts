@@ -16,14 +16,8 @@ import { buildContentPublishPorts } from "#src/server/runtime/composition/conten
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { planImport } from "../planner.js";
 import { entityKey, type PublishContentReport } from "../plan-rows.js";
-import {
-  buildPublishContentCatalog,
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-  type PackedEntity,
-  type PublishContentContributor,
-  type PublishContentDeps,
-} from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor, type PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 
 /**

@@ -1026,7 +1026,7 @@ test("exportSite: multi-segment exact active redirect rules are exported as stat
  * A `javascript:` `toTarget` can never survive a REAL redirect rule's own
  * lifecycle: `createRedirect`/`updateRedirect`'s `assertTargetAllowed`
  * chokepoint (Jini `packages/cms/src/redirects/redirects.ts`) and the live read-path
- * open-redirect oracle (`features/redirects/phase-handler.ts`'s
+ * open-redirect oracle (`@jini-ai/cms/redirects/site/phase-handler`'s
  * `RedirectPhaseHandlerResolver`) both reject any non-http(s) scheme via the
  * same `OriginRegistry.isAllowedRedirectTarget` — verified empirically: a real
  * end-to-end export of such a rule 404s (the live app never actually issues

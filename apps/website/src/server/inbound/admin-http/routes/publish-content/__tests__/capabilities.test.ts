@@ -8,7 +8,7 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from "#
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { PublishContentRouteDeps } from "../deps.js";
-import { registerPublishContentCapabilitiesRoute } from "../capabilities.js";
+import { registerPublishContentCapabilitiesRoute } from "#src/server/runtime/composition/modules/publish-content-ingest";
 
 /**
  * @file S-F1 of `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.

@@ -16,12 +16,12 @@ import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import { getTableConfig as getSqliteTableConfig } from "drizzle-orm/sqlite-core";
 
 import * as pgSchema from "#src/platform/db/schema.postgres";
-import { countSourceRows, inspectTarget, runCopy, type CopyResult } from "@jini-ai/db/transfer";
-import { countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, TRANSFER_NAMING } from "../copy-engine.js";
+import { countSourceRows, createPsqlPostgresTarget, inspectTarget, runCopy, type CopyResult } from "@jini-ai/db/transfer";
 import { collectTransferTables, planSnapshotTables } from "../table-catalog.js";
+import { countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, TRANSFER_APPLICATION_NAME, TRANSFER_NAMING } from "../copy-engine.js";
+import { SITE_TRANSFER_MESSAGES } from "@jini-ai/db/tools";
 import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
-import { createPsqlPostgresTarget } from "../postgres-target.js";
 import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 
 /**
@@ -85,7 +85,7 @@ function fixtureSnapshot(extra?: (c: Database.Database) => void): Buffer {
 }
 
 const SITE = "fixture";
-const TARGET = () => createPsqlPostgresTarget({ connectionString: CONNECTION });
+const TARGET = () => createPsqlPostgresTarget({ connectionString: CONNECTION }, { applicationName: TRANSFER_APPLICATION_NAME });
 
 async function count(table: string, schema: string): Promise<number> {
   return Number(await sql(FIXTURE_DB, `SELECT count(*) FROM "${schema}"."${table}"`));
@@ -99,7 +99,7 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
   const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
-    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null }, { messages: TOVU_TRANSFER_MESSAGES });
+    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: SITE_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null }, { messages: SITE_TRANSFER_MESSAGES });
     return { schema: inspected.schema, result };
   } finally {
     source.close();
@@ -111,7 +111,7 @@ async function copyInto(schema: string, site: string): Promise<CopyResult> {
   const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot(), open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
-    return await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema, marker: { site, snapshotAt: "x" }, replaceExisting: false }, { messages: TOVU_TRANSFER_MESSAGES });
+    return await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: SITE_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema, marker: { site, snapshotAt: "x" }, replaceExisting: false }, { messages: SITE_TRANSFER_MESSAGES });
   } finally {
     source.close();
   }
@@ -135,7 +135,7 @@ test("the first site's copy lands in `tovu` with the same row count as SQLite fo
   assert.deepEqual(before.ok && [before.schemaState, before.schema, before.lastCopy], ["absent", DEFAULT_TRANSFER_SCHEMA, null]);
 
   const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot(), open: data => openSqliteSnapshot({ data }) });
-  const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES });
+  const counts = countSourceRows({ source, tables }, { messages: SITE_TRANSFER_MESSAGES });
   source.close();
   const { schema, result } = await copyAs(SITE, "2026-09-27T12:00:00.000Z");
   assert.equal(schema, "tovu");
@@ -234,8 +234,8 @@ test("a count mismatch or rejected replacement preserves the earlier rows and ma
   const source = openSqliteSnapshotSource({ bytes: replacement, open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
-    const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
-    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts, leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true }, { messages: TOVU_TRANSFER_MESSAGES });
+    const counts = countSourceRows({ source, tables }, { messages: SITE_TRANSFER_MESSAGES }).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
+    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts, leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true }, { messages: SITE_TRANSFER_MESSAGES });
     assert.equal(!result.ok && result.code, "COUNT_MISMATCH");
     assert.match(!result.ok ? result.message : "", /menus/);
   } finally {
@@ -282,7 +282,7 @@ test("a setting marked secret stays behind (values at every scope and its histor
     c.close();
   }
   const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
-  const counts = countSourceRows({ source, tables: collectTransferTables({ catalog: createCoreTableCatalog({}) }) }, { messages: TOVU_TRANSFER_MESSAGES });
+  const counts = countSourceRows({ source, tables: collectTransferTables({ catalog: createCoreTableCatalog({}) }) }, { messages: SITE_TRANSFER_MESSAGES });
   assert.equal(counts.find((entry) => entry.table.name === "setting_values_global")?.rows, 1);
   assert.equal(counts.find((entry) => entry.table.name === "setting_revisions")?.rows, 0);
   for (const scope of ["workspace", "user"]) assert.equal(counts.find((entry) => entry.table.name === `setting_values_${scope}`)?.rows, 1);

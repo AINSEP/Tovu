@@ -16,7 +16,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-import { registerPublishBackstopRoutes } from "../backstop.js";
+import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { BASE, recordingAuthorize, routeApp, routeDeps } from "./route-fixture.js";
 

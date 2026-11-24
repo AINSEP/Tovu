@@ -3,7 +3,7 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import { registerAdminConsentRoutes } from '../routes.js';
+import { registerAdminConsentRoutes } from '#src/server/runtime/composition/modules/consent';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { startTestServer, loginAsBarePrincipal, bootAuthenticated, createCapturingResponse } from '#src/server/__tests__/helpers/http-test-server';
 import { lastRouteHandler } from '#src/server/__tests__/helpers/last-route-handler';
@@ -110,7 +110,7 @@ test('a hand-built request with no :workspaceId is 404 before authorization (dir
   const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/consent/settings');
   const { res, capture } = createCapturingResponse();
   const headers: Record<string, string> = {};
-  Object.assign(res, { set: (name: string, value: string) => { headers[name] = value; return res; } });
+  Object.assign(res, { set: (name: string, value: string) => { headers[name] = value; return res; }, setHeader: (name: string, value: string) => { headers[name] = value; return res; } });
   await handler({ params: {} }, res);
   assert.equal(headers['Cache-Control'], 'no-store');
   assert.deepEqual({ statusCode: capture.statusCode, jsonBody: capture.jsonBody }, { statusCode: 404, jsonBody: { error: 'workspace was not found' } });

@@ -1,5 +1,6 @@
 import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
-import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
+import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from "@jini-ai/mcp/federation/hosted";
 import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -11,7 +12,7 @@ import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';

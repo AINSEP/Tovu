@@ -11,7 +11,7 @@ import {
   type RenderDeployConfigOptions,
   deployConfigGenerators,
 } from "../../features/deployments/index.js";
-import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/index.js";
+import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
 import { bundledAgentPluginsDir, resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**

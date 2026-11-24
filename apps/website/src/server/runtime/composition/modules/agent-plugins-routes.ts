@@ -1,18 +1,20 @@
 import { agentPluginFilesRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/files";
 import { agentPluginsListRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/list";
 import { agentPluginSetEnabledRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/set-enabled";
+import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
 import {
-  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError,
+  AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginNotReadyError } from "#src/features/agent-plugins/soon-lock";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";
@@ -35,7 +37,7 @@ import { expressSendResponse, mountJiniRouteInPlace, type InPlaceResponseWriter 
  * All three hand-written routes used `authorizeOrRespond`, so all three mount `"guarded"`.
  * Only set-enabled refused a bad body (`'enabled' must be a boolean`, 400) before reading the
  * session, so only its mount opts into `deferMissingPrincipal`; list and files read the session
- * first and keep failing in `authenticate`.
+ * first and keep failing in `authenticate`. (memory GET/PUT: `agent-plugin-memory-routes.ts`.)
  */
 
 /** The two port fields a by-id mount passes; `authorize` is read per request (tests reassign it). */

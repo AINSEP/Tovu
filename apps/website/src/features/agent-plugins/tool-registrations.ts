@@ -10,12 +10,12 @@ import {
   buildAgentPluginSearchRegistrations as buildHostAgentPluginSearchRegistrations, buildAgentPluginToolRegistrations as buildHostAgentPluginToolRegistrations,
   createAgentPluginToolGate as createHostAgentPluginToolGate, loadAgentPluginSearchCandidates as loadHostAgentPluginSearchCandidates,
   loadInstalledAgentPluginToolSources as loadHostAgentPluginToolSources, registerInstalledAgentPluginTools as registerHostAgentPluginTools,
-  type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate,
+  type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate, WRITE_PLUGIN_NOTE, pluginNoteRisk,
 } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
-import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
+import { pluginNoteCatalog, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { deliverHostPluginGuidance, isHostPluginFileRequest } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
 import { agentPluginOverlaysDir, isFailsafeYamlMapping, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
@@ -34,9 +34,6 @@ import {
 import type { ToolContributor } from "@jini-ai/core";
 import { AGENT_PLUGIN_HOST_TOOL_MESSAGES, AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
-
-export type { AgentPluginSkillDetail, AgentPluginToolSource, AgentPluginToolIdentity, AgentPluginToolGate, IdentifiedAgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-export { agentPluginSearchDerivedRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
 /** Loads every installed, active Agent Plugin of one workspace as one tool-ready source. */
 export async function loadInstalledAgentPluginToolSources(ctx: {

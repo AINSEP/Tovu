@@ -5,7 +5,7 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import type { BuildPublishContentImportHooksInput } from "./gated-hooks.js";
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPullDeps } from "./pull.js";
-import type { PublishTrustProvisioningPort } from "../publish-trust/provisioning.js";
+import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
 import type { PublishContentPeerRepoPort } from "./peers.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

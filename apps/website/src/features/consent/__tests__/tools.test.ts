@@ -5,10 +5,11 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
-import { buildConsentRegistrations, consentDerivedRisk, contributeConsentTools } from '../tool-registrations.js';
+import { buildConsentRegistrations, consentDerivedRisk, contributeConsentTools } from '@jini-ai/cookie-consent/site/tool-registrations';
+import { consentToolHost as host } from '../host-bindings.js';
 import { consentFixture } from './fixture.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
-import { SITE_CONSENT_DEFAULT_CSS } from '../config.js';
+import { SITE_CONSENT_DEFAULT_CSS } from '@jini-ai/cookie-consent/site/config';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '../revisions.repo.js';
 
@@ -16,7 +17,7 @@ function tools({ t, signal }: { t: import('node:test').TestContext; signal?: Abo
   const f = consentFixture({ t });
   let exchangeCount = 0;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++exchangeCount}` }, defaultChannel: 'mcp-ui' });
-  const registrations = buildConsentRegistrations({ siteConsent: f.service }, { surfaceExchanges });
+  const registrations = buildConsentRegistrations({ siteConsent: f.service, host }, { surfaceExchanges });
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) => {
     const tool = registrations.find(item => item.descriptor.id === name); assert.ok(tool);
     const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: signal ?? new AbortController().signal };
@@ -119,7 +120,7 @@ for (const name of ['consent_update_settings', 'consent_publish_settings']) test
 
 test('with no consent service bound, every tool fails closed instead of using a permissive fallback', async t => {
   const f = tools({ t });
-  const unbound = buildConsentRegistrations({}, { surfaceExchanges: f.surfaceExchanges });
+  const unbound = buildConsentRegistrations({ host }, { surfaceExchanges: f.surfaceExchanges });
   const inputs: Record<string, unknown> = { consent_update_settings: { config: f.config, expectedDraftId: null }, consent_publish_settings: { draftId: 'draft', expectedPublishedId: null } };
   for (const tool of unbound) {
     const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: inputs[tool.descriptor.id] ?? {}, signal: new AbortController().signal };
@@ -165,9 +166,13 @@ for (const enabled of [true, false]) test(`the publish approval card warns about
 });
 
 test('contributeConsentTools contributes the consent domain builder and its derived risk table', () => {
-  const contribution = contributeConsentTools();
+  const contribution = contributeConsentTools({ host });
   assert.equal(contribution.domain, 'consent');
-  assert.equal(contribution.build, buildConsentRegistrations);
+  // The contributor binds the host collaborators once, so `build` is a closure over buildConsentRegistrations.
+  const surfaces = { surfaceExchanges: undefined } as unknown as Parameters<typeof buildConsentRegistrations>[1];
+  const names = (registrations: ReturnType<typeof buildConsentRegistrations>) => registrations.map(registration => registration.descriptor.id);
+  assert.deepEqual(names(contribution.build({}, surfaces)), names(buildConsentRegistrations({ host }, surfaces)));
+  assert.equal(names(contribution.build({}, surfaces)).length, 5);
   assert.equal(contribution.risk, consentDerivedRisk);
 });
 

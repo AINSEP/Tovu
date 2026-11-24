@@ -1,4 +1,5 @@
-import { classifyCredentialSubmitError, type CredentialSubmitFailure } from "../../lib/credential-submit-error";
+import { classifyCredentialSubmitError } from "../../lib/shell-collaborators";
+import { type CredentialSubmitFailure } from "@jini-ai/admin/shell/lib/credential-submit-error";
 import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId } from "./api/source-control-api.types";
 

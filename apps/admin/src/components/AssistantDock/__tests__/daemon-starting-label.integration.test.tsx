@@ -3,7 +3,7 @@ import { act, cleanup, render } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatPane, FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
-import { emptyComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
+import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
 import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@/lib/assistant-daemon-activation";
 import { resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";

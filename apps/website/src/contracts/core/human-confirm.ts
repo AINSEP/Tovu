@@ -22,7 +22,7 @@ import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, 
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
-import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { approvalText } from './approval-i18n.js';
 
 import {
@@ -31,35 +31,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type ConfirmationOutcome,
 } from "@jini-ai/daemon/surface-exchanges";
-
-export interface HumanConfirmSpec {
-  /** The calling tool's own id — the click is routed back to it, so it must be allowlisted. */
-  readonly toolId: string;
-  /** Fixed access changes, rendered through the common card and always approved afresh. */
-  readonly access?: AccessApprovalDescription;
-  /** Prefix for the refusal code when no human can be asked, e.g. `"WEBHOOKS"`. */
-  readonly errorCode: string;
-  readonly title: string;
-  readonly description?: string;
-  /** Jini renders structured JSON values, optional previous snapshots and explicit field labels. */
-  readonly details: readonly SurfaceDetail[];
-  readonly detailDisclosure?: { readonly label: string; readonly details: readonly SurfaceDetail[] };
-  readonly warning?: string;
-  /** Plain explanation in a neutral box; `warning` stays the red callout for real danger. */
-  readonly notice?: string;
-  /** Resource ids in `access` whose facts the card's own `details` already state: left out of the rows, never out of the approval. */
-  readonly accessRowsStatedInDetails?: readonly string[];
-  readonly danger?: boolean;
-  readonly confirmLabel: string;
-  readonly cancelLabel?: string;
-  /**
-   * Further affirmative buttons after confirm ("Allow for this chat", say). Each one confirms exactly
-   * as confirm does — same dwell, same one-call lock — and also posts its `choice`, which comes back
-   * as {@link HumanConfirmOutcome}'s `choice`. A `choice` that is not one of these is ignored, so a
-   * forged answer can never widen what the person was offered.
-   */
-  readonly alternatives?: readonly HumanConfirmAlternative[];
-}
+import type { HumanConfirmSpec, HumanConfirmAlternative } from "@jini-ai/core/contracts/site/human-confirm";
 
 /** Shared operator-language presentation for policy approvals and domain-owned tool plans. */
 export function toolApprovalConfirmation({ descriptor, input, locale, details = [], danger = false }: {
@@ -77,15 +49,6 @@ export function toolApprovalConfirmation({ descriptor, input, locale, details = 
     ] },
     confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
   };
-}
-
-/** One extra affirmative button — see {@link HumanConfirmSpec.alternatives}. */
-export interface HumanConfirmAlternative {
-  /** The button's handle, a lowercase `[a-z0-9-]` id other than `confirm`/`cancel`. */
-  readonly id: string;
-  readonly label: string;
-  /** What this button answers, reported back as the outcome's `choice`. */
-  readonly choice: string;
 }
 
 /** The params key an alternative's `choice` rides under. */

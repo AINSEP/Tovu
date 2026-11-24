@@ -99,3 +99,11 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
   `AgentPluginExecutableToolHost` and `ApplyAgentPluginApproval` are imported from `host-bindings.ts`
   (their owner), not re-exported by `register.ts`.
 - `approval-bindings.ts` supplies Tovu's approval-card copy (`AgentPluginDisclosureMessages`).
+  (`../../api-connections/budgets.ts`).
+
+## Wiring
+
+`approval.ts` binds the host's approval copy (`approval-bindings.ts`) into Jini's
+`createAgentPluginDisclosure` and keeps the old host signature. It forwards nothing: callers take
+`APPROVAL_FAMILY_BY_EFFECT` from `@jini-ai/agent-plugins/connect/executable` and
+`TOOL_WITHDRAWN_MESSAGE` / `NOT_CONNECTED_MESSAGE` from `./approval-bindings.js`.

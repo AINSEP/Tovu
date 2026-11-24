@@ -14,11 +14,13 @@ import { createCustomCredential } from "#src/features/custom-credentials/index";
 import { FORM_DESTINATIONS_FILENAME, formDestinationKeyLabel } from "#src/features/form-destinations/index";
 import type { FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "@jini-ai/cms/forms";
 import type { FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
-import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { SiteStore } from "../open-site-store.js";
 import { createSiteRouteDeps } from "../deps.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Harness for `form-delivery-vertical-slice.integration.test.ts`: a real site composition
@@ -231,7 +233,7 @@ function settingsWriteDeps(required: { deps: SiteDeps }): SettingsWriteServiceDe
 /** Saves `core.forms/deliveryBindings` through the validating writer. */
 export async function writeBindings(required: { deps: SiteDeps; bindings: readonly Record<string, unknown>[] }): Promise<void> {
   const { deps } = required;
-  await writeFormDeliveryBindings({ deps: settingsWriteDeps({ deps }), workspaceId: deps.workspaceId, callerPrincipalId: OWNER, value: required.bindings });
+  await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: settingsWriteDeps({ deps }), workspaceId: deps.workspaceId, callerPrincipalId: OWNER, value: required.bindings });
 }
 
 /** Saves `core.forms/autoPull`. */

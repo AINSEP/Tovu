@@ -23,7 +23,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 import { createFederationRuntime, type FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -41,7 +41,7 @@ export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDep
   readonly postRepo: import("../features/post/index.js").PostRepoPort;
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
-  readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
+  readonly skillLayout: import("@jini-ai/agentic/skills/site/layout").SkillLayout;
   readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   /** Host ports for executable Agent Plugin tools; omitted, that family is not registered. */

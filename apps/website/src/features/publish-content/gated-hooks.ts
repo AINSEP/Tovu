@@ -2,7 +2,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
@@ -11,7 +11,8 @@ import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
 import type { PlanImportDeps } from "./planner.js";
 import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
-import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —

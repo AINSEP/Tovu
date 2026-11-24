@@ -3,8 +3,9 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ExecutionTab, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from '@jini-ai/ui';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
+import { ADMIN_LOCALES } from '@/lib/settings-tabs';
 import { createAgentPresentationPort } from '../ai-agent-presentation';
-import { aiAgentPanelDictionaries } from '../settings-execution-i18n';
+import { aiAgentPanelDictionaries } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 
 afterEach(cleanup);
 
@@ -16,7 +17,7 @@ describe('D-21 shared agent card integration', () => {
       onAgents: () => {},
     });
     const { container } = render(
-      <I18nProvider initialLocale="en" dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES })} syncDocumentAttributes={false}>
+      <I18nProvider initialLocale="en" dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES, locales: ADMIN_LOCALES })} syncDocumentAttributes={false}>
         <ExecutionTab presets={DEFAULT_PROVIDER_PRESETS} config={{ ...DEFAULT_EXECUTION_CONFIG, mode: 'local-cli' }} onConfigChange={() => {}} port={port} ariaLabel="AI agent" agentHandle="settings-ai-agent" />
       </I18nProvider>,
     );

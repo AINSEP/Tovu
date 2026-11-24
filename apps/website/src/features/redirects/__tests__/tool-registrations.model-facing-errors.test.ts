@@ -24,7 +24,10 @@ import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
+import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 const WORKSPACE_ID = "ws-redirects-model-facing";
@@ -65,7 +68,7 @@ function makeDeps(options: { allow?: boolean } = {}): { deps: RedirectsToolDeps;
 }
 
 function handler(deps: RedirectsToolDeps, toolId: string): ToolRegistration["handler"] {
-  const registration = buildRedirectsRegistrations(deps).find((r) => r.descriptor.id === toolId);
+  const registration = buildRedirectsRegistrations({ deps, toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }).find((r) => r.descriptor.id === toolId);
   assert.ok(registration, `expected ${toolId} to be wired`);
   return registration.handler;
 }

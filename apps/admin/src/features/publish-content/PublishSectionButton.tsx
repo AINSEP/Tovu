@@ -1,9 +1,8 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import {
-  usePublishSectionButton,
-  type PublishSectionId,
-} from "./hooks/use-publish-section-button.hooks";
+import { type PublishSectionId } from "@tovu/publish-content-ui";
+
+import { usePublishSectionButton } from "./hooks/use-publish-section-button.hooks";
 
 /**
  * @file `plan-publish-sections-2026-09-25.md` §2 S3 — markup only, matching the Dashboard's own

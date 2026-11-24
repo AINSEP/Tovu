@@ -727,7 +727,7 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `source_control_execute_commit` | W | `apps/website/src/features/source-control/tool-registrations.ts:185` |
 | `source_control_get_capabilities` | R | `apps/website/src/features/source-control/tool-registrations.ts:177` |
 | `source_control_propose_credential` | W | `apps/website/src/features/source-control/tool-registrations.ts:167` |
-| `system_get_mail_status` | R | `apps/website/src/features/mail-status/agent-tools.ts:3` |
+| `system_get_mail_status` | R | `@jini-ai/user-management/src/mail/status/agent-tools.ts:3` |
 | `taxonomy_assign_terms` | W | `apps/website/src/features/taxonomy/tool-registrations.ts:131` |
 | `taxonomy_create_taxonomy` | W | `apps/website/src/features/taxonomy/tool-registrations.ts:124` |
 | `taxonomy_create_term` | W | `apps/website/src/features/taxonomy/tool-registrations.ts:126` |

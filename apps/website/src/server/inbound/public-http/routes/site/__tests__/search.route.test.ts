@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
-import type { SearchServiceResult } from "@jini-ai/search";
+import type { SearchServiceResult } from "@jini-ai/core/contracts/site/search";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";

@@ -14,7 +14,8 @@ import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
 import { planImport } from "../planner.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 
 test("the real apply loop joins every raw write in one FK-checked transaction and reports rollback honestly", async (t) => {

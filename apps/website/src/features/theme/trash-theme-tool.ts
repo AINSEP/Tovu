@@ -1,6 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { RemoveEntity, TrashActor, TrashMarkerResult } from "@jini-ai/cms/trash";
+import type { RemoveEntity, TrashMarkerResult } from "@jini-ai/cms/trash";
+import type { TrashActor } from "@jini-ai/core/contracts/site/cms-trash";
 import { nowIso } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";

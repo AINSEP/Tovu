@@ -5,7 +5,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
@@ -14,7 +14,9 @@ import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
+import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
@@ -23,6 +25,7 @@ import { type SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
 import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { composeFormDelivery } from "../form-delivery.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Phase-A security pins for the composed delivery path, on SQLite and PGlite with the real
@@ -67,9 +70,9 @@ async function settingsWith(workspaceId: string, bindings: readonly { bindingId:
   const ids = { newId: () => `setting-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-  await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId, callerPrincipalId: "owner",
+  await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId, callerPrincipalId: "owner",
     value: bindings.map(binding => ({ ...binding, enabled: true, config: { table: "leads" } })) });
   return settingsRepo;
 }

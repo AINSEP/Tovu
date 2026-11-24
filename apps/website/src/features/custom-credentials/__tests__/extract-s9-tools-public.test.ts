@@ -4,14 +4,9 @@ import test from 'node:test';
 import ts from 'typescript';
 import * as portable from '@jini-ai/integrations/credentialed-http/tools';
 import { CustomCredentialNotFoundError } from '@jini-ai/integrations/credentialed-http/sets';
-import { createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
-import { createCredentialCopyRegistrations } from '../credential-copy-tool.js';
 import * as hostErrors from '../store.js';
 
 test('credential tool compatibility entries retain canonical public functions and error identities', () => {
-  assert.equal(createCredentialSaveHandlers, portable.createCredentialSaveHandlers);
-  assert.equal(createCredentialToolRegistrations, portable.createCredentialToolRegistrations);
-  assert.equal(createCredentialCopyRegistrations, portable.createCredentialCopyRegistrations);
   assert.equal(hostErrors.CustomCredentialNotFoundError, CustomCredentialNotFoundError);
 });
 

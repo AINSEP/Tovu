@@ -2,7 +2,7 @@ import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalo
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { replaceMediaFile } from "@jini-ai/cms/media";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";

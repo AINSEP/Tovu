@@ -1,5 +1,5 @@
 import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
-import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
+import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /** CMS-specific, immutable boundaries, run on BOTH peers. Neither a grant nor a confirmation
  * can relax these. Plugin tables are allowed (owner B3, 2026-10-04), subject to the same rules. */

@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
-import { useUsers, type UsersController } from "../hooks/users-controller.hooks";
+import { Users } from "..";
+import { UserManagePanel, type UserManageController } from "@jini-ai/user-management/react";
+import { useUsers } from "../hooks/use-wired-users.hooks";
+import type { LocalizedUsersController as UsersController } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";
-import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Users.tsx` — same shape as

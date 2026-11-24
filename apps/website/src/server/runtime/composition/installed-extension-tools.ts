@@ -30,7 +30,7 @@ import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/t
 import { createRetiredPluginToolAliases } from "@jini-ai/agent-plugins/site/retired-plugin-tool-aliases";
 import { RETIRED_PLUGIN_REPLACEMENTS, toAgentPluginToolId } from "#src/features/agent-plugins/bundled-catalog";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
-import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
+import { registerInstalledSkillTools } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";

@@ -133,7 +133,7 @@ export type AccessTokenSubmitFailure = { kind: "duplicate-label" } | { kind: "va
 /**
  * Classifies a rejected create/update/delete call. Reads `e.code`, falling back to `e.message`, for
  * the two known markers, same reasoning `classifyCredentialSubmitError` in
- * `lib/credential-submit-error.ts` documents.
+ * `@jini-ai/admin/shell/lib/credential-submit-error` documents.
  * @complexity O(1).
  */
 export function classifyAccessTokenSubmitError({ e }: { e: unknown }, _options = {}): AccessTokenSubmitFailure {

@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserAttachPolicyRoute } from "../attach-policy.js";
+import { registerAdminUserAttachPolicyRoute } from "#src/server/runtime/composition/modules/users";
 import type { UsersRouteDeps } from "../deps.js";
 
 /**

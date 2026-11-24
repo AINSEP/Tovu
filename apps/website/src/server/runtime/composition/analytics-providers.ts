@@ -3,12 +3,10 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { loadAnalyticsProviders } from "@jini-ai/agent-plugins/site/analytics-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import {
-  ANALYTICS_FORWARDER_CONTRACT, ANALYTICS_INGEST_HOOK_CONTRACT, asAnalyticsForwarderModule, asAnalyticsIngestHook,
-  createAnalyticsForwarderRegistry, type AnalyticsForwarderCredential,
-} from "@jini-ai/analytics";
+import { type AnalyticsForwarderCredential, ANALYTICS_FORWARDER_CONTRACT, ANALYTICS_INGEST_HOOK_CONTRACT, asAnalyticsForwarderModule, asAnalyticsIngestHook, createAnalyticsForwarderRegistry } from "@jini-ai/analytics";
 import { ANALYTICS_PROVIDERS_TTL_MS, cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "#src/features/analytics/forwarding";
-import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
+import { warnAnalytics } from "#src/features/analytics/warn";
+import { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { readSiteVisitorConsent } from "../../inbound/public-http/middleware/site-cookie-consent.js";
@@ -54,7 +52,7 @@ export function buildAnalyticsProviders(
   // takes effect within the TTL; a failed lookup is not cached (the next beacon retries).
   const credentials = new Map<string, { at: number; value: Promise<AnalyticsForwarderCredential | null> }>();
   return {
-    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId, loadContributions, analytics: analyticsProviderPorts }), clock }),
+    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId, loadContributions, analytics: analyticsProviderPorts }), clock, warn: warnAnalytics }),
     resolveCredential: ({ label }) => {
       const now = clock.nowMs();
       const hit = credentials.get(label);
@@ -88,8 +86,9 @@ export function analyticsProviderRouteDeps(
       consentAllowsAnalytics: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).analyticsLevel === 'full',
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,
+      warn: warnAnalytics,
     }),
-    hooks: createPluginAnalyticsHooks({ loadProviders: providers.load }),
+    hooks: createPluginAnalyticsHooks({ loadProviders: providers.load, warn: warnAnalytics }),
     vendorHooksAllowed: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request })).analyticsLevel === 'full',
   };
 }

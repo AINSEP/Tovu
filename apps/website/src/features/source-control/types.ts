@@ -1,9 +1,9 @@
 import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
-import type { CredentialTokenHint, CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint, CredentialConnection } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { SealedSecret } from "../webhooks/index.js";
-import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
+import { SealedSecret } from "../webhooks/index.js";
+import { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 
 /** Source-control identities are separate from deploy targets: they carry authentication,
  * never a repository, owner or branch. The store seals the complete connection as one blob.

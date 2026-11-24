@@ -13,7 +13,7 @@ import {
   buildSkillToolRegistrations,
   loadInstalledSkillToolSources,
   registerInstalledSkillTools,
-} from "../../tool-registrations.js";
+} from "@jini-ai/agentic/skills/site/tool-registrations";
 import { skillToolDerivedRisk } from "@jini-ai/agentic/skills/tools";
 
 /**

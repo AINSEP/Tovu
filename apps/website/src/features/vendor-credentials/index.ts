@@ -4,7 +4,7 @@
  * `deployments/publish-credentials/store.ts` (deploy hosts, validated against the deploy plugin's
  * descriptors); legacy publish rows are folded once by migration 0012.
  */
-export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "./types.js";
+export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 
 export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";
 export { credentialVault, credentialScope, credentialHint } from "./vault-adapter.js";

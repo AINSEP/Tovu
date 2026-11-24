@@ -1,4 +1,4 @@
-import type { TransformParams } from "@jini-ai/cms/media";
+import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
 
 import { archiveRefusalName, SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";

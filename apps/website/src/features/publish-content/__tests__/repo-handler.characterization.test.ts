@@ -13,7 +13,9 @@ import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/
 import { changedSincePlan, notWired } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "../repo-handler.js";
 import type { RepoPublishTypeConfig, RepoWriteContext } from "../repo-handler.js";
-import type { PackedEntity, PublishContentDeps, PublishContentHandler } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const WORKSPACE_ID = "workspace-1";
 

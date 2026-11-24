@@ -7,8 +7,14 @@ import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { type EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import { classifyAddress } from "#src/platform/http/client";
-import { readPublicDomain, readPublicDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "#src/features/domain-dns/index";
+import { toolInputPublicNames, type DomainDnsToolDeps } from "@jini-ai/devops/dns/site/tools";
+import { createDomainDnsChecks, readPublicDomain as readDiagnosticDomain, readPublicDnsName as readDiagnosticDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "@jini-ai/diagnostics/domain-dns";
 import type { RouteDeps } from "../../routes/types.js";
+
+/** Host binding (K5): the domain/DNS tools validate hostnames with the DNS diagnostics' own validators. */
+export const DOMAIN_DNS_PUBLIC_NAMES: DomainDnsToolDeps["publicNames"] = { readPublicDomain: readDiagnosticDomain, readPublicDnsName: readDiagnosticDnsName };
+/** The same validators with refusals surfaced as the model-facing ToolInputError, for this file's adapters. */
+const { readPublicDomain, readPublicDnsName } = toolInputPublicNames({ validators: DOMAIN_DNS_PUBLIC_NAMES });
 
 /** Uses the existing pinned-public-peer guard, with no redirects, dev exemptions, or large bodies. */
 export const DOMAIN_DNS_EGRESS_POLICY: EgressPolicy = {
@@ -188,4 +194,14 @@ function isBareHttpsEndpoint({ url }: { url: URL }, _options = {}): boolean {
 export function createBundledPublicDnsResolver(required: { client: HttpClientPort; sourceRoot: string }, options: DiagnosticOptions = {}): PublicDnsResolver {
   try { return createPublicDnsResolver({ client: required.client, url: readBundledPublicDnsResolverUrl({ sourceRoot: required.sourceRoot }) }, options); }
   catch { return { query: async () => { throw dnsUnavailable(); } }; }
+}
+
+/**
+ * Host binding (K5): the domain/DNS agent tools receive their checks factory from here, so the
+ * engine tools never import the diagnostics package; the resolver, TLS probe and saved hostnames
+ * are this host's own ports.
+ * @complexity O(1); the checks run only when a tool handler calls them.
+ */
+export function bindDomainDnsChecks(ports: { resolver: PublicDnsResolver; probeTls(input: { domain: string }): Promise<TlsStatus>; listExpectedHosts(required: Record<string, never>): Promise<string[]> }, _optional: Record<string, never> = {}): DomainDnsToolDeps["createChecks"] {
+  return ({ authorize }) => createDomainDnsChecks({ resolver: ports.resolver, probeTls: (input) => ports.probeTls(input), listExpectedHosts: (required) => ports.listExpectedHosts(required), authorize });
 }

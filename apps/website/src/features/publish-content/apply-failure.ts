@@ -4,7 +4,7 @@ import { PluginHookFailedError } from "../../contracts/core/plugin-hook-failed-e
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentOutcomeRow } from "./plan-rows.js";
-import type { PublishContentHandler } from "./type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 /**
  * How {@link applyOneRow} should report a failure raised by `handler.apply()` — the row's downgraded

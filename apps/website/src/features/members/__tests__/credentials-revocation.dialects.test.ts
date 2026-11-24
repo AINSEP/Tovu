@@ -4,13 +4,16 @@ import { test, type TestContext } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import type { MemberRepoPort } from "../ports.js";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
-import { completeSignIn } from "../member-sign-in.js";
-import { updateProfile } from "../member-admin-writes.js";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
+import { memberSqlDeps } from "../repo.sqlite.js";
+import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
+import { updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WS = "credential-workspace";
 const BEFORE = "2026-10-09T12:00:00.000Z";
@@ -19,12 +22,13 @@ const AFTER = "2026-10-09T12:02:00.000Z";
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
 function harness(kernel: ContentKernel) {
-  const members = new SqlMemberRepo(kernel);
-  const sessions = new SqlMemberSessionRepo(kernel);
-  const magicLinks = new SqlMagicLinkTokenRepo(kernel);
+  const members = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
+  const magicLinks = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel }));
   const clock = createFakeClock({ startIso: BEFORE });
   let seq = 0;
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     clock, ids: { newId: () => `credential-${++seq}` }, members, sessions, magicLinks,
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}),

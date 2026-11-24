@@ -8,12 +8,14 @@ import test from "node:test";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
-import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
-import { UserDeleteUnsupportedError } from "../user-purge-types.js";
+import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, SelfDeleteError, type DeleteUserDeps } from "@jini-ai/user-management/identity/delete-user-service";
+import { trashUser } from "../trash-user-binding.js";
+import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**

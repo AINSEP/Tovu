@@ -1,4 +1,4 @@
-import { classifyCredentialSubmitError } from "../../../lib/credential-submit-error";
+import { classifyCredentialSubmitError } from "../../../lib/shell-collaborators";
 import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
@@ -8,13 +8,8 @@ import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor } f
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import {
-  t as defaultT,
-  publishCredentialSaveErrorMessage,
-  publishCredentialsLoadErrorMessage,
-  publishCredentialSelectErrorMessage,
-  publishCredentialVerifyErrorMessage,
-} from "../deployment-i18n";
+import { t as defaultT } from "../deployment-host-i18n";
+import { publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage, publishCredentialSelectErrorMessage, publishCredentialVerifyErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
@@ -225,7 +220,7 @@ function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, provide
 /** Translates a rejected create/update into the exact string {@link usePublishCredentials}'s `save`
  *  stores as that row's `error` — pulled out of `save` for the same complexity-budget reason
  *  `StaticSiteTab.tsx`'s per-provider field split documents one file over. Layers
- *  `classifyCredentialSubmitError`'s (`lib/credential-submit-error.ts`) specific cases over the shared
+ *  `classifyCredentialSubmitError`'s (`@jini-ai/admin/shell/lib/credential-submit-error`) specific cases over the shared
  *  `describeApiError` base case, same "check specific codes first, fall through to the shared base"
  *  convention `lib/api.ts`'s own `describeApiError` doc recommends every screen follow. The
  *  duplicate-label case reads oddly translated verbatim from the server ("a credential labeled...")

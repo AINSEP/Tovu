@@ -1,13 +1,14 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSchemaState } from "@/features/database/api/database-api.types";
-import { useMigrateForwardSection, useWiredMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
-import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-section-dependencies.hooks";
-import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
-import { useTimelineSection } from "../hooks/use-timeline-section.hooks";
-import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
+import type { AdminSchemaState } from "@jini-ai/admin/core";
+import { useMigrateForwardSection } from "@jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks";
+import { MIGRATE_FORWARD_SECTION_HOST, createFakeMigrateForwardSectionPort, useWiredMigrateForwardSection } from "../hooks/migrate-forward-section-dependencies.hooks";
+import { useSchemaStateSection } from "@jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks";
+import { SCHEMA_STATE_SECTION_HOST } from "../hooks/schema-state-section-dependencies.hooks";
+import { useTimelineSection } from "@jini-ai/admin/screens/database/hooks/use-timeline-section.hooks";
+import { TIMELINE_SECTION_HOST, createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
 
 /**
  * @file `useMigrateForwardSection` — the Database screen's plan/confirm/execute ceremony
@@ -255,7 +256,7 @@ describe("reset", () => {
   });
   it("clears done after a completed execution", async () => {
     const port = createFakeMigrateForwardSectionPort();
-    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    const { result } = renderHook(() => useMigrateForwardSection({ port, host: MIGRATE_FORWARD_SECTION_HOST }), { wrapper });
     await act(async () => { await result.current.startPlan(); });
     await act(async () => { await result.current.doConfirm(); });
     await act(async () => { await result.current.doExecute(); });
@@ -269,7 +270,7 @@ describe("reset", () => {
 
   it.each(["plan", "confirm", "execute"] as const)("clears a populated %s mutation error on reset", async (failure) => {
     const port = createFakeMigrateForwardSectionPort({ [`${failure}Error`]: new Error(`${failure} failed`) });
-    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    const { result } = renderHook(() => useMigrateForwardSection({ port, host: MIGRATE_FORWARD_SECTION_HOST }), { wrapper });
     await act(async () => { await result.current.startPlan(); });
     if (failure !== "plan") {
       await act(async () => { await result.current.doConfirm(); });
@@ -321,7 +322,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
       confirmationToken: "tok-x",
       executeResult: { migrated: true },
     });
-    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    const { result } = renderHook(() => useMigrateForwardSection({ port, host: MIGRATE_FORWARD_SECTION_HOST }), { wrapper });
 
     await act(async () => {
       await result.current.startPlan();
@@ -345,7 +346,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("surfaces a plan failure from the fake port's rejected planMigrateForward", async () => {
     const port = createFakeMigrateForwardSectionPort({ planError: new Error("boom from fake") });
-    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    const { result } = renderHook(() => useMigrateForwardSection({ port, host: MIGRATE_FORWARD_SECTION_HOST }), { wrapper });
 
     await act(async () => {
       await result.current.startPlan();
@@ -382,9 +383,9 @@ describe("re-reads what a migration changes", () => {
 
     const view = renderHook(
       () => ({
-        schema: useSchemaStateSection({ port: schemaPort }),
-        timeline: useTimelineSection({ port: timelinePort }),
-        migrate: useMigrateForwardSection({ port: migratePort }),
+        schema: useSchemaStateSection({ port: schemaPort, host: SCHEMA_STATE_SECTION_HOST }),
+        timeline: useTimelineSection({ port: timelinePort, host: TIMELINE_SECTION_HOST }),
+        migrate: useMigrateForwardSection({ port: migratePort, host: MIGRATE_FORWARD_SECTION_HOST }),
       }),
       { wrapper },
     );

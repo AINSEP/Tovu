@@ -9,13 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPublishContentSeedHash, NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";
-import {
-  buildPublishContentCatalog,
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-  type PublishContentDeps,
-  type PublishContentHandler,
-} from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentHandler, buildPublishContentCatalog } from "../type-registry.js";
 
 function registerInspect(entityType: string, inspect: PublishContentHandler["inspect"]): void {
   registerPublishContentContributor({

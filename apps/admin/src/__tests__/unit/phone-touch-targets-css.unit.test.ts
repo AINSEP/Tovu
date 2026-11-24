@@ -47,7 +47,8 @@ describe("phone touch targets are 44px", () => {
   // third of a screen apart (seen at 390px, 2026-11-05).
   it("keeps the sign-in cards together in the middle of the screen", () => {
     let rule = "";
-    parse(stylesCss).walkRules(".login-screen", (found) => { rule = found.toString(); });
+    // The moved Login markup renders `jini-login-screen` (w3-users-sec); read the rule that styles it.
+    parse(stylesCss).walkRules((found) => { if (found.selectors.includes(".jini-login-screen")) rule = found.toString(); });
     expect(rule).toContain("align-content: center");
     // Centred at a fixed height, a taller open recovery card would be cut off above the screen.
     expect(rule).toContain("min-height: 100vh");

@@ -7,7 +7,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, PublishCredentialSecretStoreUnconfiguredError, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
-import type { PublishCredentialSource } from "../types.js";
+import { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,
   InMemoryPublishCredentialVerificationCache,
@@ -16,7 +16,7 @@ import {
   type PublishCredentialVerificationCache,
 } from "../verify.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
-import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 
 /**
  * @file Verifies `verify.ts` in isolation — the fix for "ready means a row exists, not a working

@@ -1,59 +1,20 @@
-import { useCallback, useSyncExternalStore } from "react";
-import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { createDictionaryTranslator } from "@jini-ai/core/text";
+import { WEBMCP_DICT } from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createBrowserAgentSettingsPort, useBrowserAgentSettings, type BrowserAgentSettingsState } from "@jini-ai/admin/screens/webmcp/browser-agent-settings.hooks";
 
-/** Hook seam; the default adapter below owns browser storage and storage events. */
-export interface BrowserAgentSettingsPort {
-  getEnabled(required: Record<string, never>, optional?: Record<string, never>): boolean;
-  setEnabled(required: { enabled: boolean }, optional?: Record<string, never>): void;
-  subscribe(required: { listener: () => void }, optional?: Record<string, never>): () => void;
-}
-
-/** Admin browser preference, deliberately origin-local rather than an installation policy.
- * A blocked storage API still permits a session-only opt-out. No server or schema is needed. */
+/** The admin's own storage key for the browser-agent opt-out. Unchanged since the feature
+ * shipped, so an opt-out saved before the preference port moved to Jini still applies. */
 export const WEBMCP_PREFERENCE_KEY = "tovu.admin.webmcp.enabled";
-const listeners = new Set<() => void>();
-let sessionOverride: boolean | undefined;
 
-export function getBrowserAgentEnabled(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): boolean {
-  if (sessionOverride !== undefined) return sessionOverride;
-  return orFallbackSync({ work: () => window.localStorage.getItem(WEBMCP_PREFERENCE_KEY) !== "false", fallback: true, step: "Read browser agent preference" });
+/** The one preference port the panel, the dock and the WebMCP registration all share, so a
+ * toggle updates every mount immediately. */
+export const browserAgentSettingsPort = createBrowserAgentSettingsPort({ preferenceKey: WEBMCP_PREFERENCE_KEY });
+
+/** Jini's preference hook bound to the admin's port — injected into `BrowserAgentSettingsPanel`. */
+export function useAdminBrowserAgentSettings(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): BrowserAgentSettingsState {
+  return useBrowserAgentSettings({ port: browserAgentSettingsPort });
 }
 
-export function setBrowserAgentEnabled({ enabled }: { enabled: boolean }, _optional: Record<string, never> = {}): void {
-  sessionOverride = enabled;
-  /* Keep the choice for this session when storage is blocked. */
-  orFallbackSync({ work: () => {
-    window.localStorage.setItem(WEBMCP_PREFERENCE_KEY, String(enabled));
-    sessionOverride = undefined;
-  }, fallback: undefined, step: "Save browser agent preference" });
-  for (const listener of listeners) listener();
-}
-
-function subscribe({ listener }: { listener: () => void }, _optional: Record<string, never> = {}): () => void {
-  listeners.add(listener);
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== null && event.key !== WEBMCP_PREFERENCE_KEY) return;
-    sessionOverride = undefined;
-    listener();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => { listeners.delete(listener); window.removeEventListener("storage", onStorage); };
-}
-
-const browserPort: BrowserAgentSettingsPort = {
-  getEnabled: getBrowserAgentEnabled,
-  setEnabled: setBrowserAgentEnabled,
-  subscribe,
-};
-const serverSnapshot = () => true;
-
-export function useBrowserAgentSettings(
-  { port = browserPort }: { port?: BrowserAgentSettingsPort } = {},
-  _optional: Record<string, never> = {},
-) {
-  const listen = useCallback((listener: () => void) => port.subscribe({ listener }), [port]);
-  const snapshot = useCallback(() => port.getEnabled({}), [port]);
-  const enabled = useSyncExternalStore(listen, snapshot, serverSnapshot);
-  const setEnabled = useCallback((required: { enabled: boolean }, optional: Record<string, never> = {}) => port.setEnabled(required, optional), [port]);
-  return { enabled, setEnabled };
-}
+/** The dictionary ships in Jini; the host binds it to its own common words (same as before the move). */
+export const webMcpT = createDictionaryTranslator({ featureDictionary: WEBMCP_DICT }, { commonDictionary: COMMON_I18N });

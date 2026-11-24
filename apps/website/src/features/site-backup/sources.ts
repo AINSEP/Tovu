@@ -7,9 +7,10 @@ import { lstat, mkdtemp, readdir, readFile, realpath, rm, stat, unlink } from "n
 import path from "node:path";
 import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type ReviewedFileHandle, type ReviewedFileSystem } from "@jini-ai/platform/fs";
 
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { listSitePluginPackage, PluginPackagePathError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { listSitePluginPackage, PluginPackagePathError } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 
 /**

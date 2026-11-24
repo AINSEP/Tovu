@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import { useEmailActivity } from "../hooks/use-email-activity.hooks";
+import { useEmailActivity } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { ACTIVITY, BLOCK, createEmailFake, PLAN } from "./email.test-helpers";
 
 /** @file Activity filters reset pages; unblock requires a reason then the server's revision. */
@@ -11,7 +11,7 @@ describe("useEmailActivity", () => {
     const second = { ...ACTIVITY, id: "send-2" };
     api.listActivity.mockResolvedValueOnce({ access: "full", items: [ACTIVITY], nextCursor: "page-2", empty: null })
       .mockResolvedValueOnce({ access: "full", items: [second], nextCursor: null, empty: null });
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.activity.view.kind).toBe("loaded"));
     await act(() => result.current.activity.loadMore());
     expect(api.listActivity).toHaveBeenLastCalledWith({ filter: { outcome: undefined, recipient: undefined }, cursor: "page-2" });
@@ -27,7 +27,7 @@ describe("useEmailActivity", () => {
     const api = createEmailFake();
     api.listActivity.mockResolvedValueOnce({ access: "masked", items: [ACTIVITY], nextCursor: "page-2", empty: null })
       .mockRejectedValueOnce(new ApiError({ message: "Try later", status: 503 }));
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.activity.view.kind).toBe("loaded"));
     await act(() => result.current.activity.loadMore());
     expect(result.current.activity.view).toMatchObject({ kind: "loaded", data: { items: [ACTIVITY], nextCursor: "page-2", access: "masked" } });
@@ -38,7 +38,7 @@ describe("useEmailActivity", () => {
   it("searches blocked addresses and appends their next page", async () => {
     const api = createEmailFake();
     api.listSuppressions.mockResolvedValue({ items: [BLOCK], nextCursor: "blocked-2", empty: null });
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.suppressions.view.kind).toBe("loaded"));
     act(() => result.current.setSearch(" ada "));
     await waitFor(() => expect(api.listSuppressions).toHaveBeenLastCalledWith({ search: "ada" }));
@@ -52,7 +52,7 @@ describe("useEmailActivity", () => {
   it("rejects a short reason before requesting a plan and confirms exactly that plan revision", async () => {
     const api = createEmailFake();
     api.removeSuppression.mockResolvedValueOnce({ removed: false, confirmationRequired: true, plan: PLAN }).mockResolvedValueOnce({ removed: true });
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.suppressions.view.kind).toBe("loaded"));
     act(() => result.current.startRemoval(BLOCK));
     act(() => result.current.setRemovalReason(" ab "));
@@ -73,7 +73,7 @@ describe("useEmailActivity", () => {
 
   it.each(["plan", "confirm"])("shows owner-only text for a 403 at the %s step and keeps the dialog open", async (step) => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.suppressions.view.kind).toBe("loaded"));
     act(() => result.current.startRemoval(BLOCK));
     act(() => result.current.setRemovalReason("Address fixed"));
@@ -86,7 +86,7 @@ describe("useEmailActivity", () => {
 
   it("cancel discards a plan without confirming it", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     act(() => result.current.startRemoval(BLOCK));
     act(() => result.current.setRemovalReason(PLAN.reason));
     await act(() => result.current.continueRemoval());
@@ -98,7 +98,7 @@ describe("useEmailActivity", () => {
 
   it("loads one send's feedback and closes it on a second click", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailActivity({ api, ApiError }, { debounceMs: 0 }));
     act(() => result.current.toggleDetail("send-1"));
     await waitFor(() => expect(result.current.detail).toEqual({ kind: "loaded", data: { activity: ACTIVITY, feedback: [] } }));
     expect(api.getActivity).toHaveBeenCalledExactlyOnceWith({ id: "send-1" });

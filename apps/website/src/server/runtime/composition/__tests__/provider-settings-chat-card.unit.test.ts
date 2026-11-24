@@ -11,11 +11,11 @@ import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { buildCredentialSaveRegistrations, type CredentialSaveAdapters } from "#src/features/custom-credentials/credential-save-tool";
+import { type CredentialSaveAdapters, buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
 import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
 import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";

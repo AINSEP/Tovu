@@ -6,14 +6,15 @@ import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
-import { authenticateApiKey } from "../api-key-service.js";
-import { InMemoryApiKeyRepo } from "../repo.memory.js";
-import type { ApiKeyRepoPort } from "../api-key-types.js";
+import { authenticateApiKey } from "../api-key-binding.js";
+import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
+import type { ApiKeyRepoPort } from "@jini-ai/user-management/identity/api-key-types";
 import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
 import { SqlitePrincipalPolicyRepo, SqlitePrincipalRoleRepo, SqliteRolePolicyRepo } from "../repo.sqlite.js";
 import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
 import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
-import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 
 /**
  * @file Shared contract-test suite for the identity repo ports, run against both

@@ -7,7 +7,7 @@ import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { USER_ENTITY_TYPE } from "#src/features/trash/index";
-import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
 import { createCommentTrashAdapter } from "#src/features/trash/index";
 import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { createMediaTrashAdapter } from "#src/features/trash/index";

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
-import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial, siteKeySourcesForSiteDir } from '#src/features/webhooks/index';
+import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from '#src/features/webhooks/keyring.env';
+import { siteKeySourcesForSiteDir } from '#src/features/webhooks/site-key-sources';
 import type { PublishHistoryStore } from '../static-publish/publish-history.js';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';

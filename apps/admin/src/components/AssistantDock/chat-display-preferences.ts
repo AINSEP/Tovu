@@ -5,7 +5,7 @@ import { INTERFACE_NAMESPACE } from "@/lib/settings-tabs";
  * @file The assistant dock's Chat settings → Display choices (owner, 2026-10-11), stored per operator
  * in the server's `core.interface` settings namespace — the same per-user ledger as Settings → User
  * Interface, so the choice follows the person, not the browser. The server registers the three keys
- * in `apps/website/src/features/settings/admin-interface.ts`; until a server carries them, reads
+ * in `@jini-ai/cms/settings/site/admin-interface`; until a server carries them, reads
  * fall back to the defaults below and a save is reported as failed (the choice still applies for
  * the session).
  *

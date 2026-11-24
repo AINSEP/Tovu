@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { CustomCredentialValidationError } from "../../custom-credentials/store.js";
-import type { SourceControlProviderOperations } from "../provider-module.js";
+import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import type { LoadSourceControlProviders, SourceControlProviderRegistry } from "../provider-registry.js";
 import { bindSourceControlWritePort } from "../write-port.js";
 

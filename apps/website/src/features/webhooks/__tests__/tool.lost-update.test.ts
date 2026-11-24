@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
 
 test("webhook tools expose a version and report stale updates with recovery guidance", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   await repo.insert({ id: "sub", workspaceId: "ws", ownerPrincipalId: "owner", label: "Original",
     targetUrl: "https://example.com/hook", topics: ["post.created"], secretVersion: 1,
     previousSecretVersion: null, status: "active", createdByPrincipalId: "owner", createdByPluginId: null,

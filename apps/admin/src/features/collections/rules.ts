@@ -5,7 +5,7 @@ import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/scree
 import { ApiError, describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { isVersionConflict } from "../../lib/version-conflict";
+import { isVersionConflict } from "../../lib/shell-collaborators";
 import { t as translate } from "./collections-i18n";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -104,7 +104,7 @@ export function visibleEntryEditorError(params: {
   lifecycleError: Error | null;
   saveFallback: string;
   lifecycleFallback: string | null;
-  /** Translated `VERSION_CONFLICT_MESSAGE` (`lib/version-conflict.ts`). */
+  /** Translated `VERSION_CONFLICT_MESSAGE` (`@jini-ai/admin/shell/lib/version-conflict`). */
   versionConflictMessage: string;
 }): string | null {
   const describe = ({ error, fallback }: { error: Error; fallback: string }, _optional = {}) =>

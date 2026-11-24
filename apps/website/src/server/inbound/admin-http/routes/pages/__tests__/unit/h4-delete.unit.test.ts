@@ -6,7 +6,7 @@ import express from 'express';
 import { createPost } from '#src/features/post/index';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
-import { registerAdminPageDeleteRoute } from '../../delete.js';
+import { registerAdminPageDeleteRoute } from '#src/server/runtime/composition/modules/pages';
 
 test('page delete losing its version compare-and-set is 409 and leaves the page intact', async () => {
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: 'owner' }) };

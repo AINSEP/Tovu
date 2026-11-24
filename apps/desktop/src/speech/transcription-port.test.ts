@@ -1,11 +1,15 @@
 /**
- * @file Direct tests for `transcription-port.ts`'s platform-selection logic. No Electron, no real
+ * @file Direct tests for `@jini-ai/desktop-host/speech`'s platform selection bound with Tovu wording. No Electron, no real
  * macOS port — `createMacPort` is a plain injected factory here.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { resolveTranscriptionPort, unavailablePort } from "./transcription-port.ts";
+import { resolveTranscriptionPort as resolvePort, unavailablePort as unavailable, type TranscriptionPort } from "@jini-ai/desktop-host/speech";
+import { SPEECH_HOST } from "./speech-host-config.ts";
+// Tovu's wording bound onto the Jini selector, exactly as `SPEECH_HOST` feeds it in production.
+const unavailablePort = ({ reason }: { reason: string }) => unavailable({ reason, message: SPEECH_HOST.transcriptionMessages.unavailable });
+const resolveTranscriptionPort = (args: { platform: NodeJS.Platform; createMacPort: () => TranscriptionPort }) => resolvePort({ ...args, messages: SPEECH_HOST.transcriptionMessages });
 
 test("unavailablePort reports itself unavailable with the given reason", async () => {
   const port = unavailablePort({ reason: "some-reason" });

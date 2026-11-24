@@ -1,6 +1,6 @@
 import { type SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import { SiteSavedKeysPort } from "./saved-keys-port.js";
 
 export interface SiteSavedKeysDeps {
   workspaceId: string;

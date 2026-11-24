@@ -4,10 +4,11 @@
  * `use-page-editor.hooks.ts` (its size ratchet), no behavior change.
  */
 
-import { readVersionConflict } from "../../../lib/version-conflict";
+import { readVersionConflict } from "../../../lib/shell-collaborators";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
-import { pagePartialSaveMessage, pageSaveSuccessMessage, pageUnchangedSaveMessage, type PageSaveConflict, type PageSavePlan } from "../rules";
+import { pagePartialSaveMessage, pageSaveSuccessMessage, pageUnchangedSaveMessage, type PageSavePlan } from "@jini-ai/admin/pages/page-editor-rules";
+import type { PageSaveConflict } from "../rules";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 
 /** `save`'s own "apply a successful write" step, named out of `save`'s body for the same

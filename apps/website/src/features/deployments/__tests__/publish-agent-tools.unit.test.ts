@@ -15,7 +15,8 @@ import { ToolInputError, type SurfaceEmitter, type SurfaceEmission, type ToolExe
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
-import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
+import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../static-publish/index.js";
+import { type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "../../vendor-credentials/repo.memory.js";
@@ -30,7 +31,7 @@ import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
-import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
+import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

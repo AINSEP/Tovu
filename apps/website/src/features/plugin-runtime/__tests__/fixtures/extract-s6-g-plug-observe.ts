@@ -14,7 +14,7 @@ import { createToolRegistry, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { InMemoryPluginActivationRepo, PluginInvalidError, setPluginEnabled, type PluginManifest } from "@jini-ai/plugins/host";
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
@@ -24,14 +24,15 @@ import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runt
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 import { toAdminPluginResponse } from "@jini-ai/plugins/host";
-import { pluginAgentToolCatalog } from "../../agent-tools.js";
+import { pluginAgentToolCatalog, pluginsInstallCatalog as installCatalog, pluginSourceAgentToolCatalog } from "../../plugin-host-copy.js";
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, pluginCapabilityToolDerivedRisk, registerEnabledPluginCapabilityTools, type PluginCapabilityToolDeps } from "../../capability-tool-registrations.js";
-import { catalog as installCatalog, derivedRisk as installDerivedRisk } from "../../install-tool.js";
-import { pluginSourceAgentToolCatalog, pluginSourceDerivedRisk } from "../../source-tools.js";
-import { describeEnableApproval, pluginsDerivedRisk } from "../../tool-registrations.js";
-import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
+import { derivedRisk as installDerivedRisk } from "../../install-tool.js";
+import { pluginSourceDerivedRisk } from "../../source-tools.js";
+import { pluginsDerivedRisk } from "../../tool-registrations.js";
+import { describeEnableApproval } from "@jini-ai/plugins/runtime/enable-confirmation-ui";
+import { describeUninstallApproval } from "@jini-ai/plugins/runtime/uninstall-confirmation-ui";
 import { PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, noDialog, siteRecord } from "./plugins-tool-harness.js";
 import { requiredPostReader } from "./plugin-post-read.js";
 

@@ -10,7 +10,7 @@ import { pagesAgentToolCatalog } from "#src/features/pages/agent-tools";
 import { mediaViewImageAgentToolCatalog } from "#src/features/media/view-image-tool";
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
 import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
-import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/agent-tools";
+import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/tool-registrations";
 import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
 /** Bind the one assistant adapter to existing CMS owners and their declared permissions.

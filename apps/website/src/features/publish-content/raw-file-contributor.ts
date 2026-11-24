@@ -9,7 +9,9 @@ import { normalizeMode } from "./file-tree-policy.js";
 import type { RawFileInverse, RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
+import type { PublishContentContributor, PublishContentDeps } from "./type-registry.js";
+import type { PublishContentHandler, SkippedPackEntity } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 function sha(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }
 function stateFor({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): Record<string, unknown> {

@@ -21,8 +21,8 @@ import { createSite } from "../../site-dir.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
-import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
-import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
+import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 
 /** Site-assistant credentials and the external MCP repos, preferences and provider faces. */

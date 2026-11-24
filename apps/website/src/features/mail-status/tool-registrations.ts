@@ -2,16 +2,17 @@ import { toolMetadata } from '@jini-ai/core/tool-metadata/mail-status';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { MailProviderControl, MailStatusReport } from "../../platform/mail/index.js";
-import { mailStatusAgentToolCatalog } from "./agent-tools.js";
-import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
+import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort, MailStatusReport } from "@jini-ai/platform/mail";
+import type { MailProviderControl } from "@jini-ai/platform/mail";
+import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
+import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "@jini-ai/platform/mail/test-send";
 import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
 import { asToolInputError, currentLanesDetail } from "./provider-tool-registrations.js";
 
@@ -25,7 +26,7 @@ export interface MailStatusToolDeps {
   userRepo?: Pick<UserRepoPort, "findByPrincipalId">;
   /** The site's system-mail From (`platform/mail/sender-identity.ts`). */
   mailSenderIdentity?: MailSenderIdentityPort;
-  /** Shared with the admin test-send route (`features/mail-status/test-send.ts`). */
+  /** Shared with the admin test-send route (`@jini-ai/platform/mail/test-send`). */
   mailTestSendLimiter?: MailTestSendDeps["mailTestSendLimiter"];
   mailTestMode?: MailTestSendDeps["mailTestMode"];
   mailTestProvider?: MailTestSendDeps["mailTestProvider"];

@@ -14,7 +14,8 @@ import { InMemoryBlobStore, InMemoryAssetBlobRepo } from "#src/features/media/in
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 async function fixture(t: test.TestContext) {
   const siteDir = await mkdtemp(path.join(tmpdir(), "backstop-files-"));

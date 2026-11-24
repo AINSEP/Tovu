@@ -15,7 +15,7 @@ bring the vendors.
 ## Push delivery in one paragraph
 
 A site lists its destinations in the `core.forms/deliveryBindings` setting
-(`features/settings/form-delivery.ts`): `{ bindingId, adapterId, connectionRef, enabled,
+(`@jini-ai/cms/settings/site/form-delivery`): `{ bindingId, adapterId, connectionRef, enabled,
 formIds?, config }`. `adapterId` is a destination id from this registry; `connectionRef` names a
 saved connection, never a secret; `config` is the adapter's own non-secret settings (secret-shaped
 keys or values are refused). When a submission arrives, Jini's planner (`@jini-ai/cms/forms`)

@@ -33,7 +33,7 @@ runtime logic lands here yet.
 
 `WebhookDeliveryRecord` (types.ts) carries no payload/data column, matching ADR-036 §2's DDL
 sketch — but the delivery worker still needs the original event's `data` to build the envelope
-it signs at Stage B, potentially in a later process/tick than Stage A's fan-out. `repo.memory.ts`
+it signs at Stage B, potentially in a later process/tick than Stage A's fan-out. `@jini-ai/integrations/webhooks/site/repo.memory`
 adds a `DeliveryEnvelopeStore` side-channel (NOT part of the reviewed port surface) as a stand-in
 seam so `enqueueDelivery` and `processDueDeliveries` are independently testable now. The real
 answer — re-hydrate from the core event outbox by `event_id`, add a payload column to
@@ -46,9 +46,9 @@ SQLite adapters for both ports — `SqliteWebhookSubscriptionRepo implements Web
 and `SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort` — already exist and are live-wired
 into the composition root (`server/runtime/composition/deps.ts`). **Deviation from every sibling
 feature's convention worth knowing**: they live at `platform/db/sqlite/webhook-repo.sqlite.ts`, not a
-co-located `repo.sqlite.ts` next to `repo.memory.ts` the way `features/post/repo.sqlite.ts` and others
-do — that forces a few outside callers to deep-import `repo.memory.ts`'s `DeliveryEnvelopeStore` type
-directly rather than through this feature's own surface. Not fixed here; flagged so the next person who
+co-located `repo.sqlite.ts` the way `features/post/repo.sqlite.ts` and others do (the in-memory
+adapters moved to `@jini-ai/integrations/webhooks/site/repo.memory`; callers import that subpath and the
+`DeliveryEnvelopeStorePort` type from `@jini-ai/integrations/webhooks` directly). Not fixed here; flagged so the next person who
 touches webhook persistence doesn't have to rediscover it.
 
 ## Future direction
@@ -65,3 +65,46 @@ touches webhook persistence doesn't have to rediscover it.
 ## Wiring
 
 - `RuntimeMode` (the type) is imported from `@jini-ai/core/contracts/site/core-runtime-mode`; `resolveRuntimeMode` (the value) still comes from `#src/contracts/core/runtime-mode`, which the composition root calls and passes down.
+
+### Forwarding lines removed
+
+`delivery.ts` re-exports nothing from `@jini-ai/integrations/webhooks`; `computeBackoffMs`,
+`MAX_DELIVERY_ATTEMPTS` and the delivery option/result types are imported from there. `ports.ts` was a pure
+forward of the webhook ports (`RootKeyHandle` as `SiteKeyHandle`, the repo ports) and of the outbound
+`HttpClientPort`; it is gone, importers take the ports from `@jini-ai/integrations/webhooks`,
+`RootKeyHandle` where they used `SiteKeyHandle`, and the HTTP types from `platform/http/ports.js` /
+`@jini-ai/core/primitives`. `index.ts` now keeps only the `WebhookDeliveryRecord` forward and the site-key lines
+that route registrations (`routes/integrations/list.ts`, `routes/system/site-key.ts`,
+`routes/system/deployment-overview.ts`, `routes/publish-trust/handshake.ts`) still import from it. The file
+header of the removed `ports.ts` carried these notes (kept verbatim):
+
+> @file Canonical Jini webhook port exports with Tovu's outbound HTTP policy (ADR-036/ADR-038).
+> Webhook dispatch is core outbox orchestration, not an extra mediator/port (ADR-006/ADR-009).
+> Repo contracts are workspace-scoped; adapters own durable claims and deduplication.
+>
+> Site-key custody: raw key bytes remain outside portable content.db and never cross the SDK/ABI
+> surface (ADR-024); handles name the active generation. Signing secrets are deterministically
+> derived per workspace/subscription/version, never stored. Rotation requires receivers to
+> re-copy signing material and export to rewrap sealed credentials. Other consumers use generic
+> derive because analytics/unsubscribe contexts cannot fit the webhook-specific derivation shape.
+> purpose MUST affect HKDF and stay domain-separated from deriveSigningSecret; info alone would
+> make that namespace decorative and allow cross-purpose collisions.
+>
+> Recoverable outbound credentials are sealed under the site key; content.db holds ciphertext.
+> New seals require AAD. Opens require the byte-identical binding or authentication fails, so rows
+> cannot transplant ciphertext across workspace/provider/credential scope. GCM authenticates AAD
+> without storing it; callers re-derive it from context. Absent open AAD remains valid for old
+> unbound rows; per-store aad_version/backfill policy belongs to each credential store.
+>
+> Delivery retry state stays in a distinct table because each endpoint retries independently of
+> the source event outbox. Durable enqueue may atomically co-persist the envelope with its record;
+> delivery.ts documents why the following envelopeStore.save remains safe for both adapter forms.
+> listBySubscription orders newest-first by createdAt/id before applying the limit.
+> Integration-secret persistence is a seam for outbound connectors, not ownership of their runtime.
+
+## Wiring (delivery)
+
+The delivery binding is owned by `@jini-ai/integrations/webhooks/site/delivery`. Tovu injects its wire
+header names (`TOVU_WEBHOOK_HEADERS` in `wire-headers.ts`: `tovu-signature`, `tovu-delivery-id`,
+`tovu-event-id` — byte-identical wire values) as `deps.headers` in
+`server/runtime/composition/webhook-delivery-worker.ts`; `__tests__/delivery.test.ts` pins them on the wire.

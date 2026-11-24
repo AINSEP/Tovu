@@ -8,7 +8,8 @@ import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import { createBundledComposerCapabilitySource, emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
+import { createBundledComposerCapabilitySource } from "@/features/plugins/composer-capabilities";
+import { emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
 function createComposerReload(
   { installed, state, queryScope, setCatalog }: {

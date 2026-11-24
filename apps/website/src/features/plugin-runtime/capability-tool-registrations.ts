@@ -6,7 +6,7 @@ import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assis
 import type { DerivedRiskByToolId } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
 // Disclosed cross-domain read, same shape `agent-tools.ts`'s header already accepts for this
 // package: `ext.{pluginId}.*` is written ONLY on a `posts` row (see `post.ts`'s own `ext` field
@@ -28,8 +28,6 @@ import type { PluginPostReadPort } from "@jini-ai/plugins/runtime/service-ports"
  * Called once from `agent-daemon-server.ts`'s `start()`, immediately before `buildToolCatalogQuery`
  * snapshots the registry into a one-shot FTS index — a registered-late tool is invisible to `search_tools`.
  */
-
-export type { PluginCapabilityFieldSource, PluginCapabilityToolSource } from "@jini-ai/plugins/host";
 
 /** Tovu's exact model-facing wording for the capability tools (text only). */
 const CAPABILITY_TOOL_MESSAGES: PluginCapabilityToolText = {

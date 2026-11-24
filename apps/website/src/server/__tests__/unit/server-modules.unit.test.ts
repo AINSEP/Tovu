@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -11,12 +12,15 @@ import { createIntegrationsModule } from "../../runtime/composition/modules/inte
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
-import type { MailerSendOptions } from "#src/platform/mail/index";
+import type { MailerSendOptions } from "@jini-ai/platform/mail";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { type MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`
@@ -39,7 +43,7 @@ test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", a
 
 test("createIntegrationsModule().start() enqueues a webhook delivery when a form.submission.received event fires", async () => {
   const bus = new InMemoryEventBus();
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const nowIso = "2026-07-16T00:00:00.000Z";
   const clock = { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso };
@@ -122,6 +126,7 @@ for (const mode of ["local", "production"] as const) {
       magicLinks: route.magicLinkRepo, principals: route.principalRepo, origin: route.originRegistry,
       passwordHasher: { hash: async () => "fixture-code-hash", verify: async () => false },
       senderIdentity: { resolve: async () => ({ email: "members@example.test" }) },
+      mailTransport: membersMailTransport,
       mailer: { ...mailer, capabilities: () => ({ ...mailer.capabilities(), driver: "memory" }),
         send: async (message, options) => { sent.push(message); return mailer.send(message, options); } },
     };

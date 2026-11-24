@@ -1,4 +1,4 @@
-import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { createHash } from "node:crypto";
 import { createConsoleLogger, type HttpClientPort, type HttpResponse, type Logger } from "@jini-ai/core/primitives";
 import { callPeer, type PeerCallDeps } from "../publish-content/peer-transport.js";

@@ -35,11 +35,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/content-analysis/hooks/use-content-analysis.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -85,16 +80,6 @@
     "value": 3
   },
   {
-    "file": "apps/admin/src/features/email/email-tabs-i18n.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/email/hooks/email-load.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -121,11 +106,6 @@
   },
   {
     "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/pages/hooks/use-editor-html-jump.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -223,11 +203,6 @@
     "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
@@ -535,16 +510,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/consent/service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/consent/settings.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/database-transfer/destination-store.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -650,39 +615,14 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/identity/delete-user-service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/identity/tool-registrations.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/mail-status/feedback-setup.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
     "file": "apps/website/src/features/mail-status/provider-operations.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/mail-status/test-send.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/mail-status/use-readiness.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/mail/retention.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/website/src/features/media/analytics.ts",
@@ -710,19 +650,9 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/member-login/link-service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/member-login/oidc-login.ts",
     "rule": "catch-reads-error",
     "value": 4
-  },
-  {
-    "file": "apps/website/src/features/members/member-challenge-request.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/members/member-sign-in.ts",
@@ -840,12 +770,12 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -945,11 +875,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/site-inspection/live-url.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/sites/site-admin.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -958,16 +883,6 @@
     "file": "apps/website/src/features/sites/site-preview/site-preview-store.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/features/skills/layout.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/skills/layout.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/source-control/provider-registry.ts",
@@ -1018,16 +933,6 @@
     "file": "apps/website/src/features/vendor-credentials/vault-adapter.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 3
   },
   {
     "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",

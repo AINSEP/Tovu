@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ExportReport } from "#src/contracts/core/export-report";
 
 import { previewCommitExport, type CommitSiteInput } from "../commit-site.js";
-import type { StaticSitePackagerPort } from "../static-site-packager-port.js";
+import type { StaticSitePackagerPort } from "@jini-ai/devops/source-control/site/static-site-packager-port";
 
 /**
  * @file `commit-site.ts` consumes the packager only through `StaticSitePackagerPort`. These drive

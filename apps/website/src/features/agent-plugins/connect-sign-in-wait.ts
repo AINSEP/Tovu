@@ -2,7 +2,7 @@
  * (generic over the card `Resource` and the connect result); these entries keep their signatures and
  * bind Tovu's UI, card identity, SAME process exchange store and missing-emitter/skip copy. */
 import { agentPluginCardHost } from './card-host-bindings.js';
-import type { AgentPluginCardsPort } from '@jini-ai/agent-plugins/connect';
+import type { AgentPluginCardsPort, AgentPluginConnectResult } from '@jini-ai/agent-plugins/connect';
 import type { SurfaceCardSecretDeps } from '@jini-ai/core/contracts/cards';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
@@ -10,7 +10,6 @@ import type { PluginCredentialCard } from '@jini-ai/core/contracts/credentials';
 import { buildAgentPluginConnectCard } from './connect-card-ui.js';
 import type { AgentPluginConnectCardSpec } from '@jini-ai/agent-plugins/connect';
 import { waitAtAgentPluginSignInCardWithPorts as waitWithPorts } from '@jini-ai/agent-plugins/connect';
-import type { AgentPluginConnectResult } from './connect-tool.js';
 
 /** Old seam signature (connect result fixed to Tovu's `AgentPluginConnectResult`). */
 export function waitAtAgentPluginSignInCardWithPorts<Resource>(required: {

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { terminalReasonNotice as jiniTerminalReasonNotice, translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
+import { terminalReasonNotice as jiniTerminalReasonNotice, translateRunAgentPayload } from "@jini-ai/chat/core/run-events";
+import type { RunAgentPayload } from "@jini-ai/core/contracts/site/core-run-events";
 
 import { createAgUiTranslationState as create, translateAgentEventToAgUi as translate, type AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
 

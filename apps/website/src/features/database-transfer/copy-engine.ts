@@ -4,6 +4,8 @@ import { PARTIALLY_EXCLUDED_TABLES, TRANSFER_EXCLUSION_REASON_TEXT } from "./exc
 /** The first site gets this schema; existing destination markers must keep their original names. */
 export const DEFAULT_TRANSFER_SCHEMA = "tovu";
 export const TRANSFER_MARKER_TABLE = "_tovu_transfer";
+/** The `application_name` the copy's psql sessions report to the destination server. */
+export const TRANSFER_APPLICATION_NAME = "tovu-database-transfer";
 export const TRANSFER_NAMING: TransferNaming = { defaultSchema: DEFAULT_TRANSFER_SCHEMA, markerTable: TRANSFER_MARKER_TABLE, unvalidatedTable: "pg_temp._tovu_unvalidated", schemaPrefix: "tovu_", sqlTag: "tovu" };
 /**
  * Rows left behind in tables that are otherwise copied (secret settings), per table, with the reason.

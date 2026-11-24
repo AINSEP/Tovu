@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SITE_CONSENT_DEFAULTS } from '../../config.js';
+import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
 
 const published = { id: 'published-1', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' }, actorId: 'owner', createdAt: '2026-11-05T00:00:00.000Z' };
 

@@ -13,7 +13,7 @@ import { InMemorySourceControlCredentialSetRepo } from '../../source-control/rep
 import { createSourceControlCredential, updateSourceControlCredential, resolveDefaultForSourceControl, listSourceControlCredentials } from '../../source-control/store.js';
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
-import type { DeployTargetRegistry } from '../../deployments/deploy-targets/types.js';
+import type { DeployTargetRegistry } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
 import { saveMediaProviderCredentials, resolveMediaProviderCredential, getMediaProviderCredentials } from '../../media/provider-credential-store.js';
 

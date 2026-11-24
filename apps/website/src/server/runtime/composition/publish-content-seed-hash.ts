@@ -8,7 +8,7 @@ import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
-import { buildPublishContentCatalog, type PublishContentDeps } from "#src/features/publish-content/type-registry";
+import { type PublishContentDeps, buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";

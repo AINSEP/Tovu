@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMember } from "@/features/members/api/members-api.types";
+import type { AdminMember } from "@jini-ai/core/contracts/site/user-management-react";
 import { createFakeMembersPort } from "@jini-ai/user-management/react/testing";
 
 /**

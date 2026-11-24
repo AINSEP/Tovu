@@ -38,7 +38,9 @@ import type { RedirectHitSink } from "@jini-ai/cms/redirects";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
@@ -49,7 +51,7 @@ const contributions = {
 
 // Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeRedirectsTools() });
+contributions.contributors.register({ contribution: contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }) });
 
 const WORKSPACE_ID = "ws-redirects-tools";
 const PRINCIPAL_ID = "principal-under-test";

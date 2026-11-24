@@ -23,7 +23,7 @@ import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
 import { createAgentPluginEnabledReader } from '@jini-ai/agent-plugins/site/activation-effects';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import type { ProviderPluginPorts } from './provider-plugins.js';
-import type { ProviderConfigSource } from './provider-config-source.js';
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { readCommerceConfiguration, type CommerceConfiguration } from './commerce-settings.js';
 
 export type CommerceServer = ReturnType<typeof createCommerceServer>;

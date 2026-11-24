@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
-import { createDiskAttachmentStore, detectAttachmentKind, type PendingAttachmentSummary } from "@jini-ai/daemon/http";
+import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon/http";
+import type { PendingAttachmentSummary } from "@jini-ai/core/contracts/site/daemon-http";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 
 import {

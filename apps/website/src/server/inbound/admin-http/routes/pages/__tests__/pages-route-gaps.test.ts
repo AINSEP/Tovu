@@ -12,13 +12,13 @@ import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/r
 import { harness, config, owner } from "#src/features/agent-plugins/__tests__/fixtures/plugin-exports";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { ContentRouteDeps } from "../../content/deps.js";
-import { registerAdminPageCreateRoute } from "../create.js";
-import { registerAdminPageDeleteRoute } from "../delete.js";
-import { registerAdminPageGetRoute } from "../get-by-id.js";
-import { registerAdminPageListRoute } from "../list.js";
-import { registerAdminPageUpdateHtmlRoute } from "../update-html.js";
-import { registerAdminPageUpdateRoute } from "../update.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
+import { registerAdminPageCreateRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageDeleteRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageGetRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageUpdateRoute } from "#src/server/runtime/composition/modules/pages";
 
 /**
  * @file The admin Pages routes' error and fallback arms that the real-composition suites

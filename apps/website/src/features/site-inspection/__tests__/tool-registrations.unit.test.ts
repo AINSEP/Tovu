@@ -16,8 +16,8 @@ import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ADMIN_SCREENS } from "../admin-screens.generated.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
-import { SITE_CAPABILITIES_SECTION_NAMES } from "../site-capabilities.js";
-import { SITE_PROFILE_SECTION_NAMES } from "../site-profile.js";
+import { SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
+import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 import {
   buildSiteInspectionRegistrations,
   contributeSiteInspectionTools,
@@ -309,8 +309,10 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
   await deps.identityReady;
   await assert.rejects(
     async () => {
-      const { fetchPublishedPage } = await import("../published-page.js");
-      await fetchPublishedPage({ deps, input: { path: "//evil.example" } });
+      const { fetchPublishedPage } = await import("@jini-ai/diagnostics/web-evidence/published-page");
+      const { RESERVED_SEGMENTS } = await import("#src/platform/routing/index");
+      const { trackFetch } = await import("@jini-ai/diagnostics/observability");
+      await fetchPublishedPage({ deps: Object.assign(Object.create(deps), { reservedSegments: RESERVED_SEGMENTS, trackFetch }), input: { path: "//evil.example" } });
     },
     PublishedPagePathError,
   );

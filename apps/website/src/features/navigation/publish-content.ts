@@ -4,13 +4,8 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
-import type {
-  EntityReplacement,
-  PublishContentContributor,
-  PublishContentDeps,
-  ReferenceHolder,
-  RepointResult,
-} from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { EntityReplacement, ReferenceHolder, RepointResult } from "@jini-ai/cms/publish/content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMenuEntity } from "./import-menu.js";

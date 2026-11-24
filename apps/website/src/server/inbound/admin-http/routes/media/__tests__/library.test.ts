@@ -10,7 +10,7 @@ import { downloadDocuments } from '#src/features/media/__tests__/download-docume
 import { libraryFixture } from '#src/features/media/__tests__/library.fixture';
 import { registerMediaRenditionRoute, registerMediaOriginalVideoRoute } from '#src/server/inbound/public-http/routes/site/media-rendition';
 import type { MediaRenditionRouteDeps } from '../deps.js';
-import { registerAdminMediaUploadRoute } from '../upload.js';
+import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaListRoute } from '../list.js';
 import { registerAdminMediaUpdateRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaOriginalRoute } from '../original.js';

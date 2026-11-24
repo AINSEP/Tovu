@@ -1,4 +1,5 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */
@@ -29,7 +30,7 @@ import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, fo
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
   type SupersessionManifestsPort,
-} from "./supersession.js";
+} from "@jini-ai/agent-plugins/site/supersession";
 import type {
   AgentPluginArchiveEntry as JiniArchiveEntry, AgentPluginArchiveReaderPort as JiniArchiveReader,
   AgentPluginLayoutPort, UninstallAgentPluginRequired as JiniUninstallRequired,
@@ -178,7 +179,7 @@ function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, op
     loadPluginContributions: async <D, T>(input: { readonly workspaceId: string; readonly definition: PluginContributionDefinition<D, T> }, options: LoadPluginContributionsOptional = {}) => {
       const verdicts = await owner.findTrustedPluginPackages({ workspaceId: input.workspaceId, filename: input.definition.filename,
         contribution: input.definition.contribution, requireActive: false });
-      const supersessions = await readSupersessions({ verdicts, manifests });
+      const supersessions = await readSupersessions({ verdicts, manifests, orFallback });
       const definition = { ...input.definition, load: async (context: Parameters<typeof input.definition.load>[0]) =>
         supersededDescriptorRefusal({ supersessions, pluginId: context.plugin.pluginId, descriptor: context.descriptor }) ?? input.definition.load(context) };
       return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) =>

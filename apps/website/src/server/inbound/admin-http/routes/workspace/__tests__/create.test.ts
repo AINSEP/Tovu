@@ -5,11 +5,10 @@ import express from "express";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWorkspaceCreateRoute } from "../create.js";
-import type { WorkspaceRouteDeps } from "../deps.js";
+import { registerAdminWorkspaceCreateRoute, type WorkspaceRouteDeps } from "#src/server/runtime/composition/modules/workspace";
 
 function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Express {
   const deps: WorkspaceRouteDeps = {

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";

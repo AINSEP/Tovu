@@ -4,7 +4,7 @@ import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
-import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { isBundledSchemaIdentity } from "#src/platform/site-dir/index";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";

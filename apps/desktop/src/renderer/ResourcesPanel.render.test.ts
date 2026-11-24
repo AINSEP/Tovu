@@ -11,7 +11,7 @@ import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, me
 import { useSitePower } from './use-site-power.hooks.js';
 import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
 import { createDesktopResources } from '../desktop-resources.ts';
-import type { ProcessUsage } from '@jini-ai/platform/process';
+import type { ProcessUsage } from '@jini-ai/core/contracts/site/platform-process';
 
 Object.assign(globalThis, { React });
 installDom();
@@ -76,7 +76,7 @@ test('M2 shows provenance on toolbar, tooltip, site card, panel totals and indiv
   assert.equal(host.querySelector('.card__resources')!.textContent, '~0.6 GB');
   act(() => chip.click());
   assert.match(host.querySelector('.resources-total')!.textContent!, /^Total: ~0\.6 GB approx\./);
-  assert.deepEqual([...host.querySelectorAll('tbody .resources-table__group td.num:first-of-type')].map(cell => cell.textContent), ['~0.6 GB', '~0.6 GB']);
+  assert.deepEqual([...host.querySelectorAll('tbody .jini-resources-table__group td.jini-resources-table__num:first-of-type')].map(cell => cell.textContent), ['~0.6 GB', '~0.6 GB']);
   assert.equal(host.querySelector('tbody:last-child tr:nth-child(2) td:nth-child(3)')!.textContent, '~78 MB approx.');
 });
 
@@ -141,7 +141,7 @@ test('panel is a Process | PID | Memory | CPU table with a subtotal row per grou
   const { host } = mount(t, createElement(ResourcesPanel, {
     projects: [SITE], snapshot, onSiteUpdated() {}, onClose() {}, usePower: () => useSitePower({}, { onSiteUpdated: () => {}, getBridge: () => ({}) as never }), Shell, useTrap() {},
   }));
-  const table = host.querySelector('table.resources-table')!;
+  const table = host.querySelector('table.jini-resources-table')!;
   assert.deepEqual([...table.querySelectorAll('thead th')].map((th) => th.textContent), ['Process', 'PID', 'Memory', 'CPU', 'Actions']);
   const text = (row: Element) => [...row.children].map((cell) => cell.textContent);
   const bodies = [...table.querySelectorAll('tbody')];
@@ -154,7 +154,7 @@ test('panel is a Process | PID | Memory | CPU table with a subtotal row per grou
   // An unmeasured CPU is a dash spoken as "unavailable", never 0%.
   assert.deepEqual(text(bodies[1]!.rows[1]!), ['nodeSite server', '42', '~1.5 GB', '—unavailable', '']);
   assert.equal(bodies[0]!.rows[0]!.querySelector('th')!.getAttribute('scope'), 'rowgroup');
-  assert.ok([...table.querySelectorAll('tbody td.num')].length >= 6);
+  assert.ok([...table.querySelectorAll('tbody td.jini-resources-table__num')].length >= 6);
   assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: ~1.7 GB · CPU 3% of one core · High memory use · Sustained high CPU use');
   assert.match(host.querySelector('.resources-note')!.textContent!, /^Memory totals are estimates/);
 });

@@ -32,7 +32,7 @@ vi.mock("@jini-ai/admin/shell/lib/settings-refresh-bus", () => ({
   publishSettingsRefresh: vi.fn(),
   subscribeToSettingsRefresh: vi.fn(() => () => {}),
 }));
-vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({ useFolderDrop: vi.fn() }));
+vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({ useFolderDrop: vi.fn() }));
 
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { API_UNREACHABLE_CODE, ApiError } from "../../lib/admin-http/request";

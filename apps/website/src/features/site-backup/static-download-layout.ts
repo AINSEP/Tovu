@@ -1,6 +1,7 @@
 import path from "node:path";
 import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
-import { downloadDocumentBase } from "./static-download-html.js";
+import { downloadDocumentBase } from "@jini-ai/devops/backup/site/static-download-html";
+import { downloadHtmlSourceEdits } from "./download-html-source-edits.js";
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
 import type { StaticExportTheme } from "@jini-ai/devops/backup/site/static-export-selection";
 import { allocateStaticExportThemes } from "./static-export-selection.js";
@@ -74,7 +75,7 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
 
 /** HTML edits use parser-backed source ranges, preserving theme scripts and surrounding bytes. */
 function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _options = {}): string {
-  body = downloadDocumentBase({ html: body, rewrite: value => rewrite({ value }) });
+  body = downloadDocumentBase({ html: body, rewrite: value => rewrite({ value }), sourceEdits: downloadHtmlSourceEdits });
   const parts: string[] = [];
   let cursor = 0;
   for (const { start, end, kind, identity } of exportUrlLocations({ body, contentType: "text/html" })) {

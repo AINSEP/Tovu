@@ -9,7 +9,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, refuseUnexpectedKeys, type HumanConfirmSpec } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 import {
   FS_FILES_READ_PERMISSION,
@@ -19,8 +20,8 @@ import {
   getFsFilesAgentToolCatalog,
 } from "./agent-tools.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
-import { listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
+import { listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
 import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
 import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "@jini-ai/cms/fs-files/write-files";

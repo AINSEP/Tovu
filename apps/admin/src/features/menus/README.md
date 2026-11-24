@@ -22,3 +22,7 @@ Both `Menus.tsx` and `MenuEditor.tsx` have unit tests (`__tests__/Menus.unit.tes
 
 - `MenuEditor.tsx` mounts `@jini-ai/admin`'s `MenuPageLinkFields` and injects its required `useMenuPageLinkFields` hook (from `@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks`); tests pass the same hook or a double.
 - The component renders `jini-menu-page-link-{label,visually-hidden,unavailable}` classes; this host styles them as aliases of `.a11y-label-wrap` (`styles/editor.css`), `.visually-hidden` and `.muted-cell` (`styles.css`).
+- The editor auto-derives a new menu's slug from its name with `toSlug`. `hooks/use-menu-editor.hooks.ts`
+  imports it from `@jini-ai/cms/html/site/slug`, a universal entry that is safe in the browser
+  bundle. Admin already declares `@jini-ai/cms`. This replaced the cross-app relative import into
+  `apps/website/src/platform/html/slug` in P12 cut #7. The website renderers use the same rule.

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { RepositoryTargetValidator } from "../../provider-module.js";
+import type { RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
 import { loadSourceControlProviderRegistryFromSource, type LoadSourceControlProviders } from "../../provider-registry.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 

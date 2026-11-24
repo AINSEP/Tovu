@@ -1,16 +1,17 @@
 import { pluginManagementToolIds, pluginSourceToolIds } from '@jini-ai/plugins/runtime/plugin-tool-ids';
 /** Host catalogs, canonical command/fingerprint owners, approval transport and telemetry. */
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
-import { approvalToolHandler, notConfirmedResult, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
+import { approvalToolHandler, notConfirmedResult } from '../../contracts/core/human-confirm.js';
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { federatedToolApprovalFingerprint } from '@jini-ai/mcp/federation';
 import { executeCommand } from '../../contracts/core/commands/index.js';
 import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
-import { pluginAgentToolCatalog, PLUGINS_SET_ENABLED_TOOL_ID } from './agent-tools.js';
-import { describeUninstallApproval } from './uninstall-confirmation-ui.js';
-import { describeEnableApproval } from './enable-confirmation-ui.js';
+import { PLUGINS_SET_ENABLED_TOOL_ID, pluginAgentToolCatalog } from './agent-tools.js';
 import { pluginSourceAgentToolCatalog } from './source-tool-catalog.js';
 import { pluginToolMessages } from './plugin-tool-messages.js';
+import { describeUninstallApproval } from './uninstall-confirmation-ui.js';
+import { describeEnableApproval } from './enable-confirmation-ui.js';
 import { lowerPluginToolAccess } from '@jini-ai/plugins/runtime/lower-tool-access';
 import { bindAgentPluginIdentity, bindAgentPluginTools } from './agent-plugin-tool-binding.js';
 import type { PluginsToolDeps } from './tool-registrations.js';

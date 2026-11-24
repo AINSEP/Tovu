@@ -34,7 +34,7 @@ vi.mock("../../taxonomy/TermPicker", () => ({
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
 }));
-vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
+vi.mock("@jini-ai/admin/screens/content-analysis/ContentAnalysisCard", () => ({
   ContentAnalysisCard: (props: { post: { id: string } }) => <div data-testid="content-analysis">{props.post.id}</div>,
 }));
 vi.mock("../../../components/TemplateSource/TemplateSourceModal", () => ({

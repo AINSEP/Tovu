@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminExportRunSnapshot } from "./import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 /** The admin API calls of the import-export feature. */
 export const importExportApi = {

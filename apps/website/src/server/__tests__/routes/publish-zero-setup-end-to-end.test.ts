@@ -20,11 +20,11 @@ import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshak
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
-  PUBLISH_TRUST_ENV_VAR,
   type ProvisioningFileIo,
-} from "#src/features/publish-trust/provisioning";
-import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
-import { deployConfigGenerators } from "#src/features/deployments/deploy-config-registry";
+} from "@jini-ai/cms/publish/trust/provisioning";
+import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";

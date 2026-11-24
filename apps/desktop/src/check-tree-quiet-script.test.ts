@@ -1,7 +1,9 @@
 /**
  * @file `scripts/check-tree-quiet.ts` — the packaging precondition gate — over a scripted `exec`
  * (pgrep, git, sleep) and a real temp checkout, so every signal can be driven without a live
- * watcher, a dirty repo, or a racing writer.
+ * watcher, a dirty repo, or a racing writer. The desktop's wording of each problem (formatters
+ * injected into `@jini-ai/devops`'s `treeQuietProblems`) is pinned directly at the end, over every
+ * combination of signals.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +13,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { runTreeQuietCheck, snapshot } from "../scripts/check-tree-quiet.ts";
+import { desktopTreeQuietProblems as treeQuietProblems, runTreeQuietCheck, snapshot } from "../scripts/check-tree-quiet.ts";
 import type { ExecPort } from "../scripts/check-tree-quiet.ts";
 
 /** A temp checkout holding the verified surface: src/ (nested) and bin/. */
@@ -119,4 +121,44 @@ test("the real entry runs the check against this checkout and exits with its ver
     assert.equal(child.status, 1, child.stderr);
     assert.match(child.stderr, /check-tree-quiet: /);
   }
+});
+
+// ---- the desktop-worded predicate, handed every combination of signals directly ----
+
+const QUIET = { viteWatchRunning: false, gitDirtyPaths: [], movingPaths: [] };
+
+test("a fully quiet tree reports zero problems", () => {
+  assert.deepEqual(treeQuietProblems(QUIET), []);
+});
+
+test("a live vite build --watch is one problem, naming the incident it reproduces", () => {
+  const problems = treeQuietProblems({ ...QUIET, viteWatchRunning: true });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0]!,/vite build --watch/);
+  assert.match(problems[0]!,/2026-09-12-packaging-asar-corruption/);
+});
+
+test("uncommitted changes under the packaged surface are one problem, naming the paths", () => {
+  const problems = treeQuietProblems({ ...QUIET, gitDirtyPaths: ["apps/desktop/src/foo.js"] });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0]!,/apps\/desktop\/src\/foo\.js/);
+});
+
+test("a directory that changed during the observation window is one problem, naming the paths", () => {
+  const problems = treeQuietProblems({ ...QUIET, movingPaths: ["apps/desktop/dist"] });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0]!,/apps\/desktop\/dist/);
+});
+
+test("all three signals firing at once produce three distinct problems, not one merged message", () => {
+  const problems = treeQuietProblems({
+    viteWatchRunning: true,
+    gitDirtyPaths: ["apps/desktop/src/foo.js"],
+    movingPaths: ["apps/desktop/dist"],
+  });
+  assert.equal(problems.length, 3);
+});
+
+test("missing gitDirtyPaths/movingPaths default to empty rather than throwing", () => {
+  assert.deepEqual(treeQuietProblems({ viteWatchRunning: false }), []);
 });

@@ -4,10 +4,12 @@ import { SqliteNewsletterListRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { builtInSeedUploadsDir } from "../site-paths.js";
 import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
-import { ensureDefaultList } from "#src/features/newsletter/lists";
+import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "../data-modules.js";
 import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveSiteBindingOverride } from "./overrides.js";
@@ -58,7 +60,7 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
-  const newsletterReady = installNewsletterDataModule({ db: kernel, dbPath })
+  const newsletterReady = installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath })
     .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {

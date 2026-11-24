@@ -1,7 +1,7 @@
 import type { BackstopAuditPort, BackstopAuditRecord, BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 import type { BackstopSelection } from "@jini-ai/cms/publish/transfer";
 import { BACKSTOP_LIMITS, checkRawValues, gapLabelFor } from "./backstop-policy.js";
-import type { PackedEntity } from "./type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 export const BACKSTOP_FORBIDDEN = "Only the owner and built-in admins can send items by hand.";

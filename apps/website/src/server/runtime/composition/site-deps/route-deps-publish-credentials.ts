@@ -17,7 +17,7 @@ import { SqliteVendorCredentialSetRepo } from "#src/features/vendor-credentials/
 import { TovuCredentialSetVaultAdapter } from "#src/features/vendor-credentials/vault-adapter";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { executionModeFromEnv } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import { listPublishedPosts } from "#src/features/post/index";
 import { loadCredentialSchemeRegistry } from "@jini-ai/agent-plugins/site/auth-schemes";
 import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
@@ -60,7 +60,7 @@ export function routeDepsPublishCredentials(required: RouteDepsPublishCredential
     // `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
     publishHistoryStore: new SqlitePublishHistoryStore({ store: kernel }),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
-    publishExecutionMode: executionModeFromEnv(),
+    publishExecutionMode: executionModeFromEnv({ env: process.env, envVarName: "TOVU_EXECUTION_MODE" }),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
     // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`
     // doc.
