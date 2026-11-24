@@ -48,7 +48,7 @@ const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixt
 const { createRouteDeps } = await import("#src/server/runtime/composition/app");
 const { registerAuthRoutes, requireAdminSession } = await import("#src/server/inbound/admin-http/dev-auth");
 const { bootAuthenticated } = await import("#src/server/__tests__/helpers/http-test-server");
-const { registerAgentPluginSetEnabledRoute } = await import("../../set-enabled.js");
+const { registerAgentPluginSetEnabledRoute } = await import("#src/server/runtime/composition/modules/agent-plugins-routes");
 
 const WORKSPACE_A = "workspace-local";
 

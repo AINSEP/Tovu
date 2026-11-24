@@ -7,8 +7,7 @@ import { InMemoryExternalMcpToolApprovalRepo } from '../../../assistant/external
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
-import { registerAdminExternalMcpPutRoute } from '../../../server/inbound/admin-http/routes/external-mcp/put.js';
-import { registerAdminExternalMcpListRoute } from '../../../server/inbound/admin-http/routes/external-mcp/list.js';
+import { registerAdminExternalMcpListRoute, registerAdminExternalMcpPutRoute } from '#src/server/runtime/composition/modules/external-mcp';
 import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter, type ExternalMcpProbeRouteDeps } from '../../../server/inbound/admin-http/routes/external-mcp/probe.js';
 
 const db = openContentDb(process.argv[2]!);
