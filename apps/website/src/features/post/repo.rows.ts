@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Insertable, Selectable } from "kysely";
 
-import type { JsonObject } from "@jini-ai/core/primitives";
+import { type JsonObject, resolveCreatorKind } from "@jini-ai/core/primitives";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import { toBool } from "@jini-ai/core/contracts/storage";
 import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostRecord, type PostRevisionInput, type PostRevisionOp, type PostRevisionRecord } from "@jini-ai/cms/posts/post";
@@ -34,6 +34,7 @@ function parseExt({ rawExt }: { rawExt: string }, _optional: Record<string, neve
 function readPostAttribution({ row }: { row: PostRow }, _options: Record<string, never> = {}) {
   return {
     createdByPrincipalId: row.created_by_principal_id ?? null,
+    createdByKind: resolveCreatorKind({ value: row.created_by_kind }),
     createdAt: row.created_at ?? null,
     author: row.author ?? null,
     showAuthor: toBool({ value: row.show_author }) ?? false,
@@ -104,6 +105,8 @@ function writePostAccessAndAttribution({ record }: { record: PostRecord }, _opti
     // deliberately EXCLUDED from the columns an existing-row write may touch, which is what actually
     // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
     created_by_principal_id: record.createdByPrincipalId ?? null,
+    // Same write-once rule: an unset kind is "person" (the column default), never an agent.
+    created_by_kind: record.createdByKind ?? "person",
     created_at: record.createdAt ?? null,
   };
 }

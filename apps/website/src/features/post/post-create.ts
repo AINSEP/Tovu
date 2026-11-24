@@ -1,5 +1,5 @@
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
-import { type UUID, type JsonObject, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { type UUID, type JsonObject, type CreatorKind, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublicPostKind, PostStatus } from "@jini-ai/cms/core";
 import { type PostRepoPort, type PostRecord, type PostBodyFormat, PostValidationError, DEFAULT_BODY_JSON, type PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "@jini-ai/cms/posts/post-before-save";
@@ -46,6 +46,11 @@ export interface CreatePostInput {
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
    *  compiling and behaving exactly as before. */
   actorId?: UUID;
+  /** Who is creating the row, recorded once as `posts.created_by_kind` (H4, 2026-11-24). Omitted
+   *  means `"person"` — the owner/admin routes pass nothing; every agent-tool call site passes
+   *  `"agent"`, since an agent acts under the real human's `actorId` and the kind cannot be
+   *  recovered from it later. See {@link PostRecord.createdByKind}. */
+  creatorKind?: CreatorKind;
   /** Same optional-with-null-default contract as {@link PostRevisionInput.delegatedByWorkspaceId} —
    *  set only by a call site acting through a delegate (an agent or api_key acting on a human's
    *  behalf, per `Jini packages/core/src/gated-mutations/actor-identity.ts`'s documented convention).
@@ -267,6 +272,7 @@ export async function createPost(
     // value. See `PostRecord.createdByPrincipalId`'s own doc for the full contract.
     createdByPrincipalId: input.actorId ?? null,
     createdAt: now,
+    createdByKind: input.creatorKind ?? "person",
     ...byline,
     ...scheduleFields,
     ...(input.templateChoice !== undefined ? { templateChoice: input.templateChoice } : {}),

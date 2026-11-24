@@ -156,6 +156,8 @@ async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, tit
       showAuthor: source.showAuthor ?? false,
       actorId: input.principalId,
       analyticsSource: "assistant",
+      // Agent tool path: see content_post_create's identical `creatorKind` note.
+      creatorKind: "agent",
       // See content_post_create's identical delegatedBy* comment above.
       delegatedByWorkspaceId: routeDeps.workspaceId,
       delegatedById: input.principalId,
