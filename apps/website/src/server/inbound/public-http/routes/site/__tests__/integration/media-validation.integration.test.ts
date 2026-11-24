@@ -19,11 +19,13 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
   const db = storage === 'sqlite' ? openContentDb(':memory:') : null;
   if (db) t.after(() => db.$client.close());
   let now = 1_800_000_000_000;
-  const deps = { workspaceId: 'workspace', mediaRepo: new InMemoryVersionedMediaRepo({}),
+  // One evidence store shared by the repos that invalidate it and the route that reads it, as site composition wires it.
+  const mediaAccessEvidence = createMediaAccessEvidence();
+  const deps = { workspaceId: 'workspace', mediaAccessEvidence, mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
     clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
-    postRepo: db ? new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }) : new InMemoryPostRepo({}), entryRepo: db ? entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() }) : trashAwareEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
+    postRepo: db ? new SqlitePostRepo({ store: db, mediaAccessEvidence }) : new InMemoryPostRepo({}, { mediaAccessEvidence }), entryRepo: db ? entryRepoFor({ store: db, mediaAccessEvidence }) : trashAwareEntryRepo({ mediaAccessEvidence }), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>'),
