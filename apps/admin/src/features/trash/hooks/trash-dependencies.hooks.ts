@@ -2,7 +2,7 @@ import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-manage
 import { usersApi } from "@/features/users/api/users-api";
 import type { AdminTrashItemDto, AdminTrashPurgeReportDto, AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { trashApi } from "@/features/trash/api/trash-api";
-import type { TrashPort } from "./trash-port.hooks";
+import type { TrashPort } from "@jini-ai/admin/screens/trash/hooks/trash-port.hooks";
 
 /**
  * @file The only place `use-trash.hooks.ts` reaches `lib/api` — see `trash-port.hooks.ts` for why

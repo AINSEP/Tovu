@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveMicButtonView } from "../mic-button-view.hooks";
-import { describePushToTalkIndicator } from "../push-to-talk-state.hooks";
+import { describePushToTalkIndicator } from "@jini-ai/admin/screens/voice-input/hooks/push-to-talk-state.hooks";
 
 /**
  * @file Direct assertions on what the mic button renders in each availability state. The rendered
@@ -27,7 +27,7 @@ describe("resolveMicButtonView", () => {
     });
 
     expect(view).toEqual({
-      className: "tovu-push-to-talk tovu-push-to-talk--unavailable",
+      className: "jini-push-to-talk jini-push-to-talk--unavailable",
       label: "Voice input needs the Tovu desktop app.",
       disabled: true,
       ariaLive: "polite",
@@ -55,7 +55,7 @@ describe("resolveMicButtonView", () => {
 
   it("renders the plain enabled button when idle and available", () => {
     expect(resolveMicButtonView({ available: true, indicator: idleIndicator, unavailableReason: undefined })).toEqual({
-      className: "tovu-push-to-talk",
+      className: "jini-push-to-talk",
       label: "Hold to talk",
       disabled: false,
       ariaLive: "polite",
@@ -65,7 +65,7 @@ describe("resolveMicButtonView", () => {
 
   it("carries the loud recording state through unchanged", () => {
     expect(resolveMicButtonView({ available: true, indicator: recordingIndicator, unavailableReason: undefined })).toEqual({
-      className: "tovu-push-to-talk tovu-push-to-talk--recording",
+      className: "jini-push-to-talk jini-push-to-talk--recording",
       label: "Recording — release to send",
       disabled: false,
       // Assertive while the mic is live: a state the operator must not miss even if looking away.

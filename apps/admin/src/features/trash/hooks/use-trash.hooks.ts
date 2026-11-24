@@ -18,7 +18,7 @@ import {
 import { describeTrashLoadError, trashTranslator } from "../rules";
 import { t } from "../trash-i18n";
 import { defaultTrashPort } from "./trash-dependencies.hooks";
-import type { TrashPort } from "./trash-port.hooks";
+import type { TrashPort } from "@jini-ai/admin/screens/trash/hooks/trash-port.hooks";
 
 /**
  * @file All of the Trash screen's state. `Trash.tsx` is markup only.
