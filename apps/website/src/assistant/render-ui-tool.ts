@@ -1,7 +1,8 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { renderA2uiSurface } from "@jini-ai/agentic/render-surface";
+import { createRenderUiToolRegistrations } from "@jini-ai/agentic/render-surface";
+import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage } from "@jini-ai/protocol/a2ui";
 
-import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import type { AgentToolDefinition, AgentToolSideEffect, DerivedRiskByToolId, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
@@ -55,37 +56,14 @@ export const renderUiAgentToolCatalog: AgentToolDefinition[] = [
 
 export const renderUiDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([[RENDER_UI_TOOL_ID, "none"]]);
 
-const CATALOG_BY_ID = new Map(renderUiAgentToolCatalog.map((entry) => [entry.name, entry]));
-
-type EmitSurface = NonNullable<ToolExecutionOptions["emitSurface"]>;
-
-async function renderUiTool(
-  required: { ctx: ToolExecutionContext; surfaces: AssistantSurfaceDeps; emitSurface: EmitSurface | undefined },
-  { rejectionGraceMs }: { rejectionGraceMs?: number } = {},
-): Promise<unknown> {
-  const { ctx, surfaces, emitSurface } = required;
-  if (!emitSurface) {
-    return { rendered: false, reason: "no-surface-channel", note: "No live surface channel on this execution." };
-  }
-  const components = (ctx.input as { components?: unknown[] }).components ?? [];
-
-  const outcome = await renderA2uiSurface({ exchanges: surfaces.surfaceExchanges, emitSurface, toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, components }, rejectionGraceMs == null ? {} : { rejectionGraceMs });
-  if (outcome.rendered) {
-    return {
-      rendered: true,
-      note:
-        "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen " +
-        "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
-    };
-  }
-  if (outcome.reason === "schema-rejected") return { rendered: false, reason: "schema-rejected", detail: outcome.detail };
-  return {
-    rendered: false,
-    reason: "rejected-by-renderer",
-    detail: outcome.detail,
-    note: "The browser refused to render this — it was NOT drawn and is not visible anywhere. Fix the reported prop and try again; do not tell the user it rendered.",
-  };
-}
+const RENDER_UI_COPY = {
+  noSurfaceChannelNote: "No live surface channel on this execution.",
+  renderedNote:
+    "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen " +
+    "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
+  rejectedNote:
+    "The browser refused to render this — it was NOT drawn and is not visible anywhere. Fix the reported prop and try again; do not tell the user it rendered.",
+};
 
 export function buildRenderUiRegistrations(
   { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
@@ -95,15 +73,16 @@ export function buildRenderUiRegistrations(
    * multi-second wait per run. */
   options: { rejectionGraceMs?: number } = {},
 ): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    [RENDER_UI_TOOL_ID]: (ctx, { emitSurface } = {}) => renderUiTool({ ctx, surfaces, emitSurface }, options),
-  };
-
-  return buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "render-ui",
-    catalogModule: "assistant/render-ui-tool.ts",
-    catalog: CATALOG_BY_ID,
-    handlers,
-    derivedRisk: renderUiDerivedRisk,
-  });
+  return createRenderUiToolRegistrations(
+    {
+      tool: renderUiAgentToolCatalog[0]!,
+      exchanges: surfaces.surfaceExchanges,
+      parseAgentMessage: parseAgentToRendererMessage,
+      catalog: createLabCatalog({}),
+      displayOnlyProperty: A2UI_DISPLAY_ONLY_PROPERTY,
+      copy: RENDER_UI_COPY,
+      registration: { metadata: toolMetadata, domain: "render-ui", catalogModule: "assistant/render-ui-tool.ts", derivedRisk: renderUiDerivedRisk },
+    },
+    options,
+  );
 }

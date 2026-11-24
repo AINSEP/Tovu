@@ -2,7 +2,7 @@ import { visitorToolBudgetId } from '../../contracts/site-assistant/visitor-tool
 /** Per-process visitor budgets. HTTP-kit owns counting/expiry; this adapter owns Tovu's two scopes. */
 import type { Clock } from "@jini-ai/core/primitives";
 import { afterSettled } from "@jini-ai/core/errors/idioms";
-import { createMemoryCounterStore, type CounterStore } from "@jini-ai/http-kit/rate-limit";
+import type { CounterStore } from "@jini-ai/http-kit/rate-limit";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import type { VisitorToolLimits } from "../../contracts/site-assistant/visitor-tools.js";
 
@@ -20,9 +20,10 @@ export interface VisitorToolBudgets {
  * Reservations are conservative: a later site refusal can still spend an IP slot, never overrun it.
  * No timer, background task, raw IP persistence or shared-machine guarantee.
  * @complexity Two amortized O(1) limiter checks; expiry sweeps belong to HTTP-kit.
- * @example createVisitorToolBudgets({ clock });
+ * @param required.createCounterStore - Makes one fresh window store per bucket; the composition root owns the store kind.
+ * @example createVisitorToolBudgets({ clock, createCounterStore: () => createMemoryCounterStore({}) });
  */
-export function createVisitorToolBudgets({ clock }: { clock: Clock }, _options = {}): VisitorToolBudgets {
+export function createVisitorToolBudgets({ clock, createCounterStore }: { clock: Clock; createCounterStore: () => CounterStore }, _options = {}): VisitorToolBudgets {
   const buckets = new Map<string, Bucket>();
   let pending: Promise<unknown> = Promise.resolve();
 
@@ -30,7 +31,7 @@ export function createVisitorToolBudgets({ clock }: { clock: Clock }, _options =
   function limiterFor({ key, max, windowSeconds }: { key: string; max: number; windowSeconds: number }, _optional = {}): RateLimiter {
     const previous = buckets.get(key);
     if (previous?.max === max) return previous.limiter;
-    const store = previous?.store ?? createMemoryCounterStore({});
+    const store = previous?.store ?? createCounterStore();
     const limiter = createRateLimiter({ profile: { max, windowSeconds, burst: 0 }, clock }, { store });
     buckets.set(key, { store, max, limiter });
     return limiter;

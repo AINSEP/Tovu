@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import { createVisitorToolBudgets } from "../visitor-tool-budgets.js";
+
+const createCounterStore = () => createMemoryCounterStore({});
 
 function fixture() {
   let now = 0;
-  const budgets = createVisitorToolBudgets({ clock: { nowMs: () => now } });
+  const budgets = createVisitorToolBudgets({ clock: { nowMs: () => now }, createCounterStore });
   return { budgets, advance: (ms: number) => { now += ms; } };
 }
 const target = { workspaceId: "w", toolId: "list_categories", ip: "ip", limits: { perIpPerHour: 30, perSitePerDay: 1000 } };
@@ -49,7 +52,7 @@ test("lowering or restoring limits cannot reset counters, including concurrent p
 
 test("independent processes have independent counters; queue recovers after a clock failure", async () => {
   let fail = true;
-  const budgets = createVisitorToolBudgets({ clock: { nowMs: () => { if (fail) throw new Error("clock down"); return 0; } } });
+  const budgets = createVisitorToolBudgets({ clock: { nowMs: () => { if (fail) throw new Error("clock down"); return 0; } }, createCounterStore });
   await assert.rejects(budgets.charge(target), /clock down/);
   fail = false;
   assert.equal(await budgets.charge(target), true);
@@ -58,7 +61,7 @@ test("independent processes have independent counters; queue recovers after a cl
 
 test('renamed page grants keep an already consumed legacy budget', async () => {
   const clock = { nowMs: () => 0, nowIso: () => new Date(0).toISOString() };
-  const budgets = createVisitorToolBudgets({ clock });
+  const budgets = createVisitorToolBudgets({ clock, createCounterStore });
   const target = { workspaceId: 'site', ip: 'ip', limits: { perIpPerHour: 1, perSitePerDay: 1 } };
   assert.equal(await budgets.charge({ ...target, toolId: 'navigate_to_entry' }), true);
   assert.equal(await budgets.charge({ ...target, toolId: 'page.navigate' }), false);

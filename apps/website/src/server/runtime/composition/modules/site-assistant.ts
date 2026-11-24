@@ -11,6 +11,7 @@ import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/featu
 import { runPublicSiteGuide } from "../public-site-guide.js";
 import { VISITOR_SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";
+import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import { VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS } from "#src/assistant/site/visitor-confirmations";
@@ -614,7 +615,7 @@ function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantM
   const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
   const resolution = resolveSiteAssistantMode(env);
   // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
-  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
+  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock, createCounterStore: () => createMemoryCounterStore({}) });
   const log = deps.siteAssistantErrorLog ?? ((entry: SiteAssistantErrorLogEntry) => console.error("[site-assistant]", entry));
   const reporter = createSiteAssistantErrorReporter({
     ids: deps.idGen, redact: redactSecrets,
