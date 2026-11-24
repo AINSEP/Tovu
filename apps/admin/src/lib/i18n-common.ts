@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createCommentsDictionary } from "@jini-ai/admin/screens/comments/comments-i18n";
 import { createIntegrationsDictionary } from "@jini-ai/admin/screens/integrations/integrations-i18n";
 import { createProvidersDictionary } from "@jini-ai/admin/screens/providers/providers-i18n";
 import { createSettingsCapabilitiesDictionary } from "@jini-ai/admin/screens/settings/settings-capabilities-i18n";
@@ -89,3 +90,6 @@ export const { t: tProviders } = createProvidersDictionary({ commonDictionary: C
 /** The Integrations (webhooks) list, delivery log and row menus. Product-neutral copy, bound here
  *  once so it rides on this app's common fallback like every other dictionary. */
 export const { t: tIntegrations } = createIntegrationsDictionary({ commonDictionary: COMMON_I18N });
+
+/** The comments dictionary, bound once to this app's common fallback. */
+export const { t: tComments } = createCommentsDictionary({ commonDictionary: COMMON_I18N });
