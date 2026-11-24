@@ -1090,6 +1090,7 @@ export interface WebhookSubscriptionsTable {
   status: string;
   created_by_principal_id: string;
   created_by_plugin_id: string | null;
+  created_by_kind: string | null;
   created_at: string;
   updated_at: string;
   version: Generated<number>;

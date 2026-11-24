@@ -51,6 +51,19 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
     assert.deepEqual(found, record);
   });
 
+  test(`[${adapterName}] insert + findById round-trips the creator kind, and a row without one stays unattributed`, async () => {
+    const repo = makeRepo();
+    await repo.insert(makeSubscription({ id: "sub-agent", createdByKind: "agent" }));
+    await repo.insert(makeSubscription({ id: "sub-person", createdByKind: "person" }));
+    await repo.insert(makeSubscription({ id: "sub-unattributed" }));
+
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "sub-agent" }))?.createdByKind, "agent");
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "sub-person" }))?.createdByKind, "person");
+    const unattributed = await repo.findById({ workspaceId: "workspace-1", id: "sub-unattributed" });
+    assert.ok(unattributed);
+    assert.equal("createdByKind" in unattributed, false);
+  });
+
   test(`[${adapterName}] findById returns null for an unknown id or wrong workspace`, async () => {
     const repo = makeRepo();
     await repo.insert(makeSubscription());

@@ -1,3 +1,4 @@
+import { WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS } from '../migrations/0043_webhook_subscription_creator_kind.js';
 import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
 import { OWNER_MFA_SQL } from '../migrations/0040_owner_mfa.js';
@@ -268,6 +269,9 @@ function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonl
   return {
     "0042_optimistic_concurrency_versions": () => {
       for (const statement of OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS) client.exec(statement);
+    },
+    "0043_webhook_subscription_creator_kind": () => {
+      for (const statement of WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

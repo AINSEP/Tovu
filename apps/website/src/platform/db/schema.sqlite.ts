@@ -976,6 +976,8 @@ export const webhookSubscriptions = sqliteTable(
     status: text("status").notNull(),
     createdByPrincipalId: text("created_by_principal_id").notNull(),
     createdByPluginId: text("created_by_plugin_id"),
+    /** `person` or `agent` (migration 0043); NULL for rows from before it, read back as unattributed. */
+    createdByKind: text("created_by_kind"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
