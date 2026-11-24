@@ -20,7 +20,7 @@ import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targ
 import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static-export/site/public-origin-policy";
 import { exportHtml } from "../export-html-policy.js";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
-import * as sourceEdits from "#src/platform/html/source-edits";
+import * as sourceEdits from "@jini-ai/cms/html/site/source-edits";
 
 const PUBLIC = "https://public.example.test";
 const MEDIA = "/m/cover/public.v1/image.webp";

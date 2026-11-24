@@ -27,6 +27,7 @@ import {
 } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { newsletterSendHostBindings } from "../deps-builders.js";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
@@ -152,6 +153,7 @@ function makeLaunchGateDeps(overrides: Partial<{ sendingEnabled: boolean; consen
   const { sendingEnabled = true, consentBound = true, originThrows = false, mailerDriver = "smtp" } = overrides;
   return {
     isSendingEnabled: async () => sendingEnabled,
+    orFallback,
     consentCapability: consentBound
       ? { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "r1" }), revoke: async () => ({ status: "revoked" }) }
       : null,
