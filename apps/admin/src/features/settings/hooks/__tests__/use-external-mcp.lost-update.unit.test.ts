@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
+import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
 
 /**

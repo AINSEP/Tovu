@@ -1,5 +1,5 @@
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonValue, UUID } from "@jini-ai/core/primitives";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import {
   createSettingsPrincipalLookup,
   type SettingsRepoPort,

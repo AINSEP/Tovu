@@ -3,7 +3,7 @@ import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/ass
 import { type Translate } from "@jini-ai/core/text";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { storedCredentialHint } from "../../lib/credential-copy";
-import { STORED_KEY_OTHER_PROVIDER_COPY } from "../../lib/stored-credential-endpoint";
+import { STORED_KEY_OTHER_PROVIDER_COPY } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 
 /**
  * @file Pure logic for the `ai-assistant` feature — everything that computes a value rather than
@@ -40,7 +40,7 @@ export function describeApiError({ e, fallback }: { e: unknown; fallback: string
 }
 
 // The stored-key endpoint rules (`storedKeyIsForOtherEndpoint`, `hasUsableKey`, `storedKeyBlocksProbe`,
-// `describeProbeError` and their two copy constants) live in `lib/stored-credential-endpoint.ts`, shared
+// `describeProbeError` and their two copy constants) live in `@jini-ai/admin/shell/lib/stored-credential-endpoint` (bound describer in `lib/shell-collaborators.ts`), shared
 // with the admin's own key screen.
 
 /** The server's `••••<last 4>` shown IN the key field — which key is stored, answered where the

@@ -1,4 +1,4 @@
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 
 /** The services whose implementation depends on the storage engine. */
 export interface StoreBoundServices {

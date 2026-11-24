@@ -1,7 +1,6 @@
 /** Closed admin input parsing and publication decisions shared by both admin transports. */
-import { visitorToolsObject, VisitorToolPolicyValidationError, VISITOR_TOOL_DEFAULT_LIMITS, type VisitorToolChoice } from "../../contracts/site-assistant/visitor-tools.js";
-import type { VisitorToolConfigureInput } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
-import type { VisitorToolDescriptor } from "../../contracts/site-assistant/visitor-tools-management.js";
+import { visitorToolsObject, VisitorToolPolicyValidationError, VISITOR_TOOL_DEFAULT_LIMITS } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolChoice, VisitorToolDescriptor, VisitorToolsConfigureInput } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 const MODE_RANK = { off: 0, ask: 1, auto: 2 } as const;
 
@@ -19,7 +18,7 @@ function limitsPatch({ value }: { value: unknown }, _options = {}) {
 }
 
 /** Validate the optional mode independently of the partial-update shape. */
-function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolConfigureInput["mode"] {
+function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolsConfigureInput["mode"] {
   if (value === undefined) return undefined;
   if (value !== "auto" && value !== "ask" && value !== "off") throw new VisitorToolPolicyValidationError("Mode must be auto, ask or off.");
   return value;
@@ -29,7 +28,7 @@ function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolCon
  * @throws VisitorToolPolicyValidationError for unknown/invalid fields. @complexity O(1).
  * @example parseVisitorToolsConfigure({ value: {toolId:"site", expectedRevisionSeq:0, mode:"off"} });
  */
-export function parseVisitorToolsConfigure({ value }: { value: unknown }, _options = {}): VisitorToolConfigureInput {
+export function parseVisitorToolsConfigure({ value }: { value: unknown }, _options = {}): VisitorToolsConfigureInput {
   const input = visitorToolsObject({ value, keys: ["toolId", "expectedRevisionSeq", "mode", "limits"] });
   if (typeof input.toolId !== "string" || !/^[a-z][a-z0-9_]{0,127}$/.test(input.toolId)) throw new VisitorToolPolicyValidationError("Use a toolId from visitor_tools_list, or site.");
   if (!Number.isSafeInteger(input.expectedRevisionSeq) || (input.expectedRevisionSeq as number) < 0) throw new VisitorToolPolicyValidationError("List visitor tools first and supply expectedRevisionSeq.");

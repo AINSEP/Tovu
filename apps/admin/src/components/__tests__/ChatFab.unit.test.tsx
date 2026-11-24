@@ -1,10 +1,10 @@
 import { createRef } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatFab } from "../ChatFab/ChatFab";
-import type { FabPositionResult } from "../ChatFab/ChatFab.hooks";
+import type { FabPositionResult } from "@jini-ai/admin/shell/components/ChatFab/ChatFab.hooks";
 
 /**
  * @file `ChatFab` (40% before this pass) — the floating assistant toggle. Uses the real
@@ -96,7 +96,7 @@ describe("ChatFab — interaction", () => {
     } as DOMRect);
 
     fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 520, clientY: 520 });
-    // Past ChatFab.hooks.tsx's own DRAG_THRESHOLD_PX (5) — this must register as a drag, not a tap.
+    // Past the FAB hook's own DRAG_THRESHOLD_PX (5) — this must register as a drag, not a tap.
     fireEvent.pointerMove(document, { pointerId: 1, clientX: 560, clientY: 560 });
     expect(button.className).toContain("chat-fab-dragging");
 
@@ -105,6 +105,9 @@ describe("ChatFab — interaction", () => {
     fireEvent.click(button); // the browser's own trailing click after a pointerup
 
     expect(onToggle).not.toHaveBeenCalled(); // swallowed by consumeDragFlag()
+    // The drop persists under the host's pre-move key, so existing saved positions still load.
+    expect(localStorage.getItem("tovu-admin-fab-position")).not.toBeNull();
+    expect(localStorage.length).toBe(1);
   });
 
   it("a pointerdown/pointerup with no meaningful movement (a tap) still calls onToggle on the trailing click", () => {
@@ -161,7 +164,7 @@ describe("ChatFab useFab injection", () => {
 
     fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 520, clientY: 520 });
 
-    expect(useFab).toHaveBeenCalledWith({ dockOpen: true, avoidBottomPx: 240, avoidRightPx: 360 });
+    expect(useFab).toHaveBeenCalledWith({ dockOpen: true, avoidBottomPx: 240, avoidRightPx: 360, storageKey: "tovu-admin-fab-position" });
     // Regression: onPointerDown={open ? undefined : fab.onPointerDown} swallowed this event.
     expect(onPointerDown).toHaveBeenCalledTimes(1);
     expect(onPointerDown.mock.calls[0]![0].target).toBe(button);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { createPluginSourcePolicy } from "@jini-ai/plugins/host";
-import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
+import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { localPluginInstaller } from "../../local-installer.js";
 
 const INSTALLER: PluginInstallerPort = {

@@ -7,7 +7,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
@@ -15,7 +15,7 @@ import {
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";

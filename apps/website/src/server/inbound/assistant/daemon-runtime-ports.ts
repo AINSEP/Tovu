@@ -1,7 +1,11 @@
 import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
-import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
 import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 /** Platform's process functions behind core's port (node-adapters takes them injected). */
 const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });

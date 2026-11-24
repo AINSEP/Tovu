@@ -1,4 +1,4 @@
-import { createAdminByokKeyPanelTranslator } from "./AdminByokKeyPanel.hooks";
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AgentElementRole } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";

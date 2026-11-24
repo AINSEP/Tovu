@@ -5,7 +5,7 @@ import { useWiredPageEditor, usePageEditor, type PageEditorController } from "..
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
+import { standingDraftLocalBackup } from "@/lib/shell-collaborators";
 import { PAGES_RESOURCE } from "../rules";
 import { prettifyHtml } from "../lib/prettify-html";
 
@@ -92,7 +92,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   // A REFUSED autosave mirrors the operator's text into `localStorage`
-  // (`lib/standing-draft-local-backup.ts`), and jsdom keeps one storage for the whole file — so
+  // (`lib/shell-collaborators.ts`'s `standingDraftLocalBackup`), and jsdom keeps one storage for the whole file — so
   // without this, one test's refused draft becomes the NEXT test's mount-time `recoverableDraft`
   // for the same page id. Refusals are reachable from any test here now that
   // `createFakePageEditorPort` models the server's real version guard.
@@ -2561,7 +2561,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
       expect(deps.port.putAutosaveCalls).toEqual([]);
       expect(result.current.autosaveStaleBasis).toBeNull();
-      expect(readStandingDraftLocalBackup({ entryId: HTML_PAGE.id })).toBeNull();
+      expect(standingDraftLocalBackup.read({ entryId: HTML_PAGE.id })).toBeNull();
     } finally {
       vi.useRealTimers();
     }

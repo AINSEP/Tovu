@@ -12,7 +12,7 @@ import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';

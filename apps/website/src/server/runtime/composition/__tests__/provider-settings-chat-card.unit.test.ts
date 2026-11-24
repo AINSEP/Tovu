@@ -11,7 +11,7 @@ import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
 import { parsePluginCredentialCards, type CredentialSaveAdapters } from "@jini-ai/agent-plugins/connect";

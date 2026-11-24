@@ -9,7 +9,8 @@ import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surface
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "../provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations } from "../provider-config-source.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
 
 /**

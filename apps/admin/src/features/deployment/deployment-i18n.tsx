@@ -2522,7 +2522,7 @@ export function publishCredentialsLoadErrorMessage({ locale, error }: { locale: 
 /**
  * One provider row's save-error banner (flat per-provider credential list, 2026-08-15 redesign —
  * StaticSiteTab.tsx's `PublishCredentialsSection`). Also carries a rejected VALIDATION failure's
- * `detail` text, routed here by `classifyCredentialSubmitError` (`lib/credential-submit-error.ts`) instead of the
+ * `detail` text, routed here by `classifyCredentialSubmitError` (`@jini-ai/admin/shell/lib/credential-submit-error`) instead of the
  * generic `describeApiError` fallback — the `{error}` slot reads naturally either way ("a real
  * transport failure" or "the server's own validation reason").
  */

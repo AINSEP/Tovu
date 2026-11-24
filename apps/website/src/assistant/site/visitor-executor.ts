@@ -4,11 +4,12 @@ import type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 import type { ToolRegistration } from "@jini-ai/core";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor, type ToolExecutionResult } from "@jini-ai/daemon";
-import { withToolAttemptAudit, type ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS_PER_TURN, type VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
+import { withToolAttemptAudit } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
+import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS_PER_TURN } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolPolicy, VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { ClientDirective } from "./client-directives.js";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
-import type { VisitorToolPresentation } from "../../contracts/site-assistant/visitor-tools-management.js";
 import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
 import { createVisitorConfirmationGate, VisitorPlanRefused } from "./visitor-confirmation-gate.js";
 

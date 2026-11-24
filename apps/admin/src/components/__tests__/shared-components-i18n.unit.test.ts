@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SHARED_COMPONENTS_DICT } from "../shared-components-i18n";
+import { SHARED_COMPONENTS_DICT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";

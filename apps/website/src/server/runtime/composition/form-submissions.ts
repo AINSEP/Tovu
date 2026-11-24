@@ -1,5 +1,6 @@
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
-import { withFormPullLease, type FormDefinitionRepoPort, type FormPullLeasePort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { withFormPullLease, type FormPullLeasePort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { processOutbox } from "#src/contracts/core/events/index";
 import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";

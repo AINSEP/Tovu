@@ -11,8 +11,8 @@ import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillIns
 import { SKILL_INSTALL_CONFIRMATION_HOST } from "../../features/skills/skill-install-confirmation-host";
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
-import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
-import { FailureSurfaceContext } from "./AgentFailureCard.hooks";
+import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
+import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import "../../styles/assistant.css";

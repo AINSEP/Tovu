@@ -1,7 +1,7 @@
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as sharedComponentsT } from "../shared-components-i18n";
+import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";

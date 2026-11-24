@@ -1,5 +1,5 @@
 import { createAdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces/connections';
-import type { AdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces';
+import type { AdminSurfaceConnections } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import { bindAdminSurfaceConnectionsHost, type SurfaceConnectionsDeps } from './surface-connection-bindings.js';
 
 /** Legacy host signature: the one API host and frozen-account map fulfill the local domain port. */

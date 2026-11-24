@@ -9,11 +9,9 @@ import { t as tExecution } from '../settings/settings-execution-i18n';
 import {
   ByokProviderForm,
   ExecutionTab,
-  I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
-  type SettingsDialogTab,
 } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
@@ -45,7 +43,7 @@ import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart } from "./hooks/assistant-daemon-restart-dependencies.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
-import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
+import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
 import {
   useAiAssistantTab,
   resolveAiAssistantTabSubtitle,
@@ -293,7 +291,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         // two footers write DISJOINT patches (key vs. settings); see
         // `hooks/use-admin-execution-credential.hooks.ts`. `canDiscoverModels` keeps a provider switch
         // from probing with a key saved for another endpoint; `describeProbeError` words the server's
-        // endpoint-pin refusals in plain language (`lib/stored-credential-endpoint.ts`).
+        // endpoint-pin refusals in plain language (`@jini-ai/admin/shell/lib/stored-credential-endpoint`).
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         canDiscoverModels={adminCredential.canDiscoverModels}
@@ -513,7 +511,7 @@ export function VisitorCredentialKeyFooter({
       {keyStatus ? <p className="assistant-key-status" role="status">{keyStatus}</p> : null}
 
       {/* `t` passes a provider's own error text through unchanged; it translates only this screen's
-          own plain-language probe copy (`lib/stored-credential-endpoint.ts`'s `describeProbeError`). */}
+          own plain-language probe copy (`@jini-ai/admin/shell/lib/stored-credential-endpoint`'s `describeProbeError`). */}
       {discovery.status === "error" ? <div className="save-error">{t(discovery.message)}</div> : null}
 
       {/*

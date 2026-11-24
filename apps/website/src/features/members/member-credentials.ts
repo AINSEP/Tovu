@@ -1,5 +1,5 @@
 import { Argon2PasswordHasher, loadArgon2Binding, NodeSessionTokens } from "@jini-ai/user-management/server";
-import type { PasswordHasherPort } from "@jini-ai/user-management";
+import type { PasswordHasherPort } from "@jini-ai/core/contracts/site/user-management";
 import type { MemberSignInResult, MembersWriteServiceDeps } from "./ports.js";
 import type { MemberRecord, MemberSessionRecord } from "./types.js";
 

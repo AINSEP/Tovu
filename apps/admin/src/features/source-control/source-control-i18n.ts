@@ -587,7 +587,7 @@ export function sourceControlCredentialsLoadErrorMessage({ locale, error }: { lo
 
 /**
  * One row's save-error banner. Also carries a rejected VALIDATION failure's `detail` text, routed
- * here by `classifyCredentialSubmitError` (`lib/credential-submit-error.ts`) instead of the generic
+ * here by `classifyCredentialSubmitError` (`@jini-ai/admin/shell/lib/credential-submit-error`) instead of the generic
  * `describeApiError` fallback — same shape `publishCredentialSaveErrorMessage` uses.
  */
 const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {

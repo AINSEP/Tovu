@@ -1,6 +1,7 @@
 /** Tovu credential copy is shared with the server cards; every offered locale has translations. */
 
-import { assertCredentialToken, CredentialInputError, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { translateCredentialMessage, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
 /** Only server-derived metadata describes a stored key. A legacy server may still send a mask. */

@@ -1,10 +1,6 @@
-import {
-  createMailSenderIdentityResolver as createJiniMailSenderIdentityResolver,
-  SenderIdentityNotConfiguredError as JiniSenderIdentityNotConfiguredError,
-  type CreateMailSenderIdentityResolverOptional as JiniResolverOptional,
-  type MailSenderIdentityPort,
-} from "@jini-ai/platform/mail";
-import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import { createMailSenderIdentityResolver as createJiniMailSenderIdentityResolver, SenderIdentityNotConfiguredError as JiniSenderIdentityNotConfiguredError, type CreateMailSenderIdentityResolverOptional as JiniResolverOptional } from "@jini-ai/platform/mail";
+import type { MailSenderIdentityPort } from "@jini-ai/core/contracts/site/platform-mail";
+import type { PositionalMailer as MailerPort } from "@jini-ai/core/contracts/mail";
 
 /**
  * @file Tovu's binding of the one place a system email's `From` is decided (members sign-in links,

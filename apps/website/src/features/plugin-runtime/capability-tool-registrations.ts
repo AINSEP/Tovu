@@ -6,7 +6,7 @@ import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assis
 import type { DerivedRiskByToolId } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
 // Disclosed cross-domain read, same shape `agent-tools.ts`'s header already accepts for this
 // package: `ext.{pluginId}.*` is written ONLY on a `posts` row (see `post.ts`'s own `ext` field

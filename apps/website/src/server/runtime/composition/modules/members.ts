@@ -25,7 +25,8 @@ import { registerMemberOidcStartRoute } from "#src/server/inbound/public-http/ro
 import { registerMemberOidcCallbackRoute } from "#src/server/inbound/public-http/routes/members/oidc-callback";
 import { registerMemberOidcVerifyEmailRoute } from "#src/server/inbound/public-http/routes/members/oidc-verify-email";
 import { registerMemberUnlinkIdentityRoute } from "#src/server/inbound/public-http/routes/members/unlink-identity";
-import { MEMBER_OIDC_PATH, memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
 import type { Express } from "express";
 
 /** The two port fields every admin members mount passes. `authorize` is read per request, as the

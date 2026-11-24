@@ -15,13 +15,13 @@ import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
- *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
+ *  Namespaced under `tovu.admin.` like `shell-collaborators.ts`'s `standingDraftLocalBackup` keys, so it can never
  *  collide with an unrelated app key. The stored value is the principal id that dismissed it, so a
  *  different user signing in on the same browser still sees their own nag. */
 const DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
 /** Best-effort read — `localStorage` throws outright in some privacy modes (same caveat
- *  `standing-draft-local-backup.ts`'s header documents at length). A read that fails just shows the
+ *  Jini's `createStandingDraftLocalBackup` handles as best-effort). A read that fails just shows the
  *  banner again, which is harmless: it is advisory and its truth is recomputed from the server on
  *  every load (see `rules.ts`'s `shouldShowDefaultPasswordBanner`).
  *  @complexity Time/space: O(1). */

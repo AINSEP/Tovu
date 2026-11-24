@@ -1,4 +1,4 @@
-import { classifyCredentialSubmitError } from "../../../lib/credential-submit-error";
+import { classifyCredentialSubmitError } from "../../../lib/shell-collaborators";
 import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";

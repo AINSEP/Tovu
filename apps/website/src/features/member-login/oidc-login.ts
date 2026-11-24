@@ -3,11 +3,11 @@ import { createHash } from "node:crypto";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken,
-  type AuthorizationCallbackParams, type OAuthClient, type OAuthHttpPorts, type OAuthProviderDescriptor,
-  type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, type AuthorizationCallbackParams, type OAuthHttpPorts, type OAuthProviderDescriptor, type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
+import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { MemberLoginError, type LoginProvider, type VerifiedLoginIdentity } from "@jini-ai/user-management/server";
+import { MemberLoginError, type VerifiedLoginIdentity } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 
 export interface OidcLoginDeps {
   readonly clock: Clock;

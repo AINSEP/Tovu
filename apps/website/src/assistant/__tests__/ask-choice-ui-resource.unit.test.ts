@@ -33,6 +33,13 @@ for (const [name, ui] of [
   });
 }
 
+// The guard is core's any-object `isRecord`, not a plain-object check: an array envelope or resource that
+// carries the resource fields is accepted (a JSON round trip can never produce one, so nothing is widened).
+test("an array envelope or array resource carrying the resource fields is still accepted", () => {
+  assert.equal(isAskChoiceUiResource({ ui: Object.assign([], VALID) }), true);
+  assert.equal(isAskChoiceUiResource({ ui: { ...VALID, resource: Object.assign([], VALID.resource) } }), true);
+});
+
 test("a valid rendered form becomes the standard UI tool result", () => {
   const required: { ui: unknown } = { ui: VALID };
   assert.ok(isAskChoiceUiResource(required));

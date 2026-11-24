@@ -13,7 +13,8 @@ import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
 import { SqlPrincipalPolicyRepo, SqlPrincipalRoleRepo, SqlRolePolicyRepo } from "../repo.assignments.js";
 import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
 import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
-import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 
 /**
  * @file Shared contract-test suite for the identity repo ports, run against both

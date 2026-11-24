@@ -10,7 +10,7 @@ import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecyc
 import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import { readSiteGuideFacts, loadSiteGuideContributions, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
-import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/core/contracts/site/agentic-core";
 import { capabilityCard as content } from "#src/features/post/capability-card";
 import { capabilityCard as forms } from "#src/features/forms/capability-card";
 import { capabilityCard as widgets } from "#src/features/widgets/capability-card";

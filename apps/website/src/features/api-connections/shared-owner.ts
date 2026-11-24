@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Clock } from '@jini-ai/core/primitives';
 import { ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionDescriptor, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
-import type { OAuthClient } from '@jini-ai/oauth';
+import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
 import type { KeyringPort, SecretSealerPort, VaultRepoPort, VaultMeta } from '@jini-ai/core/contracts/vault';
 import type { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';

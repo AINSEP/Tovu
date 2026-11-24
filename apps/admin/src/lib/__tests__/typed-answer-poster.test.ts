@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createAdminTypedAnswerPoster } from "../typed-answer-poster";
+import { createAdminTypedAnswerPoster } from "../shell-collaborators";
 
 /** A hand-written fetch fake: records each request and answers with `respond`. */
 function fakeFetch(respond: () => Promise<Response>) {
