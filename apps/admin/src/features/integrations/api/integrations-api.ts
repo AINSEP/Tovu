@@ -1,6 +1,8 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminAgentPlugin, AdminAgentPluginFiles, AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminExternalMcpConnectStart, AdminExternalMcpProbeResult, AdminExternalMcpServer, AdminExternalMcpServerInput, AdminExternalMcpToolApproval, AdminFederatedAdmissionEntry, AdminToolRefusalReason, AdminWebhookDelivery, AdminWebhookSubscription } from "./integrations-api.types";
+import type { AgentPluginListRow, AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminExternalMcpConnectStart, AdminExternalMcpProbeResult, AdminExternalMcpServer, AdminExternalMcpServerInput, ExternalMcpToolApprovalDto, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@jini-ai/core/contracts/site/cms-external-mcp";
+import type { AdminWebhookDeliveryResponse, AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * The wire shape `GET .../mcp-servers/admissions` (C-008) actually sends, BEFORE
@@ -84,11 +86,11 @@ function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederated
 /** The admin API calls of the integrations feature. */
 export const integrationsApi = {
   listIntegrationSubscriptions: () =>
-    request<{ subscriptions: AdminWebhookSubscription[] }>(
+    request<{ subscriptions: AdminWebhookSubscriptionResponse[] }>(
       { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions` }
     ),
   createIntegrationSubscription: (input: { label: string; targetUrl: string; topics: string[] }) =>
-    request<{ subscription: AdminWebhookSubscription }>(
+    request<{ subscription: AdminWebhookSubscriptionResponse }>(
       { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions` },
       { init: { method: "POST", body: JSON.stringify(input) } }
     ),
@@ -96,17 +98,17 @@ export const integrationsApi = {
     { id, paused }: { id: string; paused: boolean },
     _options: Record<string, never> = {}
   ) =>
-    request<{ subscription: AdminWebhookSubscription }>(
+    request<{ subscription: AdminWebhookSubscriptionResponse }>(
       { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}/pause` },
       { init: { method: "POST", body: JSON.stringify({ paused }) } }
     ),
   deleteIntegrationSubscription: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
-    request<{ subscription: AdminWebhookSubscription }>(
+    request<{ subscription: AdminWebhookSubscriptionResponse }>(
       { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}` },
       { init: { method: "DELETE" } }
     ),
   listIntegrationDeliveries: ({ subscriptionId }: { subscriptionId: string }, _optional: Record<string, never> = {}) =>
-    request<{ deliveries: AdminWebhookDelivery[] }>(
+    request<{ deliveries: AdminWebhookDeliveryResponse[] }>(
       { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries` }
     ),
   /** The workspace's configured external MCP servers. Carries env variable NAMES only — there is no
@@ -187,7 +189,7 @@ export const integrationsApi = {
   },
   /** Every saved "Always allow" on this site, sorted by server then tool. */
   listExternalMcpToolApprovals: () =>
-    request<{ approvals: AdminExternalMcpToolApproval[] }>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals` }),
+    request<{ approvals: ExternalMcpToolApprovalDto[] }>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals` }),
   /** Revokes one "Always allow", so that tool asks again. 404s when none is saved. */
   revokeExternalMcpToolApproval: ({ serverId, toolName }: { serverId: string; toolName: string }, _optional: Record<string, never> = {}) =>
     request<{ removed: boolean }>(
@@ -196,13 +198,13 @@ export const integrationsApi = {
     ),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
-  // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
-  listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins` }),
+  // Plugins (a separate family from listPlugins/setPluginEnabled above — see AgentPluginListRow's doc).
+  listAgentPlugins: () => request<{ agentPlugins: AgentPluginListRow[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins` }),
   /** AGENT_PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/agent-plugins/:pluginId/files`: one
    *  installed Agent Plugin's files, switched on or off, behind the Agent Plugins eye button.
    *  Refuses `AGENT_PLUGIN_NOT_FOUND` (404). */
   getAgentPluginFiles: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
-    request<AdminAgentPluginFiles>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files` }),
+    request<AgentPluginFiles>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files` }),
   /**
    * AGENT_PLUGIN_SET_ENABLED — turns one installed Agent Plugin on or off for this workspace.
    *
@@ -216,7 +218,7 @@ export const integrationsApi = {
    * `VALIDATION_ERROR` instead of a silent disable.
    */
   setAgentPluginEnabled: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }, _optional: Record<string, never> = {}) =>
-    request<{ agentPlugin: AdminAgentPlugin; warnings?: string[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}` }, { init: {
+    request<{ agentPlugin: AgentPluginListRow; warnings?: string[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}` }, { init: {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
     } }),

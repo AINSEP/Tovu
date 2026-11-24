@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
@@ -85,7 +85,7 @@ describe("createFakePluginInstallPort", () => {
 
 describe("createFakeAgentPluginsPort", () => {
   it("refuses to toggle a plugin that is not installed", async () => {
-    const port = createFakeAgentPluginsPort({ agentPlugins: [{ pluginId: "a", enabled: false } as AdminAgentPlugin] });
+    const port = createFakeAgentPluginsPort({ agentPlugins: [{ pluginId: "a", enabled: false } as AgentPluginListRow] });
     await expect(port.setAgentPluginEnabled({ pluginId: "missing", input: { enabled: true } })).rejects.toThrow("fake port: 'missing' is not installed");
   });
 });

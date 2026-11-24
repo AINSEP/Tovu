@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
@@ -17,7 +17,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const SITE_COMPLIANCE: AdminAgentPlugin = {
+const SITE_COMPLIANCE: AgentPluginListRow = {
   pluginId: "site-compliance",
   version: "1.0.0",
   description: "Evidence-based compliance screening.",
@@ -29,7 +29,7 @@ const SITE_COMPLIANCE: AdminAgentPlugin = {
 
 /** Seeded DISABLED, so the two-row tests assert two different post-toggle values rather than one
  *  value twice — a bug that wrote every row the same way would still pass against two `true`s. */
-const OTHER_PLUGIN: AdminAgentPlugin = {
+const OTHER_PLUGIN: AgentPluginListRow = {
   pluginId: "tovu-deploy-example",
   version: "1.0.0",
   description: "Deploys a Tovu instance to example-host.io.",
@@ -124,7 +124,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
 
   it("adopts the full server answer even when it differs from the requested toggle", async () => {
     const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE, OTHER_PLUGIN] });
-    const serverRow: AdminAgentPlugin = {
+    const serverRow: AgentPluginListRow = {
       ...SITE_COMPLIANCE,
       enabled: true,
       version: "2.0.0",

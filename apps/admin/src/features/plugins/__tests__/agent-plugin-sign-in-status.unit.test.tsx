@@ -1,13 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
-import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
+import type { AgentPluginListRow } from '@jini-ai/admin/agent-plugins/models';
 import { t } from '../plugins-i18n';
 
 it.each([
   ['connected', 'Signed in'], ['disconnected', 'Not signed in'], ['pending', 'Waiting for sign-in'], ['needs_reauth', 'Sign in again'],
 ] as const)('Agent Plugins displays %s separately from Enabled', (connectionStatus, label) => {
-  const plugin: AdminAgentPlugin = { pluginId: 'example-media', enabled: true, version: null, description: null,
+  const plugin: AgentPluginListRow = { pluginId: 'example-media', enabled: true, version: null, description: null,
     keywords: [], skills: [], mcpServerIds: ['example'], connectionStatus };
   render(<ul><AgentPluginRow plugin={plugin} t={key => key} locale="en" expanded={false} busy={false}
     onToggleExpanded={vi.fn()} stateControl={{ kind: 'toggle', onToggleEnabled: vi.fn() }}

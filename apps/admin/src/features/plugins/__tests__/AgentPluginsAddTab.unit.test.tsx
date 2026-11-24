@@ -6,7 +6,7 @@ import { AgentPlugins } from "../AgentPlugins";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins, type AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 
 /**
@@ -15,7 +15,7 @@ import { ApiError } from "@/lib/admin-http/request";
  * Driven through the screen's two DI seams (`useAgentPluginsHook`, `agentPluginInstallPort`).
  */
 
-const NOTE_TAKER: AdminAgentPlugin = {
+const NOTE_TAKER: AgentPluginListRow = {
   pluginId: "note-taker",
   displayName: "Note Taker",
   version: "1.0.0",
@@ -199,7 +199,7 @@ describe("AgentPlugins — Add a plugin", () => {
 
 describe("useAgentPlugins — onInstalled", () => {
   it("adds a new row, and replaces one with the same id instead of duplicating it", async () => {
-    const existing: AdminAgentPlugin = { ...NOTE_TAKER, pluginId: "deploy", displayName: "Deploy" };
+    const existing: AgentPluginListRow = { ...NOTE_TAKER, pluginId: "deploy", displayName: "Deploy" };
     const { result } = renderHook(() =>
       useAgentPlugins({ port: createFakeAgentPluginsPort({ agentPlugins: [existing] }), locale: "en", t: (key) => key }),
     );

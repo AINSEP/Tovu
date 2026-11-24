@@ -10,7 +10,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useId } from "react";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
@@ -60,7 +60,7 @@ function AgentPluginsStatus({
   t,
 }: {
   agentPlugins: AgentPluginsController["agentPlugins"];
-  visiblePlugins: readonly AdminAgentPlugin[];
+  visiblePlugins: readonly AgentPluginListRow[];
   error: AgentPluginsController["error"];
   toggleError: AgentPluginsController["toggleError"];
   emptyMessage: string;
@@ -94,11 +94,11 @@ function AgentPluginsStatus({
  * `AgentPluginUpdateControl` only renders what it is handed.
  */
 export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port }: {
-  plugin: AdminAgentPlugin;
+  plugin: AgentPluginListRow;
   expectedOldDigest: string;
   t: Translate;
   agentHandleBase: string;
-  onUpdated: (plugin: AdminAgentPlugin) => void;
+  onUpdated: (plugin: AgentPluginListRow) => void;
   port: AgentPluginInstallPort;
 }) {
   const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
@@ -107,7 +107,7 @@ export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandl
 
 /** A row's Update slot, or nothing. Bundled rows never get one: they update with Tovu itself
  *  (`updatableAgentPluginDigest`). @complexity O(1). */
-function updateSlotFor(required: { plugin: AdminAgentPlugin; controller: AgentPluginsController; agentHandleBase: string; port: AgentPluginInstallPort }, _optional: Record<string, never> = {}) {
+function updateSlotFor(required: { plugin: AgentPluginListRow; controller: AgentPluginsController; agentHandleBase: string; port: AgentPluginInstallPort }, _optional: Record<string, never> = {}) {
   const { plugin, controller, agentHandleBase, port } = required;
   const expectedOldDigest = updatableAgentPluginDigest({ plugin });
   if (!expectedOldDigest) return undefined;
@@ -131,10 +131,10 @@ function AgentPluginList({
   stateControlFor,
   updatePort,
 }: {
-  agentPlugins: AdminAgentPlugin[];
+  agentPlugins: AgentPluginListRow[];
   controller: AgentPluginsController;
   uninstallNoteId: string;
-  stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
+  stateControlFor: (plugin: AgentPluginListRow) => AgentPluginRowStateControl;
   /** The upload transport an operator-installed row's Update control sends through. */
   updatePort: AgentPluginInstallPort;
 }) {
@@ -202,12 +202,12 @@ function AgentPluginListPanel({
 }: {
   controller: AgentPluginsController;
   uninstallNoteId: string;
-  stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
+  stateControlFor: (plugin: AgentPluginListRow) => AgentPluginRowStateControl;
   updatePort: AgentPluginInstallPort;
   sectionLabel: string;
   lede: string;
   emptyMessage: string;
-  visiblePlugins: AdminAgentPlugin[] | null;
+  visiblePlugins: AgentPluginListRow[] | null;
 }) {
   const { t, agentPlugins, error, toggleError } = controller;
 

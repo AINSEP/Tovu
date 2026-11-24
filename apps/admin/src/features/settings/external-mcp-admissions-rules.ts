@@ -1,4 +1,4 @@
-import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
 /**
  * @file What the RUNNING assistant actually admitted, turned into operator-facing rows — the

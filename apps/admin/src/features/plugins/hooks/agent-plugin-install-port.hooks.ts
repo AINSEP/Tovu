@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 
 /**
  * @file What `use-agent-plugin-install.hooks.ts` needs from outside: the "Add a plugin" upload
@@ -10,7 +10,7 @@ export interface AgentPluginInstallResult {
   alreadyInstalled: boolean;
   warnings?: string[];
   /** The installed row in `listAgentPlugins`' shape, switched off on a fresh install. */
-  agentPlugin: AdminAgentPlugin | null;
+  agentPlugin: AgentPluginListRow | null;
 }
 
 export interface AgentPluginInstallPort {

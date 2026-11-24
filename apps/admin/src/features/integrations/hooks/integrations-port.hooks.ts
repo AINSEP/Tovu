@@ -1,4 +1,4 @@
-import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * @file What `useIntegrations` needs from the outside world, as an interface rather than a direct
@@ -16,15 +16,15 @@ import type { AdminWebhookSubscription } from "@/features/integrations/api/integ
  * that port's own doc comment.
  */
 export interface IntegrationsPort {
-  listIntegrationSubscriptions(): Promise<{ subscriptions: AdminWebhookSubscription[] }>;
+  listIntegrationSubscriptions(): Promise<{ subscriptions: AdminWebhookSubscriptionResponse[] }>;
   createIntegrationSubscription(input: {
     label: string;
     targetUrl: string;
     topics: string[];
-  }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscription }>;
+  }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscriptionResponse }>;
   pauseIntegrationSubscription(target: {
     id: string;
     paused: boolean;
-  }): Promise<{ subscription: AdminWebhookSubscription }>;
-  deleteIntegrationSubscription(required: { id: string }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscription }>;
+  }): Promise<{ subscription: AdminWebhookSubscriptionResponse }>;
+  deleteIntegrationSubscription(required: { id: string }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscriptionResponse }>;
 }

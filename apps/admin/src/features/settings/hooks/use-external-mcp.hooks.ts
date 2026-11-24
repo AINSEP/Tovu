@@ -22,7 +22,7 @@ type SourceUpdateInput = Parameters<
   NonNullable<SourceConfigDependencies<SourceConfigItem>["port"]["updateSource"]>
 >[1];
 
-import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { describeApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE, isVersionConflict } from "@/lib/version-conflict";

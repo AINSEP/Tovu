@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { AdminExecutionCredential, SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 

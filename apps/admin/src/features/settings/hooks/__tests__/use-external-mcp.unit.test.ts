@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { ExternalMcpPort } from "../use-external-mcp.hooks";
 import { describeStoredCredentials, toAccessTokenWriteBody, useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
 

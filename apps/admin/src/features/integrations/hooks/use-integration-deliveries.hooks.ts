@@ -1,4 +1,4 @@
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
@@ -34,7 +34,7 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  */
 
 export interface IntegrationDeliveriesController {
-  deliveries: AdminWebhookDelivery[] | null;
+  deliveries: AdminWebhookDeliveryResponse[] | null;
   error: string | null;
   /** Bound translator — `key` already resolved against the caller's locale, so
    *  `IntegrationDeliveries.tsx` never imports `useAdminLocale`/`integrations-i18n` itself. See

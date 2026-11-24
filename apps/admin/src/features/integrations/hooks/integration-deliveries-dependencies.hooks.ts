@@ -1,4 +1,4 @@
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
 
@@ -15,7 +15,7 @@ export const defaultIntegrationDeliveriesPort: IntegrationDeliveriesPort = {
 
 /** Seed state for {@link createFakeIntegrationDeliveriesPort}. */
 export interface FakeIntegrationDeliveriesPortOptions {
-  deliveries?: AdminWebhookDelivery[];
+  deliveries?: AdminWebhookDeliveryResponse[];
 }
 
 /**

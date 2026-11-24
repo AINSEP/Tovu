@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import type { AgentPluginInstallPort, AgentPluginInstallResult } from "./agent-plugin-install-port.hooks";
@@ -20,7 +20,7 @@ export const defaultAgentPluginInstallPort: AgentPluginInstallPort = {
 /** An in-memory {@link AgentPluginInstallPort}: answers with `row` (and `warnings`), or rejects
  *  with `failWith`. An update's target is recorded with its upload. */
 export function createFakeAgentPluginInstallPort(
-  required: { row: AdminAgentPlugin },
+  required: { row: AgentPluginListRow },
   optional: { failWith?: ApiError; alreadyInstalled?: boolean; warnings?: string[] } = {},
 ): AgentPluginInstallPort & { uploads: Array<{ name: string; sha256: string; update?: { pluginId: string; expectedOldDigest: string } }> } {
   const uploads: Array<{ name: string; sha256: string; update?: { pluginId: string; expectedOldDigest: string } }> = [];

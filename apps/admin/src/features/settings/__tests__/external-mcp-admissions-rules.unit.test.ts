@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminFederatedAdmissionEntry } from "@/features/integrations/api/integrations-api.types";
+import type { AdminFederatedAdmissionEntry } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
 import {
   admissionRestartHelps,

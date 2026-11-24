@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow, AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
 
 /**
  * @file What `use-agent-plugins.hooks.ts` needs from the outside world, as an interface rather than
@@ -12,9 +12,9 @@ import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integra
  * that settled after a newer toggle.
  */
 export interface AgentPluginsPort {
-  listAgentPlugins(): Promise<{ agentPlugins: AdminAgentPlugin[] }>;
-  setAgentPluginEnabled(required: { pluginId: string; input: { enabled: boolean } }, optional?: Record<string, never>): Promise<{ agentPlugin: AdminAgentPlugin }>;
+  listAgentPlugins(): Promise<{ agentPlugins: AgentPluginListRow[] }>;
+  setAgentPluginEnabled(required: { pluginId: string; input: { enabled: boolean } }, optional?: Record<string, never>): Promise<{ agentPlugin: AgentPluginListRow }>;
   /** `AGENT_PLUGIN_FILES` — the read-only package-files listing behind the row's eye button
    *  (`use-agent-plugin-details-modal.hooks.ts`). */
-  getAgentPluginFiles(required: { pluginId: string }, optional?: Record<string, never>): Promise<AdminAgentPluginFiles>;
+  getAgentPluginFiles(required: { pluginId: string }, optional?: Record<string, never>): Promise<AgentPluginFiles>;
 }

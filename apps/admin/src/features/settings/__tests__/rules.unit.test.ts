@@ -18,7 +18,7 @@ import {
 import type { SaveState } from "@/hooks/use-settings-slice.hooks";
 import { firstLoadError } from "../rules";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
-import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
 /**
  * @file Pure-logic coverage for `features/settings/rules.ts` — the "everything resolved" gate,

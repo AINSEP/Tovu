@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
+import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -22,7 +22,7 @@ const fakeT = (key: string): string => key;
 beforeAll(() => vi.stubEnv("TZ", "UTC"));
 afterAll(() => vi.unstubAllEnvs());
 
-function approval(serverId: string, toolName: string): AdminExternalMcpToolApproval {
+function approval(serverId: string, toolName: string): ExternalMcpToolApprovalDto {
   return { serverId, toolName, grantedByPrincipalId: "owner", grantedAt: "2026-09-28T10:00:00.000Z" };
 }
 

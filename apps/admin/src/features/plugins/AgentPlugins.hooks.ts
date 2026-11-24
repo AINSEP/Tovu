@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 
 /** Route disabling and removing enabled plugins through their shared confirmation. */
@@ -23,7 +23,7 @@ export function useAgentPluginConfirmation({ agentPlugins, onToggleEnabled }: {
 
   /** Installed's switch: enabling stays a plain one-click toggle, disabling opens the confirm
    *  dialog (`variant: "disable"`) instead of calling the mutation immediately. */
-  function onRequestToggleEnabled(plugin: AdminAgentPlugin): void {
+  function onRequestToggleEnabled(plugin: AgentPluginListRow): void {
     if (plugin.enabled) {
       setPendingDisable({ pluginId: plugin.pluginId, variant: "disable" });
     } else {
@@ -34,7 +34,7 @@ export function useAgentPluginConfirmation({ agentPlugins, onToggleEnabled }: {
   /** Downloaded's Remove action — shown only for a currently-enabled row (see `AgentPluginRow`'s
    *  own state-area rendering), so unlike `onRequestToggleEnabled` this has no direct-call branch:
    *  Remove always asks first, with `variant: "remove"` so the dialog reads accordingly. */
-  function onRequestRemove(plugin: AdminAgentPlugin): void {
+  function onRequestRemove(plugin: AgentPluginListRow): void {
     setPendingDisable({ pluginId: plugin.pluginId, variant: "remove" });
   }
 

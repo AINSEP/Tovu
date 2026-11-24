@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow, AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
@@ -17,7 +17,7 @@ export const defaultAgentPluginsPort: AgentPluginsPort = {
 
 /** Seed state for {@link createFakeAgentPluginsPort}. */
 export interface FakeAgentPluginsPortOptions {
-  agentPlugins?: AdminAgentPlugin[];
+  agentPlugins?: AgentPluginListRow[];
   /** Makes `setAgentPluginEnabled` reject with this instead of writing — for the hook's own
    *  failure-path test. The seeded `enabled` value is left untouched, so a test can then assert the
    *  UI did not keep a toggle the server refused. */
@@ -27,7 +27,7 @@ export interface FakeAgentPluginsPortOptions {
    *  resolves immediately. */
   deferToggles?: boolean;
   /** `AGENT_PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the route's 404. */
-  files?: Readonly<Record<string, AdminAgentPluginFiles>>;
+  files?: Readonly<Record<string, AgentPluginFiles>>;
 }
 
 /**
@@ -54,7 +54,7 @@ export function createFakeAgentPluginsPort(options: FakeAgentPluginsPortOptions 
       if (options.failToggleWith !== undefined) throw options.failToggleWith;
       const index = agentPlugins.findIndex((plugin) => plugin.pluginId === pluginId);
       if (index < 0) throw new Error(`fake port: '${pluginId}' is not installed`);
-      const updated: AdminAgentPlugin = { ...agentPlugins[index], enabled };
+      const updated: AgentPluginListRow = { ...agentPlugins[index], enabled };
       agentPlugins[index] = updated;
       if (options.deferToggles) await new Promise<void>((resolve) => pendingToggles.push(resolve));
       return { agentPlugin: updated };

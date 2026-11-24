@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
@@ -15,7 +15,7 @@ import { type Translate } from '@jini-ai/core/text';
  * @complexity O(1) per render.
  */
 export function useAgentPluginUpdate(
-  required: { plugin: AdminAgentPlugin; expectedOldDigest: string; port: AgentPluginInstallPort; t: Translate; onUpdated: (plugin: AdminAgentPlugin) => void },
+  required: { plugin: AgentPluginListRow; expectedOldDigest: string; port: AgentPluginInstallPort; t: Translate; onUpdated: (plugin: AgentPluginListRow) => void },
   _optional: Record<string, never> = {},
 ) {
   const { plugin, expectedOldDigest, port, t, onUpdated } = required;

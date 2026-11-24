@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { Integrations } from "../Integrations";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { useIntegrations, type IntegrationsController } from "../hooks/use-integrations.hooks";
@@ -153,7 +153,7 @@ describe("screen states", () => {
   });
 
   it("shows the last delivery's status, and never when there is none", async () => {
-    const delivered: AdminWebhookSubscription = {
+    const delivered: AdminWebhookSubscriptionResponse = {
       ...SUBSCRIPTION,
       id: "sub2",
       label: "Release hook",

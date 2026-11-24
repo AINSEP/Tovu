@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminAgentPlugin } from "../../integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { integrationsApi } from "../../integrations/api/integrations-api";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
@@ -16,7 +16,7 @@ import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 export type ProviderNotice = { providerId: string; tone: "ok" | "error"; text: string } | null;
 
 export interface EmailProviderController {
-  choices: AdminAgentPlugin[] | null;
+  choices: AgentPluginListRow[] | null;
   adding: string | null;
   addError: string | null;
   addWarning: string | null;
@@ -39,7 +39,7 @@ export interface EmailProviderController {
 type PluginApi = Pick<typeof integrationsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
 function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Promise<MailProviderConfigurationReport> }, _optional = {}) {
   const { pluginApi, refresh } = required;
-  const [choices, setChoices] = useState<AdminAgentPlugin[] | null>(null);
+  const [choices, setChoices] = useState<AgentPluginListRow[] | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [addWarning, setAddWarning] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);

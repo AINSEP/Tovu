@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin } from "../integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AdminPluginProviderSettingField } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import type { AdminPluginDto, AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
@@ -280,7 +280,7 @@ export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPluginD
 /**
  * The row's one-line subline, shown under its name/version heading and repeated inside its
  * expander's own quarantine/errors context: `source · tier · status` (e.g. `"site · tier-3 ·
- * valid"`). `AdminPluginDto` has no free-text description field (unlike `AdminAgentPlugin`), so this
+ * valid"`). `AdminPluginDto` has no free-text description field (unlike `AgentPluginListRow`), so this
  * is built from the trust/health signal the type already carries rather than inventing prose.
  * Values are rendered verbatim, not translated — `plugin.source`/`tier`/`status` are domain
  * enum values, not copy, matching how the pre-split table rendered them (no `t()` wrapping there
@@ -569,7 +569,7 @@ export function agentPluginWarningText(required: { warning: string; translate: T
  * (advisory: the plugin still turns on). Absent fields, from an older server, show nothing.
  * @complexity O(r) in missing requirements.
  */
-export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgentPlugin, "hostOk" | "missingRequires">; translate: Translate }, _optional: Record<string, never> = {}): string[] {
+export function agentPluginCompatibilityLines(required: { plugin: Pick<AgentPluginListRow, "hostOk" | "missingRequires">; translate: Translate }, _optional: Record<string, never> = {}): string[] {
   const { plugin, translate } = required;
   const lines: string[] = [];
   if (plugin.hostOk === false) lines.push(translate("Not for this Tovu version"));
@@ -585,7 +585,7 @@ export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgen
  * @returns The installed revision the update must replace, or `undefined` when the row offers no Update.
  * @complexity O(1).
  */
-export function updatableAgentPluginDigest(required: { plugin: Pick<AdminAgentPlugin, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
+export function updatableAgentPluginDigest(required: { plugin: Pick<AgentPluginListRow, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
   const { origin, archiveDigest } = required.plugin;
   return origin === "operator-installed" && typeof archiveDigest === "string" && archiveDigest.length > 0 ? archiveDigest : undefined;
 }

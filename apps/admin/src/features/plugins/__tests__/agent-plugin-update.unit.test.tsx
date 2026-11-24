@@ -11,7 +11,7 @@ import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 
 /**
@@ -23,16 +23,16 @@ import { ApiError } from "@/lib/admin-http/request";
  */
 
 const DIGEST = "d".repeat(64);
-const UPLOADED: AdminAgentPlugin & { archiveDigest: string } = {
+const UPLOADED: AgentPluginListRow & { archiveDigest: string } = {
   pluginId: "note-taker", displayName: "Note Taker", version: "1.0.0", description: null, keywords: [], enabled: true, skills: [], mcpServerIds: [],
   origin: "operator-installed", archiveDigest: DIGEST, hostOk: true, missingRequires: [], requiredBy: [],
 };
-const BUNDLED: AdminAgentPlugin = { ...UPLOADED, pluginId: "site-compliance", displayName: "Site Compliance", origin: "bundled" };
-const NO_DIGEST: AdminAgentPlugin = { ...UPLOADED, pluginId: "old-server", displayName: "Old Server", archiveDigest: undefined };
+const BUNDLED: AgentPluginListRow = { ...UPLOADED, pluginId: "site-compliance", displayName: "Site Compliance", origin: "bundled" };
+const NO_DIGEST: AgentPluginListRow = { ...UPLOADED, pluginId: "old-server", displayName: "Old Server", archiveDigest: undefined };
 
 const zip = (name = "note-taker.zip") => new File(["PK\u0003\u0004"], name, { type: "application/zip" });
 
-function controllerFor(agentPlugins: AdminAgentPlugin[], onInstalled = vi.fn()): AgentPluginsController {
+function controllerFor(agentPlugins: AgentPluginListRow[], onInstalled = vi.fn()): AgentPluginsController {
   return {
     agentPlugins, error: null, toggleError: null, togglingIds: new Set<string>(), onToggleEnabled: async () => {}, onInstalled,
     expandedIds: new Set(agentPlugins.map((plugin) => plugin.pluginId)), onToggleExpanded: () => {},
@@ -40,7 +40,7 @@ function controllerFor(agentPlugins: AdminAgentPlugin[], onInstalled = vi.fn()):
   };
 }
 
-function renderRow(plugin: AdminAgentPlugin, update?: ReactNode) {
+function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
   render(<ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
     stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul>);
   return screen.getByRole("listitem", { name: plugin.displayName! });

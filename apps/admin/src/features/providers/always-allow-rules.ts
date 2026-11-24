@@ -1,4 +1,4 @@
-import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer, ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
@@ -28,7 +28,7 @@ export interface AlwaysAllowGroup {
  * @complexity O(a + s + g log g) for a approvals, s servers and g groups.
  */
 export function groupAlwaysAllow(
-  approvals: readonly AdminExternalMcpToolApproval[],
+  approvals: readonly ExternalMcpToolApprovalDto[],
   servers: readonly Pick<AdminExternalMcpServer, "serverId" | "label">[],
 ): AlwaysAllowGroup[] {
   const labels = new Map(servers.map((server) => [server.serverId, server.label || server.serverId]));

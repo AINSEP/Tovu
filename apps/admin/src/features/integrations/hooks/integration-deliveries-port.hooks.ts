@@ -1,4 +1,4 @@
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * @file What `useIntegrationDeliveries` needs from the outside world, as an interface rather than
@@ -11,5 +11,5 @@ import type { AdminWebhookDelivery } from "@/features/integrations/api/integrati
  * reasoning, rather than forcing a shared shape neither hook's contract needs.
  */
 export interface IntegrationDeliveriesPort {
-  listIntegrationDeliveries(required: { subscriptionId: string }, optional?: Record<string, never>): Promise<{ deliveries: AdminWebhookDelivery[] }>;
+  listIntegrationDeliveries(required: { subscriptionId: string }, optional?: Record<string, never>): Promise<{ deliveries: AdminWebhookDeliveryResponse[] }>;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";

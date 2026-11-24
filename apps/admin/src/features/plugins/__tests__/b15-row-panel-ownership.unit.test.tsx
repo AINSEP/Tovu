@@ -3,7 +3,7 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { AgentPluginRow } from "../AgentPluginRow";
 import { PluginRow } from "../PluginRow";
@@ -20,7 +20,7 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
   });
 
   if (kind === "agent") {
-    const plugins: AdminAgentPlugin[] = [
+    const plugins: AgentPluginListRow[] = [
       {
         pluginId: "ledger-export", version: "7.4.2", description: "Exports ledger entries.", enabled: true,
         skills: [{ name: "ledger-csv", summary: "CSV export" }], keywords: ["accounting"], mcpServerIds: ["ledger-api"],

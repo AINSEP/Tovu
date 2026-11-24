@@ -1,4 +1,5 @@
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/features/webhooks/index";
+import type { AdminWebhookDeliveryResponse, AdminWebhookDeliverySummary, AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { toWebhookDeliveryView } from "@jini-ai/integrations/webhooks/tools";
 
 /**
@@ -18,48 +19,6 @@ import { toWebhookDeliveryView } from "@jini-ai/integrations/webhooks/tools";
  * Architectural role:
  * Pure projection functions. No I/O, no business rules — those stay in `../../../integrations`.
  */
-
-export interface AdminWebhookDeliverySummary {
-  id: string;
-  status: WebhookDeliveryRecord["status"];
-  attempts: number;
-  lastResponseStatus: number | null;
-  lastError: string | null;
-  createdAt: string;
-  deliveredAt: string | null;
-}
-
-export interface AdminWebhookSubscriptionResponse {
-  id: string;
-  label: string;
-  targetUrl: string;
-  topics: string[];
-  status: WebhookSubscriptionRecord["status"];
-  secretVersion: number;
-  previousSecretVersion: number | null;
-  createdAt: string;
-  updatedAt: string;
-  disabledAt: string | null;
-  version: number;
-  /** Most recent delivery attempt for this subscription, or `null` if none has fired yet. */
-  lastDelivery: AdminWebhookDeliverySummary | null;
-}
-
-export interface AdminWebhookDeliveryResponse {
-  id: string;
-  subscriptionId: string;
-  eventId: string;
-  topic: string;
-  status: WebhookDeliveryRecord["status"];
-  attempts: number;
-  nextAttemptAt: string;
-  lastResponseStatus: number | null;
-  lastError: string | null;
-  signedWithVersion: number | null;
-  createdAt: string;
-  deliveredAt: string | null;
-  deadAt: string | null;
-}
 
 /**
  * Project a subscription row + its (already-resolved) most recent delivery into the admin list

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import type { AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
 
@@ -15,7 +15,7 @@ import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-mo
 
 const identity = (key: string) => key;
 
-const SUPABASE_FILES: AdminAgentPluginFiles = {
+const SUPABASE_FILES: AgentPluginFiles = {
   pluginId: "supabase",
   files: [
     { relativePath: "plugin.json", sizeBytes: 19, content: '{"name":"supabase"}', omitted: null },

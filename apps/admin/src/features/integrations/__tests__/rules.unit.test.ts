@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminWebhookDelivery, AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse, AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { displayTimestamp, integrationRowMenuItems, parseTopics, visibleIntegrationsError } from "../rules";
 
 /**
@@ -10,7 +10,7 @@ import { displayTimestamp, integrationRowMenuItems, parseTopics, visibleIntegrat
  * fallback.
  */
 
-const SUBSCRIPTION: AdminWebhookSubscription = {
+const SUBSCRIPTION: AdminWebhookSubscriptionResponse = {
   id: "sub1",
   label: "My webhook",
   targetUrl: "https://example.com/hooks",
@@ -111,7 +111,7 @@ describe("integrationRowMenuItems", () => {
 });
 
 describe("displayTimestamp", () => {
-  const BASE: AdminWebhookDelivery = {
+  const BASE: AdminWebhookDeliveryResponse = {
     id: "d1",
     subscriptionId: "sub1",
     eventId: "evt1",

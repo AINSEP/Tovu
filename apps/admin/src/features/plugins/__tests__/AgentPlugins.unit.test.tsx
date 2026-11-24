@@ -15,7 +15,7 @@ import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import { AgentPlugins } from "../AgentPlugins";
 import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 
 /**
  * @file `AgentPlugins` driven entirely through the `useAgentPluginsHook` DI seam — no `fetch` stub,
@@ -26,7 +26,7 @@ import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-
  *
  * REWRITTEN 2026-09-09 (a): this suite used to assert against the static
  * `TOVU_BUNDLED_AGENT_PLUGINS` catalog (a hardcoded "ui-ux-design" entry that is not a real
- * installed Agent Plugin). It now asserts against real, injected `AdminAgentPlugin` rows — the
+ * installed Agent Plugin). It now asserts against real, injected `AgentPluginListRow` rows — the
  * same shape `AGENT_PLUGINS_LIST` actually returns.
  *
  * REWRITTEN 2026-09-09 (b), the visual redesign: cards became rows, and the screen gained a REAL
@@ -55,7 +55,7 @@ import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-
  * (the default tab, no navigation needed) and only ever see it in the "on" state.
  */
 
-const SITE_COMPLIANCE: AdminAgentPlugin = {
+const SITE_COMPLIANCE: AgentPluginListRow = {
   pluginId: "site-compliance",
   version: "1.0.0",
   description: "Evidence-based compliance screening.",
@@ -65,7 +65,7 @@ const SITE_COMPLIANCE: AdminAgentPlugin = {
   mcpServerIds: [],
 };
 
-const TOVU_DEPLOY_EXAMPLE: AdminAgentPlugin = {
+const TOVU_DEPLOY_EXAMPLE: AgentPluginListRow = {
   pluginId: "tovu-deploy-example",
   version: null,
   description: null,
@@ -157,7 +157,7 @@ describe("AgentPlugins", () => {
   });
 
   it("lists a switched-off bundled plugin on Installed with its switch off, so it can be turned on right there", async () => {
-    const supabase: AdminAgentPlugin = {
+    const supabase: AgentPluginListRow = {
       pluginId: "supabase",
       version: "1.0.0",
       description: "Supabase projects, tables, and edge functions.",

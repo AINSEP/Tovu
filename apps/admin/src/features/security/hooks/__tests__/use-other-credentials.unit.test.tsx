@@ -7,7 +7,7 @@ import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
-import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
 /** Minimal, fully-shaped `AdminExternalMcpServer` fixture — the OAuth-related fields this suite
  *  never exercises stay at their "nothing configured" defaults so each call site only spells out

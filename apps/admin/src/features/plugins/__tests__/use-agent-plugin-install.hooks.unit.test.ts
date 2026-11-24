@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginInstallPort } from "../hooks/agent-plugin-install-port.hooks";
@@ -58,8 +58,8 @@ describe("useAgentPluginInstall choosing and installing", () => {
 
   it("ignores a second Install while the first upload is running", async () => {
     let finish!: () => void;
-    const installZip = vi.fn(() => new Promise<{ alreadyInstalled: boolean; agentPlugin: AdminAgentPlugin }>((resolve) => {
-      finish = () => resolve({ alreadyInstalled: false, agentPlugin: { pluginId: "notes" } as AdminAgentPlugin });
+    const installZip = vi.fn(() => new Promise<{ alreadyInstalled: boolean; agentPlugin: AgentPluginListRow }>((resolve) => {
+      finish = () => resolve({ alreadyInstalled: false, agentPlugin: { pluginId: "notes" } as AgentPluginListRow });
     }));
     const { result } = setup({ sha256: async () => "sha", installZip });
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));

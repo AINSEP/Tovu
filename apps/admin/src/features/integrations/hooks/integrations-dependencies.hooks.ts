@@ -1,4 +1,4 @@
-import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { IntegrationsPort } from "./integrations-port.hooks";
 
@@ -18,7 +18,7 @@ export const defaultIntegrationsPort: IntegrationsPort = {
 
 /** Seed state for {@link createFakeIntegrationsPort}. */
 export interface FakeIntegrationsPortOptions {
-  subscriptions?: AdminWebhookSubscription[];
+  subscriptions?: AdminWebhookSubscriptionResponse[];
 }
 
 /**
@@ -29,7 +29,7 @@ export interface FakeIntegrationsPortOptions {
  */
 export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions = {}): IntegrationsPort & {
   /** Every subscription currently in the fake's store, in list order. */
-  readonly subscriptions: AdminWebhookSubscription[];
+  readonly subscriptions: AdminWebhookSubscriptionResponse[];
 } {
   const subscriptions = [...(options.subscriptions ?? [])];
 
@@ -41,7 +41,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
     },
 
     async createIntegrationSubscription(input, _optional = {}) {
-      const created: AdminWebhookSubscription = {
+      const created: AdminWebhookSubscriptionResponse = {
         id: `fake-${subscriptions.length + 1}`,
         label: input.label,
         targetUrl: input.targetUrl,
@@ -61,7 +61,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
     async pauseIntegrationSubscription({ id, paused }) {
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
-      const updated = { ...subscriptions[index], status: (paused ? "paused" : "active") as AdminWebhookSubscription["status"] };
+      const updated = { ...subscriptions[index], status: (paused ? "paused" : "active") as AdminWebhookSubscriptionResponse["status"] };
       subscriptions[index] = updated;
       return { subscription: updated };
     },
