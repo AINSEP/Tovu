@@ -5772,6 +5772,94 @@
     {
       "id": "a67858add023",
       "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: deep-link re-resolution never-trust note kept; host route path and ADR/INV ids dropped."
+    },
+    {
+      "id": "63d870eb4c31",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/__tests__/publish-request.store.unit.test.tsx (A-K2-publish-content-1), reworded neutral: 'module-level store `App.tsx` reads' -> 'app-level store the host\\'s app root reads'."
+    },
+    {
+      "id": "878556d3cfb8",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/__tests__/publish-request.store.unit.test.tsx (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "6c118ce5be52",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: plan path cited by name, `App.tsx`/`apps/admin/src/App.hooks.ts` -> the host's app root / root hooks; adds the instance-ownership + injected flag/results note."
+    },
+    {
+      "id": "9a2571651d43",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "e3da6d23b93e",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `App.tsx`'s -> the host's app root's."
+    },
+    {
+      "id": "c63c962a0b12",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `ui/contract.ts` -> the publish-content dialog contract."
+    },
+    {
+      "id": "ec8606e8d7bd",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "a56957f1f08f",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `router.ts`'s `getServerRouteSnapshot` -> the host router's server route snapshot."
+    },
+    {
+      "id": "6945d83f178b",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim, now on PublishRequestStore.requestPublish; @param plan path cited by name."
+    },
+    {
+      "id": "55f3e11ed488",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "e9939426c254",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "9647e0254118",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), verbatim, now on PublishRequestStore.closePublishRequest."
+    },
+    {
+      "id": "4d2cfc3684ed",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-request.store.ts (A-K2-publish-content-1), reworded neutral: `App.tsx` mounts `PublishContentDialog` -> the host's app root mounts the Publish dialog."
+    },
+    {
+      "id": "cc709d8a1df7",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: product section-table package name -> the host's one section table (`host.sectionById`), `requestPublish` -> `host.requestPublish`; adds the host-seam note."
+    },
+    {
+      "id": "a1cdb01d67c6",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "694b12541099",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: `dashboard-i18n` dictionary -> the same dictionary."
+    },
+    {
+      "id": "02ed57765b1d",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "fd47d1c4b879",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/use-publish-section-button.hooks.ts (A-K2-publish-content-1), reworded neutral: `PublishSectionId` -> the host's section id type."
+    },
+    {
+      "id": "f6ebacb1d5db",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), reworded neutral: host file names -> the host's Publish dialog component / confirm hook; product section-table package -> the host's one section table handed in as `sectionForEntityTypes`."
+    },
+    {
+      "id": "ac4d71fa47d6",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), reworded neutral: `ui/contract.ts` -> the publish-content dialog contract."
+    },
+    {
+      "id": "476e83e99bbb",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), verbatim."
+    },
+    {
+      "id": "3354f298e373",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/publish-scope.ts (A-K2-publish-content-1), verbatim."
     }
   ]
 }

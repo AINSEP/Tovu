@@ -1,4 +1,4 @@
-import { publishEntityTypeLabel, publishEntityTypePluralLabel } from "@tovu/publish-content-ui";
+import { publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
@@ -55,7 +55,7 @@ import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { buildCriteriaPublishResult } from "./criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
-import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -267,7 +267,7 @@ function primaryLabelFor(
   if (phase.kind === "done") return t("Published");
   // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
   // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
-  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope }));
+  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope, sectionForEntityTypes: publishSectionForEntityTypes }));
   return plannedPrimaryLabel({ selectedPublishing, onlyLiveGaps, t });
 }
 
@@ -1099,8 +1099,8 @@ export function usePublishContentConfirm(props: {
     overwriteWarning,
     overwriteMismatch,
     overwriteUnavailable,
-    title: publishScopeTitleKey({ scope: props.scope }),
-    description: publishScopeDescriptionKey({ scope: props.scope }),
+    title: publishScopeTitleKey({ scope: props.scope, sectionForEntityTypes: publishSectionForEntityTypes }),
+    description: publishScopeDescriptionKey({ scope: props.scope, sectionForEntityTypes: publishSectionForEntityTypes }),
     primaryLabel: primaryLabelFor(
       { phase: phase,
       selectedPublishing: selectedPublishing,
