@@ -37,9 +37,13 @@ import { buildZipFixture } from "../../agent-plugins/__tests__/fixtures/build-zi
 import { MAX_DOCUMENT_BYTES, validateDocumentIngress, registerTransform } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../../members/index.js";
-import { createDocumentArchiveReader } from "../../media/document-archive.js";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
 import { downloadDocuments } from "../../media/__tests__/download-documents.fixture.js";
 import { importFixture, OWNER_PASSWORD, MEDIA, HASH, stamp } from "./import.fixture.js";
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 function addDocument(h: Awaited<ReturnType<typeof importFixture>>, id: string, bytes: Buffer, status = "active") {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -297,7 +301,7 @@ test("L3 valid DOCX package expansion is bounded within entry limits", async t =
     { path: "_rels/.rels", content: '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>' },
     { path: "word/document.xml", content: '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>' },
   ];
-  const archiveReader = createDocumentArchiveReader({});
+  const archiveReader = createDocumentArchiveReader(documentArchiveDeps);
   await validateDocumentIngress({ filename: "valid.docx", bytes: await buildZipFixture(members) }, { archiveReader });
   // Six entries, each under 15 MiB, with valid package markers and >40 MiB total expansion.
   const padding = "<padding>" + "A".repeat(14 * 1024 * 1024) + "</padding>";

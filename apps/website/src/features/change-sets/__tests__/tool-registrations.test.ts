@@ -19,7 +19,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
 import { contributePostTools } from "#src/features/post/tool-registrations";
-import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "#src/features/change-sets/tool-registrations";
+import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
 import type { PostRecord } from "#src/features/post/post";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

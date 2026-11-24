@@ -1,5 +1,5 @@
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
-import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
+import { toChangeSetView } from "@jini-ai/cms/change-sets/tool-registrations";
 
 /**
  * @file HTTP response serializers for change sets (SPEC-001 api.spec §5).

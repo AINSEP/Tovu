@@ -113,7 +113,7 @@ import { contributePreviewSwitcherTools } from "#src/features/theme/preview-swit
 import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
-import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
+import { contributeChangeSetsTools } from "@jini-ai/cms/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/index";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";

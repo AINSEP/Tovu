@@ -7,8 +7,12 @@ import { join } from 'node:path';
 import { createDiskAttachmentStore } from '@jini-ai/daemon/http';
 import { buildMediaRegistrations, uploadMedia } from '@jini-ai/cms/media';
 import { buildLibrarySaveAttachmentTool } from '../library-save-attachment.js';
-import { createDocumentArchiveReader } from '../document-archive.js';
+import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
+import * as yauzl from 'yauzl';
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { libraryFixture, libraryContext } from './library.fixture.js';
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 test('Library save survives cleanupRun; ordinary attachments remain temporary; later chat list/read sees saved bytes', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'library-save-')); t.after(() => rm(dir, { recursive: true, force: true }));
@@ -22,7 +26,7 @@ test('Library save survives cleanupRun; ordinary attachments remain temporary; l
   const temp = await store.register({ input: { batchId: 'batch-aaa', path: tempPath, name: 'temporary.txt', kind: 'file', size: 9, ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [saved, temp] });
   const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, readFile: ({ path }) => readFile(path),
-    getMessageAttachmentRefs: () => [saved.path, temp.path], archiveReader: createDocumentArchiveReader({}) });
+    getMessageAttachmentRefs: () => [saved.path, temp.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
   const result = await tool.handler(libraryContext({ attachmentRef: saved.path })) as { document: { id: string } };
   await store.cleanupRun({ runId: 'run-a' });
   await assert.rejects(access(savedPath)); await assert.rejects(access(tempPath));
@@ -38,7 +42,7 @@ test('Library save survives cleanupRun; ordinary attachments remain temporary; l
 test('Library save refuses foreign/stale/current-message-missing refs before resolving or reading bytes', async () => {
   const { deps, deny } = libraryFixture(); let reads = 0; let resolves = 0;
   const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => ({ resolveForRun: async () => { resolves++; return undefined; } }),
-    readFile: async () => { reads++; return Buffer.from('secret'); }, getMessageAttachmentRefs: () => ['attachment:current'], archiveReader: createDocumentArchiveReader({}) });
+    readFile: async () => { reads++; return Buffer.from('secret'); }, getMessageAttachmentRefs: () => ['attachment:current'], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
   for (const ref of ['attachment:foreign', 'attachment:old-message', '/tmp/known-path']) await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref })));
   assert.equal(resolves, 0); assert.equal(reads, 0);
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: 'attachment:current' })));
@@ -93,7 +97,7 @@ test('Library save retains the existing resolver\'s run and integrity rejection 
   const ref = await store.register({ input: { batchId: 'isolated', path, name: 'guide.md', size: 10, kind: 'file', ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [ref] });
   const { deps } = libraryFixture(); let reads = 0;
-  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, getMessageAttachmentRefs: () => [ref.path], archiveReader: createDocumentArchiveReader({}),
+  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, getMessageAttachmentRefs: () => [ref.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps),
     readFile: async ({ path }) => { reads++; return readFile(path); } });
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref.path }, 'foreign-run')));
   // The resolver's integrity check compares dev/inode/size/path, so the tamper must change size.
@@ -108,7 +112,7 @@ test('library_read explains download-only formats without loading their blob byt
   const { deps } = libraryFixture();
   const ids: string[] = [];
   for (const [extension, bytes] of Object.entries(await downloadDocuments({}))) {
-    const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, documentArchiveReader: createDocumentArchiveReader({}) },
+    const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) },
       input: { workspaceId: deps.workspaceId, kind: 'document', filename: `download.${extension}`, contentType: 'text/plain', bytes, createdByPrincipal: 'owner' } });
     ids.push(media.id);
   }
@@ -131,7 +135,7 @@ test('Library save allows by policy, refuses before the store is ready, reports 
   await store.claim({ runId: 'run-a', attachments: [exe, md] });
   const { deps } = libraryFixture();
   const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps, getStore, readFile: ({ path }) => readFile(path),
-    getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader({}) });
+    getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
   const tool = build(() => store);
   assert.equal(tool.policy?.authorize?.({} as never), 'allow');
   await assert.rejects(build(() => undefined).handler(libraryContext({ attachmentRef: md.path })), { message: 'attachment store is not ready' });

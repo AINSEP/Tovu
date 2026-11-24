@@ -7,7 +7,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRecord, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
-import { createFormDestinationDeliverer } from "../deliver.js";
+import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
+import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 import type { FormDestinationCredential } from "@jini-ai/core/contracts/site/cms-forms";
@@ -49,7 +50,7 @@ function hostKit({ withNow }: { withNow: boolean }) {
 
 function deliverer(required: { module: FormDestinationModule; credential?: FormDestinationCredential | null; kit?: FormDestinationKit }) {
   const credential = required.credential === undefined ? { token: token("c"), baseUrl: "https://rows.example.com/api" } : required.credential;
-  return createFormDestinationDeliverer({ kit: required.kit ?? hostKit({ withNow: false }).kit, connections: async () => credential, loadRegistry: async () => registryWith(required.module) });
+  return createFormDestinationDeliverer({ resolveRequestTarget, kit: required.kit ?? hostKit({ withNow: false }).kit, connections: async () => credential, loadRegistry: async () => registryWith(required.module) });
 }
 
 // ---- deliver.ts ----
@@ -67,7 +68,7 @@ test("the adapter is called with the frozen form, submission, binding and idempo
 test("the connection port is handed the job's frozen binding, for a connection kind that freezes more than the ref (G14b)", async () => {
   const asked: unknown[] = [];
   const job = frozenJob();
-  const deliver = createFormDestinationDeliverer({ kit: hostKit({ withNow: false }).kit, loadRegistry: async () => registryWith({ deliver: async () => undefined }),
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, kit: hostKit({ withNow: false }).kit, loadRegistry: async () => registryWith({ deliver: async () => undefined }),
     connections: async (input, optional) => { asked.push([input, optional]); return { token: token("frozen"), baseUrl: "https://rows.example.com" }; } });
   await deliver({ workspaceId: W, job });
   assert.deepEqual(asked, [[{ workspaceId: W, connectionRef: "conn-1", adapterId: "rows" }, { binding: job.binding }]]);
@@ -77,7 +78,7 @@ test("with a plugin-state reader, the adapter gets its own plugin's settings in 
   const scopes: unknown[] = [];
   const state = { get: async ({ key }: { readonly key: string }) => (key === "products" ? { rows: true } : null) };
   let given: unknown;
-  const deliver = createFormDestinationDeliverer({ kit: hostKit({ withNow: false }).kit, connections: async () => ({ token: token("state"), baseUrl: "https://rows.example.com" }),
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, kit: hostKit({ withNow: false }).kit, connections: async () => ({ token: token("state"), baseUrl: "https://rows.example.com" }),
     loadRegistry: async () => registryWith({ deliver: async (_required, optional) => { given = optional; } }) },
   { pluginState: (scope) => { scopes.push(scope); return state; } });
   await deliver({ workspaceId: W, job: frozenJob() });

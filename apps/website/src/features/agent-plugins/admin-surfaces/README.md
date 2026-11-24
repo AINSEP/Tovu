@@ -51,7 +51,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 - A second provider plugin adds a surface by shipping `jini-admin-surfaces.json` and its static
   files; no Tovu change is needed to list, serve and mount it.
 - Action handlers and bootstrap data come from an `AdminSurfaceHost` passed as
-  `AgentPluginsRouteDeps.adminSurfaceHost`. Both composition roots pass the Jini handler host's (`site/admin-surfaces/handlers`) (built
+  `AgentPluginsRouteDeps.adminSurfaceHost`. Both composition roots pass the Jini handler host (`site/admin-surfaces/handlers`, built
   in `server/runtime/composition/agent-plugin-connections.ts`), so a plugin answers its own declared
   actions with a `handlerModule` (`.mjs`, admitted by the executable trust gate). Its handlers get
   `capabilities.ts`'s port: the plugin's tools' guarded HTTP and limiter, plus

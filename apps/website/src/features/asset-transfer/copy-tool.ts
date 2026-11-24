@@ -18,7 +18,11 @@ import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { FsFilePathError, listFsFiles } from "../fs-files/fs-files.js";
 import { FsWriteInputError } from "../fs-files/write-files.js";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
-import { createDocumentArchiveReader } from "../media/document-archive.js";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 export const FILES_COPY_LIMITS = { maxFiles: 50, maxFileBytes: THEME_IMPORT_MAX_BYTES, maxTotalBytes: 25 * 1024 * 1024 } as const;
 const catalog: AgentToolDefinition = {
@@ -164,5 +168,5 @@ export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: Assis
 
 /** Composition contribution; its own key preserves the existing fs-files catalog. */
 export function contributeFilesCopyTools(): ToolContributor<AssetToolDeps, AssistantSurfaceDeps> {
-  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader({}) }, surfaces), risk: filesCopyDerivedRisk };
+  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), risk: filesCopyDerivedRisk };
 }

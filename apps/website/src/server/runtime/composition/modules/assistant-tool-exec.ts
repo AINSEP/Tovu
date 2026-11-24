@@ -36,7 +36,10 @@ import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
-import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+;
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
@@ -44,6 +47,8 @@ import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import type { AutomaticPluginRun, createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 /** Publish one site-prepared consent/state event through the daemon's existing credential gate.
  * No stream or retries: the daemon owns the log, the server owns plugin decisions. A failed
@@ -282,7 +287,7 @@ export function buildDaemonAttachmentTools(
     openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
   const tools: ToolRegistration[] = [
     buildLibrarySaveAttachmentTool({
-      deps, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader({}),
+      deps, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader(documentArchiveDeps),
       readFile: readAttachmentFile,
     }),
     buildListPendingChatAttachmentsTool({ getStore, getMessageAttachmentRefs: messageAttachmentRefs }),

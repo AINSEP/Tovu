@@ -5,5 +5,4 @@
 export { FORM_DESTINATIONS_FILENAME, loadFormDestinationRegistry, loadFormDestinationRegistryFromSource } from "./registry.js";
 export { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "./key-store.js";
 export { createFormDestinationPort, type FormDestinationPortDeps } from "./port.js";
-export { createFormDestinationDeliverer } from "./deliver.js";
 export { createCustomCredentialConnectionPort } from "./connection-port.js";

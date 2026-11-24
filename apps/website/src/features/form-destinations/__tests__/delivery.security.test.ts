@@ -8,7 +8,8 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, updateCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
-import { createFormDestinationDeliverer } from "../deliver.js";
+import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
+import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort, FormDestinationCredential } from "@jini-ai/core/contracts/site/cms-forms";
@@ -64,7 +65,7 @@ test("a credential whose worksFor does not name the binding's adapter is refused
   const connections = createCustomCredentialConnectionPort({ credentials: deps });
   assert.equal(await connections({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);
   let calls = 0;
-  const deliver = createFormDestinationDeliverer({ connections, kit, loadRegistry: async () => registryWith({ deliver: async () => { calls += 1; } }) });
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections, kit, loadRegistry: async () => registryWith({ deliver: async () => { calls += 1; } }) });
   await assert.rejects(deliver({ workspaceId: W, job: job(saved.id) }), (error: unknown) =>
     error instanceof FormDeliveryError && error.message === "authorization-required" && error.retryable === false);
   assert.equal(calls, 0);
@@ -81,7 +82,7 @@ function recordingKit(): { kit: FormDestinationKit; sent: string[] } {
 test("the adapter's kit carries only the members the destination kit names, never the host kit's other network helpers", async () => {
   const { kit: hostKit } = recordingKit();
   let seen: FormDestinationKit | undefined;
-  const deliver = createFormDestinationDeliverer({ kit: hostKit, connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com" }),
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, kit: hostKit, connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com" }),
     loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => { seen = adapterKit; } }) });
   await deliver({ workspaceId: W, job: job("conn-1") });
   assert.deepEqual(Object.keys(seen ?? {}).sort(), ["fetch", "now", "timeouts"]);
@@ -92,7 +93,7 @@ test("the adapter's kit carries only the members the destination kit names, neve
 test("an adapter's fetch outside the credential's saved hosts is refused before any network call", async () => {
   const { kit: guarded, sent } = recordingKit();
   const refusals: unknown[] = [];
-  const deliver = createFormDestinationDeliverer({ kit: guarded,
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, kit: guarded,
     connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com/api", additionalHosts: ["https://upload.rows.example.com"] }),
     loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => {
       for (const url of ["https://attacker.example.net/collect", "http://rows.example.com/api", `https://user:${"p".repeat(8)}@rows.example.com/api`]) {
@@ -109,7 +110,7 @@ test("an adapter's fetch outside the credential's saved hosts is refused before 
 
 test("an adapter's fetch to the credential's baseUrl origin or an additional host reaches the kit", async () => {
   const { kit: guarded, sent } = recordingKit();
-  const deliver = createFormDestinationDeliverer({ kit: guarded,
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, kit: guarded,
     connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com/api", additionalHosts: ["https://upload.rows.example.com"] }),
     loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => {
       await adapterKit.fetch("https://rows.example.com/other/path?q=1", {}, { timeoutMs: 1000 });
@@ -156,7 +157,7 @@ test("each attempt resolves the credential fresh for the job's workspace and nev
   const connections: FormDeliveryConnectionPort = async (input) => { asked.push(input); return { token: current, baseUrl: "https://rows.example.com" }; };
   const received: FormDestinationCredential[] = [];
   const registryWorkspaces: string[] = [];
-  const deliver = createFormDestinationDeliverer({ connections, kit, loadRegistry: async ({ workspaceId }) => {
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections, kit, loadRegistry: async ({ workspaceId }) => {
     registryWorkspaces.push(workspaceId);
     return registryWith({ deliver: async ({ credential, binding, idempotencyKey }) => { received.push(credential); assert.equal(binding?.bindingId, "b1"); assert.equal(idempotencyKey, '["s1","b1"]'); } });
   } });
@@ -175,7 +176,7 @@ test("each attempt resolves the credential fresh for the job's workspace and nev
 
 test("no credential for the binding refuses as non-retryable authorization-required without calling the adapter", async () => {
   let calls = 0;
-  const deliver = createFormDestinationDeliverer({ connections: async () => null, kit,
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections: async () => null, kit,
     loadRegistry: async () => registryWith({ deliver: async () => { calls += 1; } }) });
   await assert.rejects(deliver({ workspaceId: W, job: job("conn-gone") }), (error: unknown) =>
     error instanceof FormDeliveryError && error.message === "authorization-required" && error.retryable === false);
@@ -187,14 +188,14 @@ test("a loaded receive-only destination (no deliver) refuses as adapter-unavaila
   const receiveOnly = buildFormDestinationRegistry({ refusals: [], loaded: [{ descriptor: { id: "rows", label: "Rows", module: "rows.mjs", receive: "co-hosted", hosts: ["host-a"] },
     pluginId: "p1", module: { pull: async () => ({ items: [], nextAfter: 0, hasMore: false }), ack: async () => ({ acknowledged: 0 }) } }] });
   assert.ok(receiveOnly.get("rows"), "sanity: the destination is loaded");
-  const deliver = createFormDestinationDeliverer({ connections: async () => { opened += 1; return null; }, kit, loadRegistry: async () => receiveOnly });
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections: async () => { opened += 1; return null; }, kit, loadRegistry: async () => receiveOnly });
   await assert.rejects(deliver({ workspaceId: W, job: job("conn-1") }), (error: unknown) =>
     error instanceof FormDeliveryError && error.message === "adapter-unavailable" && error.retryable === true);
   assert.equal(opened, 0);
 });
 
 test("an adapter id no loaded destination has refuses as adapter-unavailable", async () => {
-  const deliver = createFormDestinationDeliverer({ connections: async () => null, kit,
+  const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections: async () => null, kit,
     loadRegistry: async () => buildFormDestinationRegistry({ refusals: [], loaded: [] }) });
   await assert.rejects(deliver({ workspaceId: W, job: job("conn-1") }), (error: unknown) =>
     error instanceof FormDeliveryError && error.message === "adapter-unavailable" && error.retryable === true);

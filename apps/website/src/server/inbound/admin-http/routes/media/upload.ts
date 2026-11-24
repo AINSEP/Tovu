@@ -1,5 +1,8 @@
 import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-ai/cms/media";
-import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
+import * as yauzl from "yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+;
 import type { Request, Response } from "express";
 
 import {
@@ -23,6 +26,8 @@ import { sendValidationOrInternalError } from "./route-guards.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { toStoredMediaResponse } from "./stored-media-response.js";
+/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
+const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 /** An upload request's fields after {@link parseUploadRequestFields}. */
 interface UploadRequestFields {
@@ -159,7 +164,7 @@ async function persistUpload(required: { deps: MediaUploadDeps; fields: UploadFi
       blobRepo: deps.assetBlobRepo,
       renditionRepo: deps.assetRenditionRepo,
       blobStore: deps.blobStore,
-      documentArchiveReader: createDocumentArchiveReader({}),
+      documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
     },
     input: {
       workspaceId: deps.workspaceId,
