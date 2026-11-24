@@ -170,3 +170,56 @@ test("MCP callback: a typed answer naming no exchange, with nothing outstanding,
   assert.ok([403, 409].includes(res.status), `status ${res.status}`);
   assert.match(res.headers.get("content-type") ?? "", JSON_CONTENT_TYPE);
 });
+
+// ── Registration and Express-written answers ─────────────────────────────────────────────────────
+// The two endpoints once were `app.post(path, handler)`. Mounting them as a `use` layer through the
+// dispatcher changed three things a browser or the admin proxy can see: the route table (no
+// method-scoped row, so no Express-owned 405/OPTIONS), the answer writer (no Express `res.json`:
+// no weak ETag), and the position (a `use` layer answers for every method). These pins hold the
+// original shape: one method-scoped POST route row per endpoint, at the position of the call.
+
+interface StackLayer { name: string; route?: { path: string; methods: Record<string, boolean>; stack: unknown[] } }
+const stackOf = (app: express.Express): StackLayer[] => (app as unknown as { _router: { stack: StackLayer[] } })._router.stack;
+
+test("registration: each endpoint is ONE method-scoped POST route row, at the position of the register call", () => {
+  const app = express();
+  app.use(express.json());
+  app.use(function markerBefore(_req, _res, next) { next(); });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges: newStore() } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor.instance, surfaceExchanges: newStore() } });
+  app.use(function markerAfter(_req, _res, next) { next(); });
+
+  const stack = stackOf(app);
+  const before = stack.findIndex((layer) => layer.name === "markerBefore");
+  const after = stack.findIndex((layer) => layer.name === "markerAfter");
+  const between = stack.slice(before + 1, after);
+  assert.equal(between.length, 2, `exactly two layers between the markers, got ${between.map((layer) => layer.name).join(",")}`);
+  assert.deepEqual(between.map((layer) => layer.route?.path), [A2UI_ACTIONS_PATH, MCP_UI_TOOL_CALLS_PATH]);
+  for (const layer of between) assert.deepEqual(layer.route?.methods, { post: true }, "a method-scoped POST row, not a `use` layer");
+});
+
+test("answers are written by Express: Content-Length matches the body and the ETag is weak, as `res.json` wrote them", async (t) => {
+  const baseUrl = await startTestServer(buildApp(newStore()), t);
+  for (const path of [A2UI_ACTIONS_PATH, MCP_UI_TOOL_CALLS_PATH]) {
+    const res = await post(baseUrl, path, JSON.stringify({}));
+    const body = Buffer.from(await res.arrayBuffer());
+    assert.equal(res.status, 401);
+    assert.equal(res.headers.get("content-length"), String(body.length), path);
+    assert.match(res.headers.get("etag") ?? "", /^W\/"/, `${path} lost the weak ETag`);
+    assert.equal(res.headers.get("content-type"), "application/json; charset=utf-8", path);
+  }
+});
+
+test("OPTIONS and other methods are answered by Express's own route table, not synthesized by a dispatcher layer", async (t) => {
+  const baseUrl = await startTestServer(buildApp(newStore()), t);
+  for (const path of [A2UI_ACTIONS_PATH, MCP_UI_TOOL_CALLS_PATH]) {
+    const options = await fetch(`${baseUrl}${path}`, { method: "OPTIONS" });
+    assert.equal(options.status, 200, path);
+    assert.equal(options.headers.get("allow"), "POST", path);
+    assert.equal(await options.text(), "POST", path);
+    // Express's own OPTIONS responder goes through `res.send`, which adds the ETag; the dispatcher's synthesized answer has none.
+    assert.match(options.headers.get("etag") ?? "", /^W\/"/, `${path} OPTIONS was not answered by Express`);
+    const get = await fetch(`${baseUrl}${path}`);
+    assert.equal(get.status, 404, `${path} GET falls through to Express's not-found`);
+  }
+});

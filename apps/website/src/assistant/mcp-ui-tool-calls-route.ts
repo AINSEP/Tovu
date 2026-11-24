@@ -10,7 +10,7 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
 import { surfaceRouteHost } from "./surface-route-host.js";
-import { mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
+import { mountJiniPostRoutesInPlace } from "#src/server/runtime/composition/jini-routes";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
@@ -132,7 +132,7 @@ export interface McpUiToolCallsRouteDeps {
  * @overallScore 100
  */
 export function registerMcpUiToolCallsRoute({ app, deps }: { app: Express; deps: McpUiToolCallsRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountJiniRoutes({ app, routes: surfaceCallbackRoutes({
+  mountJiniPostRoutesInPlace({ app, routes: surfaceCallbackRoutes({
     path: MCP_UI_TOOL_CALLS_PATH,
     host: surfaceRouteHost(),
     deps: {
