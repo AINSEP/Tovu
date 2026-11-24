@@ -1086,6 +1086,9 @@ export interface TrashDeps {
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & import("../../features/source-control/commit-site.js").StaticSiteHostPorts & {
   documentAssets?: (required: { scripts: readonly import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
   declaredScripts?: import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[];
+  /** Bound by `site-deps/site-update-binding.ts` for a self-hosted site that opted in (feed URL, host kind, version); absent
+   *  means no update tools. The tools read it as `siteUpdateRuntime`; applying still needs the owner's approval card. */
+  siteUpdateRuntime?: import("../../features/site-update/tools.js").SiteUpdateRuntime | null;
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */

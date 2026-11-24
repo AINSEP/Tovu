@@ -34,7 +34,10 @@ import { routeDepsPublishCredentials } from "./route-deps-publish-credentials.js
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import { bindCredentialsHostPorts } from "../credentials-host-ports.js";
 import { bindStaticSiteContext } from "../static-site-context.js";
+import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import { wireFormsAndSearch } from "./after-assembly-forms-search.js";
+import { bindSiteUpdateRuntime, createHttpJsonGetter, createTargetTagRecorder } from "./site-update-binding.js";
 import { compositionCommerce } from "./shared-oauth-commerce.js";
 import { createTovuPluginHost } from "../plugin-host.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
@@ -237,6 +240,12 @@ export function assembleRouteDepsPhase(required: AssembleRouteDepsPhaseRequired,
   resolveRouteDeps(routeDeps);
   const { widgetAdoptionReady } = wireFormsAndSearch({ siteTitleReady, menuBindingsReady, mediaTransformReady, routeDeps, workspaceId, kernel, outbox, bus, clock, idGen, customCredentialSetRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, agentPluginLifecycle, settingsRepo, observability, formDeliveryRepo, agentPluginConnections, identity, settingsPrincipals, agentPluginLayout, consoleLogger });
 
+
+  // Self-hosted update tools: bound only when the operator opted in by environment (see site-update-binding.ts).
+  routeDeps.siteUpdateRuntime = bindSiteUpdateRuntime({
+    env: process.env, dbOps, ids: idGen, getJson: createHttpJsonGetter({ client: guardedOutboundHttpClient }),
+    recordTargetTag: createTargetTagRecorder({ directory: path.dirname(dbPath), writeFile: (file, text) => writeFile(file, text, "utf8") }),
+  });
 
   const commerceBinding = compositionCommerce({ dbPath, overrides, resolvedSiteBinding, agentPluginLayout, kernel, workspaceId, clock, idGen, settingsRepo, siteSettingsReady, projectSiteId, providerConfigSource, providerPlugins, observability });
 
