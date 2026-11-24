@@ -2,6 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
@@ -36,7 +37,7 @@ const AGENT_MADE = ["agent-scheduled-in-pause", "agent-live-before-pause", "agen
 
 describeEachDialect("post go-live under the agent-pause hold", {
   tables: ["posts", "post_revisions", "agent_pause_holds"],
-  make: (kernel) => ({ repo: postRepoFor(kernel), kernel: kernel as KyselyKernel<unknown> }),
+  make: (kernel) => ({ repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), kernel: kernel as KyselyKernel<unknown> }),
 }, (make) => {
   test("held: agent post scheduled after the pause stays unpublished; owner post goes live; release resumes it", async () => {
     const { repo, kernel } = make();
