@@ -8,12 +8,12 @@ import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-q
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
 import { decodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
-import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../../http/site/form-wire-policy.js";
+import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS, MEMBER_AUTH_SCRIPT_MARKER } from "../../../http/site/form-wire-policy.js";
 import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
-import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js";
+import { injectMemberAuthScript } from "@jini-ai/cms/public-http/http/site/member-auth-script";
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -141,7 +141,7 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
     // returned above never issue tokens; rendering observes time without claiming a submission.
     deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
     return attemptToken;
-  } }, {}), workspaceId: deps.workspaceId });
+  } }, {}), workspaceId: deps.workspaceId, marker: MEMBER_AUTH_SCRIPT_MARKER });
 }
 
 /** Sends a finished public page: this request's `Cache-Control`, the HTML type, and the finalized

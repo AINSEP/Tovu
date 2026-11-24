@@ -15,3 +15,8 @@ export const FORM_RESULT_QUERY_KEYS = {
  *  per cookie, owned by whichever module needs it most, reused verbatim by every other reader/writer. */
 export const FORM_FLASH_COOKIE_NAME = "tovu_form_flash";
 
+
+/** Boolean attribute stamped on the member sign-in `<style>` and `<script>` that
+ *  `injectMemberAuthScript` (`@jini-ai/cms`) adds to a public page; its presence is that function's
+ *  idempotency check, so the host owns one fixed name (the engine ships no product-branded one). */
+export const MEMBER_AUTH_SCRIPT_MARKER = "data-tovu-member-auth";
