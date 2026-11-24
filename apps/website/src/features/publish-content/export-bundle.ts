@@ -8,7 +8,7 @@ import {
   type PublishContentHandler,
   type SkippedPackEntity,
 } from "./type-registry.js";
-import type { PublishScope } from "./ui/contract.js";
+import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
