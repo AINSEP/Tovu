@@ -50,7 +50,8 @@ import {
   useWiredAiAssistant,
 } from "./hooks/use-ai-assistant.hooks";
 import { useWiredVisitorCredentialForm } from "./hooks/visitor-credential-form-dependencies.hooks";
-import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
+import { useStoredCredentialHint } from "@jini-ai/admin/shell/hooks/use-credential-hint.hooks";
+import { storedCredentialHint } from "@/lib/credential-copy";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
@@ -618,7 +619,7 @@ export function VisitorCredentialForm({
    * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
    */
   const providerSelectId = useId();
-  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
+  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint, storedCredentialHint, useAdminLocale });
 
   if (loadState.status === "loading") return <p role="status">{t("Loading saved settings…")}</p>;
   if (loadState.status === "error") return <p role="alert">{t(loadState.message)}</p>;
