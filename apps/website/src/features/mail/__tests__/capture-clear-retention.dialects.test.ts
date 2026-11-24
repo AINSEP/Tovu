@@ -68,11 +68,11 @@ describeEachDialect("mail retention windows and clear-all captured test emails",
       planCaptureClear: ({ principalId }: { principalId: string }) => planMailCaptureClear({ principalId, workspaceId: "w" }, { capture: createMailCaptureRepo({ db }), checkPermission: allowed }) };
     const handle = (body: Record<string, unknown>) => (mailCaptureClearRoute.handle as (a: unknown) => Promise<{ value: Record<string, unknown> }>)({ input: { body }, deps, context: { id: "owner" } });
     const preview = (await handle({})).value;
-    assert.deepEqual(preview, { cleared: false, confirmationRequired: true, plan: { count: 2, newestAt: iso(NOW) } });
+    const planned = await planMailCaptureClear({ principalId: "owner", workspaceId: "w" }, { capture: createMailCaptureRepo({ db }), checkPermission: allowed });
+    assert.deepEqual(preview, { cleared: false, confirmationRequired: true, plan: { count: 2, newestAt: iso(NOW) }, revision: planned.revision }, "the preview hands the screen the revision a confirm must carry");
     await assert.rejects(handle({ confirmed: true, revision: "stale" }), (err: unknown) => JSON.stringify(err).includes("Review and confirm again"));
     assert.deepEqual(await keys(db, "mail_capture"), ["other:kept", "w:one", "w:two"], "preview and stale confirm delete nothing");
-    const revision = (await planMailCaptureClear({ principalId: "owner", workspaceId: "w" }, { capture: createMailCaptureRepo({ db }), checkPermission: allowed })).revision;
-    assert.deepEqual((await handle({ confirmed: true, revision })).value, { cleared: true, deleted: 2 });
+    assert.deepEqual((await handle({ confirmed: true, revision: preview.revision })).value, { cleared: true, deleted: 2 });
     assert.deepEqual(await keys(db, "mail_capture"), ["other:kept"]);
     assert.deepEqual(await keys(db, "mail_send_ledger"), ["other:kept", "w:one", "w:two"], "sent-email records are not test emails");
     assert.deepEqual(await keys(db, "mail_activity_attempts"), ["other:kept", "w:one", "w:two"]);

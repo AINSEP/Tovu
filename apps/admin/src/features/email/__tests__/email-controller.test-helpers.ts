@@ -42,6 +42,7 @@ export function createTabHooks(_required = {}, _optional = {}): EmailTabHooks {
       },
       removal: null, startRemoval: vi.fn(), setRemovalReason: vi.fn(), continueRemoval: vi.fn(async () => {}),
       cancelRemoval: vi.fn(), removedNotice: null, feedback: { kind: "loaded", data: { available: false, providers: [] } },
+      capture: { canClear: false, state: { kind: "idle" }, start: vi.fn(async () => {}), confirm: vi.fn(async () => {}), cancel: vi.fn() },
     })),
   };
 }
