@@ -13,7 +13,7 @@ import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { t as tIntegrations } from "../integrations/integrations-i18n";
-import { t } from "./providers-i18n";
+import { tProviders as t } from "../../lib/i18n-common";
 import { useProviders } from "./hooks/use-providers.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';

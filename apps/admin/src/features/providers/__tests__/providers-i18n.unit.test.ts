@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { PROVIDERS_DICT, t } from "../providers-i18n";
-import { COMMON_I18N } from "../../../lib/i18n-common";
+import { COMMON_I18N, tProviders as t } from "../../../lib/i18n-common";
+
+const PROVIDERS_DICT = t.dictionary as Record<string, Record<string, string>>;
 
 /**
  * @file `PROVIDERS_DICT` cross-locale coverage, mirroring `trash/__tests__/trash-i18n.unit.test.ts`'s

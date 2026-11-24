@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createProvidersDictionary } from "@jini-ai/admin/screens/providers/providers-i18n";
 import { createSettingsCapabilitiesDictionary } from "@jini-ai/admin/screens/settings/settings-capabilities-i18n";
 
 /**
@@ -79,3 +80,7 @@ export const { t: tSettingsCapabilities } = createSettingsCapabilitiesDictionary
   productName: "Tovu",
   referenceProductName: "Open Design",
 });
+
+/** The Integrations page chrome. Its "restart Tovu to connect" copy names this product, so Jini
+ *  keeps a placeholder and this app binds the name once. */
+export const { t: tProviders } = createProvidersDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });
