@@ -1,20 +1,17 @@
 import path from "node:path";
 
-import {
-  nodeProvisioningFileIo,
-  resolveCommittedConfigRoot,
-} from "#src/features/publish-trust/provisioning.node-io";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { PUBLISH_TRUST_ENV_VAR, resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import {
   PUBLISH_TRUST_CONFIG_PATH,
-  PUBLISH_TRUST_ENV_VAR,
   resolvePublishTrust,
   type PublishTrustResolution,
-} from "#src/features/publish-trust/provisioning";
+} from "@jini-ai/cms/publish/trust/provisioning";
 
 /**
  * @file Zero-setup publishing auth — where the destination's grants come from at run time.
  *
- * The composition-root half of `features/publish-trust/provisioning.ts`: that module owns the
+ * The composition-root half of `@jini-ai/cms/publish/trust/provisioning`: that module owns the
  * precedence rule and every parse, and is pure so it can be tested without a disk or a process
  * env; this one performs the two reads it needs. Kept apart for that reason, and because reading
  * `process.env` is a composition concern rather than a feature one.

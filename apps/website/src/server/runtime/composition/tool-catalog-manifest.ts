@@ -9,7 +9,8 @@ import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/pro
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
-import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "#src/features/custom-credentials/plugin-credential-card";
 import path from "node:path";
@@ -63,7 +64,7 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
-import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
+import { contributeDomainDnsAndChangeTools } from "@jini-ai/devops/dns/site/dns-tools";
 import { createDefaultHttpClient } from "#src/platform/http/index";
 import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
@@ -74,16 +75,17 @@ import { contributeWebTools } from "#src/features/web/tool-registrations";
 import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
-import { importPlaywrightChromium, playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
-import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
+import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
+import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
+import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
+import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
+import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
+import { DOMAIN_DNS_EGRESS_POLICY, DOMAIN_DNS_PUBLIC_NAMES, bindDomainDnsChecks, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import { createPlaywrightPageCapture } from "@jini-ai/diagnostics/web-evidence/playwright-page-capture";
 import { CAPTURE_LIMITS, PageCaptureError } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { desktopRenderForHost } from "#src/platform/headless-browser/desktop-render";
 import { RenderServiceError } from "@jini-ai/desktop-host";
-import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
-import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
-import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -494,9 +496,8 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools<AssistantToolRegistryDeps>({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
-    resolver: publicDnsResolver,
-    probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
-    listExpectedHosts: () => listSavedHostingHosts(routeDeps),
+    publicNames: DOMAIN_DNS_PUBLIC_NAMES,
+    createChecks: bindDomainDnsChecks({ resolver: publicDnsResolver, probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics), listExpectedHosts: () => listSavedHostingHosts(routeDeps) }),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });

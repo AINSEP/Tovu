@@ -1,8 +1,8 @@
 /**
- * @file Coverage for `find-menu.ts`, plus the wiring that only source text can show: that
- * `main/boot/boot-sequence.ts` splices the Find menu into `appWideMenuTemplate`, that the preload
- * subscribes to the same channel, and that the inlined channel literal still matches
- * `contracts/find-in-page.ts`. Mirrors `site-history-menu.test.ts`.
+ * @file Coverage for the Find menu `main/boot/boot-sequence.ts` binds from
+ * `@jini-ai/desktop-host/shell/find-menu` with Tovu's labels and `contracts/find-in-page.ts`'s
+ * channel, plus the wiring that only source text can show: that the preload subscribes to the same
+ * channel, and that the deployed channel literal has not drifted. Mirrors `site-history-menu.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,11 +10,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FIND_TOGGLE_CHANNEL, sendFindToggle, findMenu } from "./find-menu.ts";
+import { sendNativeFindToggle, type NativeFindMenu } from "@jini-ai/desktop-host/shell/find-menu";
+import { FIND_TOGGLE_CHANNEL } from "./contracts/find-in-page.ts";
 import { appWideMenuTemplate } from "./main/boot/boot-sequence.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
+
+/** The Find entry exactly as the sites-home menu installs it. */
+function findMenu(_requiredArgs: Record<string, never>): NativeFindMenu {
+  const entry = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) }).find((item) => "label" in item && item.label === "Find");
+  assert.ok(entry, "the app-wide menu must contain Find");
+  return entry as NativeFindMenu;
+}
+const sendFindToggle = ({ window }: { window: Parameters<typeof sendNativeFindToggle>[0]["window"] }) => sendNativeFindToggle({ window, channel: FIND_TOGGLE_CHANNEL });
 
 /** A BrowserWindow stand-in that records what was sent to its renderer. */
 function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
@@ -66,10 +75,8 @@ test("the sites-home menu adds Find between History and Window", () => {
   ]);
 });
 
-test("the inlined channel literal matches contracts/find-in-page.ts", () => {
-  const match = read("contracts", "find-in-page.ts").match(/export const FIND_TOGGLE_CHANNEL\s*=\s*'([^']+)'/);
-  assert.ok(match, "contracts/find-in-page.ts must declare FIND_TOGGLE_CHANNEL");
-  assert.equal(match[1], FIND_TOGGLE_CHANNEL);
+test("the deployed toggle channel is still runner:find:toggle", () => {
+  assert.equal(FIND_TOGGLE_CHANNEL, "runner:find:toggle");
 });
 
 test("the preload subscribes to that channel", () => {

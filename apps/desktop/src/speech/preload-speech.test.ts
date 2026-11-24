@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
 
-import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-ipc.ts";
+import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-host-config.ts";
 import { IMPORT_HANDOFF_CHANNELS } from "../contracts/import-handoff.ts";
 
 // Electron's sandbox neither strips TypeScript nor accepts ESM, so the deployed CommonJS text

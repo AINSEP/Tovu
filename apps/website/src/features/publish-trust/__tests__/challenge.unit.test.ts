@@ -13,7 +13,7 @@ import {
   type PublishChallengeResponse,
   type PublishChallengeStorePort,
 } from "../challenge.js";
-import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "../grant.js";
+import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 
 /**
  * @file Branch-by-branch pins for `challenge.ts`: every refusal reason verbatim, the ORDER the

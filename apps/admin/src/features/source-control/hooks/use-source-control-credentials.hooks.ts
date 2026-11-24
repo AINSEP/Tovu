@@ -8,7 +8,8 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
+import { sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "@jini-ai/admin/source-control/source-control-i18n";
+import { t as defaultT } from "../source-control-host-i18n";
 
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,

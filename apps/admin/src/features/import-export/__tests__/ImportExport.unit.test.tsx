@@ -1,8 +1,12 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ImportExport } from "@jini-ai/admin/screens/import-export/ImportExport";
+import { ImportExport } from "../ImportExport";
+import { IMPORT_EXPORT_DICT, t } from "@jini-ai/admin/screens/import-export/import-export-i18n";
+import { resolveImportExportTabId, resolveImportExportTabs } from "../import-export-tabs";
 import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
+import { GIT_BACKUP_HOST } from "../hooks/git-backup-dependencies.hooks";
+import { useWiredSitesSectionAvailable } from "../hooks/import-export-dependencies.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "@/features/sites";
@@ -17,7 +21,7 @@ import { SITES_RESOURCE } from "@/features/sites/rules";
  */
 
 /** The Git backup card on a fake port with no connection, so no test here reaches the network. */
-const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate, describeApiError });
+const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate, host: GIT_BACKUP_HOST });
 const identity = () => (key: string) => key;
 
 /** Export and Import read their lists over `fetch`; answer every read with empty lists. */
@@ -83,17 +87,17 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
   });
 });
 
-describe("useSitesSectionAvailable", () => {
+describe("useWiredSitesSectionAvailable", () => {
   it("is false in the desktop shell without reading the sites list", () => {
     const fetchSpy = vi.mocked(globalThis.fetch);
-    const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: true }));
+    const { result } = renderHook(() => useWiredSitesSectionAvailable({}, { desktop: true }));
     expect(result.current).toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("follows the server's switchingEnabled in a browser", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ sites: [], switchingEnabled: true, currentSite: null, persistedSiteName: null })));
-    const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: false }));
+    const { result } = renderHook(() => useWiredSitesSectionAvailable({}, { desktop: false }));
     expect(result.current).toBe(false);
     await waitFor(() => expect(result.current).toBe(true));
   });
@@ -106,7 +110,7 @@ describe("useSitesSectionAvailable", () => {
         .mockResolvedValueOnce(Response.json({ sites: [], switchingEnabled: true, currentSite: null, persistedSiteName: null }))
         .mockResolvedValue(Response.json({ error: "boom" }, { status: 500 })),
     );
-    const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: false }));
+    const { result } = renderHook(() => useWiredSitesSectionAvailable({}, { desktop: false }));
     await waitFor(() => expect(result.current).toBe(true));
     act(() => publishContentRefresh({ resources: [SITES_RESOURCE] }));
     await waitFor(() => expect(result.current).toBe(false));

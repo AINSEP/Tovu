@@ -12,7 +12,7 @@ import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { installFirstPartyPublishContentTypes } from "../../runtime/composition/publish-content-manifest.js";
-import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
+import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/export-run-binding";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { redirects, workspaces } from "#src/platform/db/schema.sqlite";
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";

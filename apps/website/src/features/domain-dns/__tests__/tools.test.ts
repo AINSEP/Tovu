@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { buildDomainDnsRegistrations, domainDnsDerivedRisk, type DomainDnsToolDeps } from "../tools.js";
-import type { DnsQuery } from "@jini-ai/diagnostics/domain-dns";
-import type { TlsStatus } from "@jini-ai/core/contracts/site/diagnostics-domain-dns";
+import { buildDomainDnsRegistrations, domainDnsDerivedRisk, type DomainDnsToolDeps } from "@jini-ai/devops/dns/site/tools";
+import { createDomainDnsChecks, readPublicDnsName, readPublicDomain } from "@jini-ai/diagnostics/domain-dns";
+import type { DnsQuery, TlsStatus } from "@jini-ai/diagnostics/domain-dns";
 
 const context = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "p" }, run: { id: "r" }, input, signal: new AbortController().signal });
 function harness(options: { denied?: string; hosts?: string[]; answers?: Record<string, DnsQuery>; tlsStatus?: TlsStatus } = {}) {
@@ -12,9 +12,12 @@ function harness(options: { denied?: string; hosts?: string[]; answers?: Record<
   const deps: DomainDnsToolDeps = {
     workspaceId: "ws",
     authorize: async ({ permission, workspaceId, principalId, entityType }) => { assert.equal(workspaceId, "ws"); assert.equal(principalId, "p"); assert.equal(entityType, "domain-dns"); calls.push(`auth:${permission}`); return { allowed: options.denied !== permission, reason: options.denied === permission ? "insufficient_permission" : "matched" }; },
+    publicNames: { readPublicDomain, readPublicDnsName },
+    createChecks: ({ authorize }) => createDomainDnsChecks({ authorize,
     resolver: { query: async ({ domain, type }) => { calls.push(`dns:${domain}:${type}`); return options.answers?.[`${domain}:${type}`] ?? { type, status: "no-data", records: [] }; } },
     listExpectedHosts: async () => { calls.push("hosts"); return options.hosts ?? []; },
     probeTls: async ({ domain }) => { calls.push(`tls:${domain}`); return options.tlsStatus ?? { status: "verified", httpStatus: 301 }; },
+    }),
   };
   const registrations = buildDomainDnsRegistrations(deps);
   return { calls, registrations, call: (id: string, input: unknown) => registrations.find(r => r.descriptor.id === id)!.handler(context(input)) };

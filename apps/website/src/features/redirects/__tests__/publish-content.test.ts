@@ -9,7 +9,8 @@ import {
   OriginRegistry,
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";

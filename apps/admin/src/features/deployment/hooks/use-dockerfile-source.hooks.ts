@@ -5,7 +5,8 @@ import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
-import { t as defaultT, dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "../deployment-i18n";
+import { t as defaultT } from "../deployment-host-i18n";
+import { dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 

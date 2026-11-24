@@ -14,9 +14,9 @@ import { toolMetadata as content_types } from '@jini-ai/core/tool-metadata/conte
 import { toolMetadata as custom_credentials } from './custom-credentials.js';
 import { toolMetadata as database } from '@jini-ai/core/tool-metadata/database';
 import { toolMetadata as database_transfer } from '@jini-ai/core/tool-metadata/database-transfer';
-import { toolMetadata as deploy_ops } from './deploy-ops.js';
-import { toolMetadata as deployments } from './deployments.js';
-import { toolMetadata as domain_dns } from './domain-dns.js';
+import { createDeployOpsToolMetadata } from '@jini-ai/core/tool-metadata/deploy-ops';
+import { toolMetadata as deployments } from '@jini-ai/core/tool-metadata/deployments';
+import { toolMetadata as domain_dns } from '@jini-ai/core/tool-metadata/domain-dns';
 import { toolMetadata as external_mcp } from '@jini-ai/core/tool-metadata/external-mcp';
 import { toolMetadata as entries } from '@jini-ai/core/tool-metadata/entries';
 import { toolMetadata as forms } from '@jini-ai/core/tool-metadata/forms';
@@ -46,13 +46,13 @@ import { toolMetadata as server_logs } from './server-logs.js';
 import { toolMetadata as observability } from '@jini-ai/core/tool-metadata/observability';
 import { toolMetadata as settings } from './settings.js';
 import { toolMetadata as visitor_tools } from './visitor-tools.js';
-import { toolMetadata as site_backup } from './site-backup.js';
+import { createSiteBackupToolMetadata } from '@jini-ai/core/tool-metadata/site-backup';
 import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
 import { toolMetadata as sites } from './sites.js';
 import { toolMetadata as skills } from './skills.js';
-import { toolMetadata as source_control } from './source-control.js';
+import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';
 import { toolMetadata as taxonomy } from '@jini-ai/cms/taxonomy/site/tool-metadata';
 import { toolMetadata as theme } from './theme.js';
 import { toolMetadata as trash } from './trash.js';
@@ -61,6 +61,13 @@ import { toolMetadata as web_screenshot } from './web-screenshot.js';
 import { toolMetadata as webhooks } from './webhooks.js';
 import { toolMetadata as widgets } from './widgets.js';
 import { toolMetadata as workspace } from '@jini-ai/core/tool-metadata/workspace';
+
+/** deploy-ops and site-backup search queries name this product (its site-key env var and its portable
+ * archive), so the host binds that vocabulary here; their registration files import these bindings. */
+export const deployOpsToolMetadata = createDeployOpsToolMetadata({ siteKeyEnvName: 'TOVU_SITE_KEY' });
+export const siteBackupToolMetadata = createSiteBackupToolMetadata({ archiveLabel: 'Tovu ZIP' });
+const deploy_ops = deployOpsToolMetadata;
+const site_backup = siteBackupToolMetadata;
 
 /** Owner policy: classify the action rather than the input's write-shaped fields.
  * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which

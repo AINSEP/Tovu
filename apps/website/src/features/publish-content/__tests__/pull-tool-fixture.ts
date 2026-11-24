@@ -8,7 +8,8 @@ import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
 import { InMemoryPublishContentRunRepo } from "../run-repo.js";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentToolDeps } from "../tool-registrations.js";
 import type { HttpRequest } from "../../../platform/http/index.js";
 

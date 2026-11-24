@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CredentialSetSummary } from "@jini-ai/core/contracts/credentials";
-import type { DeployTargetRegistry } from "../../contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { bindPublishCompatibility, type PublishCompatibilitySource } from "../compatibility-port.js";
 
 /**

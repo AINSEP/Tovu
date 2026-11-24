@@ -19,7 +19,8 @@ import {
   sqliteContentSite,
   WORKSPACE_ID,
 } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { registerPublishContentContributor, type PackedEntity } from "#src/features/publish-content/type-registry";
+import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import type { PostRecord } from "../post.js";
 import { contributePostPublish, toPublishableState } from "../publish-content.js";

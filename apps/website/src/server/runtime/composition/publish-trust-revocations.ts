@@ -1,4 +1,4 @@
-import type { PublishTrustRevocationPort, RevocationRead } from "#src/features/publish-trust/revocations";
+import type { PublishTrustRevocationPort, RevocationRead } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishTrustRevocationSource } from "#src/server/inbound/admin-http/publish-trust-auth";
 
 /**

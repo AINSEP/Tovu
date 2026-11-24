@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
-import { useRestoreFlow, useWiredRestoreFlow } from "../hooks/use-restore-flow.hooks";
-import { createFakeRestoreFlowPort } from "../hooks/restore-flow-dependencies.hooks";
+import type { AdminRestorePoint } from "@jini-ai/admin/core";
+import { useRestoreFlow } from "@jini-ai/admin/recovery/hooks/use-restore-flow.hooks";
+import { RESTORE_FLOW_HOST, createFakeRestoreFlowPort, useWiredRestoreFlow } from "../hooks/restore-flow-dependencies.hooks";
 
 /**
  * @file `useRestoreFlow` — the restore ceremony (`plan`/`confirm`/`execute`, SPEC-019
@@ -387,7 +387,7 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
 describe("injected port (2026-08-14, Orc-BASH pass)", () => {
   it("completes the ceremony with an unseeded fake's default disclosure, plan, token and result", async () => {
     const port = createFakeRestoreFlowPort();
-    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT, port, host: RESTORE_FLOW_HOST }));
     await waitFor(() => expect(result.current.disclosure).toEqual({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
     await act(() => result.current.startPlan());
     expect(result.current.plan).toEqual({ planId: "fake-plan-1", planHash: "fake-hash-1" });
@@ -406,7 +406,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
     ["executeError", "confirmed"],
   ] as const)("a fake's %s reports its message and retains the last successful ceremony step", async (failure, step) => {
     const port = createFakeRestoreFlowPort({ [failure]: new Error("restore storage unavailable") });
-    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT, port, host: RESTORE_FLOW_HOST }));
     await waitFor(() => expect(result.current.disclosure).not.toBeNull());
     await act(() => result.current.startPlan());
     if (failure !== "planError") await act(() => result.current.doConfirm());
@@ -428,7 +428,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
       confirmationToken: "tok-x",
       executeResult: { restoreRunId: "run-x", state: "succeeded" },
     });
-    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT, port, host: RESTORE_FLOW_HOST }));
 
     await waitFor(() => expect(result.current.disclosure).not.toBeNull());
     expect(result.current.disclosure).toEqual({ partial: true, watermarkBaselineAvailable: true, counts: { posts_pages: 2 } });
@@ -452,7 +452,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("surfaces a disclosure failure from the fake port's rejected computeRecoveryDisclosure", async () => {
     const port = createFakeRestoreFlowPort({ disclosureError: new Error("boom from fake") });
-    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT, port, host: RESTORE_FLOW_HOST }));
     await waitFor(() => expect(result.current.error).toBe("boom from fake"));
     expect(result.current.disclosure).toBeNull();
   });

@@ -6,8 +6,9 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { entityKey } from "#src/features/publish-content/plan-rows";
-import { friendlyPublishReason } from "#src/features/publish-content/ui/report-rows";
-import { buildPublishContentCatalog, type PackedEntity } from "#src/features/publish-content/type-registry";
+import { friendlyPublishReason } from "@jini-ai/cms/publish/content/dialog/report-reasons";
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { workspaces } from "#src/platform/db/schema.sqlite";

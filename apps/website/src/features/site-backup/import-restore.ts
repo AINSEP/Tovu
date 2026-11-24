@@ -1,6 +1,6 @@
 import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings, OVERRIDES_UNIT } from "./archive-paths.js";
 import fs from "node:fs";
-import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import path from "node:path";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";

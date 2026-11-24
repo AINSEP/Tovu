@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "../report-labels.js";
-import type { PackedEntity, SkippedPackEntity } from "../type-registry.js";
+import type { SkippedPackEntity } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file `labelPeerPlanRows` — the source side naming the rows of a report the DESTINATION produced.

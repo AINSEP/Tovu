@@ -17,17 +17,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  buildPublishContentCatalog,
-  listPublishContentContributors,
-  PublishContentCatalogConfigurationError,
-  registerPublishContentContributor,
-  registeredPublishTypePermissions,
-  resetPublishContentContributorsForTests,
-  type PublishContentDeps,
-  type PublishContentContributor,
-  type PublishContentHandler,
-} from "../type-registry.js";
+import { buildPublishContentCatalog, listPublishContentContributors, registerPublishContentContributor, registeredPublishTypePermissions, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
+import { PublishContentCatalogConfigurationError, type PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 /** A trivial contributor for exercising the registry mechanism itself, independent of any real
  *  domain's business logic — mirrors `tool-contribution-registry.test.ts`'s `fakeContributor`. */

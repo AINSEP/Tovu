@@ -1,6 +1,6 @@
 import { uploadPlannedContent, type PendingFile, type PushFailure, type UploadPlannedContentInput } from "@jini-ai/devops/backup/upload";
 import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
-import type { CommitBackupTreeInput, CredentialedRepositoryTarget, SourceControlProvider } from "../source-control/provider-module.js";
+import type { CommitBackupTreeInput, CredentialedRepositoryTarget, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import type { PushResult } from "./backup-service.js";
 import type { SiteBackupPlan } from "./plan-content.js";
 import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";

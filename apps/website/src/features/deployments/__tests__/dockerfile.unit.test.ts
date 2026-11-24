@@ -8,7 +8,7 @@ import {
   readDockerfileSource,
   writeDockerfileSource,
   writeDockerfileSourceWithIfMatch,
-} from "../dockerfile.js";
+} from "@jini-ai/devops/deploy/site/dockerfile";
 
 /**
  * @file `dockerfile.ts`'s own etag/optimistic-concurrency logic, isolated from the HTTP route and

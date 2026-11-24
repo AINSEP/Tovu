@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from './fetch-query-render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRecovery } from '@/features/recovery/hooks/use-recovery.hooks';
-import { createFakeRecoveryPort } from '@/features/recovery/hooks/recovery-dependencies.hooks';
+import { useRecovery } from '@jini-ai/admin/recovery/hooks/use-recovery.hooks';
+import { RECOVERY_HOST, createFakeRecoveryPort } from '@/features/recovery/hooks/recovery-dependencies.hooks';
 import { usePlugins } from '@/features/plugins/hooks/use-plugins.hooks';
 import { createFakePluginsPort } from '@/features/plugins/hooks/plugins-dependencies.hooks';
 import { useSkills } from '@/features/skills/use-skills.hooks';
@@ -19,7 +19,7 @@ function deferred<T>() {
 describe('fq action completion', () => {
   it('clears a failed recovery action on retry and remains creating until the refreshed list settles', async () => {
     const port = createFakeRecoveryPort({ status: { costClass: 'cheap', banner: null }, points: [] });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([]));
     port.createRestorePoint = async () => { throw new Error('Capture refused'); };
     await act(async () => { await result.current.createRestorePoint(); });
@@ -141,7 +141,7 @@ describe('fq action completion', () => {
 describe('accepted writes with failed refreshes', () => {
   it('keeps recovery read errors in the query and clears them without duplicating the restore point', async () => {
     const port = createFakeRecoveryPort({ points: [] });
-    const { result } = renderHook(() => ({ recovery: useRecovery({ port }), invalidate: useInvalidate() }));
+    const { result } = renderHook(() => ({ recovery: useRecovery({ port, host: RECOVERY_HOST }), invalidate: useInvalidate() }));
     await waitFor(() => expect(result.current.recovery.points).toEqual([]));
     const read = port.listRecoveryRestorePoints;
     let writes = 0;

@@ -7,10 +7,10 @@
 import { useCallback } from 'react';
 
 import type { SiteRecord } from '../contracts/project.js';
-import { copyableDetails } from './import-error-details.js';
+import { copyableDetails } from '@jini-ai/ui/app-shell';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { performSiteStart } from './use-site-start.hooks.js';
-import type { SiteToast } from './use-site-toast.hooks.js';
+import type { SiteToastValue as SiteToast } from '@jini-ai/ui/app-shell';
 
 /** Tracked folders already on the list (or already running) are left as they were. */
 type StartableSite = SiteRecord & { alreadyTracked?: boolean };

@@ -3,7 +3,8 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { PublishContentContributor, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { OverwritablePrecheckRefusal } from "@jini-ai/cms/publish/content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "./import-media-entity.js";

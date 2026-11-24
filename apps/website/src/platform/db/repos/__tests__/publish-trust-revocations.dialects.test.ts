@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "../../../../features/publish-trust/publish-trust-revocations.js";
-import { MAX_REVOCATIONS } from "#src/features/publish-trust/revocations";
+import { MAX_REVOCATIONS } from "@jini-ai/cms/publish/trust/revocations";
 import { sql } from "kysely";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";

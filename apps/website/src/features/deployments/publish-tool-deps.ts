@@ -1,4 +1,4 @@
-import type { LoadInstalledDeployTargets } from "./deploy-targets/types.js";
+import type { LoadInstalledDeployTargets } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import type { SiteConsentService } from '@jini-ai/cookie-consent/site/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
@@ -7,11 +7,12 @@ import type { Clock } from "@jini-ai/core/primitives";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { PublishExecutionMode } from "./publish-credentials/index.js";
+import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
-import type { DeployTargetRegistry } from "./deploy-targets/types.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
-import type { PublishCredentialSource, PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishDeps } from "./static-publish/index.js";
+import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishDeps } from "./static-publish/index.js";
+import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 
 

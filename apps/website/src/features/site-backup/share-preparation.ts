@@ -1,5 +1,5 @@
 import path from "node:path";
-import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR, type SiteSavedKeysPort } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR, type SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { addBuffered } from "./share-preparation-steps.js";
 import type { BlobStorePort, ImageTransformerPort } from "#src/features/media/index";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";

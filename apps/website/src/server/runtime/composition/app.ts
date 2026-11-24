@@ -15,7 +15,7 @@ import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settin
 import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
 import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
 import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
-import { getExportRunSnapshot } from '../../../features/deployments/index.js';
+import { getExportRunSnapshot } from '../../../features/deployments/export-run-binding.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { composeAgentPluginMcp } from "./agent-plugin-service-ports.js";
@@ -34,7 +34,7 @@ import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observabili
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
@@ -345,7 +345,7 @@ function createMemoryPublishing(context: ReturnType<typeof createMemoryRuntime> 
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createMemoryPublishApply({ ...context,
     publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore,
     mediaContentTypeStore, publishContentSeedHash, siteThemes,
