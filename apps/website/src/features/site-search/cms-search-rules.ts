@@ -10,7 +10,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { isLiveAt } from "#src/contracts/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
 import { toRecord, toPostSearchDocument } from "../post/read-model.js";
-import { resolvePostMemberAccess } from "../members/index.js";
+import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 
 export const CMS_SEARCH_RULES: CmsSearchDocumentRules<ContentDatabase> = {
   isLiveAt: (required) => isLiveAt(required),
