@@ -5,7 +5,7 @@ import { consentTranslation, type ConsentTranslation } from '@jini-ai/admin/scre
 import type { ConsentErrors } from '@jini-ai/admin/screens/consent/rules';
 import { createConsentRevisionsPort } from '@jini-ai/admin/screens/consent/settings.hooks';
 import { useAdminLocale } from '@/hooks/use-admin-locale.hooks';
-import { WORKSPACE_ID } from '../../lib/admin-http/config';
+import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
 import { ApiError, authenticatedAdminRequest, describeApiError } from '@/lib/admin-http/request';
 
 /**

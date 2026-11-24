@@ -1,5 +1,5 @@
 import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { authenticatedAdminRequest, describeApiError } from "@/lib/admin-http/request";
 import type { GitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup, type GitBackupController, type GitBackupHost } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";

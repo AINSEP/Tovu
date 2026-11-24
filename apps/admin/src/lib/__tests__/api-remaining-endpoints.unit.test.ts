@@ -12,7 +12,7 @@ import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
-import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
+import { adminSitePreviewUrl, authenticatedAdminUrl } from "@jini-ai/admin/shell/lib/admin-http/urls";
 
 /**
  * @file The `api.ts` endpoints and request options no other `api-*` suite pinned: each call's exact

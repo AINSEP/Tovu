@@ -1,5 +1,5 @@
 import { createObservabilityApi } from "@jini-ai/admin/screens/observability/api/observability-api";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 
 // Observability panel, Overview tab (`apps/website/src/server/inbound/admin-http/routes/system/

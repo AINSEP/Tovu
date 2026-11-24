@@ -22,7 +22,7 @@ import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
 import { createTypedAnswerPoster, type DeliverTypedAnswer } from "@jini-ai/chat/react";
 import { createA2uiActionPoster as createChatA2uiActionPoster, type CreateA2uiActionPosterOptions } from "@jini-ai/chat/transports/http";
 import { ApiError, authenticatedAdminRequest } from "./admin-http/request";
-import { WORKSPACE_ID } from "./admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 /** The admin app's logger: core's console logger describes caught errors instead of printing them raw. */
 export const adminLogger = createConsoleLogger({ prefix: "[admin]" });

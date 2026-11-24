@@ -27,7 +27,7 @@ import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation 
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
-import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/owner-clients";

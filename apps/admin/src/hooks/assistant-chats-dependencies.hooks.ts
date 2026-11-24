@@ -12,7 +12,7 @@ import {
   renameConversation,
   saveMessage,
 } from "../lib/assistant-chats";
-import { WORKSPACE_ID } from "../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 
 /**

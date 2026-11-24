@@ -7,7 +7,7 @@ import type {
   MailUseRow,
 } from "@jini-ai/admin/screens/email/email-api.types";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 /**
  * @file The Email page's client for the round-2 mail routes (2026-10-22). Each shape mirrors its

@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { authenticatedAdminRequest, request } from "@/lib/admin-http/request";
 import { createDeploymentApi } from "@jini-ai/admin/deployment/api/deployment-api";
 import type { AdminPublishDestination } from "./api/publish-destination.types";

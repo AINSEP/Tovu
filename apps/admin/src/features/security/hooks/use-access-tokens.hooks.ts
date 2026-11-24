@@ -6,7 +6,7 @@ import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-
 import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
-import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
+import { localizePublishTargets, localizeSourceControlProviders } from "@jini-ai/admin/shell/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";

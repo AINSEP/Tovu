@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminApiError } from '@jini-ai/core/admin-runtime';
-import { WORKSPACE_ID } from '../../../lib/admin-http/config';
+import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
 import { defaultContentAnalysisPort as contentAnalysisPort } from '../hooks/content-analysis-dependencies.hooks';
 
 /**

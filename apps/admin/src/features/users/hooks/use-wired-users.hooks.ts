@@ -3,7 +3,7 @@ import { useLocalizedUsers, useUsers as useJiniUsers, type LocalizedUsersControl
 import type { UsersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { defaultUsersPort } from "../users-host-binding";
 import { t } from "@jini-ai/admin/users/users-i18n";
 

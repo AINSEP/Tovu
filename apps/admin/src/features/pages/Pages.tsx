@@ -5,7 +5,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import {
   compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated,
   columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT,
-} from "../../lib/admin-post-list-sort";
+} from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { siteUrl } from "../../lib/site-url";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
@@ -20,7 +20,7 @@ import { ThemePagesTab } from "./ThemePagesTab";
  * confirm copy — and the "why" of each) is `@jini-ai/admin/pages/Pages`; this file binds this app's
  * real values into it: the wired "My Pages" hook, the Theme Pages hook + tab body (themes stay in
  * this app), the publish-section button, the localized server-status label, the column comparators
- * and sort labels `lib/admin-post-list-sort.ts` shares with the Posts list, and the page link rules
+ * and sort labels `@jini-ai/admin/shell/lib/admin-post-list-sort` shares with the Posts list, and the page link rules
  * (`./rules.ts`'s `pageAdminPath`/`pagePublicPath`, shared with the page editor, plus `siteUrl`).
  *
  * `panels.tsx` still reaches this through `./index.ts` (lazy `panel-pages.ts` chunk), unchanged.
