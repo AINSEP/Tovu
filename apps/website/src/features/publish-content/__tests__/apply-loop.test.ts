@@ -46,7 +46,7 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import { InMemoryPublishContentBaselineRepo, type PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-repo";
-import { planImport } from "../planner.js";
+import { planImport } from "@jini-ai/cms/publish/content/planner";
 import { entityKey, type PublishContentBundle, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentContributor } from "../type-registry.js";
 import type { EntityReplacement, PublishContentHandler, RepointResult, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";

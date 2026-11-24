@@ -12,7 +12,7 @@ import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
-import { planImport } from "../planner.js";
+import { planImport } from "@jini-ai/cms/publish/content/planner";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PublishContentDeps } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

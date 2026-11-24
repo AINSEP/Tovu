@@ -9,7 +9,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyCreateRoute } from "../../runtime/composition/modules/taxonomy.js";
 import { registerAdminTaxonomyCreateTermRoute } from "../../runtime/composition/modules/taxonomy.js";
-import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/routes/taxonomy/merge-term.js";
+import { registerAdminTaxonomyMergeTermRoutes } from "../../runtime/composition/modules/taxonomy.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

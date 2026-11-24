@@ -3,7 +3,7 @@ import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
-import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor, PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { EntityReplacement, ReferenceHolder, RepointResult } from "@jini-ai/cms/publish/content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
@@ -85,7 +85,7 @@ function menuRecordFromState(required: { id: string; workspaceId: string; state:
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMenusPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<NavMenuEntry, TovuPublishPorts["menu"]>({
+  createRepoPublishHandler<NavMenuEntry, TovuPublishPorts["menu"], TovuPublishPorts>({
     entityType: "menu",
     coversTables: ["menus", "nav_location_bindings"],
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).

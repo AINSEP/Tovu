@@ -1,3 +1,4 @@
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash } from "node:crypto";
 
@@ -10,7 +11,7 @@ import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/
 import {
   currentChangeSetIds, currentReport, currentRetiredChangeSetIds, runItemStates, saveRunRecord, saveRunSnapshot,
   type ApplyRun, type ApplyRunIdentity, type CreatePublishContentApplyPortInput,
-} from "./apply-run.js";
+} from "@jini-ai/cms/publish/content/apply-run";
 import { readBackstopMetadata } from "./backstop-service.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
@@ -87,7 +88,7 @@ type ApplyReportResult = Awaited<ReturnType<PublishContentApplyPort["applyReport
 
 /** Loads the staged bundle this run applies, or says it is gone. */
 async function loadStagedBundle(
-  { input, bundleId, startedAt }: { input: CreatePublishContentApplyPortInput; bundleId: string; startedAt: string },
+  { input, bundleId, startedAt }: { input: CreatePublishContentApplyPortInput<TovuPublishPorts>; bundleId: string; startedAt: string },
   _optional = {}
 ) {
   const staged = await loadActiveBundle({
@@ -106,7 +107,7 @@ async function loadStagedBundle(
  *  refused at execute time too (same hash both times), so `PLAN_STALE` never intercepts it —
  *  `executeMutation()` still calls this port. Nothing to apply; record it and stop. */
 async function abandonRefusedRun(
-  { input, identity, report }: { input: CreatePublishContentApplyPortInput; identity: ApplyRunIdentity; report: PublishContentReport },
+  { input, identity, report }: { input: CreatePublishContentApplyPortInput<TovuPublishPorts>; identity: ApplyRunIdentity; report: PublishContentReport },
   _optional = {}
 ): Promise<ApplyReportResult> {
   await saveRunRecord({
@@ -127,7 +128,7 @@ async function abandonRefusedRun(
 
 /** Send by hand: records the pending audit row (with each item's hash before the run) and puts the
  *  backstop metadata on the report. Only a run whose bundle carries that metadata has one. */
-async function prepareRunAudit({ run }: { run: ApplyRun }, _optional = {}): Promise<void> {
+async function prepareRunAudit({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): Promise<void> {
   const { progress, handlerDeps, handlerByType, input, runId, startedAt, entities } = run;
   const metadata = readBackstopMetadata({ entities });
   const backstopAudit = handlerDeps.backstop?.audit;
@@ -146,7 +147,7 @@ async function prepareRunAudit({ run }: { run: ApplyRun }, _optional = {}): Prom
   await backstopAudit.save({ record: progress.auditRecord });
 }
 
-function initializeRunItems({ run }: { run: ApplyRun }, _optional = {}): void {
+function initializeRunItems({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): void {
   const { progress, entityByKey, input, sourcePrincipalId, startedAt } = run;
   for (const row of progress.report.rows) {
     const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
@@ -175,7 +176,7 @@ function initializeRunItems({ run }: { run: ApplyRun }, _optional = {}): void {
  *  pending item before the first content write. */
 async function openRun(
   { input, identity, staged, report, authorize, backstop }: {
-    input: CreatePublishContentApplyPortInput;
+    input: CreatePublishContentApplyPortInput<TovuPublishPorts>;
     identity: ApplyRunIdentity;
     staged: { entitiesJson: string };
     report: PublishContentReport;
@@ -183,7 +184,7 @@ async function openRun(
     backstop: ApplyReportInput["backstop"];
   },
   _optional = {}
-): Promise<ApplyRun> {
+): Promise<ApplyRun<TovuPublishPorts>> {
   const entities = JSON.parse(staged.entitiesJson) as readonly PackedEntity[];
   const entityByKey = new Map(entities.map((entity) => [entityKey({ entityType: entity.entityType, entityId: entity.id }), entity] as const));
   // Registry read fresh, at apply time, every call — same rule `planner.ts`'s own header pins
@@ -197,7 +198,7 @@ async function openRun(
     ...(authorize === undefined ? {} : { authorize }), ...(backstop === undefined ? {} : { backstop })
   };
   const { handlerByType } = buildPublishContentCatalog(handlerDeps);
-  const run: ApplyRun = {
+  const run: ApplyRun<TovuPublishPorts> = {
     ...identity,
     input,
     entities,
@@ -219,7 +220,7 @@ async function openRun(
 
 /** The per-row context `applyOneRow` reads, with the one write-back it needs: recording the change
  *  set a row landed, durably, before anything else about that row can fail. */
-function applyRowContext({ run }: { run: ApplyRun }, _optional = {}): ApplyRowContext {
+function applyRowContext({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): ApplyRowContext {
   const { input, progress } = run;
   return {
     workspaceId: input.workspaceId,
@@ -256,7 +257,7 @@ interface RepointOutcome {
  *  `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
  *  followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
  *  replaced, so there is nothing here for a repoint pass to act on. */
-function landedReplacements({ run }: { run: ApplyRun }, _optional = {}): EntityReplacement[] {
+function landedReplacements({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): EntityReplacement[] {
   const replacements: EntityReplacement[] = [];
   for (const row of run.progress.report.rows) {
     if (!row.retires) continue;
@@ -269,7 +270,7 @@ function landedReplacements({ run }: { run: ApplyRun }, _optional = {}): EntityR
 }
 
 async function repointHandlers(
-  { run, replacements, skipIds }: { run: ApplyRun; replacements: EntityReplacement[]; skipIds: Set<string> },
+  { run, replacements, skipIds }: { run: ApplyRun<TovuPublishPorts>; replacements: EntityReplacement[]; skipIds: Set<string> },
   _optional = {}
 ): Promise<RepointOutcome> {
   let repointChangeSetIds: string[] = [];
@@ -309,7 +310,7 @@ async function repointHandlers(
 // write) aborts the whole run — otherwise a live menu is left pointing at a holder this run
 // already moved to Trash. A row that never reached a landed retire (never got there, or the
 // create half failed and was undone) contributes nothing, aborted run or not.
-async function runRepointPass({ run }: { run: ApplyRun }, _optional = {}): Promise<RepointOutcome> {
+async function runRepointPass({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): Promise<RepointOutcome> {
   const replacements = landedReplacements({ run });
   // Every id written THIS run, across every type — a holder in this set already carries the
   // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
@@ -326,7 +327,7 @@ async function runRepointPass({ run }: { run: ApplyRun }, _optional = {}): Promi
 // confirms its entities are servable here (`PublishContentHandler.verifyApplied`). Rows that
 // ended `blocked`/`conflict` are left out: they carry their own reason already. A failing check
 // is reported, never thrown: the content already landed.
-async function runVerifyPass({ run }: { run: ApplyRun }, _optional = {}): Promise<string[]> {
+async function runVerifyPass({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): Promise<string[]> {
   const problems: string[] = [];
   for (const handler of run.handlerByType.values()) {
     if (!handler.verifyApplied) continue;
@@ -346,7 +347,7 @@ async function runVerifyPass({ run }: { run: ApplyRun }, _optional = {}): Promis
 
 /** Records what one row resolved to, durably, before the next row starts. */
 async function recordRowOutcome(
-  { run, key, result }: { run: ApplyRun; key: string; result: ApplyRowResult },
+  { run, key, result }: { run: ApplyRun<TovuPublishPorts>; key: string; result: ApplyRowResult },
   _optional = {}
 ): Promise<void> {
   const { progress } = run;
@@ -368,7 +369,7 @@ async function recordRowOutcome(
   await saveRunSnapshot({ run, phase: "applying", finishedAt: null });
 }
 
-async function applyRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
+async function applyRows({ run, ctx }: { run: ApplyRun<TovuPublishPorts>; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
   const { progress, handlerDeps } = run;
   for (const row of progress.report.rows) {
     progress.activeItemKey = entityKey({ entityType: row.entityType, entityId: row.entityId });
@@ -391,7 +392,7 @@ async function applyRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, 
 }
 
 async function rollbackRawRun(
-  { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
+  { run, error, rollbackErrors }: { run: ApplyRun<TovuPublishPorts>; error: unknown; rollbackErrors: string[] },
   _optional = {}
 ): Promise<void> {
   for (const rollback of [...(run.handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
@@ -401,7 +402,7 @@ async function rollbackRawRun(
 }
 
 function recordRawRollback(
-  { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
+  { run, error, rollbackErrors }: { run: ApplyRun<TovuPublishPorts>; error: unknown; rollbackErrors: string[] },
   _optional = {}
 ): void {
   const { progress } = run;
@@ -421,7 +422,7 @@ function recordRawRollback(
   }
 }
 
-function recordFailedItem({ run, error }: { run: ApplyRun; error: unknown }, _optional = {}): void {
+function recordFailedItem({ run, error }: { run: ApplyRun<TovuPublishPorts>; error: unknown }, _optional = {}): void {
   const { progress } = run;
   // A non-conflict error aborted the run partway through — the run row must still record
   // exactly which change sets landed before the failure (plan §5 risk #7's own words), never
@@ -443,7 +444,7 @@ function recordFailedItem({ run, error }: { run: ApplyRun; error: unknown }, _op
 /** The audit row of a run that aborted: what failed, and (when a file could not be put back) the
  *  file inverses an operator still needs. */
 async function saveFailureAudit(
-  { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
+  { run, error, rollbackErrors }: { run: ApplyRun<TovuPublishPorts>; error: unknown; rollbackErrors: string[] },
   _optional = {}
 ): Promise<void> {
   const { auditRecord } = run.progress;
@@ -459,7 +460,7 @@ async function saveFailureAudit(
   });
 }
 
-async function failRun({ run, error }: { run: ApplyRun; error: unknown }, _optional = {}): Promise<never> {
+async function failRun({ run, error }: { run: ApplyRun<TovuPublishPorts>; error: unknown }, _optional = {}): Promise<never> {
   const { progress, transactional } = run;
   const rollbackErrors: string[] = [];
   if (transactional) await rollbackRawRun({ run, error, rollbackErrors });
@@ -472,7 +473,7 @@ async function failRun({ run, error }: { run: ApplyRun; error: unknown }, _optio
   throw transactional ? error : withRefusedItem({ error, itemKey: progress.activeItemKey });
 }
 
-async function executeRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
+async function executeRows({ run, ctx }: { run: ApplyRun<TovuPublishPorts>; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
   const { handlerDeps } = run;
   try {
     if (run.transactional) {
@@ -486,7 +487,7 @@ async function executeRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }
 
 /** Reports what the run did: the repoint and verification passes, the final snapshot, and the
  *  actual outcomes. */
-async function closeRun({ run }: { run: ApplyRun }, _optional = {}): Promise<ApplyReportResult> {
+async function closeRun({ run }: { run: ApplyRun<TovuPublishPorts> }, _optional = {}): Promise<ApplyReportResult> {
   const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass({ run });
   const verificationProblems = await runVerifyPass({ run });
 
@@ -506,7 +507,7 @@ async function closeRun({ run }: { run: ApplyRun }, _optional = {}): Promise<App
 /** Applies a report: loads its bundle, opens the run row, writes row by row (or in one transaction for
  *  a send by hand), and closes the run with the repoint and verification passes. */
 export async function applyPublishContentReport(
-  { input, report, principalId, bundleId, restorePointId, authorize, backstop }: { input: CreatePublishContentApplyPortInput } & ApplyReportInput,
+  { input, report, principalId, bundleId, restorePointId, authorize, backstop }: { input: CreatePublishContentApplyPortInput<TovuPublishPorts> } & ApplyReportInput,
   _optional = {}
 ): Promise<ApplyReportResult> {
   const startedAt = clockNowIso({ clock: input.clock });

@@ -9,7 +9,7 @@ import {
   selectBundleEntities,
   type PublishContentExportEnvelope,
   type ReferenceHandlers,
-} from "../export-bundle.js";
+} from "@jini-ai/cms/publish/content/export-bundle";
 import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

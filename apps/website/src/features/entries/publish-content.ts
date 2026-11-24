@@ -1,9 +1,10 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
@@ -140,7 +141,7 @@ const ENTRY_PUBLISH_ERRORS = {
 };
 
 export const contributeCollectionEntryPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<EntryRow, EntryPublishPorts>({
+  createRepoPublishHandler<EntryRow, EntryPublishPorts, TovuPublishPorts>({
     entityType: "collection-entry",
     coversTables: ["entries", "entry_refs"],
     // 2 = the state may carry `termIds`. Exact-match, so an instance built before this refuses.

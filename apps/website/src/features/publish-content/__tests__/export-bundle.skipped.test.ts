@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { collectSkippedEntities } from "../export-bundle.js";
+import { collectSkippedEntities } from "@jini-ai/cms/publish/content/export-bundle";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 
 /**

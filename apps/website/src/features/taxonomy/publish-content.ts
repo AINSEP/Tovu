@@ -1,6 +1,7 @@
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 
@@ -28,7 +29,7 @@ import {
 const TRASH = "trash";
 
 /** The Jini write-service deps for one apply. */
-function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts>; entityType: string }, _optional = {}) {
+function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts, TovuPublishPorts>; entityType: string }, _optional = {}) {
   const { deps, workspaceId, ports } = ctx;
   const gateway = gatewayDeps({ deps, entityType });
   return {
@@ -47,7 +48,7 @@ const errors = {
 };
 
 export const contributeTaxonomyPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<Taxonomy, TaxonomyPublishPorts>({
+  createRepoPublishHandler<Taxonomy, TaxonomyPublishPorts, TovuPublishPorts>({
     entityType: "taxonomy",
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
@@ -84,7 +85,7 @@ function parentFirst({ rows }: { rows: readonly Term[] }, _optional = {}): Term[
 }
 
 export const contributeTermPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<Term, TaxonomyPublishPorts>({
+  createRepoPublishHandler<Term, TaxonomyPublishPorts, TovuPublishPorts>({
     entityType: "term",
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",

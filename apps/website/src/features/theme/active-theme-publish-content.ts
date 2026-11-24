@@ -3,7 +3,7 @@ import path from "node:path";
 import { PresentationSettingsNotFoundError, PresentationSettingsValidationError, setActiveTheme } from "@jini-ai/cms/presentation";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
@@ -73,7 +73,7 @@ async function findActiveTheme({ ports, workspaceId, id }: { ports: Ports; works
 const notInstalled = ({ themeId }: { themeId: string }, _optional = {}) => `active theme '${themeId}' is not installed at this destination`;
 
 export const contributeActiveThemePublish = (): PublishContentContributor =>
-  createRepoPublishHandler<ActiveThemeRow, Ports>({
+  createRepoPublishHandler<ActiveThemeRow, Ports, TovuPublishPorts>({
     entityType: "active-theme",
     coversTables: ["presentation_settings"],
     permission: "theme.set",

@@ -7,7 +7,7 @@ import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 mock.module(import.meta.resolve("@jini-ai/cms/publish/content/content-hash"), {
   namedExports: { CONTENT_HASH_VERSION: 2, contentHash },
 });
-const { planImport } = await import("../planner.js");
+const { planImport } = await import("@jini-ai/cms/publish/content/planner");
 const { registerPublishContentContributor, resetPublishContentContributorsForTests } = await import("../type-registry.js");
 
 test("v2 planner re-baselines stored v1/unknown history without trusting obsolete hashes", async () => {

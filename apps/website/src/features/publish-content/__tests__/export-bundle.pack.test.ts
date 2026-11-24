@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { packHandlerEntities } from "../export-bundle.js";
+import { packHandlerEntities } from "@jini-ai/cms/publish/content/export-bundle";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
