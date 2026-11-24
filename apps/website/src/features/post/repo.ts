@@ -15,7 +15,7 @@ import type {
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
-import { currentIso } from "@jini-ai/core/contracts/site/scheduled-publish";
+import { currentIso } from "@jini-ai/core/scheduled-publish";
 import { postSearchFor } from "./search-index.js";
 
 /**

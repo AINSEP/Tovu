@@ -4,7 +4,7 @@
  * it asks {@link SearchDocumentSource.load} for the row's current truth, and this file is that truth.
  *
  * What may be indexed is exactly what the public site shows: `isLiveAt` (published, not trashed,
- * past its go-live time — `@jini-ai/core/contracts/site/scheduled-publish`). Everything else loads as
+ * past its go-live time — `@jini-ai/core/scheduled-publish`). Everything else loads as
  * `document: null`, which the indexer turns into a tombstone.
  *
  * Bespoke HTML page edits: `SqlPagesHtmlDocumentStore.write` (and its doc→html conversion) does not
@@ -17,7 +17,7 @@ import type { SearchDocument, SearchDocumentSource, SearchSourceEvent, SearchSou
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import { isLiveAt } from "@jini-ai/core/contracts/site/scheduled-publish";
+import { isLiveAt } from "@jini-ai/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { toRecord } from "../post/read-model.js";

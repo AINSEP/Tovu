@@ -6,7 +6,7 @@ import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPrevie
 import type { StaticFeaturedImage } from "#src/features/theme/static-render-content";
 import { markersOfType, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, readListingBatch, readListingPage, renderListingPageNav, type ListingSource } from "@jini-ai/cms/listing";
-import { postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { postPublicPath } from "#src/platform/routing/index";
 import { featuredImageView } from "../../../../http/site/render/template-render-data.js";

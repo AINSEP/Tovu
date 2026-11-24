@@ -1,6 +1,6 @@
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteRenderContext, SiteProduct } from "../render-context.js";
-import { postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { shortDate, renderPostBody } from "./post-body.js";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
