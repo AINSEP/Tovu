@@ -12,7 +12,7 @@ import type { StaticSiteCopy } from "./static-copy.js";
 import type { StaticExportTheme } from "@jini-ai/devops/backup/site/static-export-selection";
 import { staticDownloadLayout } from "./static-download-layout.js";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
-import { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { createBundledExportFilePolicy, type BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };

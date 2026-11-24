@@ -35,7 +35,7 @@ import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../a
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { SiteDisplayNameSource } from "@jini-ai/cms/settings/site/site-title";
-import { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
+import type { SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";

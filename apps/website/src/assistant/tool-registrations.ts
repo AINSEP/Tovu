@@ -76,7 +76,7 @@ import { warmSiteServerForAgent } from "../platform/dev-host/warm-site-agent.js"
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
-import { ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
+import type { ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import type { WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";

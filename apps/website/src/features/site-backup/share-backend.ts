@@ -12,7 +12,7 @@ import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput } from "./static-export-selection.js";
-import { StaticExportOptions } from "@jini-ai/devops/backup/site/static-export-selection";
+import type { StaticExportOptions } from "@jini-ai/devops/backup/site/static-export-selection";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { checkShareLimits } from "./share-policy.js";
