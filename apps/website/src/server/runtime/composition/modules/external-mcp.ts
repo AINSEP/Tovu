@@ -13,7 +13,7 @@ import {
 } from "#src/contracts/core/rate-limit/rate-limit";
 import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
-import { describeExternalMcpOwnership, isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
+import { describeExternalMcpOwnership, isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 import { ExternalMcpReauthRequiredError } from "#src/features/external-mcp/external-mcp-oauth";
 import {
