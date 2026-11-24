@@ -108,7 +108,9 @@ first in the core module as before. `/readyz` stays hand-written in `inbound/pub
 Public site render helpers (w4-routes): `routes/site/pages/handlers/{home,listing,post-not-found,slug-routes}.ts` call
 `@jini-ai/cms/public-http/routes/site/pages/redirect-phase` with `routing: { runPreContentPhase, runPostContentPhase }` from
 `platform/routing/index`; `routes/site/pages/static-tier.ts` calls `@jini-ai/cms/public-http/routes/site/pages/render-context/collection-lists`
-with its render deps plus `entryListAttribute: ENTRY_LIST_ATTRIBUTE` (`features/theme/entry-list-markup.ts`). `routes/site/forms-multipart.ts`
+with its render deps plus `entryListAttribute: ENTRY_LIST_ATTRIBUTE` (`features/theme/entry-list-markup.ts`) and
+`collaborators: COLLECTION_LIST_COLLABORATORS` (module constant bound once from the public cms `listing`, `widgets/markers`,
+`entries/site/public-list` and `widgets/date-label` subpaths). `routes/site/forms-multipart.ts`
 stays the Express adapter over `@jini-ai/platform/http/multipart` (callers import `parseFormMultipart` from the platform directly).
 Commerce (`runtime/composition/modules/commerce.ts`) exports `registerAdminCommerceStatusRoute`, mounting the Jini
 `commerceStatusRoute` (`"direct"`, operation `routes/commerce/status`) with `readCommerceStatus` from `@jini-ai/commerce` bound
