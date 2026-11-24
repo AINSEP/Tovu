@@ -2,6 +2,30 @@
   "version": 1,
   "allow": [
     {
+      "id": "719e56a377bc",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the file header of the hook; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b0a31d5ab320",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the ThemePageRow doc; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "08b8e571cefd",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the pageCount doc; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4e5d78d3fe86",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715), reworded for the injected noThemeId: the no-theme short-circuit comment; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e8c2ed351b50",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715), reworded for the injected noThemeId: the read-lifecycle rationale; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8b3b55629110",
+      "reason": "Moved to Jini @jini-ai/admin posts/view-tabs.ts (Jini 10def5b5), where the PostEditorView type now lives: the PostEditorView type doc; the Tovu file no longer holds the code it explained."
+    },
+    {
       "id": "010687fc2a46",
       "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
     },
