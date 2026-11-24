@@ -9,13 +9,13 @@ import express from "express";
 import { createSettingsPrincipalLookup, ensureSettingDefinitions, SCOPE_BIT } from "#src/features/settings/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../../inbound/admin-http/routes/settings/get-raw.js";
-import { registerAdminSettingsListDefinitionsRoute } from "../../inbound/admin-http/routes/settings/list-definitions.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
-import { registerAdminSettingsResetRoute } from "../../inbound/admin-http/routes/settings/reset.js";
-import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetEffectiveRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetRawRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsListDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

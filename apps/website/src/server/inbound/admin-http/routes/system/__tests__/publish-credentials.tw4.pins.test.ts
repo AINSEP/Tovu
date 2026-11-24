@@ -10,7 +10,7 @@ import { createPublishCredential, describeCredential, resolveForPublish } from "
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "../publish-credentials.js";
+import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
 const path = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id";
 async function fixture({ accountLabel }: { accountLabel?: string } = {}, _options = {}) {

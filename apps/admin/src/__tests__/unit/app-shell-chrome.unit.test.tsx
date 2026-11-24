@@ -11,6 +11,9 @@ import type { UseAdminSession } from "../../App.hooks";
 import { closePublishRequest, requestPublish } from "../../features/publish-content/hooks/publish-request.store";
 import { publishScreenshotCaptured, resetScreenshotCapturedBus } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { appShellApiBody } from "../app-shell-api.fixture";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file The admin shell's own chrome around the routed screen: the mobile navigation drawer (topbar
@@ -68,7 +71,7 @@ function render(ui: ReactElement) {
 }
 
 it("the topbar toggle opens the mobile drawer behind a backdrop, and the backdrop closes it", () => {
-  const { container } = render(<App useSession={() => session} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   const toggle = screen.getByRole("button", { name: "Open navigation" });
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(container.querySelector(".sidebar-backdrop")).toBeNull();
@@ -82,7 +85,7 @@ it("the topbar toggle opens the mobile drawer behind a backdrop, and the backdro
 });
 
 it("the topbar toggle and the drawer's own close button both close an open drawer", () => {
-  const { container } = render(<App useSession={() => session} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   const toggle = screen.getByRole("button", { name: "Open navigation" });
   fireEvent.click(toggle);
   fireEvent.click(toggle);
@@ -94,7 +97,7 @@ it("the topbar toggle and the drawer's own close button both close an open drawe
 });
 
 it("the chat button opens the assistant dock and its Close AI chat button closes it again", () => {
-  const { container } = render(<App useSession={() => session} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   const dock = container.querySelector("aside.admin-chat-dock")!;
   expect(dock).toHaveAttribute("hidden");
 
@@ -107,7 +110,7 @@ it("the chat button opens the assistant dock and its Close AI chat button closes
 });
 
 it("announces an assistant screenshot capture with a toast that can be dismissed", async () => {
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   const message = "The assistant just captured a screenshot of this screen.";
   expect(screen.queryByText(message)).toBeNull();
 
@@ -118,7 +121,7 @@ it("announces an assistant screenshot capture with a toast that can be dismissed
 });
 
 it("mounts the Publish dialog for an open publish request, and Cancel settles it as unplanned", async () => {
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   let settled: unknown;
   act(() => {
     void requestPublish({ types: ["page"] }).then((result) => (settled = result));
@@ -131,7 +134,7 @@ it("mounts the Publish dialog for an open publish request, and Cancel settles it
 
 it("opens the Publish dialog from a ?publish= deep link and strips the param from the URL", async () => {
   window.history.replaceState(null, "", `/admin/?publish=${encodePublishCriteriaToQuery({ types: ["page"] })}&keep=1`);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
   expect(await screen.findByRole("dialog")).toBeInTheDocument();
   expect(window.location.search).toBe("?keep=1");
 });

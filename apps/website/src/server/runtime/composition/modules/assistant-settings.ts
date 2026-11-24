@@ -1,93 +1,88 @@
-import { deleteExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-execution-credential";
-import { deleteSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-site-credential";
-import { getExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-execution-credential";
-import { getAssistantSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-settings";
-import { getSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-site-credential";
-import { putExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-execution-credential";
-import { putAssistantSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-settings";
-import { putSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-site-credential";
-import type { AssistantCredentialErrorKind } from "@jini-ai/cms/admin-http/routes/assistant/shared";
+import type { Express } from "express";
+import { ForbiddenError, ValueValidationFailedError as CoreValueValidationFailedError } from "@jini-ai/core/settings";
+
+import { assistantDeleteExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-execution-credential";
+import { assistantDeleteSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/delete-site-credential";
+import { assistantGetExecutionCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-execution-credential";
+import { assistantGetSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-settings";
+import { assistantGetSiteCredentialRoute } from "@jini-ai/cms/admin-http/routes/assistant/get-site-credential";
+import { assistantPutExecutionCredentialRoute, EXECUTION_CREDENTIAL_VALIDATION_CODE } from "@jini-ai/cms/admin-http/routes/assistant/put-execution-credential";
+import { assistantPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/assistant/put-settings";
+import { assistantPutSiteCredentialRoute, SITE_CREDENTIAL_VALIDATION_CODE } from "@jini-ai/cms/admin-http/routes/assistant/put-site-credential";
+import type { AssistantErrorMapping } from "@jini-ai/cms/admin-http/routes/assistant/shared";
+import {
+  assistantVisitorToolsConfigureRoute, assistantVisitorToolsListRoute, type VisitorToolsConfigureRouteDeps, type VisitorToolsConfigureRoutePort,
+  type VisitorToolsListRouteDeps, type VisitorToolsListRoutePort,
+} from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
 import {
   ADMIN_ASSISTANT_PERMISSION, ExecutionCredentialSecretStoreUnconfiguredError, ExecutionCredentialValidationError,
   PublicAssistantSettingsValidationError, SiteAssistantCredentialValidationError, SiteAssistantSecretStoreUnconfiguredError,
-  deleteExecutionCredential, deleteSiteAssistantCredential, getExecutionCredential, getPublicAssistantSettings,
-  getSiteAssistantCredential, setExecutionCredential, setPublicAssistantSettings, setSiteAssistantCredential,
+  deleteExecutionCredential, deleteSiteAssistantCredential, getExecutionCredential, getPublicAssistantSettings, getSiteAssistantCredential,
+  setExecutionCredential, setPublicAssistantSettings, setSiteAssistantCredential,
 } from "#src/assistant/index";
-import { ValueValidationFailedError } from "#src/features/settings/index";
-import { configureVisitorToolsRoute, listVisitorToolsRoute, type VisitorToolsErrorKind } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
-import type { Express } from "express";
 import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
 import type { VisitorToolsManagementPort } from "#src/contracts/site-assistant/visitor-tools-management";
-import { VisitorToolsRevisionConflictError } from "#src/features/settings/index";
+import { ValueValidationFailedError, VisitorToolsRevisionConflictError } from "#src/features/settings/index";
+import {
+  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
+} from "#src/server/inbound/admin-http/admin-json-route-ports";
+import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 / ADR-058 / admin-BYOK-keystore design — the `assistant-settings` server
  * module: the admin routes backing the AI Assistant section — the public on/off switch (2 routes),
- * the SITE's encrypted provider credential since ADR-058 (3 more: GET/PUT/DELETE
- * `.../assistant/site-credential`), and now the ADMIN's OWN encrypted BYOK credential (3 more:
+ * the visitor-tools pair, the SITE's encrypted provider credential since ADR-058 (3 more: GET/PUT/DELETE
+ * `.../assistant/site-credential`), and the ADMIN's OWN encrypted BYOK credential (3 more:
  * GET/PUT/DELETE `.../assistant/execution-credential`, design:
  * `ADS-memory/reports/analysis/2026-08-05-admin-byok-keystore-design.md`, owner-approved). Folded
- * into this same module rather than a new one — see `AssistantSettingsRouteDeps`'s doc below for
- * why (same "AI Assistant admin section" concern; the execution-credential trio's auth gate is
- * narrower — self-scoped by session identity rather than `ADMIN_ASSISTANT_PERMISSION` — but that is
- * a per-route difference, not a reason for a separate module).
+ * into this same module rather than a new one — see `AssistantSettingsRouteDeps` below for why (same
+ * "AI Assistant admin section" concern; the execution-credential trio's auth gate is narrower —
+ * self-scoped by session identity rather than `ADMIN_ASSISTANT_PERMISSION` — but that is a per-route
+ * difference, not a reason for a separate module).
  *
- * The 8 settings/credential routes are Jini route specs (`@jini-ai/cms/admin-http/routes/assistant/*`)
- * mounted behind the admin ports; the registrars below bind Tovu's services, permission name and
- * `TOVU_SITE_KEY` copy into each spec's small deps. Visitor tools (GET/PUT) is a pair of Jini specs too;
- * its registrar binds the service and classifies Tovu's typed visitor-tools errors.
+ * K1 (RT-K1-adm-assistant): every route here is a Jini route spec
+ * (`@jini-ai/cms/admin-http/routes/assistant/*`) mounted behind the admin ports; each mount builds that
+ * route's own small deps from the slice below. The Tovu-owned pieces are injected here: the settings
+ * ledger read/write, the sealed credential stores, `ADMIN_ASSISTANT_PERMISSION`, the visitor-tools
+ * service, and every error class with its refusal copy (the `TOVU_SITE_KEY` operator hints).
  *
  * Distinct from `modules/assistant.ts`, which is the session-gated reverse proxy in front of the
  * agent-daemon process. The two share a word and nothing else: this one holds repos and serves
- * ordinary JSON CRUD, that one holds no repo and streams SSE from another process. See
- * `AssistantSettingsRouteDeps` below for the same note next to the dependency slice.
+ * ordinary JSON CRUD, that one holds no repo and streams SSE from another process.
  *
- * All 9 registrations live under `/api/admin/v1/...`, inside the `/api/admin` session gate
+ * All routes live under `/api/admin/v1/...`, inside the `/api/admin` session gate
  * `createCoreModule` mounts, so registration order relative to the site's `GET /:slug` catch-all is
  * not load-bearing the way `modules/seo.ts`'s public sitemap/robots routes are.
  */
 
 /**
- * ADR-046 Phase 3 — narrow `RouteDeps` slice for the `assistant-settings` server module.
+ * ADR-046 Phase 3 — narrow `RouteDeps` slice for this module (moved here from the deleted
+ * `admin-http/routes/assistant/deps.ts`; it describes the host's bag, so it stays host-side).
  *
- * Covers the 2 public-switch registrars in this directory (`get-settings.ts`, `put-settings.ts`),
- * which await `deps.assistantSettingsReady`, read `deps.workspaceId`/`deps.settingsRepo`, call
- * `deps.getEffective` (GET), and call `deps.authorize`; the PUT additionally needs
- * `deps.clock`/`deps.idGen`/`deps.principalRepo`/`deps.set` to drive the settings write chokepoint.
- * `deps.adminAssistantEnabled` (`routes/types.ts`'s field doc) is read only by `get-settings.ts`,
- * folded into its response alongside the (unrelated) public-assistant switch — this module is one of
- * exactly two admin-assistant modules mounted unconditionally, so its response is the one place the
- * admin SPA can learn `TOVU_ADMIN_ASSISTANT=off` without the request itself 404ing.
- * `getEffective`/`set` are here because `assistant/public-assistant-settings.ts`'s deps bags now take
- * them by injection rather than static import (module-cycle avoidance, see that file's header) — this
- * Pick is how the real functions reach these 2 routes without either route importing
- * `features/settings` itself. A genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/seo/deps.ts`'s identical
- * rationale for the same settings shape), not a `RouteDeps` widening.
+ * The 2 public-switch routes await `assistantSettingsReady`, read `workspaceId`/`settingsRepo`, call
+ * `getEffective` (GET) and `authorize`; the PUT additionally needs `clock`/`idGen`/`principalRepo`/`set`
+ * to drive the settings write chokepoint. `adminAssistantEnabled` (`routes/types.ts`'s field doc) is read
+ * only by the GET, folded into its response alongside the (unrelated) public-assistant switch — this
+ * module is one of exactly two admin-assistant modules mounted unconditionally, so its response is the
+ * one place the admin SPA can learn `TOVU_ADMIN_ASSISTANT=off` without the request itself 404ing.
+ * `getEffective`/`set` are here because `assistant/public-assistant-settings.ts`'s deps bags take them by
+ * injection rather than static import (module-cycle avoidance, see that file's header). A genuine
+ * narrowing (mirrors `modules/seo.ts`'s identical rationale for the same settings shape), not a
+ * `RouteDeps` widening.
  *
- * ADR-058 folded the 3 site-credential registrars (`get-site-credential.ts`,
- * `put-site-credential.ts`, `delete-site-credential.ts`) into this SAME deps slice and module rather
- * than a new one: they share the identical auth gate (`ADMIN_ASSISTANT_PERMISSION`) and workspace
- * scoping, and both concerns are "the AI Assistant admin section's server surface" — the same reason
- * this file gives, one paragraph up, for not sharing with `modules/assistant.ts`'s proxy instead.
- * The 3 new fields (`siteAssistantCredentialRepo`/`siteAssistantSecretSealer`/
- * `siteAssistantSecretKeyring`) need no matching `*Ready` promise — see their own doc comments on
- * `RouteDeps` for why.
+ * ADR-058 folded the 3 site-credential routes into this SAME slice and module rather than a new one:
+ * they share the identical auth gate (`ADMIN_ASSISTANT_PERMISSION`) and workspace scoping, and both
+ * concerns are "the AI Assistant admin section's server surface". The 3 fields
+ * (`siteAssistantCredentialRepo`/`siteAssistantSecretSealer`/`siteAssistantSecretKeyring`) need no
+ * matching `*Ready` promise — see their own doc comments on `RouteDeps` for why.
  *
- * The admin-BYOK-keystore design (`ADS-memory/reports/analysis/2026-08-05-admin-byok-keystore-
- * design.md`, owner-approved) folds its own 3 registrars (`get-execution-credential.ts`,
- * `put-execution-credential.ts`, `delete-execution-credential.ts`) in here too, for the identical
- * reason. Those 3 routes need no `authorize()`/`ADMIN_ASSISTANT_PERMISSION` check — the row is
- * scoped to `(workspaceId, getAuthedPrincipal(res).id)`, so there is no OTHER admin's data a session
- * could reach even without an extra permission gate — but they still need `adminExecutionCredentialRepo`
- * for the same reason the site-credential trio needs `siteAssistantCredentialRepo`.
- *
- * Deliberately NOT folded into `apps/website/src/server/runtime/composition/modules/assistant.ts`. That module is the session-gated
- * reverse proxy in front of the agent-daemon process and shares none of these dependencies — it
- * holds no repo at all. Sharing a module would couple a settings CRUD pair to a streaming proxy's
- * lifetime for no reason beyond both having "assistant" in the name.
+ * The admin-BYOK-keystore design folds its own 3 execution-credential routes in here too, for the
+ * identical reason. Those 3 routes need no `authorize()`/`ADMIN_ASSISTANT_PERMISSION` check — the row
+ * is scoped to `(workspaceId, session principal id)`, so there is no OTHER admin's data a session could
+ * reach even without an extra permission gate — but they still need `adminExecutionCredentialRepo` for
+ * the same reason the site-credential trio needs `siteAssistantCredentialRepo`.
  */
 export type AssistantSettingsRouteDeps = Pick<
   RouteDeps,
@@ -110,121 +105,174 @@ export type AssistantSettingsRouteDeps = Pick<
 
 export type AssistantSettingsRouteRegistrar = (required: { app: Express; deps: AssistantSettingsRouteDeps }, optional?: Record<string, never>) => void;
 
-/** The visitor-tools routes' host bag: the workspace and the management service (absent ⇒ 500). */
+/** The visitor-tools pair's own slice: the service is optional on the host bag (absent ⇒ redacted 500). */
 export interface VisitorToolsRouteDeps { workspaceId: string; visitorToolsManagement?: VisitorToolsManagementPort }
 
-/** Tovu's typed visitor-tools errors, as the spec's error kinds. @complexity O(1). */
-function visitorToolsErrorKind(error: unknown): VisitorToolsErrorKind | undefined {
-  if (error instanceof VisitorToolsRevisionConflictError) return "revision-conflict";
-  return error instanceof VisitorToolPolicyValidationError ? "policy-validation" : undefined;
-}
-
-/** GET/PUT require visitor-tools.manage through the service; the enclosing admin module requires a session.
- * Neither spec calls `authorize`, so the port's authorizer fails closed if one ever does.
- * @complexity O(1) setup.
- * @example registerAdminVisitorToolsRoutes({app, deps});
- */
-export function registerAdminVisitorToolsRoutes({ app, deps }: { app: Express; deps: VisitorToolsRouteDeps }, _options = {}): void {
-  const routeDeps = {
-    workspaceId: deps.workspaceId,
-    authorize: () => Promise.reject(new Error("visitor-tools routes authorize inside the service")),
-    visitorToolsManagement: deps.visitorToolsManagement,
-    visitorToolsErrorKind,
-  };
-  const options = { authorization: "direct" as const, failure: { operation: "routes/assistant/visitor-tools", code: "INTERNAL_ERROR" } };
-  mountAdminJsonRoute({ app, spec: listVisitorToolsRoute, deps: routeDeps }, options);
-  mountAdminJsonRoute({ app, spec: configureVisitorToolsRoute, deps: routeDeps }, options);
-}
-
-/** The two port fields every mount passes; `authorize` is read per request, as the hand-written routes did. */
-function portDeps({ deps }: { deps: AssistantSettingsRouteDeps }, _options: Record<string, never> = {}): AdminJsonRoutePortDeps {
+/** The two port fields every mount passes. `authorize` is read per request, as the hand-written
+ *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
+function assistantPortDeps({ deps }: { deps: Pick<AssistantSettingsRouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** None of these routes consulted the publishing-credential override (`authorizeDirectOrRespond` or none). */
-const mountOptions = (operation: string, message?: string) =>
-  ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) } });
-
-const secretStoreUnconfigured = (subject: string) =>
-  `${subject} is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment`;
-
-/** Tovu's typed execution-credential errors, as the spec's error kinds. */
-function executionCredentialErrorKind(error: unknown): AssistantCredentialErrorKind | undefined {
-  if (error instanceof ExecutionCredentialValidationError) return "validation";
-  return error instanceof ExecutionCredentialSecretStoreUnconfiguredError ? "secret-store-unconfigured" : undefined;
+/** Each route's `sendAdminFailure` options. Every RBAC-gated route here used `authorizeDirectOrRespond`
+ *  (`"direct"`); the self-scoped and service-authorized routes asked nothing, so `"direct"` also keeps
+ *  them from consulting the publish-credential override they never read. No mount here opts into
+ *  `deferMissingPrincipal`: every hand-written route read the session before any 400. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  { message }: Pick<FailureOptions, "message"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) } };
 }
 
-/** Tovu's typed site-credential errors, as the spec's error kinds. */
-function siteCredentialErrorKind(error: unknown): AssistantCredentialErrorKind | undefined {
-  if (error instanceof SiteAssistantCredentialValidationError) return "validation";
-  return error instanceof SiteAssistantSecretStoreUnconfiguredError ? "secret-store-unconfigured" : undefined;
+const SETTINGS_ERRORS: readonly AssistantErrorMapping[] = [{
+  matches: ({ err }) => err instanceof PublicAssistantSettingsValidationError || err instanceof ValueValidationFailedError,
+  status: 400, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
+}];
+
+// ADR-058 §4: a missing `TOVU_SITE_KEY` is a distinct, actionable operator error (503), not a generic
+// 500 and not a validation problem with the request body.
+const SITE_CREDENTIAL_ERRORS: readonly AssistantErrorMapping[] = [
+  { matches: ({ err }) => err instanceof SiteAssistantCredentialValidationError, status: 400, code: SITE_CREDENTIAL_VALIDATION_CODE },
+  {
+    matches: ({ err }) => err instanceof SiteAssistantSecretStoreUnconfiguredError, status: 503, code: "SECRET_STORE_UNCONFIGURED",
+    error: "site assistant secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
+  },
+];
+
+const EXECUTION_CREDENTIAL_ERRORS: readonly AssistantErrorMapping[] = [
+  { matches: ({ err }) => err instanceof ExecutionCredentialValidationError, status: 400, code: EXECUTION_CREDENTIAL_VALIDATION_CODE },
+  {
+    matches: ({ err }) => err instanceof ExecutionCredentialSecretStoreUnconfiguredError, status: 503, code: "SECRET_STORE_UNCONFIGURED",
+    error: "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
+  },
+];
+
+/** Map typed service errors without leaking settings/provider failures; the 403 copy never names the caller. */
+const VISITOR_TOOLS_ERRORS: readonly AssistantErrorMapping[] = [
+  { matches: ({ err }) => err instanceof VisitorToolsRevisionConflictError, status: 409, code: "VISITOR_TOOLS_REVISION_CONFLICT", extra: { reload: true } },
+  { matches: ({ err }) => err instanceof ForbiddenError, status: 403, code: "FORBIDDEN", error: "visitor-tools.manage is required" },
+  {
+    matches: ({ err }) => err instanceof VisitorToolPolicyValidationError || err instanceof CoreValueValidationFailedError,
+    status: 400, code: "VISITOR_TOOLS_VALIDATION_ERROR",
+  },
+];
+
+/** The PUT's readiness gate and permission. The gate is a getter, read per request as the hand-written
+ *  route read `deps.assistantSettingsReady` (extend it with `Object.assign`, never a spread, to keep it live). */
+function settingsGate({ deps }: { deps: AssistantSettingsRouteDeps }, _optional: Record<string, never> = {}) {
+  const port = assistantPortDeps({ deps });
+  return {
+    workspaceId: port.workspaceId, authorize: port.authorize, managePermission: ADMIN_ASSISTANT_PERMISSION,
+    get assistantSettingsReady() { return deps.assistantSettingsReady; },
+  };
 }
 
 export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: getAssistantSettingsRoute, deps: {
-    ...portDeps({ deps }), adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION,
-    assistantSettingsReady: deps.assistantSettingsReady, adminAssistantEnabled: deps.adminAssistantEnabled,
-    getPublicAssistantSettings: () => getPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
-  } }, mountOptions("routes/assistant/get-settings", "Assistant settings could not be loaded."));
+  const readAssistantSettings = (input: { workspaceId: string }) => getPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, input);
+  // Getters, not copies: the flag is read per request, as before — tests (and `commit-site`'s override
+  // technique) mutate the bag after registration, and a spread would freeze the boot-time value.
+  const getDeps = {
+    ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, readAssistantSettings,
+    get assistantSettingsReady() { return deps.assistantSettingsReady; },
+    get adminAssistantEnabled() { return deps.adminAssistantEnabled; },
+  };
+  mountAdminJsonRoute(
+    { app, spec: assistantGetSettingsRoute, deps: getDeps },
+    mountOptions({ operation: "routes/assistant/get-settings", authorization: "direct" }, { message: "Assistant settings could not be loaded." }),
+  );
 };
 
+/** GET/PUT require visitor-tools.manage through the service; the enclosing admin module requires a session.
+ * PUT body is {toolId, expectedRevisionSeq, mode?, limits?}; both return {data: VisitorToolsView}.
+ * @example registerAdminVisitorToolsRoutes({app, deps});
+ */
+export function registerAdminVisitorToolsRoutes({ app, deps }: { app: Express; deps: VisitorToolsRouteDeps }, _options = {}): void {
+  // No RBAC port is consulted (the service authorizes); `authorize` is present only to satisfy the port shape.
+  const portDeps = {
+    workspaceId: deps.workspaceId, authorize: async () => ({ allowed: false, reason: "visitor-tools routes authorize in the service" }),
+    errorMappings: VISITOR_TOOLS_ERRORS,
+  } satisfies AdminJsonRoutePortDeps & Record<string, unknown>;
+  // Each route sees only the half of the service it calls (GET: `list`; PUT: `prepare` then `apply`,
+  // whose fresh-revision check stays in the service). The service is still read per request.
+  const listDeps = {
+    ...portDeps, visitorToolsManagement: (): VisitorToolsListRoutePort | undefined => deps.visitorToolsManagement,
+  } satisfies VisitorToolsListRouteDeps & AdminJsonRoutePortDeps;
+  const configureDeps = {
+    ...portDeps, visitorToolsManagement: (): VisitorToolsConfigureRoutePort | undefined => deps.visitorToolsManagement,
+  } satisfies VisitorToolsConfigureRouteDeps & AdminJsonRoutePortDeps;
+  mountAdminJsonRoute({ app, spec: assistantVisitorToolsListRoute, deps: listDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+  mountAdminJsonRoute({ app, spec: assistantVisitorToolsConfigureRoute, deps: configureDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+}
+
 export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: putAssistantSettingsRoute, deps: {
-    ...portDeps({ deps }), adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION, assistantSettingsReady: deps.assistantSettingsReady,
-    setPublicAssistantSettings: ({ patch, callerPrincipalId }) => setPublicAssistantSettings({
-      settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set, clock: deps.clock,
-      ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
-    }, { workspaceId: deps.workspaceId, patch: patch as Parameters<typeof setPublicAssistantSettings>[1]["patch"], callerPrincipalId }),
-    isSettingsValidationError: (error) => error instanceof PublicAssistantSettingsValidationError || error instanceof ValueValidationFailedError,
-  } }, mountOptions("routes/assistant/put-settings"));
+  const writeAssistantSettings = (input: { workspaceId: string; patch: unknown; callerPrincipalId: string }) => setPublicAssistantSettings(
+    {
+      settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set, clock: deps.clock, ids: deps.idGen,
+      authorize: deps.authorize, principals: deps.principalRepo,
+    },
+    { workspaceId: input.workspaceId, patch: input.patch as Parameters<typeof setPublicAssistantSettings>[1]["patch"], callerPrincipalId: input.callerPrincipalId },
+  );
+  mountAdminJsonRoute(
+    { app, spec: assistantPutSettingsRoute, deps: Object.assign(settingsGate({ deps }), { writeAssistantSettings, errorMappings: SETTINGS_ERRORS }) },
+    mountOptions({ operation: "routes/assistant/put-settings", authorization: "direct" }),
+  );
 };
 
 export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: getSiteCredentialRoute, deps: {
-    ...portDeps({ deps }), adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION,
-    getSiteCredential: () => getSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId }),
-  } }, mountOptions("routes/assistant/get-site-credential"));
+  const readSiteCredential = (input: { workspaceId: string }) => getSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input);
+  mountAdminJsonRoute(
+    { app, spec: assistantGetSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, readSiteCredential } },
+    mountOptions({ operation: "routes/assistant/get-site-credential", authorization: "direct" }),
+  );
 };
 
 export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: putSiteCredentialRoute, deps: {
-    ...portDeps({ deps }), adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION,
-    setSiteCredential: ({ patch }) => setSiteAssistantCredential({
-      repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock,
-    }, { workspaceId: deps.workspaceId, ...patch }),
-    siteCredentialErrorKind, secretStoreUnconfiguredError: secretStoreUnconfigured("site assistant secret store"),
-  } }, mountOptions("routes/assistant/put-site-credential"));
+  const writeSiteCredential = (input: Parameters<typeof setSiteAssistantCredential>[1]) => setSiteAssistantCredential(
+    { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    input,
+  );
+  const putDeps = { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, writeSiteCredential, errorMappings: SITE_CREDENTIAL_ERRORS };
+  mountAdminJsonRoute({ app, spec: assistantPutSiteCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-site-credential", authorization: "direct" }));
 };
 
 export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: deleteSiteCredentialRoute, deps: {
-    ...portDeps({ deps }), adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION,
-    deleteSiteCredential: () => deleteSiteAssistantCredential({ deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, workspaceId: deps.workspaceId }),
-  } }, mountOptions("routes/assistant/delete-site-credential"));
+  const clearSiteCredential = ({ workspaceId }: { workspaceId: string }) => deleteSiteAssistantCredential({
+    deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, workspaceId,
+  });
+  mountAdminJsonRoute(
+    { app, spec: assistantDeleteSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, clearSiteCredential } },
+    mountOptions({ operation: "routes/assistant/delete-site-credential", authorization: "direct" }),
+  );
 };
 
 export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: getExecutionCredentialRoute, deps: {
-    ...portDeps({ deps }),
-    getExecutionCredential: ({ principalId }) => getExecutionCredential({ repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, principalId }),
-  } }, mountOptions("routes/assistant/get-execution-credential"));
+  const readExecutionCredential = (input: { workspaceId: string; principalId: string }) => getExecutionCredential(
+    { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input,
+  );
+  mountAdminJsonRoute(
+    { app, spec: assistantGetExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), readExecutionCredential } },
+    mountOptions({ operation: "routes/assistant/get-execution-credential", authorization: "direct" }),
+  );
 };
 
 export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: putExecutionCredentialRoute, deps: {
-    ...portDeps({ deps }),
-    setExecutionCredential: ({ principalId, patch }) => setExecutionCredential({
-      repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock,
-    }, { workspaceId: deps.workspaceId, principalId, ...patch }),
-    executionCredentialErrorKind, secretStoreUnconfiguredError: secretStoreUnconfigured("the execution credential secret store"),
-  } }, mountOptions("routes/assistant/put-execution-credential"));
+  const writeExecutionCredential = (input: Parameters<typeof setExecutionCredential>[1]) => setExecutionCredential(
+    { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    input,
+  );
+  const putDeps = { ...assistantPortDeps({ deps }), writeExecutionCredential, errorMappings: EXECUTION_CREDENTIAL_ERRORS };
+  mountAdminJsonRoute({ app, spec: assistantPutExecutionCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-execution-credential", authorization: "direct" }));
 };
 
 export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: deleteExecutionCredentialRoute, deps: {
-    ...portDeps({ deps }),
-    deleteExecutionCredential: ({ principalId }) => deleteExecutionCredential({ deps: { repo: deps.adminExecutionCredentialRepo, clock: deps.clock }, workspaceId: deps.workspaceId, principalId }),
-  } }, mountOptions("routes/assistant/delete-execution-credential"));
+  const clearExecutionCredential = (input: { workspaceId: string; principalId: string }) => deleteExecutionCredential({
+    deps: { repo: deps.adminExecutionCredentialRepo, clock: deps.clock }, ...input,
+  });
+  mountAdminJsonRoute(
+    { app, spec: assistantDeleteExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), clearExecutionCredential } },
+    mountOptions({ operation: "routes/assistant/delete-execution-credential", authorization: "direct" }),
+  );
 };
 
 export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps): ServerModuleHandle {

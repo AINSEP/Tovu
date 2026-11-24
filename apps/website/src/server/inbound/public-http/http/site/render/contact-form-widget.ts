@@ -7,7 +7,7 @@ import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/rend
 import { randomUUID } from "node:crypto";
 import type { FormCollectionPlan } from "@jini-ai/core/contracts/forms";
 import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 
 /** Field rendering, attribute allowlisting and help/error association belong to Jini's registry
  * renderer. The host supplies its existing CSS classes and id prefix for theme compatibility. */

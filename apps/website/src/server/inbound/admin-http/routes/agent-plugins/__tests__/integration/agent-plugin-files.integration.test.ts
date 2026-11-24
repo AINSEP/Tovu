@@ -21,7 +21,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginA
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
-import { registerAgentPluginFilesRoute } from "../../files.js";
+import { registerAgentPluginFilesRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
 
 /**
  * @file `AGENT_PLUGIN_FILES` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files`
@@ -114,6 +114,25 @@ test("AGENT_PLUGIN_FILES: a switched-off plugin's installed files are listed wit
       body.files.every((file) => !path.isAbsolute(file.relativePath)),
       "no absolute server path reaches the response",
     );
+  });
+});
+
+// Review rv1123i (rt-l4-oauth) FIX 1: as for the list route, the hand-written files route sent the
+// host authorizer no `entityType` key; the spec's id-free `entityType: ""` placeholder must not reach
+// it (an empty resource-type policy row could match `""`). Pins the exact argument object.
+test("AGENT_PLUGIN_FILES: the host authorizer is asked with no entityType key, exactly as the hand-written route asked", async (t) => {
+  await withSwitchedOffPlugin(async () => {
+    const deps = createRouteDeps();
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
+    const real = deps.authorize;
+    const calls: Array<Record<string, unknown>> = [];
+    deps.authorize = async (params) => { calls.push({ ...params }); return real(params); };
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    const pluginChecks = calls.filter((call) => call.permission === "admin.plugins.read");
+    assert.equal(pluginChecks.length, 1);
+    assert.deepEqual(Object.keys(pluginChecks[0] ?? {}).sort(), ["permission", "principalId", "workspaceId"]);
+    assert.deepEqual(pluginChecks[0], { principalId: pluginChecks[0]?.principalId, permission: "admin.plugins.read", workspaceId: WORKSPACE });
   });
 });
 

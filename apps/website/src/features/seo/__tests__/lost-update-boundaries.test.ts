@@ -6,7 +6,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
-import { registerAdminSeoPutEntryRoute } from "#src/server/inbound/admin-http/routes/seo/put-entry";
+import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
 import { buildSeoRegistrations } from "../tool-registrations.js";
 
 function conflict() {

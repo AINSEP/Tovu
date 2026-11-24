@@ -1,5 +1,5 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 
 /** Add the site's one-price purchase form, using its trusted workspace and a catalog price id.
  * The external Jini script owns checkout state; themes keep their existing button styling.

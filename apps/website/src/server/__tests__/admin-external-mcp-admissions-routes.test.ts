@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminExternalMcpAdmissionsRoute } from "../inbound/admin-http/routes/external-mcp/admissions.js";
+import { registerAdminExternalMcpAdmissionsRoute } from "#src/server/runtime/composition/modules/external-mcp";
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { dispatchHttpRequest } from "./helpers/in-process-http.js";
 import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from "../runtime/lifecycle/daemon-supervisor.js";

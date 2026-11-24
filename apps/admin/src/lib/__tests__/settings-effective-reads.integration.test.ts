@@ -133,10 +133,10 @@ describe("effective settings reads at the real API seam", () => {
 
   it("shares language with direct loaders and preserves refresh-drop behavior", async () => {
     const calls = stubSettingsFetch();
-    const oldReads = [loadLanguage(), defaultAdminLocalePort.loadLanguage()];
+    const oldReads = [loadLanguage(), defaultAdminLocalePort.loadLanguage({})];
     const refreshed: Promise<string>[] = [];
     const unsubscribes = [1, 2, 3].map(() => defaultAdminLocalePort.subscribeToSettingsRefresh({ listener: () => {
-      refreshed.push(defaultAdminLocalePort.loadLanguage());
+      refreshed.push(defaultAdminLocalePort.loadLanguage({}));
     } }));
     publishSettingsRefresh(["core.language"]);
     // Preserve the locale port's existing once-per-dispatch-turn drop, even for repeated notices.
