@@ -1,7 +1,8 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
 
 export interface SiteShareRecord {
   readonly shareId: string;

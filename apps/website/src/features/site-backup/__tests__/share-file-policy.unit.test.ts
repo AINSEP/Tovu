@@ -13,7 +13,7 @@ import { gzipSync } from "node:zlib";
 import { packAgentPluginDirectory } from "../../agent-plugins/lifecycle.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "../package-file-inventory.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, sharePathAlias, validateSharePath, type PackageFileInventory } from "../share-file-policy.js";
-import { archiveRefusalName } from "../share-policy.js";
+import { archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
 
 const HEX = "a".repeat(64);
 const PACKAGE_ROOT = `agent-plugins/ws/w/p/package/sha256/${HEX}`;

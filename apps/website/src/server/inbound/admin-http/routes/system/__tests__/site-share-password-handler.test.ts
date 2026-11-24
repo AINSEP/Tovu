@@ -8,7 +8,7 @@ import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createSiteSavedKeys } from "#src/features/site-backup/saved-keys";

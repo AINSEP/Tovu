@@ -5,7 +5,8 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { parseStaticExportInput } from "#src/features/site-backup/static-export-selection";
-import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 

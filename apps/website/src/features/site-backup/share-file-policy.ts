@@ -1,5 +1,6 @@
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
-import { SiteShareRefusal, SHARE_LIMITS, archiveRefusalName } from "./share-policy.js";
+import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
 import { warnCredentialContent, addCredentialWarning, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 

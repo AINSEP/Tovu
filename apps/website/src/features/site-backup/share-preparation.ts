@@ -6,9 +6,10 @@ import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "./sources.js";
 import { checkShareLimits, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { bufferArchiveMedia, type ArchiveMediaRewriter } from "./archive-media.js";
+import type { ArchiveMediaRewriter } from "@jini-ai/devops/backup/site/archive-media";
+import { bufferArchiveMedia } from "./archive-media.js";
 import { prepareArchiveExtensions } from "./archive-extensions.js";
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import type { SiteSharePlanContent } from "./plan-content.js";
 import { addPortableSettings, captureProjectedDatabase, collectShareFiles, type ShareLedger } from "./share-preparation-steps.js";
 

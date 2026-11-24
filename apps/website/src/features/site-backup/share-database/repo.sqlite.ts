@@ -1,6 +1,7 @@
 import { warnCredentialContent, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import type { ArchiveMediaSource, ArchiveMediaCopy } from "#src/features/site-backup/archive-media";
+import type { ArchiveMediaCopy } from "@jini-ai/devops/backup/site/archive-media";
+import type { ArchiveMediaSource } from "#src/features/site-backup/share-policy";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
 import { scheduler } from "node:timers/promises";
 import { tmpdir } from "node:os";
@@ -12,7 +13,8 @@ import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
 import { backfillPostSearchIndex } from "#src/features/post/index";
-import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, archiveRefusalName } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
 import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";

@@ -1,5 +1,6 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
-import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { checkShareLimits } from "./share-policy.js";
 import { createHash } from "node:crypto";
 import type { BigIntStats, Dirent, Stats } from "node:fs";
 import { lstat, mkdtemp, readdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";

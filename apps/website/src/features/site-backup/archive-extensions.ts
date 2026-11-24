@@ -4,7 +4,7 @@ import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/life
 import { collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type SiteBackupSources } from "./sources.js";
 import type { ArchivePlugin } from "./archive-manifest.js";
 import { runtimeToArchivePath } from "./archive-paths.js";
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 
 /** Selects installed package versions through the lifecycle owner; includes reset baselines.

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 export const SHARE_DOWNLOAD_HEADERS = {
   "Content-Type": "application/zip",

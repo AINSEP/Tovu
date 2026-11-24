@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createConsoleLogger, type HttpClientPort, type HttpResponse, type Logger } from "@jini-ai/core/primitives";
 import { callPeer, type PeerCallDeps } from "../publish-content/peer-transport.js";
 import { peerUrl } from "@jini-ai/cms/publish/content/peer-url";
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_TOKEN_PATTERN, type SiteShareRegistry } from "./share-registry.js";
 import { receiveSiteShareArtifact, type ShareDelivery } from "./share-service.js";
 

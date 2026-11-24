@@ -1,4 +1,4 @@
-import { SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { validateSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 
 /**

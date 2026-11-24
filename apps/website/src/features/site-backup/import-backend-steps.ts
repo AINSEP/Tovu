@@ -6,7 +6,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
-import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "./share-policy.js";
 
 /**
  * @file The import backend's individual steps: input parsing, the private staging budget, the

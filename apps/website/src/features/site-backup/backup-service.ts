@@ -33,7 +33,8 @@ import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUncon
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
-import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
 import { CANCELLED, commitBackupPlan, initialPushProgress, uploadBackupPlan } from "./push-content.js";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
