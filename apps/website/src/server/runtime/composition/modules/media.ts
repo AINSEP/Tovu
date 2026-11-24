@@ -1,16 +1,26 @@
+import type { Express } from "express";
+
+import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
+import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
+import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put-providers";
+import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
+import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
+import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
+import {
+  getMediaProviderCredentials, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError,
+  purgeMedia, readRecordedContentType, saveMediaProviderCredentials,
+} from "#src/features/media/index";
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";
 import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
-import { registerAdminMediaDeleteRoute } from "#src/server/inbound/admin-http/routes/media/delete";
-import { registerAdminMediaGetProvidersRoute } from "#src/server/inbound/admin-http/routes/media/get-providers";
 import { registerAdminMediaTextRoute } from "#src/server/inbound/admin-http/routes/media/text";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
-import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-http/routes/media/put-providers";
-import { registerAdminMediaTrashRoute } from "#src/server/inbound/admin-http/routes/media/trash";
-import { registerAdminMediaUpdateRoute } from "#src/server/inbound/admin-http/routes/media/update";
 import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
 import { registerAdminMediaReplaceRoute } from "#src/server/inbound/admin-http/routes/media/replace";
 import { registerAdminMediaImportUrlRoute, type MediaImportUrlRouteDeps } from "#src/server/inbound/admin-http/routes/media/import-url";
-import type { MediaProviderRouteDeps, MediaRenditionRouteDeps, MediaRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
+import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -56,6 +66,94 @@ import type { ServerModuleHandle } from "./types.js";
  * new plumbing at the call site: `apps/website/src/server/runtime/composition/app.ts` already passes this factory the full `routeDeps`
  * object, which has carried `postRepo` and the three member repos since ADR-030.
  */
+/**
+ * K1 (RT-K1-adm-media): update, trash, delete and the two provider routes are Jini route specs
+ * (`@jini-ai/cms/admin-http/routes/media/*`) mounted behind the admin ports below; `RouteDeps` is read
+ * only here, at registration, and each mount builds that route's own small deps. The host services
+ * those specs need are injected here: the recorded-type/public-URL/blob-size lookups, the
+ * transactional trash flip, the reference-checked purge and the provider credential store with its
+ * error refusals. list, where-used, upload, import-url, replace, original and text stay hand-written
+ * (headers, custom 403 bodies, multipart/raw bodies and byte responses — see the K1 report).
+ */
+
+/** The two port fields every media mount passes. `authorize` is read per request, as the hand-written
+ *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
+function mediaPortDeps({ deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
+  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+}
+
+/** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
+ *  had: delete consulted the publishing-credential override (`authorizeOrRespond`, `"guarded"`); the
+ *  others did not (`"direct"`). Switching either is an authorization change, not a move. Each route
+ *  made exactly one authorization call, so no mount needs `authorizationByPermission`; and every one
+ *  read the session before its params/body, so none opts into `deferMissingPrincipal`. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  _optional: Record<string, never> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
+}
+
+/** The single-asset DTO lookups, bound to the host's content-type store, public-URL resolver and blob sizes. */
+function mediaAssetLookups({ deps }: { deps: MediaRouteDeps }, _optional: Record<string, never> = {}): MediaAssetLookups {
+  return {
+    readContentType: ({ sha256 }) => readRecordedContentType({ deps, sha256 }),
+    resolvePublicUrl: async ({ media }) => (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null,
+    resolveByteSize: async ({ media }) => (await resolveMediaByteSizes({ deps, media: [media] })).get(media.source.sha256) ?? null,
+  };
+}
+
+/** The provider store's refusals: its own validation message (400), and the operator copy for a
+ *  missing site key (503), detected before any write lands. */
+const MEDIA_PROVIDER_SAVE_ERRORS: readonly MediaErrorMapping[] = [
+  { matches: ({ err }) => err instanceof MediaProviderCredentialValidationError, status: 400, code: "MEDIA_PROVIDER_CREDENTIAL_VALIDATION_ERROR" },
+  {
+    matches: ({ err }) => err instanceof MediaProviderCredentialSecretStoreUnconfiguredError, status: 503, code: "SECRET_STORE_UNCONFIGURED",
+    error: "the media provider credential store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
+  },
+];
+
+export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
+  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, mountOptions({ operation: "routes/media/update", authorization: "direct" }));
+};
+
+export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const trashDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo, removeMedia: deps.removeMedia };
+  mountAdminJsonRoute({ app, spec: mediaTrashRoute, deps: trashDeps }, mountOptions({ operation: "routes/media/trash", authorization: "direct" }));
+};
+
+export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
+  const purgeDeps = {
+    mediaRepo: deps.mediaRepo, entryRefsRepo: deps.entryRefsRepo, postRepo: deps.postRepo, blobRepo: deps.assetBlobRepo,
+    renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock,
+  };
+  const deleteDeps = {
+    ...mediaPortDeps({ deps }),
+    purgeMedia: (input: { workspaceId: string; id: string }) => purgeMedia({ deps: purgeDeps, input }),
+    forgetRemovedMedia: (input: { workspaceId: string; id: string }) => deps.forgetRemovedMedia(input),
+  };
+  mountAdminJsonRoute({ app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete", authorization: "guarded" }));
+};
+
+export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const getProviders = ({ workspaceId }: { workspaceId: string }) =>
+    getMediaProviderCredentials({ repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId });
+  mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
+};
+
+export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const saveProviders = ({ workspaceId, providers }: { workspaceId: string; providers: Record<string, unknown> }) => saveMediaProviderCredentials(
+    {
+      repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock, providerCatalog: deps.mediaProviderRegistry,
+    },
+    { workspaceId, providers: providers as Record<string, never> },
+  );
+  const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
+  mountAdminJsonRoute({ app, spec: mediaPutProvidersRoute, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
+};
+
 export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {
   return {
     name: "media",
