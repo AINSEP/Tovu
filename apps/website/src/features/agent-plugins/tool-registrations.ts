@@ -107,9 +107,9 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
 }
 
 /** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call.
- *  KNOWN GAP: Jini's handler loads its own candidates, so its results don't mark the host-listed
- *  Soon faces until Jini gets a host-maturity port (`development/open-bugs.md`). Enabling one is
- *  still refused in plain words. */
+ *  Jini's handler loads its own candidates; the host's Soon list reaches it through the
+ *  `hostMaturity` port (`host-tool-ports.ts`), so a host-listed Soon plugin is shown as coming soon
+ *  and never offered for enable. Enabling one is still refused in plain words. */
 export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchRegistrationDeps): ToolRegistration[] {
   return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps),
     requirePermission: (input, entity) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), ...input }, entity) })

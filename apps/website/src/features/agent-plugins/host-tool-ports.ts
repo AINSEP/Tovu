@@ -15,6 +15,7 @@ import {
   rankInstalledAgentPlugins, readBundledAgentPluginDigests, readInstalledSkillFile,
 } from "./lifecycle.js";
 import { appendPluginNotes, pluginMemory } from "./memory.js";
+import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 /** The permission names the moved tools declare and check. */
 export const AGENT_PLUGIN_HOST_TOOL_PERMISSIONS = { use: "admin.assistant.use", enable: "admin.plugins.enable" } as const;
@@ -66,5 +67,7 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
     readFrontmatterField: ({ markdown, key }) => readFrontmatterField({ markdown, key }),
     metadata: toolMetadata,
     messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES,
+    // The host's own Soon list: a plugin whose manifest declares no maturity still reads as Soon here.
+    hostMaturity: ({ pluginId }) => (HOST_SOON_AGENT_PLUGINS.has(pluginId) ? "soon" : undefined),
   };
 }
