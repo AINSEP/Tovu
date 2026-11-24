@@ -170,7 +170,7 @@ test('contributeConsentTools contributes the consent domain builder and its deri
   assert.equal(contribution.domain, 'consent');
   // The contributor binds the host collaborators once, so `build` is a closure over buildConsentRegistrations.
   const surfaces = { surfaceExchanges: undefined } as unknown as Parameters<typeof buildConsentRegistrations>[1];
-  const names = (registrations: ReturnType<typeof buildConsentRegistrations>) => registrations.map(registration => registration.descriptor.name);
+  const names = (registrations: ReturnType<typeof buildConsentRegistrations>) => registrations.map(registration => registration.descriptor.id);
   assert.deepEqual(names(contribution.build({}, surfaces)), names(buildConsentRegistrations({ host }, surfaces)));
   assert.equal(names(contribution.build({}, surfaces)).length, 5);
   assert.equal(contribution.risk, consentDerivedRisk);

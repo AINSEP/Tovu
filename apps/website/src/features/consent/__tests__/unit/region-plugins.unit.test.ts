@@ -100,9 +100,9 @@ test('active browser bridges are loaded without trusting their region readers', 
       { pluginId: 'cmp', entry: { kind: 'consent-bridge', id: 'bad', src: 'javascript:alert(1)' } },
     ], refusals: [] };
   }) as unknown as Parameters<typeof loadSiteRegionResolvers>[0]['loadContributions'];
-  assert.deepEqual(await loadSiteConsentBridges({ workspaceId: 'w', loadContributions }), [{ kind: 'consent-bridge', id: 'cmp', src: '/plugins/cmp.js' }]);
+  assert.deepEqual(await loadSiteConsentBridges({ reportFailure, workspaceId: 'w', loadContributions }), [{ kind: 'consent-bridge', id: 'cmp', src: '/plugins/cmp.js' }]);
   assert.deepEqual(calls[0]!.optional, { requireActive: true });
-  const resolvers = await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions }, { ingress: 'cmp' });
+  const resolvers = await loadSiteRegionResolvers({ reportFailure, workspaceId: 'w', loadContributions }, { ingress: 'cmp' });
   assert.deepEqual(resolvers.map(item => item.id), ['cmp-region']);
 });
 

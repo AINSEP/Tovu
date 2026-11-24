@@ -47,7 +47,7 @@ test("invalid input and wrong scope cannot reach the ledger", async () => {
   await assert.rejects(set({ deps: f.deps, input: { ...f.input, requiredPermissionOverride: VISITOR_TOOLS_PERMISSION, value: "invalid" } }), ValueValidationFailedError);
   for (const scope of ["user", "global"] as const) {
     // A canonical site definition still cannot authorize non-workspace policy writes.
-    const definition = await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST });
+    const definition = await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws });
     assert.ok(definition);
     const repo = Object.create(f.repo) as InMemorySettingsRepo;
     repo.findActiveDefinition = async () => definition;
@@ -68,7 +68,7 @@ test("revision CAS accepts the unset snapshot and rolls back both value and revi
   assert.deepEqual((await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST })).policy, saved.value);
   const next = await writeVisitorTools(args, { expectedRevisionSeq: saved.revisionSeq });
   assert.ok(next.revisionSeq > saved.revisionSeq);
-  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }))!;
+  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   const row = (await f.repo.getWorkspaceValue({ workspaceId: ws, settingId: definition.settingId }))!;
   await f.repo.saveWorkspaceValue({ ...row, state: "cleared" });
   const cleared = await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST });
@@ -81,7 +81,7 @@ test("revision CAS accepts the unset snapshot and rolls back both value and revi
 test("revision-only CAS refuses a stale corrupt row and can repair it at the real row seq", async () => {
   const f = await visitorSettingsFixture();
   const saved = await f.write();
-  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }))!;
+  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   const row = (await f.repo.getWorkspaceValue({ workspaceId: ws, settingId: definition.settingId }))!;
   await f.repo.saveWorkspaceValue({ ...row, valueJson: { version: 2 } });
   assert.deepEqual(await readVisitorToolsSnapshot({ repo: f.repo, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }), { policy: null, revisionSeq: saved.revisionSeq });
@@ -130,7 +130,7 @@ test("the revision adapter preserves methods/metadata and compares only after ap
 
 test("aliases cannot bypass set, clear or namespace reset", async () => {
   const f = await visitorSettingsFixture();
-  const canonical = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }))!;
+  const canonical = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   const alias: SettingDefinitionRecord = { ...canonical, settingId: "visitor-alias", namespace: "site.legacy", key: "visitorPolicy", status: "alias",
     aliasOfNamespace: VISITOR_TOOLS_SETTING.namespace, aliasOfKey: VISITOR_TOOLS_SETTING.key };
   await f.repo.saveDefinition(alias);
@@ -144,7 +144,7 @@ test("aliases cannot bypass set, clear or namespace reset", async () => {
 
 test("stored JSON corruption, missing definitions, and repo failures all fail closed", async (t) => {
   const f = await visitorSettingsFixture();
-  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws, visitorTools: VISITOR_TOOLS_HOST }))!;
+  const definition = (await f.repo.findActiveDefinition({ ...VISITOR_TOOLS_SETTING, workspaceId: ws }))!;
   for (const value of ["not JSON policy", null, { version: 1, tools: { list_categories: { mode: "maybe" } } }]) {
     await f.repo.saveWorkspaceValue({ settingId: definition.settingId, workspaceId: ws, principalId: null, scope: "workspace", valueJson: value,
       state: "set", defVersion: definition.version, seq: 1, updatedBy: "legacy", updatedAt: "2026-10-22T00:00:00.000Z", originPluginId: null });
