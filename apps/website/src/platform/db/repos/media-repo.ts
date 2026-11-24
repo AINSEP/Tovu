@@ -62,6 +62,10 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
     height: row.height,
     cssClass: row.css_class,
     htmlAttributes: row.html_attributes,
+    // G7-9: a track needs both the `.vtt` asset and its language; either missing reads as none.
+    captions: row.captions_media_id && row.captions_srclang
+      ? { assetId: row.captions_media_id, srclang: row.captions_srclang, label: row.captions_label ?? null }
+      : null,
   };
 }
 
@@ -90,6 +94,9 @@ function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind"
     height: record.height,
     css_class: record.cssClass,
     html_attributes: record.htmlAttributes,
+    captions_media_id: record.captions?.assetId ?? null,
+    captions_srclang: record.captions?.srclang ?? null,
+    captions_label: record.captions?.label ?? null,
   };
 }
 

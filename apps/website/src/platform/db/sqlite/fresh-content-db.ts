@@ -1,3 +1,4 @@
+import { MEDIA_CAPTIONS_STATEMENTS } from '../migrations/0045_media_captions.js';
 import { WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS } from '../migrations/0043_webhook_subscription_creator_kind.js';
 import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
@@ -272,6 +273,9 @@ function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonl
     },
     "0043_webhook_subscription_creator_kind": () => {
       for (const statement of WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS) client.exec(statement);
+    },
+    "0045_media_captions": () => {
+      for (const statement of MEDIA_CAPTIONS_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

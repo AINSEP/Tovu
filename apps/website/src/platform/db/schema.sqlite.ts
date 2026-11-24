@@ -1572,6 +1572,11 @@ export const media = sqliteTable(
      * for the full rationale. This column stores the raw, ALREADY-VALIDATED source text verbatim.
      */
     htmlAttributes: text("html_attributes"),
+    /** G7-9 (migration 0045): optional sibling `.vtt` media row, its cue language and menu label —
+     *  `MediaRecord.captions`. All NULL means no captions. */
+    captionsMediaId: text("captions_media_id"),
+    captionsSrclang: text("captions_srclang"),
+    captionsLabel: text("captions_label"),
   },
   (table) => [
     // Mirrors the inline CHECK that 0014_media_library adds to the kind column.

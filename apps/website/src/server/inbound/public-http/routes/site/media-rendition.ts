@@ -636,8 +636,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ 
 
       const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
       const sniffed = sniffContentType({ bytes: sourceBytes });
-      if (sniffed !== "image/svg+xml" && !sniffed.startsWith("video/") && !sniffed.startsWith("audio/")) {
-        // Neither recognized video/audio nor SVG (or an unrecognized/corrupt asset).
+      if (sniffed !== "image/svg+xml" && sniffed !== "text/vtt" && !sniffed.startsWith("video/") && !sniffed.startsWith("audio/")) {
+        // Neither recognized video/audio, SVG, nor WebVTT captions (G7-9) — or an unrecognized/corrupt asset.
         // everything else's public URL is `registerMediaRenditionRoute`'s transform-backed one.
         // `private, no-store` for the same reason the rendition route's not-found branch uses it
         // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,

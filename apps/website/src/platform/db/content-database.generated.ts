@@ -407,6 +407,9 @@ export interface MediaTable {
   height: number | null;
   css_class: string | null;
   html_attributes: string | null;
+  captions_media_id: string | null;
+  captions_srclang: string | null;
+  captions_label: string | null;
 }
 
 export interface MediaSlugHistoryTable {

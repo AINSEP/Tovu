@@ -393,6 +393,9 @@ export const media = pgTable("media", {
   height: bigint("height", { mode: "number" }),
   cssClass: text("css_class"),
   htmlAttributes: text("html_attributes"),
+  captionsMediaId: text("captions_media_id"),
+  captionsSrclang: text("captions_srclang"),
+  captionsLabel: text("captions_label"),
 }, (t) => [
     check("media_kind_check", sql`kind IN ('media', 'document')`),
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
