@@ -23,6 +23,7 @@ import { resolveSiteTitleForRender, htmlEmbedHostDeps } from "./render-context/s
 import { resolveStaticMenusForRender, type StaticMenuMap } from "./render-context/static-menus.js";
 import { resolvePostPreviewsForRender } from "./render-context/post-previews.js";
 import { resolveCollectionListsForRender, type CollectionListsCollaborators } from "@jini-ai/cms/public-http/routes/site/pages/render-context/collection-lists";
+import { warnCollectionLists } from "./render-context/collection-warning.js";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { resolvePerVisitorResponse, sendPublicPage } from "./response.js";
 
@@ -164,7 +165,7 @@ async function resolveStaticTierData({ deps, theme, assembled, currentPath, stat
   // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
   // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
   // only one hand-authored directly into a theme file.
-  const collectionLists = await resolveCollectionListsForRender({ deps: { ...deps, entryListAttribute: ENTRY_LIST_ATTRIBUTE, collaborators: COLLECTION_LIST_COLLABORATORS }, html: assembled, pagePath: currentPath });
+  const collectionLists = await resolveCollectionListsForRender({ deps: { ...deps, entryListAttribute: ENTRY_LIST_ATTRIBUTE, collaborators: COLLECTION_LIST_COLLABORATORS, warn: warnCollectionLists }, html: assembled, pagePath: currentPath });
   return { menus, postPreviews, collectionLists };
 }
 

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import type { OriginContext } from "@jini-ai/core/contracts/server";
 import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 
@@ -24,19 +24,34 @@ function assertOriginContext({ spec, origin }: { spec: { path: string; requireSa
 
 /** Mount a raw admin spec behind the admin ports; takes every `mountAdminJsonRoute` option.
  * `origin` is the host's same-origin policy, required when the spec sets `requireSameOrigin`.
+ * `handlerName` opts into naming the one registered Express handler (function `name`): the hand-written
+ * route was registered as a named function, and the route-table pin records that name, so a moved
+ * route keeps the pinned registration instead of an `<anonymous>` one. Absent, the handler stays anonymous.
  * @returns Void; registers one endpoint.
  * @throws At registration, when the spec sets `requireSameOrigin` and `origin` is absent.
  * @complexity O(1) setup; per request the admin ports, the handler and the body copy.
  * @example mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps }, { failure: { operation: "routes/plugins/install" } });
  */
 export function mountAdminRawRoute<Deps>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; handlerName?: string },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
   assertOriginContext({ spec: required.spec, origin: required.origin });
+  const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
   const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: optional.preflight });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, adapter: required.origin });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, adapter: required.origin });
+}
+
+/** The one-method app `mountRawRoute` registers on, naming the handler it is given. `mountRawRoute`
+ *  only calls `app[spec.method](path, handler)`; a new use of `app` there fails loudly here.
+ * @complexity O(1). */
+function registeringUnderName(
+  { app, method, name }: { app: Express; method: RawRouteSpec<unknown>["method"]; name: string },
+  _optional: Record<string, never> = {},
+): Express {
+  const register = (path: string, handler: RequestHandler) => app[method](path, Object.defineProperty(handler, "name", { value: name }));
+  return { [method]: register } as unknown as Express;
 }
 
 /** Mount a raw public spec behind the visitor ports (`createPublicJsonRoutePorts`); `workspaceId`

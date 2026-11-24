@@ -150,3 +150,28 @@ test("a guarded raw spec mounted without an origin context is refused at registr
   const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
   assert.throws(() => mountPublicRawRoute({ app: fakeAdminApp(), spec: xml, deps: {}, failure: visitor }), /origin context/);
 });
+
+/** The Express layer names registered for `path`, in registration order (what the route-table pin records). */
+function layerNames({ app, path }: { app: ReturnType<typeof fakeAdminApp>; path: string }): string[] {
+  const layers = (app as unknown as { _router: { stack: { route?: { path: string; stack: { name: string }[] } }[] } })._router.stack;
+  return layers.filter((layer) => layer.route?.path === path).flatMap((layer) => layer.route!.stack.map((entry) => entry.name));
+}
+
+test("a raw mount registers one anonymous handler unless it opts into a handlerName", () => {
+  const plain = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  mountAdminRawRoute({ app: plain, spec: rawSpec(), deps });
+  assert.deepEqual(layerNames({ app: plain, path: adminPath }), ["<anonymous>"]);
+});
+
+// Named mutation raw-mount-handler-name-dropped: mountAdminRawRoute ignores `handlerName` -> the layer reads <anonymous>.
+test("handlerName gives the one registered handler that function name (the route-table pin's installHandler) and it still answers", async (t) => {
+  const app = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  mountAdminRawRoute({ app, spec: rawSpec(), deps, handlerName: "installHandler" });
+  assert.deepEqual(layerNames({ app, path: adminPath }), ["installHandler"]);
+  const server = await listen({ app });
+  t.after(server.close);
+  const response = await fetch(`${server.base}/api/admin/v1/workspaces/local/raw`, { redirect: "manual" });
+  assert.equal(response.status, 302);
+});
