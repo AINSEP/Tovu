@@ -525,3 +525,36 @@ test("host-declared built-in MCP connections are labelled and cannot be removed,
   assert.equal((await removed.json()).code, "BUILT_IN_CONNECTION");
   assert.equal((await (await req(baseUrl, BASE, cookie)).json()).servers.length, 1);
 });
+
+test("external-mcp: without a session a malformed or valid PUT is the redacted 500, before authorize or any save", async (t) => {
+  // rv1123e K1 migration: `guardExternalMcpRequest` read the session before any route looked at its
+  // params or body, so none of these mounts opts into `deferMissingPrincipal`. Without a session the
+  // malformed `expectedVersion` (a 400 once signed in) must still answer the redacted 500. No spec in
+  // this family refuses in `parse` (the PUT body is read in `handle`, after `authorize`), so this pins
+  // the no-session answer and the absent side effect, not the mount flag itself.
+  const deps: RouteDeps = createRouteDeps();
+  let authorizeCalls = 0;
+  deps.authorize = async () => { authorizeCalls += 1; return { allowed: true, reason: "granted" } as Awaited<ReturnType<RouteDeps["authorize"]>>; };
+  let rosterChanges = 0;
+  onExternalMcpRosterChanged({ key: "no-session-observer", listener: () => { rosterChanges += 1; } });
+  t.after(() => resetExternalMcpRosterChangeListenersForTests());
+  const app = express();
+  app.use(express.json());
+  createExternalMcpModule(deps).registerRoutes?.({ app });
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const url = `http://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}/api/admin/v1/workspaces/${deps.workspaceId}/mcp-servers/s1`;
+  const put = async (body: unknown) => {
+    const response = await fetch(url, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.json() as Record<string, unknown> };
+  };
+  for (const body of [{ ...validBody, expectedVersion: "not-a-version" }, validBody]) {
+    const answer = await put(body);
+    assert.equal(answer.status, 500);
+    assert.equal(answer.body.code, "INTERNAL_ERROR");
+  }
+  assert.equal(authorizeCalls, 0);
+  assert.equal(rosterChanges, 0);
+  assert.deepEqual(await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId), []);
+});

@@ -8,6 +8,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file Pins the desktop sidebar rail's `localStorage` key as wired by `App.tsx`, not the
@@ -63,7 +66,7 @@ it(
   "persists the desktop rail collapse under Tovu's pre-existing localStorage key",
   async () => {
     const user = userEvent.setup();
-    const { container } = render(<App />);
+    const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
     await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
@@ -97,7 +100,7 @@ it("lets an operator's saved EXPANDED choice beat the collapsed-by-default wirin
   // harmless under an expanded default, but under a collapsed one it would re-collapse the rail on
   // every load for the one operator who deliberately opened it, with no way to make it stick.
   localStorage.setItem(LEGACY_KEY, "0");
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
   await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
@@ -106,7 +109,7 @@ it("lets an operator's saved EXPANDED choice beat the collapsed-by-default wirin
 
 it("reads a rail preference an operator already saved before this migration", async () => {
   localStorage.setItem(LEGACY_KEY, "1");
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
   await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
@@ -127,7 +130,7 @@ it.each([
   matchMedia.mockImplementation((query) => ({ ...defaultMatchMedia(query), matches: query === "(min-width: 901px)" }));
   try {
     const user = userEvent.setup();
-    const { container } = render(<App />);
+    const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
     await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
     const nav = container.querySelector<HTMLElement>(".cms-nav")!;
     expect(nav).not.toHaveClass("is-rail");

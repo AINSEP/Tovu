@@ -3,13 +3,14 @@
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11.
  *
  * The dialog-specific wire shapes live here. The report itself is imported from the neutral,
- * client-safe `report-contract.ts` module so there is only one report DTO declaration.
+ * client-safe Core wire contract (`@jini-ai/core/contracts/site/cms-publish-content`) so there is
+ * only one report DTO declaration.
  */
 import type {
   PublishContentOutcomeKindDto,
   PublishContentOutcomeRowDto,
   PublishContentReportDto,
-} from "@jini-ai/cms/publish/content/report-contract";
+} from "@jini-ai/core/contracts/site/cms-publish-content";
 
 export type PublishContentOutcomeKind = PublishContentOutcomeKindDto;
 export type PublishContentOutcomeRow = PublishContentOutcomeRowDto;

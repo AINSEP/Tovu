@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { buildFeed, FEED_PATH, renderRssXml } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "#src/features/settings/index";
-import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteRegistrar } from "#src/server/runtime/composition/modules/seo";
 
 /** Same header and reasoning as `sitemap.ts`: the response uses the request authority. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";

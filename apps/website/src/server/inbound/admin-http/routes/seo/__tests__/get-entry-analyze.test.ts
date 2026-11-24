@@ -17,8 +17,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoGetEntryAnalyzeRoute } from "../get-entry-analyze.js";
-import type { SeoRouteDeps } from "../deps.js";
+import { registerAdminSeoGetEntryAnalyzeRoute } from "#src/server/runtime/composition/modules/seo";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 
 /**
  * @file Unit-tier coverage for `GET .../seo/entries/:entryId/analyze` (`registerAdminSeoGetEntryAnalyzeRoute`).

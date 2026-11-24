@@ -31,7 +31,7 @@ import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connecti
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { parseApiConnectionsFile } from "../contribution.js";
-import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
 const accessToken = "acme-access-" + "x".repeat(24);

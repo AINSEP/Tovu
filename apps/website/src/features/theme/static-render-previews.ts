@@ -1,6 +1,6 @@
 import { POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withInnerContent, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { type StaticFeaturedImage, renderCoverImageTag } from "./static-render-content.js";
 
 

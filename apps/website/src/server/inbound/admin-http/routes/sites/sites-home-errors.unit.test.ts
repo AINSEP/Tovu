@@ -8,7 +8,7 @@ import express from "express";
 import { createNodeDurableJsonPorts } from "@jini-ai/platform/fs";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
-import { registerSitesHomeRoutes } from "./sites-home.js";
+import { registerSitesHomeRoutes } from "#src/server/runtime/composition/modules/sites";
 
 const BASE = "/api/admin/v1/workspaces/ws/system/sites";
 const KEY = "sk-" + "a".repeat(40);

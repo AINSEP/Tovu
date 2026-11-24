@@ -3,6 +3,7 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
 import type { PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { agentPluginLifecycleFields } from "@jini-ai/cms/admin-http/http/agent-plugins";
 
 /**
  * @file Pure response builders for `install.ts` (`AGENT_PLUGIN_INSTALL_ZIP`): which status and body
@@ -89,28 +90,6 @@ export function installErrorResponse({ error }: { error: unknown }, options: Adm
     };
   }
   return adminFailureResponse({ error: error, tracker: options.tracker }, { operation: "routes/agent-plugins/install-response" });
-}
-
-/**
- * The lifecycle fields every Agent Plugin row carries (`list.ts`, install/update, `set-enabled.ts`):
- * `origin` (bundled rows are managed by Tovu: no Update, no Uninstall), `hostOk` (false: this host
- * refuses to enable it), `missingRequires` (advisory capabilities no other enabled plugin provides),
- * `requiredBy` (enabled plugins that would lose a capability if this one were switched off) and
- * `archiveDigest` (the installed revision an update must name). One projection, so the three
- * responses cannot drift.
- * @complexity O(1).
- */
-export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate & { maturity?: PluginMaturity; providerPlugin?: string } }, _optional: Record<string, never> = {}) {
-  return {
-    ...(candidate.maturity ? { maturity: candidate.maturity } : {}),
-    // The provider plugin whose switch this plugin follows (`provider-plugin-link.ts`); the row shows no switch of its own.
-    ...(candidate.providerPlugin ? { providerPlugin: candidate.providerPlugin } : {}),
-    origin: candidate.origin,
-    hostOk: candidate.hostOk,
-    missingRequires: candidate.missingRequires ?? [],
-    requiredBy: candidate.requiredBy ?? [],
-    archiveDigest: candidate.archiveDigest,
-  };
 }
 
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */

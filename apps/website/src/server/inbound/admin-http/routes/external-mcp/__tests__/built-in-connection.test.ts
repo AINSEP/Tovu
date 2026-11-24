@@ -5,8 +5,7 @@ import test from "node:test";
 import type { Express, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { saveExternalMcpServer } from "../../../../../../features/external-mcp/external-mcp-store.js";
-import { registerAdminExternalMcpListRoute } from "../list.js";
-import { registerAdminExternalMcpDeleteRoute } from "../delete.js";
+import { registerAdminExternalMcpDeleteRoute, registerAdminExternalMcpListRoute } from "#src/server/runtime/composition/modules/external-mcp";
 
 function response() {
   return { locals: { principal: { id: "owner" } }, statusCode: 200, body: undefined as unknown,

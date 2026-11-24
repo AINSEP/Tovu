@@ -2,7 +2,7 @@
 import type { IRouter, Request, Response } from "express";
 import { CommerceCheckoutValidationError, CommerceOrderNotFoundError, CommercePriceNotFoundError,
   CommerceProductNotFoundError, commerceBuyerStatus, toCommerceBuyerOrder, type CommerceOrderView } from "@jini-ai/commerce";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { resolveMemberSession } from "#src/features/members/access-resolver";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

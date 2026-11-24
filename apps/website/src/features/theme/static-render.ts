@@ -2,7 +2,7 @@ import { expandPartials } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 import { injectListingScript } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript } from "@jini-ai/cms/navigation/dropdown";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { withEntryListStyleOnce } from "@jini-ai/cms/listing";
 import { ENTRY_LIST_ATTRIBUTE, ENTRY_LIST_DEFAULT_STYLE } from "./entry-list-markup.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";

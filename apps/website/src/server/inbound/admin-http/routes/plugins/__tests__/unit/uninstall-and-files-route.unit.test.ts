@@ -8,9 +8,9 @@ import express from "express";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { PluginsRouteDeps } from "../../deps.js";
-import { registerPluginFilesRoute } from "../../files.js";
-import { registerPluginUninstallRoute } from "../../uninstall.js";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
+import { registerPluginFilesRoute } from "#src/server/runtime/composition/modules/plugins";
+import { registerPluginUninstallRoute } from "#src/server/runtime/composition/modules/plugins";
 
 // Route-level tests for PLUGIN_UNINSTALL and PLUGIN_FILES arms the real-disk integration suites
 // (`uninstall.integration.test.ts`, `files.integration.test.ts`) do not reach: an unmapped failure

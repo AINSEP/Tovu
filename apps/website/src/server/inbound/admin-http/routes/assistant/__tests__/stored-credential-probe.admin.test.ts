@@ -5,7 +5,7 @@ import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
-import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
+import type { AssistantExecutionRouteDeps } from "#src/server/runtime/composition/modules/assistant-execution";
 import { resolveProbeCredential } from "../stored-credential-probe.js";
 
 /**

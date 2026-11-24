@@ -10,7 +10,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
-import { registerAdminPublishSiteRoutes } from "../publish-site.js";
+import { registerAdminPublishSiteRoutes } from "#src/server/runtime/composition/modules/system-deploy";
 
 /**
  * @file The read-only publish routes (`publish-targets`, `publish/destinations`, `publish/preview`)

@@ -1,4 +1,4 @@
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import { attribute, editedHtml, elements, type Edit, type Element } from "#src/platform/html/source-edits";
 
