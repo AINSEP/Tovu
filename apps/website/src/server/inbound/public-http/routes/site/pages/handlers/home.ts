@@ -21,7 +21,8 @@ import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePo
 import { resolveSiteAssistantWidgetForRequest, resolveWidgetsForRender } from "../render-context/widgets.js";
 import { resolveStaticMenusForRender } from "../render-context/static-menus.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender } from "../render-context/media-metadata.js";
-import { tryRedirectPhase } from "../redirect-phase.js";
+import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/redirect-phase";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import { buildExtraHead } from "../extra-head.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "../response.js";
 import { isStaticThemeWithIndex, serveStaticThemeIndex } from "../static-tier.js";
@@ -62,7 +63,7 @@ async function resolveHomePageContent({ deps, memberAccessResolver, memberContex
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,
  *  or the theme's home route). Errors propagate to the route's catch. */
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
-  if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
+  if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return;
 
   const memberAccessResolver = createMemberAccessResolver({ deps });
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([

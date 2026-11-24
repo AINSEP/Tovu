@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { parseFormMultipart, parseFormMultipartMiddleware } from "../forms-multipart.js";
+import { parseFormMultipart } from "@jini-ai/platform/http/multipart";
+import { parseFormMultipartMiddleware } from "../forms-multipart.js";
 import { startTestServer } from "../../../../../__tests__/helpers/http-test-server.js";
 
 const boundary = "pin-boundary";

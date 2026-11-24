@@ -2,6 +2,26 @@
   "version": 1,
   "allow": [
     {
+      "id": "0ca4248ba107",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/canonical-site-host.ts canonicalSiteHostRedirectLocation doc (w4-routes, R-public-http-1); the Tovu adapter's doc points there."
+    },
+    {
+      "id": "3a2943206cbf",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-asset-dirs.ts resolveThemeDirs doc, verbatim plus @param lines for the injected themeIdCandidates/resolvePathWithin (w4-routes, RT-K1-pub-middleware-1)."
+    },
+    {
+      "id": "2ac124afebbf",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-asset-dirs.ts resolveThemeDir doc, verbatim except the product-named staging prefix reworded neutral (w4-routes, RT-K1-pub-middleware-1)."
+    },
+    {
+      "id": "ec887e7ca942",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-content-security-headers.ts themeAssetSecurityHeaderSet doc (w4-routes, R-public-http-1); the Tovu Express adapter keeps a short doc pointing there."
+    },
+    {
+      "id": "d1b0787724d0",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-static-assets.ts IsAuthenticatedPreviewRevision type doc (w4-routes, RT-K1-pub-middleware-3)."
+    },
+    {
       "id": "010687fc2a46",
       "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
     },
@@ -5160,6 +5180,34 @@
     {
       "id": "486452b0f1ad",
       "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "e8e952cff6f1",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/blob-get.ts (w4-routes, RT-K1-adm-publish-content-2/4: blob-get.ts header)"
+    },
+    {
+      "id": "4414d40fbf22",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/blob-get.ts (reworded: the file-blob index is now the host's injected blobSource) (w4-routes, RT-K1-adm-publish-content-2/4: blob-get.ts S18 fallback comment)"
+    },
+    {
+      "id": "ffae5dc05907",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts (last paragraph reworded: the body is now a piped stream from a raw route instead of res.write) (w4-routes, RT-K1-adm-publish-content-2/4: export.ts @file header)"
+    },
+    {
+      "id": "003eb3f1069a",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts exportBundleStream doc (w4-routes, RT-K1-adm-publish-content-2/4: export.ts streamExportBundle doc)"
+    },
+    {
+      "id": "c780acb34449",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts (packAuthorizedEntities is now the injected packEntities dep; bound in Tovu runtime/composition/modules/publish-content-blobs.ts) (w4-routes, RT-K1-adm-publish-content-2/4: export.ts registry-walk comment)"
+    },
+    {
+      "id": "271a217e94a4",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts (w4-routes, RT-K1-adm-publish-content-2/4: export.ts publishing-credential 403 comment)"
+    },
+    {
+      "id": "f7f17534df39",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts exportBundleStream pull catch (reworded: the stream closes instead of res.end()) (w4-routes, RT-K1-adm-publish-content-2/4: export.ts mid-stream catch comment)"
     }
   ]
 }

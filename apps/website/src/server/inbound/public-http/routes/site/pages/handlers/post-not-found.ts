@@ -7,7 +7,8 @@ import type { SiteRequestDeps } from "../render-context/deps.js";
 import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
 import { redirectLookupPath } from "../request-policy.js";
 import type { StaticMenuMap } from "../render-context/static-menus.js";
-import { tryRedirectPhase } from "../redirect-phase.js";
+import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/redirect-phase";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import { finishStaticTierDocument } from "../static-tier.js";
 import { listingBatchNotFound } from "./listing.js";
 import { reportSiteRenderFault } from "./virtual-page.js";
@@ -25,7 +26,7 @@ import { reportSiteRenderFault } from "./virtual-page.js";
 export async function handlePostNotFoundOnSlugRoute(
   { req, res, deps, theme, staticMenus }: { req: Request; res: Response; deps: RouteDeps; theme: DiscoveredTheme | null; staticMenus: StaticMenuMap | undefined }, _optional: Record<string, never> = {}
 ): Promise<void> {
-  if (await tryRedirectPhase({ phase: "post_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
+  if (await tryRedirectPhase({ phase: "post_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return;
 
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
   // the bare fallback below — E4 (D2, 2026-09-23) runs it through the SAME

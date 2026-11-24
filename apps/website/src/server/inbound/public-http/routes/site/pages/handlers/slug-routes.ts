@@ -4,7 +4,7 @@ import { resolveRenderThemeId } from "../../../../middleware/render-theme-overri
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { checkSiteRelativeTarget } from "#src/platform/routing/index";
+import { checkSiteRelativeTarget, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../../../platform/express/async-route.js";
 import { resolveRequestedSlug, redirectLookupPath } from "../request-policy.js";
@@ -12,7 +12,7 @@ import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "../render-context/member-access.js";
 import { resolveSiteAssistantWidgetForRequest } from "../render-context/widgets.js";
 import { resolveStaticMenusForRender, type StaticMenuMap } from "../render-context/static-menus.js";
-import { tryRedirectPhase } from "../redirect-phase.js";
+import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/redirect-phase";
 import { resolvePerVisitorResponse, sendPublicPage } from "../response.js";
 import { resolveMarketingPageOrOverride, resolvePostAfterMarketingCheck } from "./marketing.js";
 import { renderTemplateBranchIfEligible, renderGenericPostPage } from "./post.js";
@@ -26,8 +26,8 @@ export const registerNestedPathRoute: RouteRegistrar = ({ app, deps: appDeps }, 
   app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
     if (checkSiteRelativeTarget({ raw: req.path }).kind !== "ok") return next();
     try {
-      if (await tryRedirectPhase({ phase: "pre_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
-      if (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
+      if (await tryRedirectPhase({ phase: "pre_content", path: req.path, workspaceId: appDeps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return undefined;
+      if (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId: appDeps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return undefined;
       next();
     } catch (err) {
       next(err);
@@ -46,7 +46,7 @@ export const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _optio
     let theme: DiscoveredTheme | null = null;
     let staticMenus: StaticMenuMap | undefined;
     try {
-      if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
+      if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return;
 
       const memberAccessResolver = createMemberAccessResolver({ deps });
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([

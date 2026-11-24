@@ -1,6 +1,7 @@
 import { blobGetRoute, type BlobGetRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-get";
 import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-put";
 import { exportRoute, type ExportRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/export";
+import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -37,6 +38,7 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
   const routeDeps: BlobPutRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     blobStore: { putIfAbsent: (input) => deps.blobStore.putIfAbsent(input) },
+    maxUploadBytes: MAX_DOCUMENT_BYTES,
   };
   mountAdminJsonRoute(
     { app, spec: blobPutRoute, deps: routeDeps },
@@ -48,8 +50,9 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
 export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const routeDeps: BlobGetRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
-    mediaRepo: deps.mediaRepo,
-    assetBlobRepo: deps.assetBlobRepo,
+    isDocumentOnlyBlob: ({ sha256 }) => isDocumentOnlyBlob({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo }, input: { workspaceId: deps.workspaceId, sha256 } }),
+    storageKeyFor: ({ sha256 }) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+    maxTransferBytes: MAX_DOCUMENT_BYTES,
     blobSource: () => createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
   };
   mountAdminJsonRoute(

@@ -2,7 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import { parseListingBatchPath, parseListingPagePath } from "@jini-ai/cms/listing";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
-import { tryRedirectPhase } from "../redirect-phase.js";
+import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/redirect-phase";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 
 /** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers
  *  render it through every one of their branches unchanged (Express 4 re-matches the rewritten `req.url`). */
@@ -21,7 +22,7 @@ export async function listingBatchNotFound({ req, res, next, workspaceId }: {
   const numberedPage = listingState.listingPageRequestOf({ req }) !== undefined;
   req.url = req.originalUrl;
   try {
-    if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res }))) return undefined;
+    if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } }))) return undefined;
   } catch (err) {
     return next(err);
   }
