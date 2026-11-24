@@ -118,7 +118,7 @@ import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts"
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
-import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
+import { isSupervisedSiteUrl } from "@jini-ai/desktop-host/shell/supervised-site-url";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
 import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
