@@ -5,7 +5,7 @@ import { postAuthorForContentHeader } from "#src/features/theme/static-render-co
 import { substituteHtmlEmbeds, type PageHtmlEmbedRef, type EmbedOccurrence } from "@jini-ai/cms/widgets/html/html-embeds";
 import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderWidgetIr } from "./content-html.js";
-import { readMediaAssetMetadata, readMediaTransformVersions } from "./widgets/post-content.js";
+import { readMediaAssetMetadata, readMediaTransformVersions } from "@jini-ai/cms/public-http/http/site/render/widgets/post-content";
 import { projectPostBody } from "@jini-ai/cms/media/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 

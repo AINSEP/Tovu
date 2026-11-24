@@ -7,12 +7,13 @@ import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-marke
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "@jini-ai/core/text";
 import { str, isObject } from "@jini-ai/cms/public-http/http/site/render/value-readers";
-import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "./widgets/social-entries.js";
+import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "@jini-ai/cms/public-http/http/site/render/widgets/social-entries";
 import { renderWidgetMenu } from "@jini-ai/cms/navigation/menu-render";
 import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy/render-entry";
-import { renderWidgetContactForm } from "./contact-form-widget.js";
-import { renderWidgetMediaImage, renderMediaWidget } from "./widgets/media.js";
-import { renderWidgetPostContent } from "./widgets/post-content.js";
+import { renderWidgetContactForm } from "@jini-ai/cms/public-http/http/site/render/contact-form-widget";
+import { renderWidgetMediaImage, renderMediaWidget } from "@jini-ai/cms/public-http/http/site/render/widgets/media";
+import { renderWidgetPostContent } from "@jini-ai/cms/public-http/http/site/render/widgets/post-content";
+import { TOVU_WIDGET_RENDER_HOST } from "./widgets/widget-host.js";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import type { SiteRenderContext } from "../render-context.js";
 
@@ -54,9 +55,9 @@ const WIDGET_DOC_RENDERING: WidgetDocRendering = {
  *  unrecognized id. */
 const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, optional?: Record<string, never>) => string> = {
   text: ({ ir }) => `<div class="widget widget-text">${escapeHtml({ text: str({ value: ir.props.body }) }).replaceAll("\n", "<br/>")}</div>`,
-  "social-links": ({ ir }) => renderWidgetSocialLinks(ir.props),
-  "recent-entries": ({ ir }) => renderWidgetRecentEntries(ir),
-  "entry-summary": ({ ir }) => renderWidgetEntrySummary(ir.props),
+  "social-links": ({ ir }) => renderWidgetSocialLinks({ props: ir.props }),
+  "recent-entries": ({ ir }) => renderWidgetRecentEntries({ ir, host: TOVU_WIDGET_RENDER_HOST.entries }),
+  "entry-summary": ({ ir }) => renderWidgetEntrySummary({ props: ir.props }),
   menu: ({ ir }) => renderWidgetMenu({ props: ir.props }),
   "taxonomy-list": ({ ir }) => renderHtmlTaxonomy({
     attributes: { section: "data-tovu-taxonomy", list: "data-tovu-taxonomy-list", term: "data-tovu-term", label: "data-tovu-term-label" },
@@ -65,11 +66,11 @@ const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, opt
       id: str({ value: term.id }), name: str({ value: term.name }), parentId: typeof term.parentId === "string" ? term.parentId : null,
     })),
   }),
-  "contact-form": ({ ir }) => renderWidgetContactForm(ir.props),
-  "media-image": ({ ir }) => renderWidgetMediaImage(ir.props),
-  "gallery": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING }),
-  "media": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING }),
-  "post-content": ({ ir }) => renderWidgetPostContent({ props: ir.props, docRendering: WIDGET_DOC_RENDERING }),
+  "contact-form": ({ ir }) => renderWidgetContactForm({ props: ir.props, host: TOVU_WIDGET_RENDER_HOST.contactForm }),
+  "media-image": ({ ir }) => renderWidgetMediaImage({ props: ir.props, host: TOVU_WIDGET_RENDER_HOST.media }),
+  "gallery": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING, host: TOVU_WIDGET_RENDER_HOST.media }),
+  "media": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING, host: TOVU_WIDGET_RENDER_HOST.media }),
+  "post-content": ({ ir }) => renderWidgetPostContent({ props: ir.props, docRendering: WIDGET_DOC_RENDERING, host: TOVU_WIDGET_RENDER_HOST.postContent }),
 };
 
 /**

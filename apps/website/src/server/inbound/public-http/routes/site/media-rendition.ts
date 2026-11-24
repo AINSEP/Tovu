@@ -5,7 +5,7 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 
-import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sniffContentType, lookupMediaOriginalBlob, sanitizeOriginalBytes, decideMediaOriginalReply, inlineOriginalType, SVG_CONTENT_SECURITY_POLICY, type MediaRecord } from "@jini-ai/cms/media";
+import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sniffContentType, lookupMediaOriginalBlob, sanitizeOriginalBytes, PRIVATE_NO_STORE, REVALIDATING_PUBLIC, resolveRenditionTransformSpec, ifNoneMatchSatisfied, renditionCacheControl, decideMediaOriginalReply, inlineOriginalType, SVG_CONTENT_SECURITY_POLICY, type MediaRecord } from "@jini-ai/cms/media";
 import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
@@ -38,21 +38,6 @@ const CACHE_CONTROL_HEADER = "Cache-Control";
  * `{transformName}.v{version}/{slug}.{ext}` shape above regardless of registration order.
  */
 
-const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
-
-/** The only `Cache-Control` either route's 404 may carry. Named, and written through the single
- *  {@link sendMediaNotFound} helper below, because the 2026-09-05 oracle bug was precisely two
- *  404 call sites drifting apart on this header — a shared constant that two call sites still set
- *  independently would have drifted the same way. */
-const PRIVATE_NO_STORE = "private, no-store";
-
-/** Replacement preserves ids and authored URLs, including their old source-hash query.
- *  Current and retired slugs can also resolve to changed bytes after replacement or name reuse.
- *  These routes always resolve the live source rather than a historical content snapshot, so
- *  even a matching `v` cannot promise immutable bytes. Limit reuse to sixty seconds;
- *  the existing ETag lets an unchanged asset return 304. Never used for a gated outcome. */
-const REVALIDATING_PUBLIC = "public, max-age=60";
-
 /**
  * The ONE writer for every 404 either public media route emits.
  *
@@ -68,29 +53,6 @@ const REVALIDATING_PUBLIC = "public, max-age=60";
  */
 function sendMediaNotFound({ res, error }: { res: Response; error: string }, _optional = {}): void {
   res.status(404).set(CACHE_CONTROL_HEADER, PRIVATE_NO_STORE).json({ error });
-}
-
-/**
- * Parses and validates the `{transformName}.v{version}` path segment against `assetId`,
- * returning either the resolved fields or the one-of-two malformed-URL error messages the route
- * has always distinguished. Isolated from the handler so both validation branches (pattern match,
- * version range) live in one place instead of the caller's own complexity budget.
- *
- * @complexity O(1) — one regex match plus two range/shape checks.
- */
-function resolveTransformSpec({ assetId, transformSpec }: { assetId: string; transformSpec: string }, _optional = {}): { transformName: string; version: number } | { errorMessage: string } {
-  const match = TRANSFORM_SPEC_PATTERN.exec(transformSpec);
-  if (!assetId || !match) {
-    return { errorMessage: "malformed media rendition URL" };
-  }
-
-  const [, transformName, versionText] = match;
-  const version = Number(versionText);
-  if (!Number.isInteger(version) || version < 1) {
-    return { errorMessage: "malformed transform version" };
-  }
-
-  return { transformName, version };
 }
 
 /** Local copy of `pages.ts`'s own (file-private) `isPlainObject`/`collectMediaRefAssetIds` walk —
@@ -498,14 +460,6 @@ async function publicRenditionTag({ deps, media, transformName, version }: {
   return `"${createHash('sha256').update(identity).digest('hex')}"`;
 }
 
-/** GET validators use weak comparison and accept a list or wildcard, as If-None-Match requires. */
-function matchesRenditionTag({ req, etag }: { req: Request; etag: string }, _optional = {}): boolean {
-  return String(req.headers['if-none-match'] ?? '').split(',').some(value => {
-    const candidate = value.trim();
-    return candidate === '*' || candidate.replace(/^W\//, '') === etag.replace(/^W\//, '');
-  });
-}
-
 /** Access is resolved before validators: a gated request can never reuse public evidence. */
 async function sendNotModifiedRendition({ deps, req, res, access, transformName, version }: {
   deps: MediaRenditionRouteDeps; req: Request; res: Response;
@@ -513,7 +467,7 @@ async function sendNotModifiedRendition({ deps, req, res, access, transformName,
 }): Promise<boolean> {
   if (access.gated || !req.headers['if-none-match']) return false;
   const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
-  if (!etag || !matchesRenditionTag({ req, etag })) return false;
+  if (!etag || !ifNoneMatchSatisfied({ header: req.headers["if-none-match"] as string | undefined, etag })) return false;
   res.status(304).set(CACHE_CONTROL_HEADER, REVALIDATING_PUBLIC).set('ETag', etag).end();
   return true;
 }
@@ -573,19 +527,6 @@ async function sendMediaRenditionResult(
   }
 }
 
-/** The `Cache-Control` for an ALLOWED 200 rendition. @complexity O(1). */
-function renditionCacheControl({ access }: { access: { gated: boolean } }, _optional: Record<string, never> = {}): string {
-  // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-  // request's session cookie), so it must never be handed the ungated,
-  // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
-  // public/shared cache would be served this same cached response.
-  //
-  // Ids, matching versions and editable/reusable slugs all serve the live source. Header
-  // selection adds no reads; access evidence is refreshed within sixty seconds.
-  if (access.gated) return PRIVATE_NO_STORE;
-  return REVALIDATING_PUBLIC;
-}
-
 /** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */
 function sendRenditionFailure({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ImageTransformUnavailableError) {
@@ -611,7 +552,7 @@ function sendRenditionFailure({ res, err }: { res: Response; err: unknown }, _op
 export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/m/:assetId/:transformSpec/:filename", asyncRoute({ handler: async (req, res) => {
     const { assetId, transformSpec } = readRenditionRouteParams(req);
-    const parsed = resolveTransformSpec({ assetId, transformSpec });
+    const parsed = resolveRenditionTransformSpec({ assetId, transformSpec });
 
     if ("errorMessage" in parsed) {
       res.status(400).json({ error: parsed.errorMessage });
@@ -752,7 +693,7 @@ async function sendResolvedRendition(
     }
     res
       .status(200)
-      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ gated: access.gated }))
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
 }
