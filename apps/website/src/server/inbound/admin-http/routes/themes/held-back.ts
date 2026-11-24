@@ -5,14 +5,15 @@ import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#s
 import { chosenThemeHeldBack, HeldBackThemeError, type HeldBackErrorCode } from "#src/features/theme/held-back-choice";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildHeldBackRestoreHooks, HELD_BACK_READ_PERMISSION, HELD_BACK_RESTORE_DOMAIN, HELD_BACK_RESTORE_PERMISSION, type HeldBackRestoreScope } from "#src/features/theme/held-back-gated-hooks";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { RouteDeps } from "#src/server/routes/types";
-import { bodyRecord } from "./explore.js";
+import { bodyRecord } from "@jini-ai/cms/admin-http/routes/themes/explore-shared";
 
 /**
  * @file The Themes screen's "Held back on import" section: list the themes site import left in

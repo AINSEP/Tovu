@@ -1,4 +1,4 @@
-import type { GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { planHashOf, resolveActorClassIdentity } from "#src/contracts/core/gated-mutations/composition";
 
 /**
