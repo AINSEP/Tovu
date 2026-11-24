@@ -6,6 +6,8 @@ import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-bo
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
+import { createVisitorTurnDedupe, readVisitorTurnId } from "#src/assistant/site/visitor-turn-dedupe";
+import { VISITOR_TURN_DUPLICATE_CODE } from "#src/assistant/site/public-errors";
 import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import { runPublicSiteGuide } from "../public-site-guide.js";
@@ -636,7 +638,8 @@ function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantM
       { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
   });
-  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend };
+  const turnDedupe = createVisitorTurnDedupe({ clock: deps.clock });
+  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
 }
 
 function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
@@ -692,6 +695,25 @@ async function handleChat(req: Request, res: Response, context: ReturnType<typeo
         const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
         if (!preflight.ok) return;
         const { message, priorTurns, provider } = preflight;
+        // Owner decision 2026-11-23: a widget retry carries the SAME turnId, and the server must not
+        // bill a second provider run for it. Admitted here (after the cheap gates, before any spend);
+        // a failure before `providerStarted()` releases the turn so the retry still works.
+        const turn = context.turnDedupe.admit({ scope: `${deps.workspaceId}|${resolveClientIp(req)}`, turnId: readVisitorTurnId({ body: req.body }) });
+        if (!turn.admitted) {
+          respondPublicError({ res, status: 409, reportError, code: VISITOR_TURN_DUPLICATE_CODE, diagnostic: `visitor turn already ${turn.state}` });
+          return;
+        }
+        try { await handleAdmittedChat({ req, res, context, preflight: { message, priorTurns, provider }, turn }); }
+        finally { turn.finish({ delivered: res.writableEnded }); }
+      }
+
+async function handleAdmittedChat({ req, res, context, preflight, turn }: {
+  req: Request; res: Response; context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] };
+  preflight: { message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
+  turn: { providerStarted(): void };
+}): Promise<void> {
+        const { deps, frontend, reportError, secrets } = context;
+        const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
         const logicalRunId = deps.idGen.newId();
@@ -724,7 +746,7 @@ async function handleChat(req: Request, res: Response, context: ReturnType<typeo
         const capabilities = await createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
         const executeTool = createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }, navigation);
 
-        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation });
+        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
       }
 
 /**
@@ -843,11 +865,11 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
 }
 
 
-async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation }: {
+async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
   req: Request; res: Response; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
   capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
   abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
-  logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean };
+  logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean }; providerStarted: () => void;
 }): Promise<void> {
         beginStream(req, res);
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
@@ -855,7 +877,7 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
         await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
         await capture({ name: "assistant_run_started", properties: { logicalRunId, eventId: `assistant-start:${logicalRunId}` } });
         let runOutcome = "completed";
-        try { await runByokProviderTurn({
+        try { providerStarted(); await runByokProviderTurn({
           protocol: provider.protocol,
           apiKey: provider.apiKey,
           ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
