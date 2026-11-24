@@ -3,7 +3,7 @@ import type { Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import { POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure } from "./post-editor-messages";
 
 /**
@@ -12,7 +12,7 @@ import { POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure } from "./post-edit
  * size ratchet. `usePostEditor` keeps `applyLoadedPost` itself (it owns every field setter).
  *
  * A loaded row goes into the newest live editor instance, never one a closure kept: `useEditor` can
- * replace its instance after mount (`lib/live-tiptap-editor.ts`), and the load used to call
+ * replace its instance after mount (`@jini-ai/admin/shell/lib/live-tiptap-editor`), and the load used to call
  * `applyLoadedPost` with the instance it captured at mount, which TipTap may already have destroyed —
  * "Cannot read properties of null (reading 'commands')" with the title shown and the body empty, and
  * Publish then wrote that empty body over the stored post (client report 2026-11-21).

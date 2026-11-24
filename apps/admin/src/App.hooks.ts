@@ -17,9 +17,9 @@ import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
   ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID,
   captureAdminScreenshotToolResult,
-  renderAdminScreenshotCanvas,
   type RenderElementToCanvas,
-} from "./lib/agent-screenshot";
+} from "@jini-ai/admin/shell/lib/agent-screenshot";
+import { renderAdminScreenshotCanvas } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
@@ -723,7 +723,7 @@ function withFirstPlanTimeout({ publishing }: { publishing: Promise<PublishReque
  * Builds the `executors` map `createFrontendSessionBridge` claims under the `"admin."` prefix — the
  * host-extension seam `frontend-session-bridge.ts`'s own module doc describes ("Product capabilities,
  * keyed by id prefix... This is how a consumer exposes verbs the engine has never heard of"), used
- * here for the first time by a Tovu-native verb rather than a Jini one. See `lib/agent-screenshot.ts`'s
+ * here for the first time by a Tovu-native verb rather than a Jini one. See `@jini-ai/admin/shell/lib/agent-screenshot`'s
  * module doc for why `admin.capture_screenshot` lives outside `page.*`/`chat.*`.
  *
  * A plain function, not inlined into {@link useAgentPageBridge}'s effect, so it is directly

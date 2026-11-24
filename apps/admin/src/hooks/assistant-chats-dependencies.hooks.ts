@@ -13,7 +13,7 @@ import {
   type AssistantConversation,
 } from "../lib/assistant-chats";
 import { WORKSPACE_ID } from "../lib/admin-http/config";
-import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
+import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 
 /**
  * @file The only place the real `/api/assistant/chats` client is reached from the hook layer.

@@ -1,4 +1,4 @@
-import { partitionChatPackages } from "./chat-package-kind";
+import { partitionChatPackages } from "@jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
 import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkingDirectoryAccess } from "@jini-ai/chat/react";
@@ -65,7 +65,7 @@ export function useSkillAwareAttachmentUploader(
   _optional: Record<string, never> = {},
 ): ReturnType<typeof createDaemonAttachmentUploader> {
   return useCallback(async (files, options) => {
-    const { skills, attachments } = await partitionChatPackages({ files });
+    const { skills, attachments } = await partitionChatPackages({ files, legacyManifestNames: ["tovu.plugin.json"] }); // the host's legacy plugin manifest alias
     if (skills.length > 0) await proposeFiles(skills);
     if (attachments.length === 0) return [];
     // The composer owns the message batch and cancellation lifetime. Dropping these options

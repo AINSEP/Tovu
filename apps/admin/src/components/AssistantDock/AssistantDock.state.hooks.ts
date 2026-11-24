@@ -5,7 +5,8 @@ import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.a
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
 import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "./assistant-runtime-preferences";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
-import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
+import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
+import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
@@ -263,7 +264,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
-  const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });
+  const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId, port: defaultAssistantChatsPort });
 
   return { runContext, activeTitle, handleSelectionChange, failureSurface, emptyState, refreshSignal };
 }

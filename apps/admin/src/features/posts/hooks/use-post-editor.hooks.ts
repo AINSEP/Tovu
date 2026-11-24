@@ -53,7 +53,7 @@ import {
 import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure, type SaveStatusOverride } from "./post-editor-messages";
 import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.hooks";
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";

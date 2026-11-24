@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { buildAdminCapabilityExecutors } from "../../App.hooks";
 import { resetScreenshotCapturedBus, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
-import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "../../lib/agent-screenshot";
+import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "@jini-ai/admin/shell/lib/agent-screenshot";
 import { PUBLISH_CONTENT_CAPABILITY, type PublishRequestResult } from "@tovu/publish-content-ui";
 
 /**
