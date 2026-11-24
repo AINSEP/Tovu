@@ -129,6 +129,20 @@ export async function issueConfirmationToken(required: {
   return { tokenId, expiresAt };
 }
 
+/** The two consent-capability calls a bound capability gets, in order; the verdict is the caller's to act on. */
+async function requestAndConfirmConsent({ deps, subscription, tokenId, workspaceId }: {
+  deps: ConfirmationDeps; subscription: SubscriptionRow; tokenId: string; workspaceId: UUID;
+}): Promise<{ status: string; revisionId: string }> {
+  const capability = deps.consentCapability as MembersConsentCapability;
+  await capability.request({
+    workspaceId,
+    subscriberId: subscription.subscriberId,
+    evidence: { consentTextRef: "newsletter-subscription-confirm-v1", source: subscription.source, confirmTokenId: tokenId },
+  });
+  const result = await capability.confirm({ workspaceId, subscriberId: subscription.subscriberId, confirmTokenId: tokenId });
+  return { status: result.status, revisionId: result.consentRevisionId };
+}
+
 /**
  * Validate the raw token, then call `MembersConsentCapability.request`/`.confirm` — the local
  * `SubscriptionRow.status` flip to `subscribed` happens STRICTLY AFTER a `granted` response, never
@@ -157,34 +171,21 @@ export async function consumeConfirmationToken(required: {
   const subscription = await deps.subscriptionRepo.findById({ workspaceId: input.workspaceId, id: token.subscriptionId });
   if (!subscription) throw new NewsletterConfirmTokenInvalidError({ message: "subscription was not found", reason: "not_found" });
 
-  if (!deps.consentCapability) {
-    throw new Error(
-      "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)"
-    );
-  }
-
-  await deps.consentCapability.request({
-    workspaceId: input.workspaceId,
-    subscriberId: subscription.subscriberId,
-    evidence: { consentTextRef: "newsletter-subscription-confirm-v1", source: subscription.source, confirmTokenId: token.id },
-  });
-  const confirmResult = await deps.consentCapability.confirm({
-    workspaceId: input.workspaceId,
-    subscriberId: subscription.subscriberId,
-    confirmTokenId: token.id,
-  });
+  // B176: consent is enforced when a capability is bound; with none configured the confirmation
+  // still completes (today's behaviour) and simply records no consent revision.
+  const consent = deps.consentCapability ? await requestAndConfirmConsent({ deps, subscription, tokenId: token.id, workspaceId: input.workspaceId }) : null;
 
   // The token is single-use regardless of the consent outcome — mark consumed either way.
   await deps.tokenRepo.save({ ...token, consumedAt: now });
 
-  if (confirmResult.status !== "granted") {
-    throw new NewsletterConfirmTokenInvalidError({ message: `consent was not granted (status: ${confirmResult.status})`, reason: "expired" });
+  if (consent && consent.status !== "granted") {
+    throw new NewsletterConfirmTokenInvalidError({ message: `consent was not granted (status: ${consent.status})`, reason: "expired" });
   }
 
   const updated: SubscriptionRow = {
     ...subscription,
     status: "subscribed",
-    consentRevisionIdAtSubscribe: confirmResult.consentRevisionId,
+    consentRevisionIdAtSubscribe: consent?.revisionId ?? null,
     subscribedAt: now,
     updatedAt: now,
   };
