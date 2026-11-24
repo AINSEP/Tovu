@@ -6904,6 +6904,138 @@
     {
       "id": "2e761cc810cf",
       "reason": "Moved to Jini packages/cms/src/public-http/routes/members/set-password.ts (Tovu 892e8722a9, combine-17b); reworded there; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1121d6ff901a",
+      "reason": "Moved to Jini packages/ui/src/features/viewer-shell/react/hooks/useCopyToClipboard.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "51b19397c559",
+      "reason": "Moved to Jini packages/ui/src/features/viewer-shell/react/hooks/useCopyToClipboard.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "4b9d922e14f7",
+      "reason": "Moved to Jini packages/ui/src/features/viewer-shell/react/hooks/useCopyToClipboard.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "1dc0f3de4edc",
+      "reason": "Moved to Jini packages/ui/src/features/viewer-shell/react/hooks/useCopyToClipboard.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "aa82b70b5ea9",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "40e5af240bc4",
+      "reason": "Moved to Jini packages/platform/src/process-top-footprint.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "947eafbeb3f3",
+      "reason": "Moved to Jini packages/devops/src/packaging/electron/isolation.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "b89232b934cb",
+      "reason": "Moved to Jini packages/devops/src/packaging/electron/isolation.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "24a102c7e10b",
+      "reason": "Moved to Jini packages/devops/src/packaging/electron/isolation.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "1e935cc669fb",
+      "reason": "Moved to Jini packages/ui/src/browser/useDismissibleDropdown.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "485dea66d8bd",
+      "reason": "Moved to Jini packages/ui/src/browser/useMenuKeyboard.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "84888d92ccaa",
+      "reason": "Moved to Jini packages/cms/src/themes/preview/watcher.node.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "4ffc10dbebef",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "e7c39489c369",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "cc9d6753ad63",
+      "reason": "Moved to Jini packages/core/src/contracts/server/security-headers.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "98b2ec297904",
+      "reason": "Moved to Jini packages/core/src/contracts/server/security-headers.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "85ebfcbcd2ea",
+      "reason": "Moved to Jini packages/cms/src/forms/destination-descriptors.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "6d97279283ef",
+      "reason": "Moved to Jini packages/cms/src/listing/entry-list.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "31e015eb637c",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "a8704a24614f",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "3e4535520cae",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "544af53b64b8",
+      "reason": "Moved to Jini packages/integrations/src/webhooks/tools/tool-registrations.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "5d3a1782b538",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/__tests__/workspace-routes.test.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "b5c0d344c438",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/__tests__/workspace-routes.test.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "dae762b5dd38",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/workspace/__tests__/workspace-routes.test.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "bc2f18389479",
+      "reason": "Moved to Jini packages/core/src/settings/route-policy.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "7ddf81cb9f5e",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/explore-detail.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "1e770e5a2aa7",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/explore-file-reset.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "d076bdd63a44",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/themes/explore-file-reset.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "cfb902da7d15",
+      "reason": "Moved to Jini packages/cms/src/presentation/document-shell.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "28162a14dbed",
+      "reason": "Moved to Jini packages/cms/src/widgets/markers/media-reference.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "4bd2ee7c5f06",
+      "reason": "Moved to Jini packages/cms/src/widgets/markers/media-reference.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "f9cbac0690b4",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/ops/health.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
     }
   ]
 }
