@@ -305,6 +305,7 @@
     "members_update_profile": "member visitor profile update edit rename name",
     "webhooks_update_subscription": "webhook subscription edit update label target url topics endpoint",
     "site_guide": "how tovu works site guide learn building blocks forms widgets markers themes members SEO deploy plugins Jini",
+    "resume_agent_work": "resume agent work paused assistant switch webhooks scheduled posts publishes hold release approve",
     "identity_user_change_username": "username login name rename change update user account own profile",
     "plugin_source_create": "plugin source code create scaffold site local server content filter fields types",
     "plugin_source_open": "plugin source open draft edit installed working copy",
@@ -1926,6 +1927,10 @@
       "How does Tovu work?",
       "Design a planner directory site."
     ],
+    "resume_agent_work": [
+      "Resume the agent work that was paused.",
+      "Release the paused scheduled posts and webhooks."
+    ],
     "identity_user_change_username": [
       "Change this user's username.",
       "Rename my login username.",
@@ -3488,6 +3493,10 @@
     },
     "site_guide": {
       "class": "read",
+      "confirmation": "direct"
+    },
+    "resume_agent_work": {
+      "class": "edit",
       "confirmation": "direct"
     },
     "identity_user_change_username": {
