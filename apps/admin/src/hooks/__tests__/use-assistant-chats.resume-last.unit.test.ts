@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { LastConversationStore } from "@jini-ai/chat/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AssistantConversation } from "../../lib/assistant-chats";
+import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 import { useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";

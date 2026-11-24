@@ -2,19 +2,11 @@
 import { retryWhileUnreachable as retryPackageRequest } from "@jini-ai/ui/panel-kit";
 import { API_UNREACHABLE_CODE, ApiError } from "./admin-http/request";
 
-import { isAbortError as isPackageAbortError } from '@jini-ai/core/text';
-export { UNREACHABLE_RETRY_DELAYS_MS } from "@jini-ai/ui/panel-kit";
-
-/** Preserve the host's abort classifier. */
-export function isAbortError({ error }: { error: unknown }, _options = {}): boolean {
-  return isPackageAbortError({ error });
-}
-
 /** Retry only Tovu's transport-unreachable error; auth and application failures propagate.
  * @param input.load - The request to rerun; called at most `delaysMs.length + 1` times.
  * @param input.signal - Aborting stops retries and rejects a pending wait with AbortError;
  *   callers still guard state writes because an in-flight request is not cancelled here.
- * @param options.delaysMs - Defaults to {@link UNREACHABLE_RETRY_DELAYS_MS}.
+ * @param options.delaysMs - Defaults to `UNREACHABLE_RETRY_DELAYS_MS` from `@jini-ai/ui/panel-kit`.
  * @returns The first successful result.
  * @throws The first application error unchanged, the last unreachable error after the delays
  *   are exhausted, or AbortError when the signal aborts between attempts.

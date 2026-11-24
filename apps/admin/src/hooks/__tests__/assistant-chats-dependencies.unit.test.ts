@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import type { AssistantConversation } from "../../lib/assistant-chats";
+import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { createAssistantLastConversationStore, createFakeAssistantChatsPort, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
 
 /**

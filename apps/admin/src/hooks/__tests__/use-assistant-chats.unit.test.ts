@@ -2,7 +2,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HttpError, type AssistantConversation } from "../../lib/assistant-chats";
+import type { AssistantConversation } from "@jini-ai/chat/transports/http";
+import { HttpError } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort, defaultAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
 import {

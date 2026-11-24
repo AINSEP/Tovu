@@ -24,7 +24,6 @@ const CHAT_REQUEST_OPTIONS: AuthenticatedAdminRequestOptions = {
   errorFactory: ({ response, error }) => new HttpError({ status: response.status, statusText: response.statusText }, { code: error.code, body: error.body }),
 };
 
-export type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 
 /**

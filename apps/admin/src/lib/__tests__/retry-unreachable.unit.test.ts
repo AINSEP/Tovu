@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { API_UNREACHABLE_CODE, ApiError } from "../admin-http/request";
-import { isAbortError, retryWhileUnreachable } from "../retry-unreachable";
+import { isAbortError } from "@jini-ai/core/text";
+import { retryWhileUnreachable } from "../retry-unreachable";
 
 /**
  * @file `retryWhileUnreachable`'s own contract — the branches `AssistantDock.load-recovery.unit.test.tsx`

@@ -1,6 +1,7 @@
 import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 import { createLastConversationStore, type LastConversationStore } from "@jini-ai/chat/react";
+import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 
 import {
   createConversation,
@@ -10,7 +11,6 @@ import {
   loadMessages,
   renameConversation,
   saveMessage,
-  type AssistantConversation,
 } from "../lib/assistant-chats";
 import { WORKSPACE_ID } from "../lib/admin-http/config";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
