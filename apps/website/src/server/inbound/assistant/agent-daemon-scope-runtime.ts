@@ -6,9 +6,8 @@ import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagent
 import { AsyncLocalStorage } from "node:async_hooks";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { createToolRegistry } from "@jini-ai/core";
-import { createAgentExecutor, probeMcpBridge, type RunLifecycle } from "@jini-ai/daemon";
+import { bridgePreflightEntry, createAgentExecutor, probeMcpBridge, type RunLifecycle } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine } from "./run-log-lines.js";
-import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentRuntimeBindings, createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";

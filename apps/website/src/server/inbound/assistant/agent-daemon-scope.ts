@@ -219,7 +219,7 @@ const bridgeInjection = createScopeBridge({ daemonUrl, env, registry, visibleReg
 const { agentExecutor, agentRuntime, daemonRuntime } = createScopeAgentExecutor({ lifecycle, assistantRuntime, cleanupFailures, bridgeInjection, assistantPromptAugmenter });
 
 // Initialize needs no callback credential; probe the real launch without minting a run token.
-// The run-scoped startup tool fetch is left out of it — see bridge-preflight-entry.ts.
+// The run-scoped startup tool fetch is left out of it — see @jini-ai/daemon bridgePreflightEntry.
 
 /**
  * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
