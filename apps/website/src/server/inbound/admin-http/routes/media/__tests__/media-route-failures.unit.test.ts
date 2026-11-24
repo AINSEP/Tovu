@@ -8,10 +8,10 @@ import { registerAdminMediaImportUrlRoute } from '#src/server/runtime/compositio
 import { registerAdminMediaListRoute } from '../list.js';
 import { registerAdminMediaOriginalRoute, resolveMediaOriginalBlob } from '../original.js';
 import { registerAdminMediaPutProvidersRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaReplaceRoute } from '../replace.js';
-import { registerAdminMediaTextRoute } from '../text.js';
+import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/modules/media';
+import { registerAdminMediaTextRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaUploadRoute } from '../upload.js';
+import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaWhereUsedRoute } from '#src/server/runtime/composition/modules/media';
 import { EgressRefusedError } from '#src/platform/http/index';
 import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';

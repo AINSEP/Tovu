@@ -6,6 +6,7 @@ import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
+import type { MediaRecord } from "#src/features/media/index";
 import {
   getMediaProviderCredentials, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError,
   purgeMedia, saveMediaProviderCredentials,
@@ -17,12 +18,22 @@ import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/med
 import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
 import { findMediaWhereUsed } from "#src/features/media/index";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerAdminMediaTextRoute } from "#src/server/inbound/admin-http/routes/media/text";
+import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
+import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-http/routes/media/replace";
+import { mediaUploadRoute, type MediaUploadInput } from "@jini-ai/cms/admin-http/routes/media/upload";
+import { readDocumentText, replaceMediaFile, type MediaKind } from "@jini-ai/cms/media";
+import { captureMediaUploaded } from "#src/features/media/index";
+import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { toStoredMediaResponse } from "#src/server/inbound/admin-http/routes/media/stored-media-response";
+import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
-import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
-import { registerAdminMediaReplaceRoute } from "#src/server/inbound/admin-http/routes/media/replace";
 import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
+/**
+ * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
+ * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's
+ * maxUploadBytes override; Jini's default for other consumers' image/video uploads stays 10 MiB.
+ */
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { uploadMedia } from "#src/features/media/index";
 import { fetchImage } from "#src/features/media-import/fetch-image";
@@ -80,8 +91,8 @@ import type { ServerModuleHandle } from "./types.js";
  * those specs need are injected here: the recorded-type/public-URL/blob-size lookups, the
  * transactional trash flip, the reference-checked purge and the provider credential store with its
  * error refusals. where-used and import-url (w3 C4/C4b) answer their own 403 bodies through `forbidden`.
- * list, upload, replace, original and text stay hand-written (multipart/raw bodies and byte responses —
- * see the K1 report).
+ * text, replace and upload (w3 C4c) are JSON specs too: their bodies are the app-wide `express.json()`
+ * parse, so no raw mount is needed. list and original stay hand-written (byte responses — see the K1 report).
  */
 
 /** The two port fields every media mount passes. `authorize` is read per request, as the hand-written
@@ -170,6 +181,77 @@ export function registerAdminMediaImportUrlRoute(
     forbidden: ({ reason }) => ({ status: 403, body: { error: "not authorized for media.upload", code: "FORBIDDEN", details: { permission: "media.upload", reason } } }),
   }));
 }
+
+/** `text`: Jini `mediaTextRoute` with the host's 64 KiB document-text pager bound. Its hand-written check
+ *  called `deps.authorize` directly (`"direct"`) and denied with its own body (no `details`), kept by
+ *  `forbidden`; its 500 was `sendAdminFailure`'s route-derived copy, so the mount names no `failure`. */
+export function registerAdminMediaTextRoute(required: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
+  const { app, deps } = required;
+  const readText = (input: { workspaceId: string; id: string; offset: number }) => readDocumentText({
+    deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, documentTextExtractors: deps.documentTextExtractors }, input,
+  });
+  mountAdminJsonRoute({ app, spec: mediaTextRoute, deps: { ...mediaPortDeps({ deps }), readText } }, {
+    authorization: "direct",
+    forbidden: () => ({ status: 403, body: { error: "media.read is required", code: "FORBIDDEN" } }),
+  });
+}
+
+/** The private 500 upload and replace shared (`sendValidationOrInternalError`'s operation and copy). */
+const MEDIA_WRITE_FAILURE: FailureOptions = { operation: "routes/media/route-guards", code: "INTERNAL_ERROR", message: "The media upload or change could not finish." };
+
+/** `replace`: Jini `mediaReplaceRoute` with the host's transactional file switch (50 MiB owner cap) and the
+ *  stored-asset describer bound. Its hand-written check used `authorizeDirectOrRespond` (`"direct"`). */
+export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
+  const replaceDeps = {
+    ...mediaPortDeps({ deps }),
+    mediaRepo: deps.mediaRepo,
+    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
+  };
+  mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
+}
+
+/** The product-event kind of an upload: its document/media kind refined by the verified MIME family. */
+function uploadedMediaKind(required: { kind: string; contentType: string }, _optional = {}): "document" | "image" | "audio" | "video" | "other" {
+  const family = required.contentType.split("/")[0];
+  if (required.kind === "document") return "document";
+  if (family === "image" || family === "audio" || family === "video") return family;
+  return "other";
+}
+
+/**
+ * `upload`: Jini `mediaUploadRoute` with the host's upload pipeline (50 MiB owner cap, document archive
+ * reader), sniff-type store, product event and stored-asset describer bound. Its hand-written route
+ * refused a bad body BEFORE reading the session, so the mount defers a missing principal to `authorize`;
+ * its check used `authorizeDirectOrRespond` (`"direct"`).
+ *
+ * Request body is JSON with base64-encoded bytes (`dataBase64`) rather than a
+ * multipart/form-data stream — this repo has no multipart-parsing dependency
+ * yet (no `multer` in `package.json`), and adding one is out of scope for this
+ * walking skeleton. This is a real, disclosed simplification: a production
+ * upload path should stream bytes (multipart or raw octet-stream), not
+ * base64-inflate them through JSON. `express.json()`'s body-size limit was
+ * bumped in `server/runtime/composition/app.ts` to accommodate this (see that file's comment).
+ */
+export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const uploadDeps = {
+    ...mediaPortDeps({ deps }),
+    storeUpload: (input: MediaUploadInput) => uploadMedia({
+      deps: {
+        clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+        renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader({}),
+      },
+      input: { workspaceId: deps.workspaceId, ...input },
+    }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    recordContentType: ({ sha256, contentType }: { sha256: string; contentType: string }) => deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType }),
+    onUploaded: ({ actorId, kind, contentType, byteLength }: { actorId: string; kind: MediaKind; contentType: string; byteLength: number }) => captureMediaUploaded({
+      tracker: deps.tracker, actorId, byteLength, kind: uploadedMediaKind({ kind, contentType }), source: "admin",
+    }),
+    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
+  };
+  mountAdminJsonRoute({ app, spec: mediaUploadRoute, deps: uploadDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE, deferMissingPrincipal: true });
+};
 
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };

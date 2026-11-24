@@ -8,7 +8,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaRepo } from "#src/platform/db/repos/media-repo";
 import type { MediaRouteDeps } from "../deps.js";
-import { registerAdminMediaUploadRoute } from "../upload.js";
+import { registerAdminMediaUploadRoute } from "#src/server/runtime/composition/modules/media";
 
 // Capture the registered handler: exercise the route with DI ports without a listening server.
 function uploadAction({ deps }: { deps: MediaRouteDeps }, _optional: Record<string, never> = {}) {
