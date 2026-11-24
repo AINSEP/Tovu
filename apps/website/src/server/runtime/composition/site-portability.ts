@@ -1,3 +1,4 @@
+import path from "node:path";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { sanitizeShareDatabase as sanitizeWithModules } from "#src/features/site-backup/share-database/repo.sqlite";
@@ -7,9 +8,34 @@ import { restoreStagedImport as restoreWithLayout } from "#src/features/site-bac
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createSiteSavedKeys } from "#src/features/site-backup/saved-keys";
-/** Bind the newly allocated destination, never the requesting site's layout or ambient overrides. */
-export function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent">, optional: Parameters<typeof restoreWithLayout>[1] = {}) {
-  return restoreWithLayout({ ...required, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
+import { recordHeldBackChoice } from "#src/features/theme/held-back-choice";
+/**
+ * Bind the newly allocated destination, never the requesting site's layout or ambient overrides.
+ * Also binds A452's held-back marker: the archive's chosen theme is read from the staged database
+ * BEFORE restore (restore may switch it to the fallback), and `recordHeldBackChoice` decides.
+ * @complexity O(restore) plus two single-row reads.
+ */
+export async function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent">, optional: Parameters<typeof restoreWithLayout>[1] = {}): Promise<void> {
+  const chosen = await readActiveThemeId({ filePath: path.join(required.root, "database/content.db") }).then(value => ({ value }), (error: unknown) => ({ error }));
+  await restoreWithLayout({ ...required, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
+  // Restore copies and reads this same database, so it fails first, at its own point and with its
+  // own cleanup, whenever the early read did; this rethrow only guards that assumption.
+  if ("error" in chosen) throw chosen.error;
+  recordHeldBackChoice({ siteDir: required.dir, chosenThemeId: chosen.value, finalThemeId: await readActiveThemeId({ filePath: required.dbPath }) });
+}
+
+/**
+ * The first presentation row's active theme id, or `null` when there is none. A read fault is not
+ * swallowed: both databases were just built by import itself, so a failure here is a real fault that
+ * restore's own keep-off step would hit too.
+ * @complexity O(1) — one single-row read.
+ */
+async function readActiveThemeId(required: { filePath: string }): Promise<string | null> {
+  const db = openSqliteFileKernel<ContentDatabase>({ filePath: required.filePath }, { readOnly: true });
+  try {
+    const row = await db.run(query => query.selectFrom("presentation_settings").select("active_theme_id").executeTakeFirst());
+    return row?.active_theme_id ?? null;
+  } finally { await db.close(); }
 }
 
 export { rewriteArchiveMedia } from "#src/features/site-backup/share-database/repo.sqlite";

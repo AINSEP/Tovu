@@ -8,6 +8,7 @@ import { registerThemePreviewRefresh } from "../../../inbound/public-http/middle
 import { registerContentPostGetRoute } from "../../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import { createCoreModule } from "../modules/core.js";
 import { createContentModule } from "../modules/content.js";
+import { createThemeHeldBackModule } from "../modules/theme-held-back.js";
 import { createPublishContentModule } from "../modules/publish-content.js";
 import type { CreateAppOptions } from "../create-app-options.js";
 import { mountRoutes } from "./module-handles.js";
@@ -27,6 +28,9 @@ export function mountCoreContent({ app, routeDeps }: MountInput, options: Pick<C
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
   // inline immediately below — it was never one of this module's 11 registrations.
   mountRoutes({ app, mod: createContentModule(routeDeps) });
+  // A452: the Themes screen's "Held back on import" routes, right after content. Their path is
+  // `held-back-themes`, so `themes/:themeId` (registered earlier) can never swallow them.
+  mountRoutes({ app, mod: createThemeHeldBackModule(routeDeps) });
   registerContentPostGetRoute({ app, deps: routeDeps });
 
   // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/

@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
+import { parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
+
+/**
+ * @file The held-back theme service under the routes: id grammar, the link refusal, the import-time
+ * marker writer, and the list's handling of a live compiled theme's preserved build source.
+ */
+
+const FIXTURE = path.resolve(import.meta.dirname, "../../../../../../development/fixtures/themes/minimal-declarative");
+
+function site() {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-held-back-unit-"));
+  const held = path.join(siteDir, ".import-quarantine", "themes");
+  return { siteDir, themesDir: path.join(siteDir, "themes"), held };
+}
+
+function placeTheme(dir: string) {
+  fs.cpSync(FIXTURE, dir, { recursive: true });
+}
+
+test("held-back id grammar rejects traversal, absolute paths and unknown tiers", () => {
+  for (const themeId of ["../x", "static/../../etc", "/etc/passwd", "static/..", "static/.hidden", "templated/x", "static/a/b", "", "static/"]) {
+    assert.throws(() => parseHeldBackId({ themeId }), (err: { code?: string }) => err.code === "INVALID_ID", themeId);
+  }
+  assert.deepEqual(parseHeldBackId({ themeId: "__original-themes__/static/My_Theme.v2" }), { id: "__original-themes__/static/My_Theme.v2", tierPath: "__original-themes__/static", name: "My_Theme.v2" });
+});
+
+test("held-back check refuses a tree that contains a link and never follows it", () => {
+  const { siteDir, themesDir, held } = site();
+  const dir = path.join(held, "declarative", "minimal-declarative");
+  placeTheme(dir);
+  const outside = path.join(siteDir, "secret.txt");
+  fs.writeFileSync(outside, "do not read");
+  fs.symlinkSync(outside, path.join(dir, "css", "linked.css"));
+  const check = checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/minimal-declarative" });
+  assert.equal(check.passes, false);
+  assert.equal(check.digest, null);
+  assert.match(check.problems.join(" "), /contains a link \(css\/linked\.css\)/);
+  assert.throws(() => restoreHeldBackTheme({ siteDir, themesDir, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: "x".repeat(64) }), (err: { code?: string }) => err.code === "CHECK_FAILED");
+  assert.ok(fs.lstatSync(path.join(dir, "css", "linked.css")).isSymbolicLink());
+
+  // A held-back folder that is itself a link is not addressable at all.
+  fs.symlinkSync(dir, path.join(held, "declarative", "linked-theme"));
+  assert.throws(() => checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/linked-theme" }), (err: { code?: string }) => err.code === "HELD_BACK_NOT_FOUND");
+  assert.deepEqual(listHeldBackThemes({ siteDir, themesDir }).map(theme => theme.id), ["declarative/minimal-declarative"]);
+});
+
+test("held-back list skips a live compiled theme's preserved build source and keeps originals apart", () => {
+  const { siteDir, themesDir, held } = site();
+  fs.mkdirSync(path.join(themesDir, "static", "built"), { recursive: true });
+  fs.mkdirSync(path.join(held, "static", "built", "src"), { recursive: true });
+  fs.writeFileSync(path.join(held, "static", "built", "src", "main.tsx"), "export {};\n");
+  placeTheme(path.join(held, "__original-themes__", "declarative", "minimal-declarative"));
+  assert.deepEqual(listHeldBackThemes({ siteDir, themesDir }).map(({ id, tier, original }) => ({ id, tier, original })), [
+    { id: "__original-themes__/declarative/minimal-declarative", tier: "declarative", original: true },
+  ]);
+});
+
+test("held-back marker writer: writes the marker only when the chosen theme ended in quarantine", () => {
+  const { siteDir, held } = site();
+  placeTheme(path.join(held, "declarative", "minimal-declarative"));
+
+  recordHeldBackChoice({ siteDir, chosenThemeId: "minimal-declarative", finalThemeId: "minimal-declarative" });
+  assert.equal(readHeldBackChoice({ siteDir }), null, "kept live: no marker");
+  recordHeldBackChoice({ siteDir, chosenThemeId: "not-held", finalThemeId: "starter" });
+  assert.equal(readHeldBackChoice({ siteDir }), null, "switched off but not quarantined: no marker");
+  // `themes/static/../declarative/minimal-declarative` would resolve to the real held-back folder.
+  recordHeldBackChoice({ siteDir, chosenThemeId: "../declarative/minimal-declarative", finalThemeId: "starter" });
+  assert.equal(fs.existsSync(path.join(siteDir, ".import-quarantine", "held-back-choice.json")), false, "an archive id is never used as a path");
+  recordHeldBackChoice({ siteDir, chosenThemeId: null, finalThemeId: "starter" });
+  assert.equal(readHeldBackChoice({ siteDir }), null);
+
+  recordHeldBackChoice({ siteDir, chosenThemeId: "minimal-declarative", finalThemeId: "starter" });
+  assert.deepEqual(readHeldBackChoice({ siteDir }), { chosenThemeId: "declarative/minimal-declarative", fallbackThemeId: "starter" });
+});
+
+test("held-back marker writer: a marker that arrived inside the imported archive is cleared when none is due", () => {
+  const { siteDir, held } = site();
+  placeTheme(path.join(held, "declarative", "minimal-declarative"));
+  // Import places unknown archive files under `.import-quarantine/` verbatim, so an archive can
+  // ship its own `held-back-choice.json`; only the import-time decision may leave one behind.
+  const forged = path.join(siteDir, ".import-quarantine", "held-back-choice.json");
+  fs.mkdirSync(path.dirname(forged), { recursive: true });
+  fs.writeFileSync(forged, JSON.stringify({ chosenThemeId: "declarative/minimal-declarative", fallbackThemeId: "starter" }));
+  recordHeldBackChoice({ siteDir, chosenThemeId: "starter", finalThemeId: "starter" });
+  assert.equal(readHeldBackChoice({ siteDir }), null);
+});
