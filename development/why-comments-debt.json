@@ -4831,6 +4831,11 @@
     {"id": "8fcb0e73f30a", "reason": "Moved to Jini `packages/admin/src/screens/plugins/hooks/use-plugin-provider-settings.hooks.ts` (file header; the wired-hook sentence stays with the host binding, w5-admin)."},
     {"id": "da8c186d2910", "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (why-not-the-settings-controller header, host names reworded, w5-admin)."},
     {"id": "50879856327e", "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (`ProvidersController` doc, product wording removed, w5-admin)."},
-    {"id": "c02e57c53b1c", "reason": "Moved to Jini `packages/admin/src/screens/trash/rules.ts` (`TRASH_RESOURCE` doc, host bus path reworded, w5-admin)."}
+    {"id": "c02e57c53b1c", "reason": "Moved to Jini `packages/admin/src/screens/trash/rules.ts` (`TRASH_RESOURCE` doc, host bus path reworded, w5-admin)."},
+    {"id": "9e5e100778dd", "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-drift.ts` (`parseSavedToolNames`, w5-admin)."},
+    {"id": "c71376fbaabc", "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-drift.ts` (`grantWriteFieldValue`, w5-admin)."},
+    {"id": "2143703d57c0", "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (file header, w5-admin)."},
+    {"id": "242cb65e02c4", "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (external-tool wrapper prefix, w5-admin)."},
+    {"id": "234ad901a954", "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (`toolPickerFieldValues`, w5-admin)."}
   ]
 }
