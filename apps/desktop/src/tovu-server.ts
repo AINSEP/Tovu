@@ -22,7 +22,7 @@ import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import fs from "node:fs";
-import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { redactTovuLocalText } from "@tovu/contracts/diagnostics-redaction";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";
@@ -64,7 +64,7 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  * @complexity O(n) in the text length.
  */
 function redactBootToken({ text }: { text: string }, _options = {}): string {
-  return redactLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text });
+  return redactTovuLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text });
 }
 
 /**
