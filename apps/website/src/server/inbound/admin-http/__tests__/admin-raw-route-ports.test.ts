@@ -122,3 +122,31 @@ test("a public raw spec writes its bytes, and an unexpected failure is the visit
   assert.equal(body.error, visitor.visitorError);
   assert.deepEqual(Object.keys(body).sort(), ["error", "errorId"]);
 });
+
+// Mutation `raw-mount-drops-origin-context`: a wrapper that stops forwarding `origin` to `mountRawRoute` turns the
+// guarded same-origin request into a 500 ("same-origin adapter context is required") instead of its answer.
+test("a guarded raw spec answers same-origin requests and refuses cross-origin ones through both wrappers", async (t) => {
+  const app = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  const origin = { originPolicy: { isSameOrigin: ({ req }: { req: { headers: Record<string, unknown> } }) => req.headers.origin === undefined || req.headers.origin === "http://site.test" } };
+  mountAdminRawRoute({ app, spec: { ...rawSpec(), requireSameOrigin: true }, deps, origin });
+  const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
+  mountPublicRawRoute({ app, spec: xml, deps: {}, failure: visitor, origin });
+  const server = await listen({ app });
+  t.after(server.close);
+  for (const [path, status] of [["/api/admin/v1/workspaces/local/raw", 302], ["/guarded.xml", 200]] as const) {
+    const same = await fetch(`${server.base}${path}`, { redirect: "manual", headers: { origin: "http://site.test" } });
+    assert.equal(same.status, status, path);
+    const cross = await fetch(`${server.base}${path}`, { redirect: "manual", headers: { origin: "http://evil.test" } });
+    assert.equal(cross.status, 403, path);
+  }
+});
+
+// Mutation `raw-mount-allows-guard-without-origin`: dropping the registration check defers the wiring bug to the
+// first request, which then answers a 500 instead of the server refusing to start.
+test("a guarded raw spec mounted without an origin context is refused at registration", () => {
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  assert.throws(() => mountAdminRawRoute({ app: fakeAdminApp(), spec: { ...rawSpec(), requireSameOrigin: true }, deps }), /origin context/);
+  const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
+  assert.throws(() => mountPublicRawRoute({ app: fakeAdminApp(), spec: xml, deps: {}, failure: visitor }), /origin context/);
+});

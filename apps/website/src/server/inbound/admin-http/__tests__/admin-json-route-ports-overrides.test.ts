@@ -105,3 +105,11 @@ test("an authorization check without an entity type sends no entityType key", as
   assert.deepEqual(await s.post(), { status: 403, body: { error: "principal 'caller' is not authorized for 'probe.write' (no_grant)", code: "FORBIDDEN", details: { permission: "probe.write", reason: "no_grant" } } });
   assert.deepEqual(s.authorizeCalls, [{ principalId: "caller", permission: "probe.write", workspaceId: "local" }]);
 });
+
+// Mutation `defer-principal-skips-credential-gate`: accepting both options lets a request with no session
+// principal return from `authenticate` before the credential-kind gate, so a session-only route would reach
+// `parse` (and any body 400) for a non-session caller. No mount sets both; the combination is refused at
+// registration (gating first would instead throw on the missing credential kind and defeat the deferral).
+test("deferMissingPrincipal together with sessionCredentialOnly is refused at registration", async () => {
+  await assert.rejects(() => serve({ sessionCredentialOnly: gate, deferMissingPrincipal: true }), /deferMissingPrincipal.*sessionCredentialOnly/);
+});

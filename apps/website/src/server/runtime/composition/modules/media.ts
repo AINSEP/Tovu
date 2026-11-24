@@ -16,7 +16,7 @@ import {
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";
+import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
 import { findMediaWhereUsed } from "#src/features/media/index";
 import type { RouteDeps } from "#src/server/routes/types";

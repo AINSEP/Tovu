@@ -2,7 +2,7 @@ import type { MediaRecord } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import type { AdminMediaEnvelope } from "@jini-ai/core/contracts/site/cms-media";
-import { resolveMediaByteSizes } from "./byte-size.js";
+import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import type { MediaRouteDeps } from "./deps.js";
 
 /**
