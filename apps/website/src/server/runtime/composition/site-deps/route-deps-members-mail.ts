@@ -1,6 +1,7 @@
 import { executeCommand } from "@jini-ai/cms/core";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { mailWebhookSecretLabels } from "#src/features/mail/index";
+import { evaluateLaunchGate } from "#src/features/newsletter/index";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
 import type { composeEventsOrigin } from "./events-origin.js";
@@ -125,7 +126,7 @@ export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _op
   };
 }
 
-export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewsletterRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailActivity" | "mailSuppressionAdmin" | "listCustomCredentials" | "mailWebhookSecretLabels" | "menuRepo" | "navLocationBindingRepo" | "removeMenu" | "webhookSubscriptionRepo" | "webhookDeliveryRepo" | "webhookSigner" | "mediaRepo" | "assetBlobRepo" | "assetRenditionRepo" | "mediaContentTypeStore" | "blobStore" | "documentTextExtractors" | "blobHydrationReady" | "adminPasswordResetReady" | "transformDefinitionRepo" | "imageTransformer" | "imageCodec" | "newsletterReady" | "newsletterCampaignRepo" | "newsletterListRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterConfirmationTokenRepo" | "membersConsentCapability" | "newsletterSubscriberDirectory" | "newsletterKeyring" | "newsletterHooks" | "formDefinitionRepo" | "formCollectionProviders" | "formSubmissionRepo" | "formSubmissionAttempts" | "removeFormSubmission" | "executeCommand" | "formsRateLimiter"> {
+export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewsletterRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailActivity" | "mailSuppressionAdmin" | "listCustomCredentials" | "mailWebhookSecretLabels" | "evaluateNewsletterLaunchGate" | "menuRepo" | "navLocationBindingRepo" | "removeMenu" | "webhookSubscriptionRepo" | "webhookDeliveryRepo" | "webhookSigner" | "mediaRepo" | "assetBlobRepo" | "assetRenditionRepo" | "mediaContentTypeStore" | "blobStore" | "documentTextExtractors" | "blobHydrationReady" | "adminPasswordResetReady" | "transformDefinitionRepo" | "imageTransformer" | "imageCodec" | "newsletterReady" | "newsletterCampaignRepo" | "newsletterListRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterConfirmationTokenRepo" | "membersConsentCapability" | "newsletterSubscriberDirectory" | "newsletterKeyring" | "newsletterHooks" | "formDefinitionRepo" | "formCollectionProviders" | "formSubmissionRepo" | "formSubmissionAttempts" | "removeFormSubmission" | "executeCommand" | "formsRateLimiter"> {
   const { kernel, blobStore, clock, adminPasswordResetReady, menuRepo, navLocationBindingRepo, newsletterListRepo, newsletterReady, transformDefinitionRepo, blobHydrationReady, assetRenditionRepo, trash, formDefinitionRepo, formCollectionProviders, formSubmissionRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, mediaRepo, assetBlobRepo, mediaContentTypeStore } = required;
   return {
     // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
@@ -135,6 +136,8 @@ export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewslet
     // Feedback setup (`@jini-ai/platform/mail/feedback-setup`): the credential lister and the persisted secret labels.
     listCustomCredentials,
     mailWebhookSecretLabels,
+    // Mail readiness (`@jini-ai/platform/mail/use-readiness`): Newsletter's own launch gate.
+    evaluateNewsletterLaunchGate: evaluateLaunchGate,
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

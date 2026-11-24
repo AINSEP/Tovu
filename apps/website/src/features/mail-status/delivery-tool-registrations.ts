@@ -13,7 +13,7 @@ import {
 import { mailDomainDepsFrom, type MailHostActivityDeps } from "@jini-ai/user-management/mail/status/domain-deps";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
-import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "./use-readiness.js";
+import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "@jini-ai/platform/mail/use-readiness";
 
 /**
  * @file Assistant adapters for the delivery visibility operations (`./use-readiness.ts`,

@@ -113,7 +113,7 @@ test("a successful switch drops the cached status at once; a refused one leaves 
 test("production mail bindings share provider/credential/settings/sender/test-mode and readiness owners", async () => {
   const { createCustomCredential } = await import("#src/features/custom-credentials/index");
   const { planMailTestSend, runMailTestSend } = await import("@jini-ai/platform/mail/test-send");
-  const { readMailUseReadiness } = await import("#src/features/mail-status/use-readiness");
+  const { readMailUseReadiness } = await import("@jini-ai/platform/mail/use-readiness");
   const { required, release, settingsRepo, keyring } = await rig({ capture: { capture: async () => ({ id: "bound" }) } });
   const actualDestinations: string[] = [];
   required.resolve.mode = "production";

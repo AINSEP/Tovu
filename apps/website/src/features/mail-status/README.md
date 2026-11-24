@@ -19,3 +19,8 @@ The catalogs, permission ids/grant registrar and `mailDomainDepsFrom` live in
   (`features/mail/index.ts`, the persisted "Tovu Mail — …" labels) as route-deps fields, bound in
   `server/runtime/composition/site-deps/route-deps-members-mail.ts` and, for the in-memory root,
   `server/runtime/composition/memory-deps/route-deps/members-media-newsletter-forms.ts`.
+- Per-use readiness (`readMailUseReadiness`/`mailUseReadinessDepsFrom`) lives at
+  `@jini-ai/platform/mail/use-readiness`. The host injects `evaluateNewsletterLaunchGate`
+  (`features/newsletter`'s `evaluateLaunchGate`, the gate its send path runs) as a route-deps field
+  (`MembersDeps`), bound in the same two composition files as feedback setup and required on the
+  assistant tool deps (`assistant/tool-registrations.ts`).

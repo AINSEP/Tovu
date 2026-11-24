@@ -8,14 +8,14 @@ import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "@jini-ai/
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
 import { listCustomCredentials } from "../../custom-credentials/index.js";
 import { mailWebhookSecretLabels } from "../../mail/index.js";
-import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
+import { evaluateLaunchGate, type LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
 } from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "@jini-ai/user-management/mail/status/permissions";
-import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "../use-readiness.js";
+import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "@jini-ai/platform/mail/use-readiness";
 
 /**
  * @file Email phase 4's shared operations with DI fakes: the activity access tiers, masking, opaque
@@ -159,6 +159,7 @@ function readinessDeps(overrides: Partial<MailUseReadinessDeps> = {}): MailUseRe
     mailPurposeGate: openGate,
     formDefinitionRepo: { list: async () => [NOTIFY, { notify: { enabled: false, recipients: ["x@y.z"] } }, { notify: { enabled: true, recipients: [] } }] as never },
     newsletterLaunchGate: launchGate(),
+    evaluateNewsletterLaunchGate: evaluateLaunchGate,
     mailActivity: memoryActivity([record("s", 1, { outcome: "bounced" }), record("f", 2, { use: "form_notification" })]),
     ...overrides,
   };
