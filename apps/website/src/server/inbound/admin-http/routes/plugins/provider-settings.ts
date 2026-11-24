@@ -7,7 +7,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
-import type { PluginsRouteDeps } from "./deps.js";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**

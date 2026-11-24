@@ -134,7 +134,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   // Library lists `media?kind=document` through the same route and permission.
   library: `${ROUTES}/media/list.ts`,
   collections: `${ROUTES}/content-types/list.ts`,
-  menus: `${ROUTES}/menus/list.ts`,
+  menus: `${CMS_ROUTES}/menus/list.js`,
   taxonomy: `${ROUTES}/taxonomy/list.ts`,
   forms: `${ROUTES}/forms/list.ts`,
   users: `${ROUTES}/users/list.ts`,
@@ -143,20 +143,21 @@ const SERVER_EVIDENCE: Record<string, string> = {
   comments: `${ROUTES}/comments/moderation-queue.ts`,
   themes: `${ROUTES}/themes/list.ts`,
   appearance: `${ROUTES}/themes/list.ts`,
-  plugins: `${ROUTES}/plugins/list.ts`,
-  "agent-plugins": `${ROUTES}/agent-plugins/list.ts`,
+  plugins: `${CMS_ROUTES}/plugins/list.js`,
+  "agent-plugins": `${CMS_ROUTES}/agent-plugins/list.js`,
   skills: `${ROUTES}/skills/list.ts`,
   database: `${CMS_ROUTES}/database/timeline.js`,
-  recovery: `${ROUTES}/recovery/status.ts`,
-  deployment: `${ROUTES}/system/deployment-overview.ts`,
+  recovery: `${CMS_ROUTES}/recovery/status.js`,
+  deployment: `${CMS_ROUTES}/system/deployment-overview.js`,
   // The observability-status route is a Jini spec now; its permission literal ships in the package.
   observability: "@jini-ai/cms/admin-http/routes/system/observability-status",
-  email: `${ROUTES}/system/mail-status.ts`,
-  settings: `${ROUTES}/settings/get-effective.ts`,
+  email: `${CMS_ROUTES}/system/mail-status.js`,
+  settings: `${CMS_ROUTES}/settings/get-effective.js`,
   consent: `${ROUTES}/consent/routes.ts`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
-  seo: `${ROUTES}/seo/get-settings.ts`,
+  // The SEO specs check `SEO_MANAGE_PERMISSION`; the literal lives where that constant is defined.
+  seo: `${CMS_ROUTES}/seo/shared.js`,
   redirects: `${CMS_ROUTES}/redirects/shared.js`,
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.

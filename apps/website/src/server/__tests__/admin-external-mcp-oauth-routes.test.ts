@@ -13,7 +13,7 @@ import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
-import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "../inbound/public-http/routes/external-mcp/oauth-callback-url.js";
+import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "@jini-ai/cms/public-http/routes/external-mcp/oauth-callback-url";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 

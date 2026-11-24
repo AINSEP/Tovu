@@ -11,6 +11,9 @@ import { appShellApiBody } from "../app-shell-api.fixture";
 import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 import { ASSISTANT_DOCK_DICT } from "../../components/AssistantDock/assistant-dock-i18n";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 const folderDrop = vi.hoisted(() => ({ handleDropCapture: vi.fn() }));
 vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
@@ -91,7 +94,7 @@ function fakeChatDock(overrides: Partial<UseChatDockLayout> = {}): UseChatDockLa
 it("renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved", () => {
   const chatDock = fakeChatDock();
 
-  const { container } = render(<App useSession={fakeSession} useChatDock={() => chatDock} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={fakeSession} useChatDock={() => chatDock} />);
 
   const aside = container.querySelector("aside.admin-chat-dock");
   expect(aside).not.toBeNull();
@@ -119,7 +122,7 @@ it.each(ADMIN_LOCALES)("points toward the next sheet height and names that actio
   expect(expand).toBeTruthy();
   expect(collapse).toBeTruthy();
 
-  const { container } = render(<App useSession={fakeSession} useChatDock={useSheetDock} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={fakeSession} useChatDock={useSheetDock} />);
   const toggle = container.querySelector<HTMLButtonElement>(".chat-sheet-action[aria-expanded]")!;
   const dock = container.querySelector("aside.admin-chat-dock")!;
   await waitFor(() => expect(toggle).toHaveAttribute("aria-label", expand));
@@ -155,7 +158,7 @@ it("a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capt
   const publishDropCapture = vi.fn();
   const chatDock = fakeChatDock({ handleDockDropCapture, publishDropCapture });
 
-  const { container } = render(<App useSession={fakeSession} useChatDock={() => chatDock} />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={fakeSession} useChatDock={() => chatDock} />);
   const aside = container.querySelector("aside.admin-chat-dock");
   expect(aside).not.toBeNull();
 

@@ -9,15 +9,15 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { setSeoSettings } from "#src/features/seo/settings";
-import { registerAdminSeoGetSettingsRoute } from "../get-settings.js";
+import { registerAdminSeoGetSettingsRoute } from "#src/server/runtime/composition/modules/seo";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoPutSettingsRoute } from "../put-settings.js";
-import type { SeoRouteDeps } from "../deps.js";
+import { registerAdminSeoPutSettingsRoute } from "#src/server/runtime/composition/modules/seo";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**

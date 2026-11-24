@@ -27,7 +27,7 @@ import {
   type AgentPluginArchiveReaderPort,
 } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
-import { registerAgentPluginsListRoute } from "../../list.js";
+import { registerAgentPluginsListRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
 import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 
@@ -220,6 +220,26 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     assert.equal(denial.agentPlugins, undefined);
     assert.ok(!JSON.stringify(denial).includes("site-compliance"));
 
+  });
+});
+
+// Review rv1123i (rt-l4-oauth) FIX 1: the hand-written list route called the host authorizer with
+// NO `entityType` key. The Jini spec's id-free placeholder (`entityType: ""`) must not reach it: the
+// policy writer accepts an empty resource type, so `""` could match such a row where an absent key
+// cannot. Pins the exact argument object, key set included.
+test("AGENT_PLUGINS_LIST: the host authorizer is asked with no entityType key, exactly as the hand-written route asked", async (t) => {
+  await withAgentPluginsDir(async () => {
+    const { app, agentPluginsDeps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const real = agentPluginsDeps.authorize;
+    const calls: Array<Record<string, unknown>> = [];
+    agentPluginsDeps.authorize = async (params) => { calls.push({ ...params }); return real(params); };
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(Object.keys(calls[0] ?? {}).sort(), ["permission", "principalId", "workspaceId"]);
+    assert.deepEqual(calls[0], { principalId: calls[0]?.principalId, permission: "admin.plugins.read", workspaceId: WORKSPACE_A });
+    assert.equal(typeof calls[0]?.principalId, "string");
   });
 });
 

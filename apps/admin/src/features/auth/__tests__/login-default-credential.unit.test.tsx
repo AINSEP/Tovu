@@ -7,6 +7,7 @@ import { UiKitProvider } from "@jini-ai/ui/react-kit";
 import { uiKit } from "@/integrations/jini-kits";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Login } from "../Login";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 
 it("the anonymous Login render never contains the seeded default password, including computed text", () => {
   // F1.4/F5.2: execute the real render and pin the seed source before checking absence.
@@ -17,7 +18,7 @@ it("the anonymous Login render never contains the seeded default password, inclu
   expect(password.length).toBeGreaterThan(0);
 
   // SSR executes the real initial hooks without starting their effects or making HTTP requests.
-  const markup = renderToStaticMarkup(<FetchQueryProvider><UiKitProvider kit={uiKit}><Login onLogin={() => {}} /></UiKitProvider></FetchQueryProvider>);
+  const markup = renderToStaticMarkup(<FetchQueryProvider><UiKitProvider kit={uiKit}><Login onLogin={() => {}} useAdminLocaleHook={useHostAdminLocale} /></UiKitProvider></FetchQueryProvider>);
   expect(markup).toContain('class="login-card"');
   expect(markup).toContain('type="password"');
   expect(markup).not.toContain(password);

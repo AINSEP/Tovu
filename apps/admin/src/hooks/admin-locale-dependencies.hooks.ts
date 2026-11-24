@@ -1,6 +1,10 @@
 import { loadLanguage, DEFAULT_LOCALE, LANGUAGE_NAMESPACE } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh, type SettingsRefreshScope } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import type { AdminLocalePort } from "@jini-ai/admin/shell/hooks/admin-locale-port.hooks";
+import { useAdminLocale, type UseAdminLocaleArgs } from "@jini-ai/admin/shell/hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file The only place `use-admin-locale.hooks.ts`'s port reaches `lib/settings-tabs`/
@@ -26,13 +30,32 @@ export { DEFAULT_LOCALE };
 /** The live implementation, as a module-level singleton — matches `theme-pages-dependencies
  *  .hooks.ts`'s `defaultThemePagesPort`. */
 export const defaultAdminLocalePort: AdminLocalePort = {
-  loadLanguage,
+  loadLanguage: () => loadLanguage(),
   subscribeToSettingsRefresh: ({ listener }, _options = {}) =>
     subscribeToSettingsRefresh((scope) => {
       if (!refreshApplies(scope)) return;
       listener();
     }),
 };
+
+/** Everything the shared Jini hook needs, bound once: the live port, the one boot-scope provider,
+ *  the host's fetch-query hooks, the language key prefix and the English fallback. */
+const hostAdminLocaleArgs: UseAdminLocaleArgs = {
+  port: defaultAdminLocalePort,
+  useBootScope: useAdminBootScope,
+  useFetchQuery,
+  useInvalidate,
+  queryPrefix: ["settings", LANGUAGE_NAMESPACE],
+  fallbackLocale: DEFAULT_LOCALE,
+};
+
+/**
+ * The host's one admin locale hook (P12 #6.T). `adminKit.hooks.useAdminLocale` and every required
+ * `useAdminLocaleHook` prop reference THIS function, so the kit slot and the prop chain can never
+ * disagree. It shares the query cache key of `useWiredAdminLocale`, which stays until the
+ * remaining direct consumers are converted.
+ */
+export const useHostAdminLocale: UseAdminLocaleHook = () => useAdminLocale(hostAdminLocaleArgs);
 
 /** Seed state for {@link createFakeAdminLocalePort}. */
 export interface FakeAdminLocalePortOptions {

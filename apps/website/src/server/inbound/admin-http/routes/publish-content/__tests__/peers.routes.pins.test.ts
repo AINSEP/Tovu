@@ -15,7 +15,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-import { registerPublishContentPeerRoutes } from "../peers.js";
+import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { BASE, FailingPeerRepo, routeApp, routeDeps } from "./route-fixture.js";
 
 /**
@@ -114,4 +114,23 @@ test("PATCH forwards each present key and leaves absent ones alone", async () =>
   });
   assert.equal(patched.status, 200);
   assert.deepEqual(patched.body, { peer: { id, label: "Staging", baseUrl: "https://staging.example", remoteWorkspaceId: "remote-2", masked: "••••3210", hasCredential: true } });
+});
+
+test("a partial PATCH updates only the supplied field: every omitted field, credential included, survives", async () => {
+  // Pins the FROZEN-CONTRACT reason `peers.ts` forwards only PRESENT keys: the admin UI renames a
+  // peer without re-collecting its credential. A PATCH that replaced the whole record would blank
+  // (or refuse) every field the body left out.
+  const keyring = new InMemoryKeyring();
+  const repo = new InMemoryPublishContentPeerRepo();
+  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring });
+  const app = routeApp(registerPublishContentPeerRoutes, deps);
+  const created = await dispatchJsonRequest(app, "POST", PEERS, {
+    label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef",
+  });
+  const id = (created.body as { peer: { id: string } }).peer.id;
+  const expected = { id, label: "Renamed", baseUrl: "https://live.example", remoteWorkspaceId: "remote", masked: "••••cdef", hasCredential: true };
+
+  const patched = await dispatchJsonRequest(app, "PATCH", `${PEERS}/${id}`, { label: "Renamed" });
+  assert.deepEqual(patched, { status: 200, body: { peer: expected } });
+  assert.deepEqual(await dispatchJsonRequest(app, "GET", PEERS), { status: 200, body: { peers: [expected] } });
 });

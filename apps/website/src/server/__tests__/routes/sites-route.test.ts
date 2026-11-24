@@ -8,7 +8,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
-import type { AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
+import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import type { SiteListEntry } from "#src/platform/site-dir/index";
 
 /**

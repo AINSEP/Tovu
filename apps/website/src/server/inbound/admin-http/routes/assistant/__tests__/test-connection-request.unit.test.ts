@@ -8,7 +8,7 @@ import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credent
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminAssistantTestConnectionRoute } from "../test-connection.js";
+import { registerAdminAssistantTestConnectionRoute } from "#src/server/runtime/composition/modules/assistant-execution";
 
 test("test-connection returns a validation error for an absent or null request body", async () => {
   const app = express();

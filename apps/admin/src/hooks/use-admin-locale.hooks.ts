@@ -51,7 +51,7 @@ export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): 
   const { queryScope, checking } = useAdminBootScope();
   // Capture the injected port at mount: callers may construct a fake on every render.
   const initialPort = useRef(port).current;
-  const queryFetch = useQueryFetchCallback(() => initialPort.loadLanguage(), [initialPort]);
+  const queryFetch = useQueryFetchCallback(() => initialPort.loadLanguage({}), [initialPort]);
   // Refresh notifications can overlap unordered loadLanguage reads (F3, plan-components.md,
   // 2026-09-20). Invalidating the shared key revokes an older read's ownership; settlement order
   // must not let a slower earlier fetch override the latest language change.

@@ -3,15 +3,15 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express } from "express";
-import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
+import type { AssistantExecutionRouteDeps } from "#src/server/runtime/composition/modules/assistant-execution";
 
 // Inject only DNS answers. The route, credential selection, runtime validators and outbound
 // transports remain real; private-address tests must never open an external connection.
 let addresses = [{ address: "10.0.0.5", family: 4 }];
 const lookups: string[] = [];
 let transportCalls = 0;
-const { registerAdminAssistantListModelsRoute } = await import("../list-models.js");
-const { registerAdminAssistantTestConnectionRoute } = await import("../test-connection.js");
+const { registerAdminAssistantListModelsRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
+const { registerAdminAssistantTestConnectionRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
 
 const registrars = [registerAdminAssistantListModelsRoute, registerAdminAssistantTestConnectionRoute];
 
@@ -225,7 +225,7 @@ test("list-models redacts an authorization-store failure as a generic 500 before
  * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
  * hand-built `req` that deliberately violates that contract.
  */
-const { registerAdminAssistantTestAgentRoute } = await import("../test-agent.js");
+const { registerAdminAssistantTestAgentRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
 for (const [label, registrar] of [
   ["list-models", registerAdminAssistantListModelsRoute],
   ["test-connection", registerAdminAssistantTestConnectionRoute],

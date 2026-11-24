@@ -2,6 +2,7 @@ import { Suspense, type ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { ADMIN_PANELS, type PanelRenderContext as PanelRouteContext } from "../../panels";
 import { agentPageId, parseRoute } from "../../App";
 import {
@@ -94,8 +95,10 @@ function panel(id: string) {
   };
 }
 
+const useAdminLocaleHook = useHostAdminLocale;
+
 function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
-  return { view: null, params: {}, query: new URLSearchParams(), Placeholder, ...overrides };
+  return { view: null, params: {}, query: new URLSearchParams(), Placeholder, useAdminLocaleHook, ...overrides };
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
