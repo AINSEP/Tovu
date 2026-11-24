@@ -50,6 +50,7 @@ import { createSiteBackupToolMetadata } from '@jini-ai/core/tool-metadata/site-b
 import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
+import { toolMetadata as site_update } from './site-update.js';
 import { toolMetadata as sites } from './sites.js';
 import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
 import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';
@@ -136,6 +137,7 @@ export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ 
   { domain: 'site-evidence', tools: site_evidence },
   { domain: 'site-guide', tools: site_guide },
   { domain: 'site-inspection', tools: site_inspection },
+  { domain: 'site-update', tools: site_update },
   { domain: 'sites', tools: sites },
   { domain: 'skills', tools: skills },
   { domain: 'source-control', tools: source_control },

@@ -19,6 +19,11 @@ import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delive
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/api-connections/host";
+import { createBundledClientNamespaceReader } from "#src/features/api-connections/bundled-client-namespace";
+import type { ClientNamespaceFor } from "#src/features/api-connections/contribution";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolveApiConnectionRuntime } from '../../../contracts/core/runtime-mode.js';
 export { resolveApiConnectionRuntime };
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -124,14 +129,29 @@ type AgentPluginConnectionsRequired = {
   readonly customCredentialRepo: CustomCredentialSetRepoPort;
   readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
   readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
+  /** Setting names the bundled plugins' manifests declare as public config (`bundledPublicConfigNames`); absent, only the host's own shapes are readable. */
+  readonly publicConfigNames?: readonly string[];
+  /** Prefix each plugin's manifest declares for its client settings; absent, the bundled plugins' own manifests are read. */
+  readonly clientNamespaceFor?: ClientNamespaceFor;
 };
+
+/** The bundled plugins' own `plugin.json` declarations (never an installed plugin's). @complexity O(1) per call. */
+function bundledClientNamespaceFor(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): ClientNamespaceFor {
+  const resolveFrom = createRequire(import.meta.url);
+  return createBundledClientNamespaceReader({
+    pluginIds: new Set(SELECTED_AGENT_PLUGIN_PACKAGES.keys()),
+    readManifest: ({ pluginId }) => {
+      try { return JSON.parse(readFileSync(resolveFrom.resolve(`${SELECTED_AGENT_PLUGIN_PACKAGES.get(pluginId)}/plugin.json`), "utf8")); } catch { return null; }
+    },
+  });
+}
 
 /** The shared connection host and the runtime it was resolved for. */
 function createConnectionHost(required: AgentPluginConnectionsRequired, optional: { readonly shared?: SharedSiteConnections } = {}) {
   const { workspaceId, loadContributions, clock, http, env } = required;
   const runtime = resolveApiConnectionRuntime({ env });
   const host = createApiConnectionHost({
-    workspaceId, loadContributions, vaultRepo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer,
+    workspaceId, loadContributions, clientNamespaceFor: required.clientNamespaceFor ?? bundledClientNamespaceFor(), vaultRepo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer,
     customCredentialRepo: required.customCredentialRepo, clock,
     // The installed-app redirect is `http://127.0.0.1:<port>` (RFC 8252 loopback), and the OAuth guard
     // checks redirect URIs like endpoints, so desktop admits plaintext loopback there. Nothing is
@@ -185,7 +205,7 @@ export function composeAgentPluginConnections(
   const delivery = optional.deliveryBindings;
   const deliveryBindingsFor = delivery && deliveryBindingsPortFor({ delivery, host, workspaceId, loadContributions });
   const capabilities = createAdminSurfaceCapabilities({
-    tools, publicConfig: createAdminSurfacePublicConfig({ env }),
+    tools, publicConfig: createAdminSurfacePublicConfig({ env, publicNames: required.publicConfigNames ?? [] }),
     stateFor: (scope) => host.pluginState.forPlugin(scope),
     connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId, signal }) => createSurfaceConnections({
       host, pluginId, workspaceId: scopeWorkspaceId, principalId, signal, frozen, onSignInIssued: (issued) => signIns.record(issued),

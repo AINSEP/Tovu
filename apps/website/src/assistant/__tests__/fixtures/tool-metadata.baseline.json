@@ -362,7 +362,9 @@
     "page.click": "click activate open bring up show me inspect published handle admin UI",
     "page.navigate": "open bring up show me go to navigate navigation admin UI screen panel page editor take me",
     "site_export_static": "export static site html css javascript assets zip download",
-    "forms_list_providers": "forms collection provider providers settings external embedded public answers validation"
+    "forms_list_providers": "forms collection provider providers settings external embedded public answers validation",
+    "site_update_check": "update upgrade new version available latest release check outdated",
+    "site_update_apply": "update upgrade install new version latest release apply software"
   },
   "queries": {
     "library_save_attachment": [
@@ -2068,6 +2070,14 @@
     "forms_list_providers": [
       "Which form providers can I use?",
       "What public settings does this form provider need?"
+    ],
+    "site_update_check": [
+      "Is there a newer version of the site software?",
+      "Do I need to update?"
+    ],
+    "site_update_apply": [
+      "Update the site to the latest version.",
+      "Install the new version."
     ]
   },
   "approvals": {
@@ -3712,6 +3722,14 @@
     "commerce_resolve_unknown": {
       "class": "publish",
       "confirmation": "plan"
+    },
+    "site_update_check": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_update_apply": {
+      "class": "publish",
+      "confirmation": "policy"
     }
   },
   "policyConfirmationIds": [
@@ -3775,7 +3793,8 @@
     "image_transform",
     "files_copy",
     "theme_duplicate",
-    "commerce_resolve_unknown"
+    "commerce_resolve_unknown",
+    "site_update_apply"
   ],
   "secretForms": {
     "credential_save": {
@@ -3876,7 +3895,8 @@
     "image_transform",
     "files_copy",
     "theme_duplicate",
-    "commerce_resolve_unknown"
+    "commerce_resolve_unknown",
+    "site_update_apply"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3944,7 +3964,8 @@
     "image_transform",
     "files_copy",
     "theme_duplicate",
-    "commerce_resolve_unknown"
+    "commerce_resolve_unknown",
+    "site_update_apply"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

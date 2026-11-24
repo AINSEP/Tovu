@@ -82,6 +82,8 @@ export function analyticsProviderRouteDeps(
       workspaceId: routeDeps.workspaceId,
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
+      // Owner decision 2026-11-23: when the visitor's analytics consent is not 'full', nothing is forwarded to any
+      // analytics provider (no anonymous-level tier for vendors) — pinned by `__tests__/analytics-consent-off.pin.unit.test.ts`.
       // These general forwarders have no anonymous-level contract.
       // Consent gate: when the visitor has not allowed full analytics (consent off, or only the
       // anonymous level), nothing is forwarded to any vendor. Pinned by

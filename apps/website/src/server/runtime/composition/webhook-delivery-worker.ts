@@ -49,6 +49,14 @@ export interface ServingWebhookDeliveryDeps {
   webhookSigner: WebhookSigner;
   clock: { nowIso(): string };
   observability: ObservabilityPort;
+  /**
+   * The admin assistant's off switch (`TOVU_ADMIN_ASSISTANT=off`, `RouteDeps.adminAssistantEnabled`).
+   * While false, deliveries for subscriptions the agent created are held (`pending`, attempt not
+   * charged, nothing failed, disabled or deleted) and go out once it is true again; person-created
+   * and unattributed subscriptions always deliver (bt2-todos G11·P10-H4). Read on every tick, so a
+   * live deps object can flip it. Absent: treated as on (a composition without the switch).
+   */
+  adminAssistantEnabled?: boolean;
 }
 
 /**
@@ -75,6 +83,6 @@ export function startServingWebhookDeliveryWorker(
     signer: deps.webhookSigner,
     headers: TOVU_WEBHOOK_HEADERS,
     clock: deps.clock,
-  } }, { signal });
+  } }, { signal, isAgentEnabled: () => deps.adminAssistantEnabled !== false });
   return startWebhookDeliveryWorker({ processDue }, workerOptional);
 }

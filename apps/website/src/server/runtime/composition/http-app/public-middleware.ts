@@ -38,11 +38,11 @@ import type { MountInput } from "./module-handles.js";
 /** Install the ordered public request guards before any normal routes. O(1) setup. */
 export function applyPublicMiddleware(
   { app, routeDeps, internalRouter }: MountInput & { internalRouter: express.Router },
-  options: Pick<CreateAppOptions, "themeIdOverride" | "consentAudit"> = {},
+  options: Pick<CreateAppOptions, "themeIdOverride" | "consentAudit" | "applyDevCors"> = {},
 ): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
   applyTrustProxy({ app });
-  applyDevCors(app);
+  (options.applyDevCors ?? applyDevCors)(app);
   // Registered as early as possible — ahead of the serving gate below and every route module — so
   // a request the gate rejects, or a 404 that matches no route at all, is still measured. See
   // `observability-middleware.ts`'s own file header for the full reasoning and for why this is the

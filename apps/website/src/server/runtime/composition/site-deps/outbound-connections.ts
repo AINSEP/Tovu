@@ -14,6 +14,10 @@ import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { bundledPublicConfigNames } from "#src/features/agent-plugins/admin-surfaces/public-config";
 import { composeOutboundHttp } from "../outbound-http.js";
 import { sharedApiConnectionOptions } from "../agent-plugin-connections.js";
 
@@ -49,7 +53,7 @@ export function composeOutboundConnections(required: ComposeOutboundConnectionsR
     workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
     vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }),
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
-    env: process.env, derivedPublicOrigin,
+    env: process.env, derivedPublicOrigin, publicConfigNames: readBundledPublicConfigNames(),
   }, {
     shared: sharedApiConnectionOptions({ projectStore, siteId: projectSiteId, siteName: resolvedSiteBinding.name, ownerPrincipalId: identity.ownerPrincipalId,
       bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
@@ -58,6 +62,17 @@ export function composeOutboundConnections(required: ComposeOutboundConnectionsR
     deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
   });
   return { guardedOutboundHttpClient, externalMcpOAuthHttpPorts, derivedPublicOrigin, agentPluginConnections };
+}
+
+/** The selected bundled plugins' own `publicConfig` declarations, read from their shipped admin-surface manifests (never an installed plugin's). */
+function readBundledPublicConfigNames(): readonly string[] {
+  const resolveFrom = createRequire(import.meta.url);
+  return bundledPublicConfigNames({
+    pluginIds: [...SELECTED_AGENT_PLUGIN_PACKAGES.keys()],
+    readManifest: ({ pluginId }) => {
+      try { return JSON.parse(readFileSync(resolveFrom.resolve(`${SELECTED_AGENT_PLUGIN_PACKAGES.get(pluginId)}/jini-admin-surfaces.json`), "utf8")); } catch { return null; }
+    },
+  });
 }
 
 function resolveCompositionPublicOrigin({ devCapabilityScheme }: Pick<ComposeOutboundConnectionsRequired, "devCapabilityScheme">, _options = {}): string {

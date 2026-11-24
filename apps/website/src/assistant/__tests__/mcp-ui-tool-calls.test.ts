@@ -141,6 +141,8 @@ test("custom_credential_write_files runs normally and cannot be executed by a su
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
+  // Site update: the apply card is the only way an update lands (its exchange-only click is redeemed on that card).
+  "site_update_apply",
   // Consent writes now use the same principal-bound policy exchange as other publish cards.
   "consent_update_settings",
   "consent_publish_settings",

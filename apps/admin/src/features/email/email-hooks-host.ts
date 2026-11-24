@@ -12,6 +12,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import { mailStatusApi } from "./api/mail-status-api";
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import { authApi } from "../auth/api/auth-api";
 import { emailApi } from "./email-api";
 
 /**
@@ -64,7 +65,11 @@ export function useWiredEmailTemplateEditor(required: { id: string }): EmailTemp
   return useEmailTemplateEditor({ api: emailApi, id: required.id, ApiError });
 }
 
-/** The real API port. */
+/** The real API port; the session's permissions decide whether "Clear test emails" is offered (`undefined` until known or if unreadable, so it stays hidden). */
 export function useWiredEmailActivity(): EmailActivityController {
-  return useEmailActivity({ api: emailApi, ApiError });
+  const { view } = useLoad({ ApiError, load: readSessionPermissions });
+  return useEmailActivity({ api: emailApi, ApiError }, { permissions: view.kind === "loaded" ? view.data : undefined });
 }
+
+/** The signed-in person's effective permissions (a module function, so its identity is stable for `useLoad`). */
+const readSessionPermissions = async (): Promise<readonly string[]> => (await authApi.me()).effectivePermissions ?? [];

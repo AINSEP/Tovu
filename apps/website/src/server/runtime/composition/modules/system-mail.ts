@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 
 import {
-  mailActivityGetRoute, mailActivityListRoute, mailFeedbackRoute, mailSuppressionRemoveRoute, mailSuppressionsListRoute, mailUsesRoute,
+  mailActivityGetRoute, mailActivityListRoute, mailCaptureClearRoute, mailFeedbackRoute, mailSuppressionRemoveRoute, mailSuppressionsListRoute, mailUsesRoute,
   type MailActivityFailure,
 } from "@jini-ai/cms/admin-http/routes/system/mail-activity";
 import { mailDnsStatusRoute, mailDnsVerifyRoute } from "@jini-ai/cms/admin-http/routes/system/mail-dns";
@@ -13,6 +13,8 @@ import {
   getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError,
   planMailSuppressionRemoval, readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
 } from "@jini-ai/platform/mail";
+import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
+import { planMailCaptureClear } from "#src/features/mail/capture-clear";
 import { mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { readMailDnsStatus, verifyMailDnsStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
 import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
@@ -181,7 +183,8 @@ export function registerAdminMailTestSendRoute({ app, deps }: { app: Express; de
 }
 
 /** The deps `registerAdminMailActivityRoutes` reads. */
-export type AdminMailActivityDeps = MailDeliveryToolDeps;
+/** `contentKernel` holds `mail_capture` for "clear all"; the hermetic composition has none (503). */
+export type AdminMailActivityDeps = MailDeliveryToolDeps & Pick<RouteDeps, "contentKernel">;
 
 /** The platform's own error classes, as the Jini spec's answers: a missing grant inside an operation, or no activity/suppression repo. */
 function classifyMailActivityError({ error }: { error: unknown }, _optional: Record<string, never> = {}): MailActivityFailure | undefined {
@@ -212,6 +215,9 @@ function classifyMailActivityError({ error }: { error: unknown }, _optional: Rec
  * the warnings). With it: `{ removed, removal? }`, the reason recorded in the removal audit. Every
  * removal is a fresh confirmation; nothing about it is remembered.
  * - `GET  .../system/mail-feedback` (admin.forms.manage) -> `MailFeedbackSetupReport`.
+ * - `POST .../system/mail-capture/clear` (mail.capture.clear, owner only) body `{ confirmed?: true, revision? }`:
+ * previews `{ cleared: false, confirmationRequired: true, plan: { count, newestAt } }`, then with the
+ * reviewed revision deletes every captured test email of this workspace (`features/mail/capture-clear.ts`).
  *
  * 400 for malformed input, 403 without the permission, 503 when this root has no activity or
  * suppression repo.
@@ -242,4 +248,9 @@ export function registerAdminMailActivityRoutes({ app, deps }: { app: Express; d
       return { plan, revision: plan.revision, remove: () => runMailSuppressionRemoval({ principalId, plan, deps: domain() }) };
     } } }, mount);
   mountAdminJsonRoute({ app, spec: mailFeedbackRoute, deps: { ...status, readMailFeedbackSetup: () => readMailFeedbackSetup(deps) } }, mount);
+  mountAdminJsonRoute({ app, spec: mailCaptureClearRoute, deps: { ...shared,
+    planCaptureClear: ({ principalId }) => {
+      if (!deps.contentKernel) throw new MailActivityUnavailableError();
+      return planMailCaptureClear({ principalId, workspaceId: deps.workspaceId }, { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission: status.checkPermission });
+    } } }, mount);
 }
