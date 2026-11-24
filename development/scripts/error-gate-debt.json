@@ -840,12 +840,12 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "file": "apps/website/src/features/settings/settings-write-policies.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
