@@ -22,7 +22,7 @@
  * this app's: the probe (which routes have audited guards, which element scrolls), the bridge lookup
  * and the "Loaded sites" bounds.
  */
-import { useLiveViews as useGuestLiveViews, type LiveViews } from '@jini-ai/ui/live-views';
+import { useLiveViews as useGuestLiveViews, useSiteViewPreference, type LiveViews } from '@jini-ai/ui/live-views';
 import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 
@@ -63,7 +63,7 @@ export function useLiveViews({ openIds, focusedId }: { openIds: readonly string[
   timeoutMs,
 }: { getBridge?: () => RunnerInventoryBridge | undefined; timeoutMs?: number } = {}): LiveViews {
   return useGuestLiveViews(
-    { openIds, focusedId, getBridge, bounds: LIVE_SITE_VIEWS, probe: RELEASE_PROBE },
+    { openIds, focusedId, useSiteViewPreference, getBridge, bounds: LIVE_SITE_VIEWS, probe: RELEASE_PROBE },
     timeoutMs === undefined ? {} : { timeoutMs },
   );
 }
