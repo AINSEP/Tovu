@@ -3628,6 +3628,42 @@
     {
       "id": "cf8be36297a1",
       "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:389-392."
+    },
+    {
+      "id": "0c1671e9e586",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/roles/hooks/use-roles.hooks.ts (batch E; host path reworded neutral by the review fix S1); reworded neutral where it named the product or host paths. Was apps/admin/src/features/roles/hooks/use-roles.hooks.ts:12-59."
+    },
+    {
+      "id": "29fec532e96c",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/roles/hooks/use-roles.hooks.ts (batch E; host path reworded neutral by the review fix S1); reworded neutral where it named the product or host paths. Was apps/admin/src/features/roles/hooks/use-roles.hooks.ts:152-153."
+    },
+    {
+      "id": "528bc3a39fa4",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/__tests__/site-key-permission.test.ts (batch P; tests 1-9 moved, host boot test stays); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/__tests__/site-key-permission.test.ts:17-19."
+    },
+    {
+      "id": "f2e8c8efe3d5",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:117-119."
+    },
+    {
+      "id": "3dee25d3ce0a",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:122-122."
+    },
+    {
+      "id": "2acea41d418d",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:127-127."
+    },
+    {
+      "id": "cf1d9bf477a1",
+      "reason": "w3-users-sec: moved with the code to the factory doc in Jini packages/user-management/src/identity/boot-session-token.ts plus the host binding apps/website/src/features/identity/boot-session-token-binding.ts, which now builds the one per-process store (review fix S2: no module singleton in Jini); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/boot-session-token.ts:132-132."
+    },
+    {
+      "id": "1886e96d2c87",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/site-key-permission.ts (batch P; the product site-key name is the injected siteKeyName, K3); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/site-key-permission.ts:3-50."
+    },
+    {
+      "id": "75eba65f9f7e",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/site-key-permission.ts (batch P; the product site-key name is the injected siteKeyName, K3); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/site-key-permission.ts:64-69."
     }
   ]
 }
