@@ -19,6 +19,17 @@ import type { ApiConnectionHost } from "#src/features/api-connections/host";
  */
 
 /**
+ * Per adapter plugin, the extras handed to its `deliver` (`adapterOptions`). The Google Workspace
+ * Sheets adapter finds its two plugin columns by header text; a sheet that was already receiving
+ * rows before the headers were renamed to `_jini_*` carries these old names, which it must keep
+ * recognising (a new tab still gets the new names). The names are persisted data, so they are
+ * recorded in `development/scripts/persisted-names.json`.
+ */
+const ADAPTER_OPTIONS_BY_PLUGIN: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  "google-workspace": { legacyHeaders: { submissionId: ["_tovu_submission_id"], submittedAt: ["_tovu_submitted_at"] } },
+};
+
+/**
  * Builds the deliverer.
  * @param required.apiConnections - The site's API-connection host (`composeAgentPluginConnections`).
  * @param required.loadRegistry - The loaded form destinations of a workspace (which plugin owns an adapter).
@@ -47,5 +58,6 @@ export function composeFormDeliveryDeliverer(
   // OAuth first: it answers null for every ref the adapter's plugin does not declare, so a saved
   // custom credential's id still reaches its own port (which re-checks `worksFor`).
   const connections: FormDeliveryConnectionPort = async (input, optional) => (await oauth(input, optional)) ?? custom(input, optional);
-  return createFormDestinationDeliverer({ loadRegistry, connections, kit, resolveRequestTarget }, { pluginState: (scope) => host.pluginState.readerFor(scope) });
+  return createFormDestinationDeliverer({ loadRegistry, connections, kit, resolveRequestTarget },
+    { pluginState: (scope) => host.pluginState.readerFor(scope), adapterOptions: ({ pluginId }) => ADAPTER_OPTIONS_BY_PLUGIN[pluginId] ?? {} });
 }

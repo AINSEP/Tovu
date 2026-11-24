@@ -55,6 +55,7 @@ test("registered persisted names match their production declarations", async () 
     "cloudflare.forms.binding": forms.FORMS_BINDING,
     "cloudflare.forms.privateRoute": forms.FORMS_WORKER_ROUTES[1],
     "sheets.submission.id": mapping.SUBMISSION_ID_HEADER,
+    "sheets.submitted.at": mapping.SUBMITTED_AT_HEADER,
     "resend.credential.label": resend.adapters[0].credentialLabel,
   }, registry.names, "each persisted name must match its production declaration at its stable key");
 });

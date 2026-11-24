@@ -49,11 +49,11 @@ const consentAs = (account) => async (authorizationUrl) => fake.consent({ author
 const appends = () => fake.requests.filter((request) => request.host === 'sheets.googleapis.com' && request.path.endsWith(':append'));
 
 /** A site signed in as alice with Sheets on, the contact form bound to the tab, and the grid served. */
-async function boundSite({ sheetsOn = true } = {}) {
+async function boundSite({ sheetsOn = true, rows } = {}) {
   const site = await createOAuthDeliverySite({ loadContributions, http, kit, env });
   const connectionRef = await site.connect({ pluginId: PLUGIN, consent: consentAs('alice'), scopeSetIds: ['sheets'] });
   const token = await site.host.accessTokensFor({ pluginId: PLUGIN }).getAccessToken({ connectionRef });
-  const grid = installSheetsGrid({ fake, spreadsheetId: BOOK, token, tabs: [{ sheetId: TAB_ID, title: 'Contact form' }] });
+  const grid = installSheetsGrid({ fake, spreadsheetId: BOOK, token, tabs: [{ sheetId: TAB_ID, title: 'Contact form', ...(rows ? { rows } : {}) }] });
   fake.route({ method: 'GET', path: `/drive/v3/files/${BOOK}` }, () => [200, { id: BOOK, name: 'Leads', mimeType: SPREADSHEET_MIME_TYPE, trashed: false }]);
   // Saving needs Sheets on; a test of Sheets off turns it off after the save.
   await site.setPluginSetting({ pluginId: PLUGIN, key: 'products', value: { sheets: true } });
@@ -95,6 +95,19 @@ test('end to end: one submission becomes one RAW row; a replayed event and a red
   assert.deepEqual(site.jobsFor({ submissionId: 'sub-1' }).map((row) => row.status), ['delivered', 'delivered'], 'the redelivery succeeded by finding the row');
   assert.equal(grid.rowsOf(TAB_ID).length, 2, 'still one data row');
   assert.equal(appends().length, 1, 'never appended twice');
+});
+
+test('a sheet already receiving rows under the old _tovu_* column names keeps them: one column per field, no duplicate plugin columns', async () => {
+  const { site, grid } = await boundSite({ rows: { 1: ['_tovu_submission_id', '_tovu_submitted_at', 'Email', 'Message'], 2: ['sub-0', '2026-10-19T10:00:00.000Z', 'old@example.test', 'hello'] } });
+  await site.submit({ submissionId: 'sub-1', answers: { email: 'ada@example.test', message: 'hi' } });
+  await site.drain();
+  await site.drain();
+  assert.deepEqual(ledger(site, 'sub-1'), [{ status: 'delivered', attempts: 1, lastError: undefined }]);
+  assert.deepEqual(grid.rowsOf(TAB_ID), [
+    ['_tovu_submission_id', '_tovu_submitted_at', 'Email', 'Message'],
+    ['sub-0', '2026-10-19T10:00:00.000Z', 'old@example.test', 'hello'],
+    ['sub-1', '2026-10-20T10:00:00.000Z', 'ada@example.test', 'hi'],
+  ]);
 });
 
 test('Sheets turned off pauses delivery (adapter-unavailable, retryable, nothing sent); turned back on, the same job delivers', async () => {
