@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { NavItemNode, NavMenuEntry } from "../index.js";
+import type { NavItemNode, NavMenuEntry } from "@jini-ai/cms/navigation";
 import { menuHoldersReferencing, repointMenuItems, type MenuRepointReplacement } from "../repoint-menu-refs.js";
 
 /**

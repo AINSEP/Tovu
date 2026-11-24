@@ -5,7 +5,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { InMemoryMenuRepo } from "#src/features/navigation/index";
+import { InMemoryMenuRepo } from "@jini-ai/cms/navigation";
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import { parseMenuHtmlAuthoring, toAdminMenuDto } from "@jini-ai/cms/admin-http/http/menus";
 import { registerAdminMenuCreateRoute, registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/composition/modules/menus";

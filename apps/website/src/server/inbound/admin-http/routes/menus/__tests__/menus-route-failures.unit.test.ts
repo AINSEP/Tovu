@@ -8,7 +8,7 @@ import { registerAdminMenuCreateRoute } from '#src/server/runtime/composition/mo
 import { registerAdminMenuDeleteRoute } from '#src/server/runtime/composition/modules/menus';
 import { registerAdminMenuGetRoute } from '#src/server/runtime/composition/modules/menus';
 import { registerAdminMenuListRoute } from '#src/server/runtime/composition/modules/menus';
-import { MenuConflictError } from '#src/features/navigation/index';
+import { MenuConflictError } from '@jini-ai/cms/navigation/node';
 import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
 import { WS, BASE, INTERNAL, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 

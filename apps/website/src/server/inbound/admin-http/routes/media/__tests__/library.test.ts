@@ -16,7 +16,7 @@ import { registerAdminMediaUpdateRoute } from '#src/server/runtime/composition/m
 import { registerAdminMediaOriginalRoute } from '../original.js';
 import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaTextRoute } from '../text.js';
-import { resolveMediaPublicUrls } from '#src/features/media/tool-registrations';
+import { resolveMediaPublicUrls } from '#src/features/media/public-urls';
 
 function appFixture() {
   const { deps, deny } = libraryFixture(); const app = express();

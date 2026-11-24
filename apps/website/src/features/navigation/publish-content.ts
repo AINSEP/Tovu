@@ -16,9 +16,8 @@ import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publis
 import { importMenuEntity } from "./import-menu.js";
 import { menuHoldersReferencing, repointMenuItems } from "./repoint-menu-refs.js";
 import type { MenuRepointReplacement } from "./repoint-menu-refs.js";
-import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "./index.js";
-import type { MenuStatus, NavMenuDoc, NavMenuEntry  } from "./index.js";
-import type { MenuRepoPort } from "@jini-ai/cms/navigation";
+import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "@jini-ai/cms/navigation/node";
+import type { MenuStatus, NavMenuDoc, NavMenuEntry, MenuRepoPort } from "@jini-ai/cms/navigation";
 
 /**
  * @file `menu`'s publish-content contribution, built on `createRepoPublishHandler`

@@ -1,4 +1,4 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, type ToolExecutionContext, type ToolRegistration, ToolInputError, type AgentToolDefinition as NavigationAgentToolDefinition } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 5 Menus (navigation) tools, the union of what `tool-registrations.forms.test.ts`
@@ -14,11 +14,8 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ToolInputError } from "@jini-ai/core";
-import { type AgentToolDefinition as NavigationAgentToolDefinition } from "@jini-ai/core";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "../../features/navigation/index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,

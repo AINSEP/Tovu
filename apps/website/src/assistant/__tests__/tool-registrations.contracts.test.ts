@@ -10,7 +10,7 @@ import { catalog as mediaVideoCatalog } from "../../features/media/view-video-to
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
 import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../../features/agent-plugins/automatic-agent-plugins.js";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry, resolveHostReadRefs, type ToolExecutionContext, type ToolRegistration, type AgentToolDefinition as AgentToolDefinition } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { postPreviewAgentToolCatalog } from "../../features/post/preview-tool.js";
 import { catalog as identityPolicyPermissionsCatalog } from "../../features/identity/permission-list-tool.js";
@@ -20,7 +20,6 @@ import { catalog as themePagePublishedCatalog } from "../../features/theme/page-
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createToolRegistry, resolveHostReadRefs, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { assertRepairKeywords } from "@jini-ai/core/tool-input-repairs";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -51,7 +50,6 @@ import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.j
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { contentTypesAgentToolCatalog } from "@jini-ai/cms/content-types";
-import { type AgentToolDefinition as AgentToolDefinition } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { credentialSaveCatalog } from "../../features/custom-credentials/credential-save-tool.js";
 import { providerStatusAgentToolCatalog } from "../../features/plugin-runtime/provider-status-tool.js";
@@ -108,7 +106,7 @@ import { mailProviderAgentToolCatalog } from "../../features/mail-status/provide
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
 import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
-import { menusAgentToolCatalog } from "../../features/navigation/index.js";
+import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
