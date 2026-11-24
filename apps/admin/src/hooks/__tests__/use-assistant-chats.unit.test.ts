@@ -6,11 +6,8 @@ import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { HttpError } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort, defaultAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
-import {
-  sharedPort,
-  useAssistantChats,
-  useWiredAssistantChats,
-} from "../use-assistant-chats.hooks";
+import { useAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { assistantChatsClient, useWiredAssistantChats } from "../use-assistant-chats.hooks";
 
 /**
  * @file `useAssistantChats` — the persistence paths an external audit found were silently lossy.
@@ -153,7 +150,7 @@ describe("explicit create still remounts the pane", () => {
 
 /** Renders against `port` and waits out the mount refresh. */
 async function mountWith(port: AssistantChatsPort) {
-  const rendered = renderHook(() => useAssistantChats(port));
+  const rendered = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
   await act(async () => {
     await Promise.resolve();
   });
@@ -498,7 +495,7 @@ describe("an in-flight list refresh cannot erase a just-created conversation", (
     };
 
     // Deliberately NOT `mountWith` — this test needs to act before the mount refresh settles.
-    const { result } = renderHook(() => useAssistantChats(port));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
 
     await act(async () => {
       await result.current.create();
@@ -641,7 +638,7 @@ describe("guards proven necessary by deleting them", () => {
       },
     });
 
-    const rendered = renderHook(() => useAssistantChats(port));
+    const rendered = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
     await act(async () => {
       await Promise.resolve();
     });
@@ -895,7 +892,7 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
         return base.createConversation({});
       },
     };
-    const { result } = renderHook(() => useAssistantChats(port));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
     await waitFor(() => expect(result.current.conversations).toEqual([]));
 
     let first: string | null = "unset";
@@ -910,31 +907,5 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
     });
     expect(second).not.toBeNull();
     expect(attempts).toBe(2);
-  });
-});
-
-describe("sharedPort — adapts Jini's port to the host's argument objects", () => {
-  it("forwards every call, seeding the title only when a first message is given", async () => {
-    const calls: unknown[][] = [];
-    const conversation = { id: "c1", title: "t" } as unknown as AssistantConversation;
-    const host: AssistantChatsPort = {
-      listConversations: async () => { calls.push(["list"]); return [conversation]; },
-      createConversation: async (_required, { firstMessage } = {}) => { calls.push(firstMessage === undefined ? ["create"] : ["create", firstMessage]); return conversation; },
-      renameConversation: async ({ id, title }) => { calls.push(["rename", id, title]); },
-      deleteConversation: async ({ id }) => { calls.push(["delete", id]); },
-      loadMessages: async ({ conversationId }) => { calls.push(["load", conversationId]); return []; },
-      saveMessage: async ({ conversationId, message }) => { calls.push(["save", conversationId, message.id]); },
-    };
-    const port = sharedPort(host);
-    expect(await port.listConversations({}, {})).toEqual([conversation]);
-    await port.createConversation({}, {});
-    await port.createConversation({ firstMessage: "Plan the launch" }, {});
-    await port.renameConversation({ id: "c1", title: "Launch" }, {});
-    await port.deleteConversation({ id: "c1" }, {});
-    await port.loadMessages({ conversationId: "c1" }, {});
-    await port.saveMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hi" } }, {});
-    expect(calls).toEqual([
-      ["list"], ["create"], ["create", "Plan the launch"], ["rename", "c1", "Launch"], ["delete", "c1"], ["load", "c1"], ["save", "c1", "m1"],
-    ]);
   });
 });

@@ -14,7 +14,7 @@ import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components
 import { useChatDisplayPreferences as useStoredDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 /**
  * @file The dock's chat display settings wiring (owner, 2026-10-11): the header gear's menu holds

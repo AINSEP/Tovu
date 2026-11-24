@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { type I18nAdapter } from "@jini-ai/chat/react";
 import { conversationTitleForDisplay } from "@jini-ai/chat/core";
 
-import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
+import { useWiredAssistantChats } from "@/hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateAssistantDockLabel, createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { ASSISTANT_DOCK_HOST_FIELDS, CHAT_I18N_HOST_FIELDS } from "@/app-i18n";

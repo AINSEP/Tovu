@@ -3,7 +3,7 @@ import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 /**
  * Whether a completed run's messages-change delta should trigger the refresh announcements, and

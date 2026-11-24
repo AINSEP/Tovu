@@ -8,7 +8,8 @@ import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { HttpError } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
-import { useAssistantChats } from "../use-assistant-chats.hooks";
+import { useAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { assistantChatsClient } from "../use-assistant-chats.hooks";
 
 /**
  * @file Regression suite for the reattach investigation's Part B (2026-09-11): a non-terminal run's
@@ -38,7 +39,7 @@ const userTurn = (id: string, content: string): ChatMessage => ({ id, role: "use
 /** Same helper `use-assistant-chats.unit.test.ts` and the durable-turn suite already use — the hook
  *  reads its conversation list on mount, and asserting before that settles reads a pre-refresh render. */
 async function mountWith(port: AssistantChatsPort) {
-  const rendered = renderHook(() => useAssistantChats(port));
+  const rendered = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
   await act(async () => {
     await Promise.resolve();
   });

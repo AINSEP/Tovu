@@ -126,7 +126,7 @@ import {
   projectComposerCapabilities,
 } from "../../features/plugins/composer-capabilities";
 import type { TovuComposerCapability } from "../../features/plugins/composer-capabilities";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);

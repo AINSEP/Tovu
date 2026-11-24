@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveConversationTitle } from '@jini-ai/chat/core';
-import type { UseAssistantChats } from '@/hooks/use-assistant-chats.hooks';
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 import { resolveAssistantConversationTitle } from '../hooks/dock-chrome.hooks';
 
 describe('dock conversation title', () => {

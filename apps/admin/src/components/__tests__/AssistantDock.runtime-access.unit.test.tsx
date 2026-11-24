@@ -56,7 +56,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 function render(ui: ReactElement) {
   return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
 }
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 interface RuntimeAccess {
   listAgents: () => Promise<unknown[]>;

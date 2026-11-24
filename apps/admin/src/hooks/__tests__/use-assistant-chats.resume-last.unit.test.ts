@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
-import { useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
+import { useAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { assistantChatsClient, useWiredAssistantChats } from "../use-assistant-chats.hooks";
 
 /**
  * @file Owner ask (2026-10-06): reloading the admin, or leaving and coming back, reopens the chat the
@@ -58,7 +59,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     });
     const lastConversation = fakeLastConversation("c2");
 
-    const { result } = renderHook(() => useAssistantChats(port, { lastConversation }));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient, lastConversation }));
     await waitFor(() => expect(result.current.activeId).toBe("c2"));
 
     expect(result.current.paneKey).toBe("c2");
@@ -70,7 +71,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     const port = createFakeAssistantChatsPort({ conversations: [conversation("c1", 2)] });
     const lastConversation = fakeLastConversation("deleted-elsewhere");
 
-    const { result } = renderHook(() => useAssistantChats(port, { lastConversation }));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient, lastConversation }));
     await waitFor(() => expect(result.current.conversations.map((c) => c.id)).toEqual(["c1"]));
     await settle();
 
@@ -85,7 +86,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     const port: AssistantChatsPort = { ...base, listConversations: () => Promise.reject(new TypeError("Failed to fetch")) };
     const lastConversation = fakeLastConversation("c2");
 
-    const { result } = renderHook(() => useAssistantChats(port, { lastConversation }));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient, lastConversation }));
     await settle();
     await settle();
 
@@ -110,7 +111,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     };
     const lastConversation = fakeLastConversation("c2");
 
-    const { result } = renderHook(() => useAssistantChats(port, { lastConversation }));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient, lastConversation }));
     await act(async () => {
       await result.current.create();
     });
@@ -131,7 +132,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     const port = createFakeAssistantChatsPort({ conversations: [conversation("c1", 2), conversation("c2", 1)] });
     const lastConversation = fakeLastConversation(null);
 
-    const { result } = renderHook(() => useAssistantChats(port, { lastConversation }));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient, lastConversation }));
     await settle();
     expect(lastConversation.log).toEqual([]);
 
@@ -162,7 +163,7 @@ describe("useAssistantChats reopens the last conversation", () => {
 
   it("without a store, a reload still opens an empty new chat (unchanged behaviour)", async () => {
     const port = createFakeAssistantChatsPort({ conversations: [conversation("c1", 2)] });
-    const { result } = renderHook(() => useAssistantChats(port));
+    const { result } = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
     await settle();
     expect(result.current.activeId).toBeNull();
     expect(result.current.paneKey).toBe("new");

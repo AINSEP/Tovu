@@ -3,7 +3,7 @@ import type { useConfirmRequest } from "@jini-ai/admin/react";
 import { ChatSettingsSegmented, ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
 import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockHeaderTip } from "./DockHeaderTip";

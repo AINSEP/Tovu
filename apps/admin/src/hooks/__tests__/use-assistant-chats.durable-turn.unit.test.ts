@@ -8,7 +8,8 @@ import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 import { HttpError } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
-import { useAssistantChats } from "../use-assistant-chats.hooks";
+import { useAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { assistantChatsClient } from "../use-assistant-chats.hooks";
 
 /**
  * @file Regression suite for Defect 2 of the 2026-09-11 chat-lifecycle repair: a user message that
@@ -39,7 +40,7 @@ const userTurn = (id: string, content: string): ChatMessage => ({ id, role: "use
  *  `use-assistant-chats.unit.test.ts` uses next door, for the same reason: the hook reads its
  *  conversation list on mount, and asserting before that settles reads a pre-refresh render. */
 async function mountWith(port: AssistantChatsPort) {
-  const rendered = renderHook(() => useAssistantChats(port));
+  const rendered = renderHook(() => useAssistantChats({ port, client: assistantChatsClient }));
   await act(async () => {
     await Promise.resolve();
   });

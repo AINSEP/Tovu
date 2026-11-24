@@ -5,7 +5,7 @@ import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicBut
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
 import { isDesktopAdmin } from "../../features/settings/ai-agent-presentation";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 /**
  * @file Pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header. Each one is a
