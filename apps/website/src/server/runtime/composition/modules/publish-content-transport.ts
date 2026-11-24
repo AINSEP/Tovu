@@ -36,7 +36,7 @@ function transportPortDeps({ deps }: { deps: PublishContentRouteDeps }, _optiona
 }
 
 /** `guarded` + the unexpected-failure copy key the hand-written route used for its redacted 500. */
-function guardedMount(operation: string) {
+function guardedMount({ operation }: { operation: string }, _optional: Record<string, never> = {}) {
   return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
@@ -48,7 +48,7 @@ const PEER_ERRORS: PublishPeerErrorClasses = {
 };
 
 /** The write-side dependency bag, assembled per call so a later reassignment of a repo is honoured. */
-function peerWriteDeps(deps: PublishContentRouteDeps) {
+function peerWriteDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: Record<string, never> = {}) {
   return { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
 }
 
@@ -56,14 +56,16 @@ function peerWriteDeps(deps: PublishContentRouteDeps) {
  *  key the shared `mappedErrorResponse` used (`routes/publish-content/route-helpers`). */
 export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const base = { ...transportPortDeps({ deps }), peerErrors: PEER_ERRORS };
-  const mount = guardedMount("routes/publish-content/route-helpers");
-  const listPeers = (input: { workspaceId: string }) => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input });
+  const mount = guardedMount({ operation: "routes/publish-content/route-helpers" });
+  const listPeers = (input: { workspaceId: string }, _o: Record<string, never> = {}) => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input });
   mountAdminJsonRoute({ app, spec: peerListRoute, deps: { ...base, listPeers } }, mount);
-  const createPeer = (input: Parameters<typeof createPublishContentPeer>[0]["input"]) => createPublishContentPeer({ deps: peerWriteDeps(deps), input });
+  const createPeer = (input: Parameters<typeof createPublishContentPeer>[0]["input"], _o: Record<string, never> = {}) =>
+    createPublishContentPeer({ deps: peerWriteDeps({ deps }), input });
   mountAdminJsonRoute({ app, spec: peerCreateRoute, deps: { ...base, createPeer } }, mount);
-  const updatePeer = (input: Parameters<typeof updatePublishContentPeer>[0]["input"]) => updatePublishContentPeer({ deps: peerWriteDeps(deps), input });
+  const updatePeer = (input: Parameters<typeof updatePublishContentPeer>[0]["input"], _o: Record<string, never> = {}) =>
+    updatePublishContentPeer({ deps: peerWriteDeps({ deps }), input });
   mountAdminJsonRoute({ app, spec: peerUpdateRoute, deps: { ...base, updatePeer } }, mount);
-  const deletePeer = (input: { workspaceId: string; id: string }) => deletePublishContentPeer({ deps: { repo: deps.publishContentPeerRepo }, input });
+  const deletePeer = (input: { workspaceId: string; id: string }, _o: Record<string, never> = {}) => deletePublishContentPeer({ deps: { repo: deps.publishContentPeerRepo }, input });
   mountAdminJsonRoute({ app, spec: peerDeleteRoute, deps: { ...base, deletePeer } }, mount);
 };
 
@@ -75,8 +77,8 @@ export interface PublishDestinationDeps {
 }
 
 /** Connect: the publishing-trust handshake writes the grant, then the peer row is recorded. */
-function connectWith({ deps, own }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps }) {
-  return ({ workspaceId, baseUrl, entityTypes }: { workspaceId: string; baseUrl: string; entityTypes: string[] }) => {
+function connectWith({ deps, own }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps }, _optional: Record<string, never> = {}) {
+  return ({ workspaceId, baseUrl, entityTypes }: { workspaceId: string; baseUrl: string; entityTypes: string[] }, _o: Record<string, never> = {}) => {
     const trustDeps = { httpClient: deps.publishContentPeerHttpClient, keyring: deps.siteAssistantSecretKeyring, provisioning: own.provisioning, clock: deps.clock, workspaceId };
     return connectAndRecordDestination({
       deps: {
@@ -90,8 +92,8 @@ function connectWith({ deps, own }: { deps: PublishContentRouteDeps; own: Publis
 }
 
 /** Disconnect: forget the peer row and reverse this computer's grant. */
-function disconnectWith({ deps, own }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps }) {
-  return ({ workspaceId }: { workspaceId: string }) => disconnectAndForgetDestination({
+function disconnectWith({ deps, own }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps }, _optional: Record<string, never> = {}) {
+  return ({ workspaceId }: { workspaceId: string }, _o: Record<string, never> = {}) => disconnectAndForgetDestination({
     deps: {
       repo: deps.publishContentPeerRepo, clock: deps.clock, idGen: deps.idGen,
       reverseGrant: () => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: own.provisioning, workspaceId } }),
@@ -113,8 +115,8 @@ export function registerPublishContentDestinationRoutes(
     destinationErrors: { handshake: PublishTrustHandshakeError, notSaved: PublishTrustConnectError },
     findCandidate: () => own.findCandidate(),
   };
-  const mount = guardedMount("routes/publish-content/destination");
-  const findConnectedPeer = async ({ workspaceId }: { workspaceId: string }) =>
+  const mount = guardedMount({ operation: "routes/publish-content/destination" });
+  const findConnectedPeer = async ({ workspaceId }: { workspaceId: string }, _o: Record<string, never> = {}) =>
     selectConnectedDestination({ rows: await deps.publishContentPeerRepo.listByWorkspace({ workspaceId }) }) ?? null;
   mountAdminJsonRoute({ app, spec: destinationReadRoute, deps: { ...base, findConnectedPeer } }, mount);
   const listPublishableTypes = () => listPublishContentContributors().map((contributor) => contributor.entityType);

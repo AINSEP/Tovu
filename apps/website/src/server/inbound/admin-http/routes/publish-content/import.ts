@@ -180,7 +180,7 @@ async function handleImportPlan({ deps, req, res }: ImportRouteInput): Promise<v
     if (backstopPreview === RAW_VALUES_REFUSED) return;
     res.json({
       ...result,
-      details: toPublishContentReportDto(report),
+      details: toPublishContentReportDto({ report }),
       ...(backstopPreview === undefined ? {} : { backstopPreview }),
     });
   } catch (err) {
