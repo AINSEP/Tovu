@@ -8,7 +8,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
-import type { MediaPickerPort } from "./media-picker-port.hooks";
+import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -8,7 +8,7 @@ import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hoo
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SkillRow } from "@jini-ai/admin/screens/skills/SkillRow";
-import { PlainTextBlocks } from "@/components/PlainTextBlocks";
+import { PlainTextBlocks } from "@jini-ai/admin/shell/components/PlainTextBlocks";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "../skill-install-confirmation-host";
 import { SkillRemoveConfirmDialog } from "@jini-ai/admin/screens/skills/SkillRemoveConfirmDialog";

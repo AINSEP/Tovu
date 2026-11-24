@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
+import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
+import "../../components/InstallTabCard/install-tab-card.css";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
 
@@ -58,14 +59,14 @@ export function AddPluginPanel({ controller: c }: { controller: PluginInstallCon
         </InstallTabAdvanced>
       </InstallTabOption>
       <InstallTabOption>
-        <label className="install-tab-check">
+        <label className="jini-install-tab-check">
           <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange} {...agentHandle({ handle: "plugins-install-replace" }, { role: "field", label: t("Replace existing version") })} />
           {t("Replace existing version")}
         </label>
         {c.previewDisplay ? <PluginInstallPreviewDetails controller={c} /> : null}
-        {c.error ? <p className="install-tab-alert" role="alert">{c.error}</p> : null}
-        {c.installedMessage ? <p className="install-tab-success" role="status">{c.installedMessage}</p> : null}
-        <div className="install-tab-actions">
+        {c.error ? <p className="jini-install-tab-alert" role="alert">{c.error}</p> : null}
+        {c.installedMessage ? <p className="jini-install-tab-success" role="status">{c.installedMessage}</p> : null}
+        <div className="jini-install-tab-actions">
           {c.preview ? (
             <>
               <button type="button" className="btn-secondary" disabled={c.busy} onClick={c.cancelReview} {...agentHandle({ handle: "plugins-install-cancel" }, { role: "button", label: t("Cancel") })}>{t("Cancel")}</button>
@@ -86,8 +87,8 @@ function PluginInstallPreviewDetails({ controller: c }: { controller: PluginInst
   const d = c.previewDisplay;
   if (!d) throw new Error("plugin install review has no preview");
   return (
-    <div className="install-tab-review" aria-live="polite">
-      <h3 className="install-tab-option-heading">{d.title}</h3>
+    <div className="jini-install-tab-review" aria-live="polite">
+      <h3 className="jini-install-tab-option-heading">{d.title}</h3>
       <p>{t("Version")}: {d.version}</p>
       <p>{t("Tier")}: {d.tier} · {t("Local plugin · unverified publisher")}</p>
       <p>{t("Capabilities")}: {d.capabilities}</p>

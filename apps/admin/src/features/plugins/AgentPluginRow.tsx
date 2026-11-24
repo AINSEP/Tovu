@@ -4,7 +4,7 @@ import { useId, type ReactNode } from "react";
 import { AgentPluginLinkedLock } from "./AgentPluginLinkedLock";
 import { AgentPluginMaturity, SOON_PLUGIN_TIP } from "./AgentPluginMaturity";
 
-import { PlainTextBlocks } from "@/components/PlainTextBlocks";
+import { PlainTextBlocks } from "@jini-ai/admin/shell/components/PlainTextBlocks";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";

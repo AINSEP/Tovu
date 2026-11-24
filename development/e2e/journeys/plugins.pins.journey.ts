@@ -49,7 +49,7 @@ return function registerPluginInstallMethods() {
     await page.goto("/admin/addons/plugins?tab=add");
     await expect(handle({ page, name: "plugins-install-confirm" })).toHaveCount(0);
     await dropArchive({ page, zipPath: fixture.zipPath });
-    await expect(page.locator(".install-tab-dropzone")).not.toContainText("0.0 MiB");
+    await expect(page.locator(".jini-install-tab-dropzone")).not.toContainText("0.0 MiB");
     await reviewAndInstall({ page });
     await expectInstalledOff({ page, packages, family: "site" });
     await handle({ page, name: "plugins-tab-downloaded" }).click();
@@ -61,7 +61,7 @@ return function registerPluginInstallMethods() {
     await page.goto("/admin/addons/plugins?tab=add");
     await expect(page.getByRole("button", { name: "Choose a folder", exact: true })).toBeVisible();
     await page.locator('input[webkitdirectory]').setInputFiles(fixture.directory);
-    await expect(page.locator(".install-tab-dropzone-title")).toContainText(".zip");
+    await expect(page.locator(".jini-install-tab-dropzone-title")).toContainText(".zip");
     await reviewAndInstall({ page });
     await expectInstalledOff({ page, packages, family: "site" });
   });
@@ -77,7 +77,7 @@ return function registerPluginInstallMethods() {
     await webMcp({ page, name: "page.fill", args: { handle: "plugins-install-folder", text: fixture.directory } });
     await expect(page.getByLabel("Folder on this server", { exact: true })).toHaveValue(fixture.directory);
     await webMcp({ page, name: "page.click", args: { handle: "plugins-install-preview" } });
-    await expect(page.locator(".install-tab-review")).toBeVisible();
+    await expect(page.locator(".jini-install-tab-review")).toBeVisible();
     await webMcp({ page, name: "page.click", args: { handle: "plugins-install-confirm" } });
     await expect(page.getByRole("status")).toContainText("installed and switched off");
     await expectInstalledOff({ page, packages, family: "site" });
@@ -184,7 +184,7 @@ return function registerPluginUpgradeAndCleanupTests() {
     const first = await packages.packageFiles({ family: "agent" });
     const upgrade = await packages.packageFiles({ family: "agent", version: "1.0.1" });
     await page.goto("/admin/addons/agent-plugins?tab=add");
-    await expect(page.locator(".install-tab-dropzone")).toBeVisible(); // Also exercises URL-tab wiring.
+    await expect(page.locator(".jini-install-tab-dropzone")).toBeVisible(); // Also exercises URL-tab wiring.
     await page.getByLabel("Upload a .zip", { exact: true }).setInputFiles(first.zipPath);
     await handle({ page, name: "agent-plugin-add-install" }).click();
     await expect(page.getByRole("status")).toContainText("installed and switched off");
@@ -266,8 +266,8 @@ async function expectInstalledOff({ page, packages, family, version = "1.0.0" }:
 
 async function reviewAndInstall({ page }: { page: Page }) {
   await handle({ page, name: "plugins-install-preview" }).click();
-  await expect(page.locator(".install-tab-review")).toContainText("This plugin has no code; nothing in it runs on this computer.");
-  await expect(page.locator(".install-tab-review")).toContainText("1.0.0");
+  await expect(page.locator(".jini-install-tab-review")).toContainText("This plugin has no code; nothing in it runs on this computer.");
+  await expect(page.locator(".jini-install-tab-review")).toContainText("1.0.0");
   await handle({ page, name: "plugins-install-confirm" }).click();
   await expect(page.getByRole("status")).toContainText("installed and switched off");
 }
@@ -279,7 +279,7 @@ async function dropArchive({ page, zipPath }: { page: Page; zipPath: string }) {
     transfer.items.add(new File([new Uint8Array(bytes)], name, { type: "application/zip" }));
     return transfer;
   }, { bytes, name: path.basename(zipPath) });
-  try { await page.locator(".install-tab-dropzone").dispatchEvent("drop", { dataTransfer: transfer }); }
+  try { await page.locator(".jini-install-tab-dropzone").dispatchEvent("drop", { dataTransfer: transfer }); }
   finally { await transfer.dispose(); }
 }
 

@@ -1,5 +1,5 @@
 import { usePreviewPaneWidth } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import { DevicePreviewFrame } from "../../../../components/DevicePreview/DevicePreviewFrame";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { PostPreviewFrame } from "./PostPreviewFrame";
 import { resolvePostPreviewBranches } from "../../rules";
 import { agentHandle } from "@jini-ai/core/agent-handles";

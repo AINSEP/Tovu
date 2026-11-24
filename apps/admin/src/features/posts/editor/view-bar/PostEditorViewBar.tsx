@@ -3,7 +3,7 @@ import type { Translate } from "@jini-ai/core/text";
 import { resolveTabBarTabIndex, type useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import { DevicePreviewToggle } from "../../../../components/DevicePreview/DevicePreviewToggle";
+import { DevicePreviewToggle } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewToggle";
 import type { PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import { PostEditorToolbarEnd } from "../header/PostEditorToolbarEnd";
 import { VIEW_TABS } from "@jini-ai/admin/posts/view-tabs";

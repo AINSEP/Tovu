@@ -34,7 +34,7 @@ import { useMessagesChangeHandler } from "./hooks/messages-change.hooks";
 import { useRunContext } from "./hooks/run-context.hooks";
 import { useAttachmentUploaderSeam, useSkillAwareAttachmentUploader, resolveSkillsAvailable, useAttachmentValidatorSeam, useFolderDropBridge } from "./hooks/composer-files.hooks";
 import { useComposerCapabilitiesSeam, useComposerDiscoverySelect } from "./hooks/composer-discovery.hooks";
-import { useSelectedAgentPlugins, useSelectedPluginChips } from "./hooks/selected-agent-plugins.hooks";
+import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
 import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "./hooks/assistant-transport.hooks";
 import { useAgentsPlaceholderSeam, useRuntimeAccessSeam } from "./hooks/runtime-access.hooks";
 import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
