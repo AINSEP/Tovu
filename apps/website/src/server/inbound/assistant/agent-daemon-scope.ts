@@ -203,7 +203,7 @@ const toolExecutor = createScopeToolExecutor({ routeDeps, registry, surfaceExcha
  * first read. `onStarted` calls `.refresh()` before every run; `assistantPromptAugmenter.
  * systemOverlay()` reads the result synchronously.
  */
-const customInstructionsCache = createCustomInstructionsCache( { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady, getEffective: routeDeps.getEffective, instructionsNamespace: routeDeps.instructionsNamespace, }, { workspaceId: routeDeps.workspaceId }, );
+const customInstructionsCache = createCustomInstructionsCache( { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady, getEffective: routeDeps.getEffective, instructionsNamespace: routeDeps.instructionsNamespace, warn: (message: string, error: unknown) => console.error(`[assistant] ${message}`, error), workspaceId: routeDeps.workspaceId, });
 
 // Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
 // concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.

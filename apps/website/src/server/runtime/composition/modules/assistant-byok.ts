@@ -331,8 +331,9 @@ async function resolveByokSystemPrompt(
       settingsReady: routeDeps.settingsUiTabsReady,
       getEffective: routeDeps.getEffective,
       instructionsNamespace: routeDeps.instructionsNamespace,
+      warn: (message: string, error: unknown) => console.error(`[assistant] ${message}`, error),
+      workspaceId: routeDeps.workspaceId,
     },
-    { workspaceId: routeDeps.workspaceId },
   );
   const customOverlay = formatCustomInstructionsOverlay({ customInstructions: customInstructions });
   const parts = [SYSTEM_PREAMBLE];
