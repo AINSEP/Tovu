@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { findCandidateDestination } from "../connect.js";
-import { parseDeployConfigsFile, readBundledDeployConfigDescriptors, readBundledDeployConfigCandidatePaths, readBundledDeployWorkflowFile } from "../../deployments/deploy-config-registry.js";
+import { parseDeployConfigsFile } from "@jini-ai/devops/deploy";
+import { readBundledDeployConfigDescriptors, readBundledDeployConfigCandidatePaths, readBundledDeployWorkflowFile } from "../../deployments/deploy-config-registry.js";
 
 const entry = { id: "example-host", label: "Example host", module: "generator.mjs" };
 function sources(t: TestContext, manifests: Record<string, unknown>): string {

@@ -28,9 +28,9 @@ import {
 import { type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
-// Types only: the egress refusal is recognised through the request port's `classifyError`
-// (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
-import type { HttpClientPort } from "../../platform/http/index.js";
+// The egress refusal is recognised through the request port's `classifyError`; the host's
+// `EgressRefusedError` class is injected into `bindCredentialedRequestPort` below.
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
@@ -324,7 +324,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  *   `host.cardIdentity` names every card URI and app. The outcome replaces the same URI after the save.
  */
 export function createApiCredentialSaveHandlers({ routeDeps, surfaces, host }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
-  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS }) }, cards: { defineSecretCardTool, askThenReport } });
+  return createApiCredentialSaveToolHandlers({ routeDeps, surfaces, host, ports: { credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS, EgressRefusedError }) }, cards: { defineSecretCardTool, askThenReport } });
 }
 
 /**
@@ -369,10 +369,10 @@ function credentialedRequestDeps(routeDeps: CustomCredentialsToolDeps): Credenti
 }
 
 /** Tovu's credential ports, bound over the same functions and dependencies the handlers used before
- *  the ports existed (see `credential-ports.ts`). */
+ *  the ports existed (see `@jini-ai/integrations/custom-credentials/credential-ports`). */
 function tovuCredentialToolPorts(routeDeps: CustomCredentialsToolDeps): CustomCredentialToolPorts {
   return {
-    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS }),
+    credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps), operations: TOVU_CREDENTIALED_REQUEST_OPERATIONS, EgressRefusedError }),
     sourceControlWrite: routeDeps.sourceControlWrite,
   };
 }
@@ -469,7 +469,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     },
     credentialCardForms: {
       buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
-      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES, suggestWorksFor: suggestCredentialWorksFor }),
+      create: required => buildCreateForm({ ...required, app: tovuCredentialCardIdentity.appNames.create, categories: CUSTOM_CREDENTIAL_CATEGORIES, suggestWorksFor: suggestCredentialWorksFor, baseUrlHint: "The provider's API base URL, e.g. 'https://api.example.test'." }),
       createOutcome: required => buildCreateOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.createOutcome }),
       rotate: required => setTokenForm({ ...required, app: tovuCredentialCardIdentity.appNames.setToken, secretField: SECRET_FORM_CARD_DEFINITIONS.credential_save?.secretField }),
       rotateOutcome: required => setTokenOutcome({ ...required, app: tovuCredentialCardIdentity.appNames.setTokenOutcome }),

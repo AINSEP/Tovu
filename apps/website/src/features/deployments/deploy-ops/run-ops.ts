@@ -8,6 +8,7 @@ import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { issueCredentialSetup } from '#src/contracts/core/tool-failure-diagnostics';
 import { makeCredentialedRequest, resolveRequestTarget, listCustomCredentials, allowedOriginsFor, type CredentialedRequestDeps } from '#src/features/custom-credentials/index';
 import { classifyCredentialedRequestError } from '@jini-ai/integrations/custom-credentials/credential-ports';
+import { EgressRefusedError } from '#src/platform/http/index';
 import type { DeployOpsRegistry, DeployOpsInput, LoadedDeployOps, DeployOpsStatus, DeployOpsLogs, DeployOpsTargets, DeployOpsRuntime, WaitClock } from '@jini-ai/devops/deploy';
 import { aborted, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import * as portable from '@jini-ai/devops/deploy';
@@ -64,7 +65,7 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
       available:!!deps.deployOpsHttpClient,
       list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,get allowedOrigins(){return allowedOriginsFor(c);}})),
       resolveTarget:(required,optional)=>resolveRequestTarget({repo:deps.customCredentialSetRepo},{...required,...optional}),
-      classifyError:classifyCredentialedRequestError,
+      classifyError:({error})=>classifyCredentialedRequestError({error,EgressRefusedError}),
       request:async(required,optional)=>{
         const {signal}=optional;
         const httpClient = deps.deployOpsHttpClient;

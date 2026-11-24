@@ -59,7 +59,7 @@ async function seeded(httpClient: HttpClientPort) {
   sealer.openCalls = 0;
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps: CredentialedRequestDeps = { repo, sealer, httpClient, clock: writeDeps.clock, audit, loadAuthSchemes: async () => [] };
-  return { deps, sealer, audit, port: bindCredentialedRequestPort({ deps, operations: { makeCredentialedRequest, resolveRequestTarget, verifyCustomCredential, probeCredentialConnection } }) };
+  return { deps, sealer, audit, port: bindCredentialedRequestPort({ deps, operations: { makeCredentialedRequest, resolveRequestTarget, verifyCustomCredential, probeCredentialConnection }, EgressRefusedError }) };
 }
 
 const REQUEST = { workspaceId: WORKSPACE, label: "api", method: "POST", url: "https://api.example.test/items" } as const;

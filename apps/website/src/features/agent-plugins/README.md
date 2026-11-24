@@ -23,6 +23,20 @@ card identity, product copy and the bindings that hand them to the portable Jini
   `assistant/external-mcp-connection-source.ts` inject `resolveAgentPluginActivation` from
   `activation-effects.ts`'s `agentPluginActivations` (the explicit-root lifecycle owner) into
   `createAgentPluginEnabledReader`.
+- `@jini-ai/agent-plugins/site/provider-plugin-link`: `provider-plugin-link.ts` keeps Tovu's bindings —
+  `providerFaceLifecycle` (`activations` = `activation-effects.ts`'s `agentPluginActivations`; `catalog` =
+  `lifecycle.ts`'s `listInstalledPlugins`, `readBundledAgentPluginDigests`, `preferBundledAgentPluginDigests`,
+  `readTrustedPluginFile`), spread into `bindProviderFacePorts` at every call site (`bootstrap.ts`,
+  `store-basics.ts`, `app.ts`, `agent-plugin-service-ports.ts`, `set-enabled.ts`); `warnProviderFace` (the
+  `[agent-plugins]`-prefixed `console.warn` line) passed as `followProviderActivations`' `warn` in
+  `store-basics.ts` and `app.ts`; and `AgentPluginLinkedError`, whose copy names Tovu's real switch.
+- `@jini-ai/agent-plugins/site/host-plugin-guidance`: `host-plugin-guidance.ts` keeps `agentPluginOverlaysDir`
+  (product root / `TOVU_AGENT_PLUGIN_OVERLAYS_DIR`, re-exported by `composition/site-paths.ts`) and
+  `isFailsafeYamlMapping` (js-yaml failsafe reader); `tool-registrations.ts` and `lifecycle.ts` inject them as
+  `overlaysDir` and `isYamlMapping`.
+- `@jini-ai/agent-plugins/site/service-ports`: consumers import the ports directly; Tovu instantiates
+  `AgentPluginApiConnectionsPort<DeclaredApiConnection>` (`api-connections/contribution.ts`) in
+  `connect-tool.ts` and `server/runtime/composition/agent-plugin-service-ports.ts`.
 - `@jini-ai/agent-plugins/connect`: `connect-card-ui.ts` binds Tovu's card identity (`card-host-bindings.ts`)
   and token-form copy; `federate-mcp.ts` binds the lifecycle reads, trust rule and federation copy.
   Portable names (`buildAgentPluginConnectCardWithPorts`, `AgentPluginConnectCardSpec`,

@@ -8,7 +8,7 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/dae
  * @file The private form `database_transfer_set_destination` raises: one masked field for the
  * destination database's address. The human's keystrokes go browser -> `mcp-ui-tool-calls-route.ts`
  * -> the parked tool call, never through the model (same mechanism as
- * `custom-credentials/custom-credential-set-token-ui.ts`). The outcome replaces the form under the
+ * `@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui`). The outcome replaces the form under the
  * same `ui://` URI and names only the host and database, never the address itself.
  */
 

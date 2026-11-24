@@ -10,7 +10,7 @@ import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observabi
 /**
  * @file The one save rule for a provider plugin's settings (2026-10-25), shared by the admin settings
  * card (`routes/plugins/provider-settings.ts`) and the assistant's key card (a `provider-settings`
- * credential card an agent plugin declares, `features/custom-credentials/provider-settings-card.ts`).
+ * credential card an agent plugin declares, `@jini-ai/integrations/custom-credentials/provider-settings-card`).
  * Same declared fields, same validation, same secret re-entry rule, same `ProviderConfigSource`
  * (site first, then attached project rows), so a key saved from chat and one saved from Settings are the same row.
  */
@@ -148,7 +148,7 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
 }
 
 /**
- * The assistant key card's host ports (`features/custom-credentials/provider-settings-card.ts`), bound
+ * The assistant key card's host ports (`@jini-ai/integrations/custom-credentials/provider-settings-card`), bound
  * to this module's rule and the same `ProviderConfigSource` the admin route uses.
  * @complexity O(p + f) per call: one discovery read plus one config read/write.
  */

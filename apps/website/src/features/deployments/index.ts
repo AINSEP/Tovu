@@ -1,17 +1,9 @@
 /**
  * @file Public surface for deployments (ADR-009 §1): export, publish and plugin deploy paths.
  */
-export type {
-  DeploymentError,
-  DeploymentErrorCode,
-  DeploymentProviderContext,
-  DeploymentProviderPort,
-  DeploymentRunStatusUpdate,
-  PollDeploymentRunInput,
-  PollDeploymentRunResult,
-  StartDeploymentRunInput,
-  StartDeploymentRunResult,
-} from "./ports.js";
+// The provider-neutral deployment port types (`DeploymentProviderPort`, `DeploymentProviderContext`, …)
+// live in `@jini-ai/devops/deploy/site/ports`, generic over the host's HTTP client type; a consumer
+// imports them there and pins Tovu's `HttpClientPort` (`#src/platform/http/index`) as the type argument.
 
 // static-publish and publish-credentials expose their own nested public barrels. Folding their
 // exports into this barrel would give every unrelated consumer their full transitive dependencies.

@@ -7,7 +7,8 @@ import test, { after, before } from "node:test";
 import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
+import { parseDeployConfigsFile } from "@jini-ai/devops/deploy";
+import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
 
 /**
  * @file `deploy-config-registry.ts` — the generators behind `tovu deploy config --target <id>`, read

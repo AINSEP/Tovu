@@ -1,4 +1,4 @@
-import { type MediaObjectStorePorts, type ObjectStoreHost, type TovuObjectStoreProvider } from "#src/features/object-storage/media-store";
+import { type MediaObjectStorePorts, type TovuObjectStoreProvider } from "#src/features/object-storage/media-store";
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
@@ -54,8 +54,8 @@ export function composeMediaStorage(required: ComposeMediaStorageRequired, _opti
   const mediaCredentials = new Promise<ReturnType<typeof composePublishCredentialSource>>((done) => { provideMediaCredentials = done; });
   const mediaStorePorts = (): MediaObjectStorePorts => ({
     host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: observability() }) },
-    loadBundledRegistry: () => loadBundledObjectStoreRegistry<ObjectStoreHost, ReturnType<typeof objectStoreContributionPorts.defineProviderContribution>>({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir(), bundledContributionSources, loadPluginContributionsFromSource, ...objectStoreContributionPorts }),
-    loadSiteRegistry: () => loadObjectStoreRegistry<ObjectStoreHost, ReturnType<typeof objectStoreContributionPorts.defineProviderContribution>>({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions, ...objectStoreContributionPorts }),
+    loadBundledRegistry: () => loadBundledObjectStoreRegistry({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir(), bundledContributionSources, loadPluginContributionsFromSource, ...objectStoreContributionPorts }),
+    loadSiteRegistry: () => loadObjectStoreRegistry({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions, ...objectStoreContributionPorts }),
     readSetting: () => readMediaObjectStoreSetting({ settingsRepo: settingsRepo(), workspaceId: workspaceId(), getEffective }),
     resolveSharedCredential: async ({ providerId }) => {
       // Provider ids use underscores; the saved connection is keyed by the deploy target's hyphenated id.

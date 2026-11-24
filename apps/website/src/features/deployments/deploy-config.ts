@@ -1,17 +1,20 @@
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { ValidationError } from "#src/platform/site-dir/index";
-import { assertNoConfigInjection } from "@jini-ai/devops/deploy";
 import type { DeploymentSecret, DeploymentDescriptor, RenderedDeployConfig, DeployConfigKit } from "@jini-ai/devops/deploy";
+import {
+  appendHostDeployNotes as appendDeployNotes, buildDeploymentDescriptor as buildDescriptor,
+  createDeployConfigKit as createKit, type HostDeployNotesReadPorts,
+} from "@jini-ai/devops/deploy/site/deploy-config";
 
 /**
  * @file The ONE `DeploymentDescriptor` every platform config generator is a thin, pure function over —
  * `tovu deploy config --target <id>`'s single source of truth (`cli/commands/deploy-config.ts`). The
  * generators themselves are plugin modules (the bundled hosting plugins'
  * `deploy-configs/*.mjs`, declared in each one's `jini-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
- * keeps only the vendor-neutral half: the descriptor, the injection guard, the migrations note, and
- * the {@link DeployConfigGeneratorModule} port with the {@link DeployConfigKit} the host passes in.
+ * is Tovu's binding of `@jini-ai/devops/deploy/site/deploy-config` (the vendor-neutral half: descriptor
+ * derivation, injection-guard kit, deploy-notes overlay): it injects the command label, the secrets list,
+ * the readiness route's source, the migrations note, `ValidationError` and the overlay root.
  *
  * Purpose:
  * Every emitted config states the same small set of facts (image built from `./Dockerfile`, the
@@ -53,35 +56,13 @@ export const HOST_DEPLOY_ENV: Readonly<Record<string, string>> = Object.freeze({
  *  {@link buildDeploymentDescriptor}'s reads). */
 const OVERLAYS_DIR = "content/agent-plugin-overlays";
 
-export interface HostDeployNotesPorts {
+export interface HostDeployNotesPorts extends HostDeployNotesReadPorts {
   /** Overlay root; defaults to `content/agent-plugin-overlays` under `process.cwd()`. */
   readonly overlaysDir?: string;
-  /** Reads a file, or returns `undefined` when it does not exist. */
-  readonly readFile?: (required: { file: string }, options?: object) => string | undefined;
 }
 
-function readOptionalFile({ file }: { file: string }, _options = {}): string | undefined {
-  try {
-    return readFileSync(file, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-/** The notes array for `targetId`, or a loud error naming the malformed overlay file. */
-function hostNotesFor({ raw, targetId, file }: { raw: string; targetId: string; file: string }, _options = {}): readonly string[] {
-  const parsed: unknown = JSON.parse(raw);
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);
-  }
-  const entry = Object.hasOwn(parsed, targetId) ? (parsed as Record<string, unknown>)[targetId] : undefined;
-  if (entry === undefined) return [];
-  if (!Array.isArray(entry) || !entry.every((note) => typeof note === "string")) {
-    throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);
-  }
-  return entry;
-}
+/** The CLI command every derivation and overlay error names. */
+const COMMAND_LABEL = "tovu deploy config";
 
 /**
  * Appends Tovu's own notes for a deploy target after its plugin generator rendered: the notes in
@@ -98,15 +79,10 @@ function hostNotesFor({ raw, targetId, file }: { raw: string; targetId: string; 
  */
 export function appendHostDeployNotes(
   { pluginId, targetId, rendered }: { readonly pluginId: string; readonly targetId: string; readonly rendered: RenderedDeployConfig },
-  { overlaysDir = join(process.cwd(), OVERLAYS_DIR), readFile = readOptionalFile }: HostDeployNotesPorts = {}
+  { overlaysDir = join(process.cwd(), OVERLAYS_DIR), readFile }: HostDeployNotesPorts = {}
 ): RenderedDeployConfig {
   // Publisher ids are `tovu/<name>`; overlay folders are named by the plugin's own name.
-  const pluginName = pluginId.slice(pluginId.lastIndexOf("/") + 1);
-  const file = join(overlaysDir, pluginName, "deploy-notes.json");
-  const raw = readFile({ file });
-  if (raw === undefined) return rendered;
-  const extra = hostNotesFor({ raw, targetId, file }).filter((note) => !rendered.notes.includes(note));
-  return extra.length === 0 ? rendered : { ...rendered, notes: [...rendered.notes, ...extra] };
+  return appendDeployNotes({ pluginId, targetId, rendered, overlaysDir, commandLabel: COMMAND_LABEL }, readFile === undefined ? {} : { readFile });
 }
 
 /**
@@ -119,11 +95,7 @@ export function appendHostDeployNotes(
  * no authoritative source to enumerate against; its generator says why). @complexity O(1).
  */
 export function createDeployConfigKit(): DeployConfigKit {
-  return {
-    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value, fail: ({ message }) => new ValidationError({ message }) }),
-    validationError: (message) => new ValidationError({ message }),
-    migrationsNote: MIGRATIONS_NOTE,
-  };
+  return createKit({ validationError: ({ message }) => new ValidationError({ message }), migrationsNote: MIGRATIONS_NOTE });
 }
 
 /**
@@ -246,32 +218,12 @@ const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
 export const MIGRATIONS_NOTE =
   "content.db's schema (including new tables — e.g. gated_mutation_tokens, added by the SPEC-022 gated-mutations durability fix, migration 0052) migrates automatically on every boot. No separate migration command is needed before or after this deploy.";
 
-/** Every path this module reads is repo-root-relative — same convention `dockerfile.ts`'s own
- *  `dockerfilePath()` already documents: `process.cwd()` is the resolution root because every
- *  caller (the CLI, and later any admin route reusing this same function) runs with its cwd at the
- *  Tovu repo root, true in dev and in the shipped image's `WORKDIR /workspace/Tovu`. */
-function readRepoFile({ relPath }: { relPath: string }, _options = {}): string {
-  return readFileSync(join(process.cwd(), relPath), "utf8");
-}
-
-/**
- * Regex-extracts one derived fact from an already-read repo file's contents, or fails LOUDLY: a
- * silent fallback here would be exactly the kind of drift this module exists to prevent (see this
- * file's own header). `describe`/`sourceFile` name the fact and its origin so the thrown message
- * tells a reader exactly what changed and where to look — never a bare "no match".
- */
-function extractOrThrow({ source, pattern, describe, sourceFile }: { source: string; pattern: RegExp; describe: string; sourceFile: string }, _options = {}): string {
-  const match = source.match(pattern);
-  if (!match || match[1] === undefined) {
-    throw new Error(
-      `tovu deploy config: could not derive ${describe} from ${sourceFile} — its format changed since ` +
-        `deploy-config.ts's extraction pattern was written. Update the pattern in deploy-config.ts to match ` +
-        `the new format, or hardcode the value there instead with a comment explaining why it can no longer ` +
-        `be derived.`
-    );
-  }
-  return match[1];
-}
+/** The readiness route whose `app.get("<path>")` is the deploy health-check path. */
+const HEALTH_CHECK_SOURCE = {
+  relPath: "apps/website/src/server/inbound/public-http/routes/ops/health.ts",
+  pattern: /export const registerReadyzRoute[\s\S]*?app\.get\("([^"]+)"/,
+  sourceFile: "server/inbound/public-http/routes/ops/health.ts (registerReadyzRoute)",
+} as const;
 
 /**
  * Builds the one `DeploymentDescriptor` every renderer works from, deriving each field from the
@@ -285,34 +237,9 @@ function extractOrThrow({ source, pattern, describe, sourceFile }: { source: str
  * @complexity O(n) in the total source text — three reads and fixed extraction passes.
  */
 export function buildDeploymentDescriptor(): DeploymentDescriptor {
-  const dockerfile = readRepoFile({ relPath: "Dockerfile" });
-  const packageJson = readRepoFile({ relPath: "package.json" });
-  const healthRouteSource = readRepoFile({ relPath: "apps/website/src/server/inbound/public-http/routes/ops/health.ts" });
-
-  const port = Number(extractOrThrow({ source: dockerfile, pattern: /^EXPOSE\s+(\d+)\s*$/m, describe: "the container port", sourceFile: "Dockerfile (EXPOSE line)" }));
-  const dockerfilePath = "Dockerfile";
-  const appName = extractOrThrow({ source: packageJson, pattern: /^[^\S\r\n\u2028\u2029]*"name"\s*:\s*"([^"]+)"/mu, describe: "the default app name", sourceFile: "package.json (name)" });
-  const volumeName = `${appName}_sites`;
-  const volumeMountPath = extractOrThrow({
-    source: dockerfile,
-    pattern: /^VOLUME\s+\["([^"]+)"\]\s*$/m,
-    describe: "the volume mount path",
-    sourceFile: "Dockerfile (VOLUME line)",
-  });
-  const healthCheckPath = extractOrThrow({
-    source: healthRouteSource,
-    pattern: /export const registerReadyzRoute[\s\S]*?app\.get\("([^"]+)"/,
-    describe: "the readiness check path",
-    sourceFile: "server/inbound/public-http/routes/ops/health.ts (registerReadyzRoute)",
-  });
-
-  return {
-    appName,
-    port,
-    dockerfilePath,
-    volumeMountPath,
-    volumeName,
-    healthCheckPath,
-    secrets: REQUIRED_SECRETS,
-  };
+  // Every path is repo-root-relative — same convention `dockerfile.ts`'s own `dockerfilePath()` already
+  // documents: `process.cwd()` is the resolution root because every caller (the CLI, and later any admin
+  // route reusing this same function) runs with its cwd at the Tovu repo root, true in dev and in the
+  // shipped image's `WORKDIR /workspace/Tovu`.
+  return buildDescriptor({ repoRoot: process.cwd(), commandLabel: COMMAND_LABEL, healthCheck: HEALTH_CHECK_SOURCE, secrets: REQUIRED_SECRETS });
 }
