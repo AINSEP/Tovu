@@ -3620,6 +3620,10 @@
     {
       "id": "c5d16d4d85d1",
       "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuDto doc ('mode'/'html' absent on a menu that never used HTML mode; K1 rv1123e); the host menus.ts is gone."
+    },
+    {
+      "id": "178e43d79674",
+      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
     }
   ]
 }

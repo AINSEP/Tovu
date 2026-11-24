@@ -1,4 +1,4 @@
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 
 /** One delivered page of one exported theme, as the landing page lists it. */
