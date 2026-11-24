@@ -3,7 +3,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { type PostRecord } from "./post.js";
-import { POST_LIST_FIELDS } from "@jini-ai/cms/posts/post-tool-schemas";
+import { POST_LIST_FIELDS } from "./post-tool-schemas.js";
 import { extractPostPlainText } from "./search.js";
 import { resolvePublicUrl, resolveAdminUrl, scheduleView, type PostToolViewWithPublicUrl } from "./post-tool-views.js";
 import type { PostToolDeps } from "./post-tool-deps.js";

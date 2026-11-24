@@ -12,7 +12,7 @@ import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/f
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { entityKey } from "#src/features/publish-content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
+import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { computeBlobStorageKey } from "#src/features/media/index";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { pushBundleToPeer, confirmPeerImport, executePeerImport, type PeerCallDeps } from "#src/features/publish-content/peer-transport";

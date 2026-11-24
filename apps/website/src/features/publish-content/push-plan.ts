@@ -2,7 +2,7 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import { applyPublishScope, buildExportBundle, includeReferencedEntities, selectBundleEntities, type PublishContentAuthorize, type PublishContentExportEnvelope } from "./export-bundle.js";
 import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
 import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } from "./peer-transport.js";
-import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "./composite-blob-source.js";
+import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "./report-labels.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 /** The post fields `entryPublicPath` reads, named `PostRecord` so the cast at its call below stays as written. */
@@ -86,7 +86,7 @@ function pushSelectedBundle(
         ...peer,
         // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
         // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
-        // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
+        // copied into the blob store can still be pushed. See `@jini-ai/cms/publish/content/composite-blob-source`'s header.
         blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
         computeStorageKey: ({ sha256 }: { sha256: string }, _options = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
       },

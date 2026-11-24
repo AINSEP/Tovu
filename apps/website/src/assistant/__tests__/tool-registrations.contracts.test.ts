@@ -81,7 +81,7 @@ import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/i
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
 import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
-import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
+import { siteEvidenceAgentToolCatalog } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
 import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";

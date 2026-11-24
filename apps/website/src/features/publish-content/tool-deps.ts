@@ -10,7 +10,7 @@ import type { resolvePublishDestinationCredential } from "./destination-credenti
 import type { PublishContentPeerRepoPort } from "./peers.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
+import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
 

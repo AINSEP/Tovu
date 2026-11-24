@@ -55,7 +55,7 @@ import { PUBLISH_READINESS_COPY } from "./publish-readiness-copy.js";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { publishContentFromTool } from "./publish-tool.js";
-import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
+import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 
 import { listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
