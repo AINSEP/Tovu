@@ -3526,6 +3526,14 @@
       "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/pages.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/pages.ts:4-4."
     },
     {
+      "id": "b0f918a73686",
+      "reason": "w4-core-owners: moved with the declaration to Jini packages/core/src/tool-metadata/post.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/post.ts:4-4."
+    },
+    {
+      "id": "d9da48651fdc",
+      "reason": "w4-core-owners: moved with the declaration to Jini packages/core/src/tool-metadata/image-transform.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/image-transform.ts:4-4."
+    },
+    {
       "id": "b85a25ac38ae",
       "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
     },
