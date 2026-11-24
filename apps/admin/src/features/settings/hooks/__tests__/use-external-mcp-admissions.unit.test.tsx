@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpAdmissionsSnapshot } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpAdmissionsSnapshot } from "@jini-ai/core/contracts/hosted-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";

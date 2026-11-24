@@ -1,4 +1,4 @@
-import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/hosted-mcp";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
