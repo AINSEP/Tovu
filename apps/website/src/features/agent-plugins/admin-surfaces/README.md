@@ -21,7 +21,7 @@ plugin root: jini-admin-surfaces.json + surface files
    ▼
 surfaces.ts  createAgentPluginAdminSurfaceSource ── list / readFile ──┐
    │                                                                  │
-   ├─ public  GET /api/agent-plugin-surfaces/v1/:plugin/:surface/<path>   (public-http/routes/agent-plugin-surfaces/files.ts)
+   ├─ public  GET /api/agent-plugin-surfaces/v1/:plugin/:surface/<path>   (Jini cms `public-http/routes/agent-plugin-surfaces/files`, mounted by `composition/modules/agent-plugin-surface-files-route.ts`)
    │          declared entry + files only, Jini isolation headers, no session (sandboxed module scripts send no cookie)
    └─ admin   GET  /api/admin/v1/workspaces/:ws/agent-plugins/:plugin/surfaces                   (admin.plugins.read)
               POST .../surfaces/:surface/bootstrap   Cache-Control: no-store                    (admin.plugins.enable)

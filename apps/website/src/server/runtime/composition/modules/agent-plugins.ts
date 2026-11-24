@@ -5,7 +5,7 @@ import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/
 import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginSetEnabledRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
-import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
+import { registerAdminSurfaceFilesRoute } from "./agent-plugin-surface-files-route.js";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { registerApiConnectionSignInRoute } from "./agent-plugins-routes.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

@@ -5228,6 +5228,26 @@
     {
       "id": "f7f17534df39",
       "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts exportBundleStream pull catch (reworded: the stream closes instead of res.end()) (w4-routes, RT-K1-adm-publish-content-2/4: export.ts mid-stream catch comment)"
+    },
+    {
+      "id": "15a65984c454",
+      "reason": "Moved to Jini @jini-ai/cms/admin-http/routes/system/browser-telemetry.ts with the route (w4-routes B2); the registration note now lives on the host registrar modules/system-telemetry.ts and the spec header."
+    },
+    {
+      "id": "4f6e43a38a8d",
+      "reason": "Moved to Jini @jini-ai/cms/public-http/middleware/theme-content-security-headers.ts themeAssetSecurityHeaderSet doc (w4-routes D1); the Tovu-path reference was reworded neutrally for guard N2."
+    },
+    {
+      "id": "8fd4fe1f8928",
+      "reason": "Moved to Jini @jini-ai/cms/public-http/http/site/member-auth-script.ts injectMemberAuthScript doc (w4-routes C); the marker attribute is now an injected arg, so the wording names it generically."
+    },
+    {
+      "id": "c7e78ba4385a",
+      "reason": "Moved to Jini @jini-ai/cms/public-http/http/site/member-auth-script.ts (w4-routes C); the product starter-theme name was reworded to \"a starter theme\" (no product strings in Jini)."
+    },
+    {
+      "id": "e43d48f440b0",
+      "reason": "Moved to Jini @jini-ai/http-kit/request-id.ts @file doc (w4-routes E); reworded to not name the host createApp."
     }
   ]
 }

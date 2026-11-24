@@ -40,7 +40,7 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * Why the two POSTs need more than the session: bootstrap data may carry a short-lived access token
  * and actions run host handlers, so both refuse API-key credentials (a surface is a browser UI) and
  * cross-origin requests (`isSameOriginBrowserWrite`) BEFORE authorization or any lookup. The surface files
- * themselves are served by the public route in `public-http/routes/agent-plugin-surfaces/files.ts`,
+ * themselves are served by the public route in Jini cms `public-http/routes/agent-plugin-surfaces/files` (mounted by `composition/modules/agent-plugin-surface-files-route.ts`),
  * because a sandboxed frame's module-script fetches carry no cookie.
  *
  * Ids from the URL are only compared against admitted surfaces, never joined into a path. Errors

@@ -1290,11 +1290,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
