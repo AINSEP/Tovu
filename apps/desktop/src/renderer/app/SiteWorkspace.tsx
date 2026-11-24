@@ -7,7 +7,7 @@ import type { LiveGuest, ParkedView } from '@jini-ai/ui/core';
 import type { SiteAdminPage } from '../import-site-entry.js';
 import { useComposedGuestRef } from '../use-find-in-page.hooks.js';
 import { type FindableGuest } from '@jini-ai/ui/find';
-import type { ZoomableGuest } from '../use-zoom.hooks.js';
+import type { ZoomableGuest } from '@jini-ai/ui/zoom';
 import type { SiteRecord, SiteSurface } from '../../contracts/project.js';
 import { SiteStartPanel } from './SiteStartPanel.js';
 import { Spinner } from './Spinner.js';

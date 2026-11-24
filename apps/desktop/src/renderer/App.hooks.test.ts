@@ -35,7 +35,7 @@ import * as sectionNav from './use-section-nav.hooks.js';
 import * as siteStart from './use-site-start.hooks.js';
 import * as sitesHomeView from './sites-home-view.js';
 import * as sitesInventory from './use-sites-inventory.hooks.js';
-import * as webviewLoadFailure from './use-webview-load-failure.hooks.js';
+import * as webviewLoadFailure from '@jini-ai/ui/live-views';
 import * as workspaceChatTransport from './use-workspace-chat-transport.hooks.js';
 
 /** Every remaining runtime (non-type) name in the post-extraction barrel, by its home. */
@@ -50,7 +50,7 @@ const HOMES: Record<string, Record<string, unknown>> = {
   performSiteStart: siteStart, useSiteStart: siteStart, startThenNotify: siteStart,
   useWebviewLoadFailure: webviewLoadFailure,
   useWorkspaceChatTransport: workspaceChatTransport,
-  useRunnerConversations: runnerConversations, useConversationDeleteConfirmation: runnerConversations,
+  useRunnerConversations: runnerConversations,
   computeCanCreate: createForm, buildCreateProjectInput: createForm, siteSlug: createForm, useCreateWebsiteForm: createForm,
 };
 
