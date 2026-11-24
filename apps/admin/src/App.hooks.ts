@@ -46,7 +46,8 @@ import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
-import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
+import { t as translateAssistantDockDictLabel } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "./app-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
@@ -429,13 +430,13 @@ export function useInternalLinkInterceptor(): void {
  * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
  * `createAdminShellTranslators` binds this label to the shell locale (`({ key }) => translateAssistantDockLabel({ locale,
  * key })`) so every existing call site keeps calling `dockT({ key })` with no `locale` argument to
- * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
+ * thread through by hand. Delegates to the Jini dock `t` (ADMIN_COMMON_I18N-falling-back,
  * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
  * key` inline — same fix as `AssistantDock.hooks.tsx`'s `useAssistantDockChrome`, which had an
  * independent copy of the same no-fallback lookup.
  */
 export function translateAssistantDockLabel({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string {
-  return translateAssistantDockDictLabel({ locale, key });
+  return translateAssistantDockDictLabel({ locale, key, ...ASSISTANT_DOCK_HOST_FIELDS });
 }
 
 /**

@@ -5,7 +5,7 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
-import { activateDockMenuItem, isChoiceSection, type DockSettingsMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
+import { activateDockMenuItem, isChoiceSection, type DockSettingsMenuItem, type DockSettingsMenuSection } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 
 type DockMenu = ReturnType<typeof useTaxonomyRowMenu>;
 

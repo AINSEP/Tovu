@@ -4,11 +4,12 @@ import { conversationTitleForDisplay } from "@jini-ai/chat/core";
 
 import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
+import { t as translateAssistantDockLabel, createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS, CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 
 /**
  * Builds the `I18nAdapter` `AssistantDock.tsx` passes to `<JiniChatProvider i18n={...}>` — a thin
- * memoized wrapper around `createChatI18nAdapter` (`assistant-dock-i18n.ts`), which does the actual
+ * memoized wrapper around `createChatI18nAdapter` (`@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n`, fed this host's `CHAT_I18N_HOST_FIELDS`), which does the actual
  * dictionary lookup and is already independently tested there. Extracted (2026-08-18) purely to get
  * the `useMemo` call itself out of the component body — no I/O, no seam: `locale` is the only input
  * and `createChatI18nAdapter` is a pure function of it.
@@ -19,7 +20,7 @@ import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assi
  * const chatI18n = useI18n({ locale });
  */
 export function useChatI18n({ locale }: { locale: string }, _options: Record<string, never> = {}): I18nAdapter {
-  return useMemo(() => createChatI18nAdapter({ locale }), [locale]);
+  return useMemo(() => createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale }), [locale]);
 }
 
 /**
@@ -64,7 +65,7 @@ export interface AssistantDockChrome {
    *  `useWiredAdminLocale`'s real fetched value. */
   locale: string;
   /** Translates this component's OWN pane chrome (eyebrow, title fallback, composer placeholder) —
-   *  `assistant-dock-i18n.ts`'s own `t`, which falls back to `COMMON_I18N` via
+   *  the Jini dock `t` (`@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n`), which falls back to `ADMIN_COMMON_I18N` via
    *  `createDictionaryTranslator` before returning the raw key. Recomputed each render (cheap: one
    *  object lookup), not memoized — matches this closure's pre-extraction behavior exactly. */
   t: (input: { key: string }, options?: Record<string, never>) => string;
@@ -133,7 +134,7 @@ export function resolveAssistantConversationTitle({ chats, fallback }: {
  */
 export function useAssistantDockChrome({ useAdminLocaleOverride }: { useAdminLocaleOverride: (() => string) | undefined }, { useI18n = useChatI18n }: { useI18n?: typeof useChatI18n } = {}): AssistantDockChrome {
   const locale = (useAdminLocaleOverride ?? useWiredAdminLocale)();
-  const t = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateAssistantDockLabel({ locale, key });
+  const t = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateAssistantDockLabel({ locale, key, ...ASSISTANT_DOCK_HOST_FIELDS });
   const chatI18n = useI18n({ locale });
   return { locale, t, chatI18n };
 }

@@ -5,7 +5,8 @@ import type { AdminMedia } from "../../../features/media/api/media-api.types";
 import type { MediaPickerPort } from "../../MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../MediaContentEditor";
 import { useMediaContentEditor } from "../MediaContentEditor.hooks";
-import { useHtmlAttributeRows } from "../HtmlAttributeRows.hooks";
+import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
+import { htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes } from "../media-content-rules";
 import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields";
 
 /**
@@ -158,7 +159,7 @@ describe("MediaContentEditor", () => {
 
   it("replaces local attribute rows when a different stored value arrives without emitting an edit", () => {
     const onChange = vi.fn();
-    const { result, rerender } = renderHook(({ value }) => useHtmlAttributeRows({ value, onChange }), {
+    const { result, rerender } = renderHook(({ value }) => useHtmlAttributeRows({ value, onChange, htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes }), {
       initialProps: { value: 'aria-label="Before"' },
     });
     act(() => result.current.addRow());

@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
-import { dockSettingsMenuSections, type DockSettingsMenuSection } from "../dock-header-rules";
-import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
-import { visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { dockSettingsMenuSections, type DockSettingsMenuSection } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**
  * @file `DockSettingsMenu` markup for every popup position and row shape, against a typed fake of
@@ -161,7 +161,7 @@ describe("rows", () => {
 describe("runtime switches", () => {
   function renderRuntime(agent: { supportsSubagents?: boolean; supportsClaudeInChrome?: boolean } | undefined) {
     const update = vi.fn();
-    const sections = dockSettingsMenuSections({ t: (key) => key }, {
+    const sections = dockSettingsMenuSections({ t: (key) => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: () => {} },
       runtime: { preferences: { useClaudeInChrome: true, preferSubagents: false, replyLength: "normal" }, update, visible: visibleAssistantRuntimePreferences({ agent }) },
     });

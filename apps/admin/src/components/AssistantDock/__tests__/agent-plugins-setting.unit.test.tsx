@@ -5,11 +5,13 @@ import { ChatSettingsDialog } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockSettingsMenu } from "../DockSettingsMenu";
-import { dockSettingsMenuSections } from "../dock-header-rules";
-import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "../assistant-runtime-preferences";
 import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
 import { useChatAgentPlugins, type ChatAgentPluginsPort } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
-import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
+import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "@/app-i18n";
 
 /**
  * @file The per-person "Agent plugins" chat setting (owner, 2026-10-18): Auto (default), Ask first or
@@ -29,7 +31,7 @@ const TIP = OPTIONS.map(({ label, tooltip }) => `• ${label}: ${tooltip}`).join
 function sectionsFor({ mode = "auto", update = vi.fn(), translate = (key: string) => key }: {
   mode?: ChatAgentPlugins; update?: (mode: ChatAgentPlugins) => void; translate?: (key: string) => string;
 } = {}) {
-  return dockSettingsMenuSections({ t: translate }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() }, agentPlugins: { mode, update } });
+  return dockSettingsMenuSections({ t: translate, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() }, agentPlugins: { mode, update } });
 }
 
 describe("Agent plugins section", () => {
@@ -51,7 +53,7 @@ describe("Agent plugins section", () => {
   });
 
   it("is left out when the host binds no plugin preference", () => {
-    const sections = dockSettingsMenuSections({ t: (key) => key }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
+    const sections = dockSettingsMenuSections({ t: (key) => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
     expect(sections.map((entry) => entry.key)).not.toContain("agent-plugins");
   });
 
@@ -95,8 +97,8 @@ describe("Agent plugins section", () => {
       expect(translation.trim()).not.toBe("");
       expect(translation, key).not.toBe(key);
     }
-    const section = sectionsFor({ translate: (key) => t({ locale, key }) }).find((entry) => entry.key === "agent-plugins")!;
-    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t({ locale, key: label })}: ${t({ locale, key: tooltip })}`).join("\n"));
+    const section = sectionsFor({ translate: (key) => t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key }) }).find((entry) => entry.key === "agent-plugins")!;
+    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: label })}: ${t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: tooltip })}`).join("\n"));
   });
 });
 

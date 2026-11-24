@@ -8,7 +8,9 @@ import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDoc
 import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockHeaderTip } from "./DockHeaderTip";
 import { DockSettingsMenu } from "./DockSettingsMenu";
-import { dockSettingsMenuSections, type DockRuntimeSwitches } from "./dock-header-rules";
+import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
 import { renameActiveConversation } from "./assistant-dock-props";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
 import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
@@ -105,7 +107,7 @@ export function DockHeader({
         </DockHeaderTip>
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
         <DockHeaderTip label={t({ key: "Settings" })}>
-          <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }) }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
+          <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
             notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined} />
         </DockHeaderTip>
       </div>

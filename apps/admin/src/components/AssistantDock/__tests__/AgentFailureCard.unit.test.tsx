@@ -14,7 +14,8 @@ import { FolderDropError } from "@jini-ai/admin/shell/components/AssistantDock/F
 import { FolderDropPathHint } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint";
 import { render as renderWithKits } from "@/__tests__/render-with-jini-kits";
 import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
-import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
+import { createChatI18nAdapter, t as translateDock } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS, CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 afterEach(cleanup);
@@ -37,7 +38,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
     surface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
-    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ locale })}>
+    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale })}>
       <FailureSurfaceContext.Provider value={surface.actions}>
         <MessageRow message={surface.initialMessages![0]!} />
       </FailureSurfaceContext.Provider>
@@ -204,7 +205,7 @@ it.each([
     const onRemove = vi.fn();
     const onSend = vi.fn();
     const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: copy.locale })}>
       <SelectedAgentPluginTray chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
     </JiniChatProvider>);
     const remove = screen.getByRole("button", { name: copy.remove });
@@ -223,7 +224,7 @@ it.each([
   const onDismiss = vi.fn();
   const onRetry = vi.fn();
   const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-  renderWithKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+  renderWithKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: copy.locale })}>
     <FolderDropConfirmation path="/work" onDismiss={onDismiss} useTHook={useT} />
     <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} useTHook={useT} />
     <FolderDropPathHint onDismiss={onDismiss} useTHook={useT} />
@@ -253,13 +254,13 @@ it("covers required dock keys through their actual translator in every admin loc
   ];
   const missing: string[] = [];
   for (const { code } of ADMIN_LOCALES.filter(({ code }) => code !== "en")) {
-    const adapter = createChatI18nAdapter({ locale: code });
+    const adapter = createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: code });
     for (const key of keys) {
       const translated = adapter.t(key);
       if (!translated.trim() || translated === key) missing.push(`${code}: ${key}`);
       expect(translated.match(/\{\w+\}/g) ?? []).toEqual(key.match(/\{\w+\}/g) ?? []);
     }
-    if (translateDock({ locale: code, key: "More settings…" }) === "More settings…") missing.push(`${code}: More settings…`);
+    if (translateDock({ ...ASSISTANT_DOCK_HOST_FIELDS, locale: code, key: "More settings…" }) === "More settings…") missing.push(`${code}: More settings…`);
     expect(adapter.t("Switch to {name}", { name: "Antigravity" })).toContain("Antigravity");
   }
   expect(missing).toEqual([]);
