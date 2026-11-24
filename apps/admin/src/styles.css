@@ -1923,11 +1923,16 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
 .list-table tbody tr:last-child td, .jini-roles-list-table tbody tr:last-child td { border-bottom: none; }
 /* DataTable's `rowDetail`: the record and its full-width line read as one row. */
-.list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
-.list-table .list-table-detail > td { padding-block-start: 0; }
+.list-table tbody tr:has(+ .list-table-detail) td,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
+.list-table .list-table-detail > td,
+.jini-roles-list-table .list-table-detail > td { padding-block-start: 0; }
 .list-table tbody tr:has(+ .list-table-detail:hover),
-.list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
-.list-table tbody tr:hover { background: var(--surface-2); }
+.list-table tbody tr:hover + .list-table-detail,
+.jini-roles-list-table tbody tr:has(+ .list-table-detail:hover),
+.jini-roles-list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
+.list-table tbody tr:hover,
+.jini-roles-list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
    rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
    "New user" plus 4× "Disable" plus 4× "Manage" — nine identically loud buttons on one screen)
@@ -1954,10 +1959,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    action semantic promotion (a genuinely destructive or access-affecting row action earning
    `.btn-danger` or the `.btn-warning` scaffold below) needs the owning section's own markup and
    is phase 2 — see the report's hierarchy-spec section. */
-.list-table td button:not([class*="btn-"]):not(.link-button) {
+.list-table td button:not([class*="btn-"]):not(.link-button),
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button) {
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
-.list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
+.list-table td button:not([class*="btn-"]):not(.link-button):hover,
+.jini-roles-list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
 /* Collision on file, named per this comment block's own convention: `ThemePagesTab.tsx`'s Publish
    switch (`.theme-explore-switch`, reused verbatim from `ThemeExplore.tsx`'s toolbar toggle) sits
    inside a `.list-table td` same as every other row control, so this reset's `:not([class*="btn-"])`
@@ -6687,54 +6694,81 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    `useListTableCellLabels` sets `data-label` at every width, so nothing JS-side is phone-gated.
    ------------------------------------------------------------------------ */
 @container admin-content (max-width: 620px) {
-  .table-scroll:has(> table.list-table) { overflow-x: visible; }
-  table.list-table { display: block; min-width: 0; table-layout: auto; }
-  table.list-table > colgroup { display: none; }
+  .table-scroll:has(> table.list-table),
+  .jini-roles-table-scroll:has(> table.jini-roles-list-table) { overflow-x: visible; }
+  table.list-table,
+  table.jini-roles-list-table { display: block; min-width: 0; table-layout: auto; }
+  table.list-table > colgroup,
+  table.jini-roles-list-table > colgroup { display: none; }
   table.list-table > thead,
-  table.list-table > tbody { display: block; }
+  table.list-table > tbody,
+  table.jini-roles-list-table > thead,
+  table.jini-roles-list-table > tbody { display: block; }
 
-  table.list-table > thead:not(:has(button, input)) { display: none; }
-  table.list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-  table.list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
-  table.list-table > thead > tr > th:not(:has(button, input)) { display: none; }
+  table.list-table > thead:not(:has(button, input)),
+  table.jini-roles-list-table > thead:not(:has(button, input)) { display: none; }
+  table.list-table > thead > tr,
+  table.jini-roles-list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  table.list-table > thead > tr > th,
+  table.jini-roles-list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
+  table.list-table > thead > tr > th:not(:has(button, input)),
+  table.jini-roles-list-table > thead > tr > th:not(:has(button, input)) { display: none; }
   /* A select-all checkbox alone read as an empty grey bar (owner, Trash, 2026-10-07). Its label
      already carries the translated screen-reader text ("Select every item shown"); on a phone that
      text is shown beside the box, and the whole label is the tap target. */
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]),
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden,
+  table.jini-roles-list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
     position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
     font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--muted);
   }
 
-  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-  table.list-table > tbody > tr:last-child { border-bottom: none; }
+  table.list-table > tbody > tr,
+  table.jini-roles-list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  table.list-table > tbody > tr:last-child,
+  table.jini-roles-list-table > tbody > tr:last-child { border-bottom: none; }
   /* A record and its `rowDetail` line are one card. */
-  table.list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
-  table.list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
-  table.list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
+  table.list-table > tbody > tr:has(+ .list-table-detail),
+  table.jini-roles-list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
+  table.list-table > tbody > tr.list-table-detail,
+  table.jini-roles-list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
+  table.list-table > tbody > tr.list-table-detail > td:first-child,
+  table.jini-roles-list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
-  table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
-  table.list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
-  table.list-table > tbody > tr > td:empty { display: none; }
+  table.list-table > tbody > tr::after,
+  table.jini-roles-list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
+  table.list-table > tbody > tr > td,
+  table.jini-roles-list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+  table.list-table > tbody > tr > td:empty,
+  table.jini-roles-list-table > tbody > tr > td:empty { display: none; }
 
   table.list-table > tbody > tr > td:first-child,
-  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td,
+  table.jini-roles-list-table > tbody > tr > td:first-child,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
     order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
   }
-  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
+  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]),
+  table.jini-roles-list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select),
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
     order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
   }
 
   /* Meta line: "LABEL value". Not on the title, the actions slot or a lone checkbox. */
-  table.list-table > tbody > tr > td[data-label]::before {
+  table.list-table > tbody > tr > td[data-label]::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]::before {
     content: attr(data-label); margin-right: 6px;
     font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
   }
   table.list-table > tbody > tr > td:first-child::before,
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
-  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
+  table.jini-roles-list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
 
   /* Each meta cell is its own "LABEL | value" line, labels in one fixed-width column (owner,
      2026-10-07). As inline "LABEL value" runs side by side, the pairs wrapped wherever the line
@@ -6744,25 +6778,32 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      the value's children stay in ordinary flow however many there are, every value line keeps
      the indent, and `flow-root` grows the cell when a long label wraps to two lines. Excluded:
      the title, the actions slot, editable cells (label above, below) and colspan detail rows. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]),
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
     --list-meta-label-w: 7.5rem;
     flex: 0 0 100%; display: flow-root; padding-left: calc(var(--list-meta-label-w) + 12px); line-height: 20px;
   }
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
     float: left; width: var(--list-meta-label-w); margin: 0 0 0 calc(-1 * (var(--list-meta-label-w) + 12px)); line-height: 20px;
   }
   /* A button value (Collections' "Copy embed code") is 44px tall on phones: centre the label on it. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before,
+  table.jini-roles-list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
 
   /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
      label ABOVE the control and a share of the line, so a field reads as a small labelled form —
      including the primary cell, whose control is otherwise anonymous. */
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
-  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
-  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select),
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
+  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before,
+  table.jini-roles-list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
   /* An inline detail row (Users' expanded panel spans every column) now gets the card's width,
      not the old table's — its own controls must not keep a desktop min-width past it. */
-  table.list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
+  table.list-table > tbody > tr > td[colspan] :is(select, input),
+  table.jini-roles-list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
 }
 
 /* ------------------------------------------------------------------------
