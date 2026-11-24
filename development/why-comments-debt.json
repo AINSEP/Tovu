@@ -4508,6 +4508,58 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "acb2f2037054",
+      "reason": "Moved with lower-tool-access.ts to Jini @jini-ai/plugins/runtime/lower-tool-access (lowerPluginToolAccess doc), w4-webfeat-b D1."
+    },
+    {
+      "id": "852e1cb7e048",
+      "reason": "Moved with the two consumer-owned ports to Jini @jini-ai/plugins/runtime/service-ports @file doc, w4-webfeat-b D1."
+    },
+    {
+      "id": "b5fe9f0cfc7d",
+      "reason": "Moved with PluginPostReadPort to Jini @jini-ai/plugins/runtime/service-ports (soon-lock note reworded to 'the host's soon-lock'), w4-webfeat-b D1."
+    },
+    {
+      "id": "9e08d239c79d",
+      "reason": "Its retained copy lived in post/tiptap-text-schema.ts, which moved verbatim to Jini @jini-ai/cms/posts/tiptap-text-schema, w4-webfeat-b A2."
+    },
+    {
+      "id": "b8de5c9d1288",
+      "reason": "Its retained copy lived in post/tiptap-text-schema.ts, which moved verbatim to Jini @jini-ai/cms/posts/tiptap-text-schema (TIPTAP_MARK_SCHEMA doc), w4-webfeat-b A2."
+    },
+    {
+      "id": "723e7678b955",
+      "reason": "Moved with composite-blob-source.ts to Jini @jini-ai/cms/publish/content/composite-blob-source @file doc (host paths reworded), w4-webfeat-b B3."
+    },
+    {
+      "id": "5529fb2c97d7",
+      "reason": "Moved with run-repo.ts to Jini @jini-ai/cms/publish/content/run-repo @file doc (host source path reworded, guard N2), w4-webfeat-b B1."
+    },
+    {
+      "id": "e408f9365658",
+      "reason": "Moved with the site-evidence catalog to Jini @jini-ai/diagnostics/web-evidence/agent-tools @file doc (product names reworded to 'host'), w4-webfeat-b B2."
+    },
+    {
+      "id": "7e37e94aa48c",
+      "reason": "term-sync.ts was a one-line re-export of publish-term-ids; deleted (no forwarding file). The term-sync contract doc lives in Jini @jini-ai/cms/taxonomy/site/publish-term-ids @file doc, w4-webfeat-b B2."
+    },
+    {
+      "id": "58362268f8f3",
+      "reason": "Moved with marker-sql.ts to Jini @jini-ai/cms/trash/site/adapters/marker-sql (MarkerStore doc, now over a host-supplied StorageKernel), w4-webfeat-b A1."
+    },
+    {
+      "id": "a098844e160d",
+      "reason": "Moved with project-scope.ts to Jini @jini-ai/integrations/vendor-credentials/project-scope (credentialScopes doc), w4-webfeat-b D2."
+    },
+    {
+      "id": "a642e23ded63",
+      "reason": "Moved with project-scope.ts to Jini @jini-ai/integrations/vendor-credentials/project-scope (credentialCreateTarget doc), w4-webfeat-b D2."
+    },
+    {
+      "id": "096121b6167d",
+      "reason": "Its retained copy lived in vendor-credentials/project-scope.ts, which moved to Jini @jini-ai/integrations/vendor-credentials/project-scope, w4-webfeat-b D2."
     }
   ]
 }
