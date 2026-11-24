@@ -18,7 +18,7 @@ function limitsPatch({ value }: { value: unknown }, _options = {}) {
 }
 
 /** Validate the optional mode independently of the partial-update shape. */
-function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolConfigureInput["mode"] {
+function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolsConfigureInput["mode"] {
   if (value === undefined) return undefined;
   if (value !== "auto" && value !== "ask" && value !== "off") throw new VisitorToolPolicyValidationError("Mode must be auto, ask or off.");
   return value;
@@ -28,7 +28,7 @@ function parseMode({ value }: { value: unknown }, _options = {}): VisitorToolCon
  * @throws VisitorToolPolicyValidationError for unknown/invalid fields. @complexity O(1).
  * @example parseVisitorToolsConfigure({ value: {toolId:"site", expectedRevisionSeq:0, mode:"off"} });
  */
-export function parseVisitorToolsConfigure({ value }: { value: unknown }, _options = {}): VisitorToolConfigureInput {
+export function parseVisitorToolsConfigure({ value }: { value: unknown }, _options = {}): VisitorToolsConfigureInput {
   const input = visitorToolsObject({ value, keys: ["toolId", "expectedRevisionSeq", "mode", "limits"] });
   if (typeof input.toolId !== "string" || !/^[a-z][a-z0-9_]{0,127}$/.test(input.toolId)) throw new VisitorToolPolicyValidationError("Use a toolId from visitor_tools_list, or site.");
   if (!Number.isSafeInteger(input.expectedRevisionSeq) || (input.expectedRevisionSeq as number) < 0) throw new VisitorToolPolicyValidationError("List visitor tools first and supply expectedRevisionSeq.");

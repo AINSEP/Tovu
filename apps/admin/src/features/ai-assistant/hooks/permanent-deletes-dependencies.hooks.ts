@@ -1,5 +1,6 @@
 import { useAdminPermanentDeletes, type PermanentDeletesPolicy } from "@jini-ai/admin/screens/assistant-settings/use-admin-permanent-deletes.hooks";
-import { assistantPermanentDeletesPort, ASSISTANT_PERMANENT_DELETES_NAMESPACE, PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@/lib/assistant-permanent-deletes";
+import { assistantPermanentDeletesPort } from "@/lib/shell-collaborators";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@tovu/headless";
 import { assistantOwnerGrantDependencies } from "./assistant-owner-grant-dependencies.hooks";
 
 /**
