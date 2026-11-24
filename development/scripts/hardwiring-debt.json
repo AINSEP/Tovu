@@ -51,39 +51,18 @@
       "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
     },
     {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/desktop/scripts/verify-find-in-page.ts",
-      "line": 51,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/desktop/scripts/verify-site-power.ts",
-      "line": 49,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/desktop/scripts/verify-site-power.ts",
-      "line": 50,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/renderer/folder-drop.ts",
+      "line": 87,
+      "reason": "Export folderPathsFromDataTransfer duplicates a Jini function without using its owner.",
+      "fingerprint": "cd8915ef0b1a190bed7fd378dff05974b866cd758d5da3fcefbbdb3aa6a47353"
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/shell-staleness.ts",
-      "line": 42,
-      "reason": "Export isBundleInput duplicates a Jini function without using its owner.",
-      "fingerprint": "ca871d03228242ffafd1d683d6e5f7066c790fbf6f4975019384eee29f13d097"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/shell-staleness.ts",
-      "line": 64,
-      "reason": "Export shellStalenessFailure duplicates a Jini function without using its owner.",
-      "fingerprint": "d5c594ad5b71bb8617746a873dbea5493600c84c82cc9c2c9cb33dca29cc72d0"
+      "file": "apps/desktop/src/tree-quiet.ts",
+      "line": 88,
+      "reason": "Export treeQuietProblems duplicates a Jini function without using its owner.",
+      "fingerprint": "31ecdcd28cf5d2c9ab0483f6f85319ab4fbe3ba30674eac1e61afd7eaa96fd47"
     },
     {
       "rule": "HW8-provider-url",
@@ -96,34 +75,6 @@
       "rule": "HW2-vendor-adapter",
       "file": "apps/website/src/features/plugin-runtime/built-ins/content-analyzer/plugin.ts",
       "line": 16,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/plugin-runtime/built-ins/word-count/index.ts",
-      "line": 25,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/plugin-runtime/host-binding.ts",
-      "line": 5,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/plugin-runtime/invocation-core-deps.ts",
-      "line": 15,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/plugin-runtime/plugin-export.ts",
-      "line": 7,
       "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
       "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
     },
@@ -149,13 +100,6 @@
       "fingerprint": "83a3f2bd4b654a8a31403c38a0aed6ecc6f7a3142ee08f7533423febd936f0fa"
     },
     {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/server/runtime/composition/plugin-runtime.ts",
-      "line": 25,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
-    },
-    {
       "rule": "HW7-public-react",
       "file": "apps/site-chat/src/main.tsx",
       "line": 1,
@@ -172,27 +116,6 @@
     {
       "rule": "HW7-public-react",
       "file": "apps/site-chat/src/SiteAssistantWidget.tsx",
-      "line": 1,
-      "reason": "Public-site runtime graph must not load React or React DOM.",
-      "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "apps/site-chat/src/SiteAssistantWidget.tsx",
-      "line": 231,
-      "reason": "Automatic JSX runtime imports React into the public-site bundle.",
-      "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "apps/site-chat/src/SiteAssistantHeader.tsx",
-      "line": 72,
-      "reason": "Automatic JSX runtime imports React into the public-site bundle.",
-      "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "apps/site-chat/src/SiteAssistantActivation.hooks.ts",
       "line": 1,
       "reason": "Public-site runtime graph must not load React or React DOM.",
       "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
@@ -448,6 +371,20 @@
       "line": 1,
       "reason": "Public-site dependency package loads React or React DOM.",
       "fingerprint": "45445eedd535b38137bdc62b8aba757c571ae6c1e2d72cab67dc115eb754544a"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/shell-staleness.ts",
+      "line": 42,
+      "reason": "Export isBundleInput duplicates a Jini function without using its owner.",
+      "fingerprint": "ca871d03228242ffafd1d683d6e5f7066c790fbf6f4975019384eee29f13d097"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/shell-staleness.ts",
+      "line": 64,
+      "reason": "Export shellStalenessFailure duplicates a Jini function without using its owner.",
+      "fingerprint": "d5c594ad5b71bb8617746a873dbea5493600c84c82cc9c2c9cb33dca29cc72d0"
     }
   ]
 }

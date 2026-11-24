@@ -69,12 +69,11 @@ test("the disabled-FAB style went with the button, so nothing is left to style a
 });
 
 // Kept, because the pane is what a future workspace chat is built from and deleting it is a
-// separate decision from removing the button.
-// It moved from `App.tsx` into its own module so it can be rendered under test
-// (`WorkspaceChatPane.render.test.ts`); "unreferenced" is still checked against `App.tsx`.
-test("WorkspaceChatPane survives the FAB's removal, unreferenced, for the panel that replaces it", () => {
-  assert.match(read("WorkspaceChatPane.tsx"), /export function WorkspaceChatPane\(/);
-  assert.doesNotMatch(appTsx, /WorkspaceChatPane/, "App.tsx neither imports nor renders the pane");
+// separate decision from removing the button. It moved to `@jini-ai/chat/react/conversation-chat-pane`
+// (`ConversationChatPane`, rendered under test there); "unreferenced" is still checked against `App.tsx`.
+test("the workspace chat pane survives the FAB's removal, unreferenced, for the panel that replaces it", () => {
+  assert.doesNotMatch(appTsx, /from ['"]@jini-ai\/chat\/react\/conversation-chat-pane['"]/, "App.tsx does not import the pane");
+  assert.doesNotMatch(appTsx, /<ConversationChatPane\b/, "App.tsx does not render the pane");
 });
 
 // A tripwire, not a prohibition. The FAB was removed BECAUSE the fleet chat has no main-process

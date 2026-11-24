@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { copySqliteInto } from "@jini-ai/db/kernel/sqlite";
 import { createNodeAtomicFilesystem, readDirectoryIdentity, writeJsonFileAtomic, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
+import { commitWithCopiedDatabases, type CopiedDatabaseFilesystem } from "@jini-ai/desktop-host/shell/copied-site-databases";
 import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import { withFileLock } from "./durable-json-file.ts";
 import { createSitesWorkspace, type SitesWorkspace } from "./shared-sites.ts";
@@ -57,8 +58,9 @@ function replaceCopiedIdentity({ marker, id }: { marker: string; id: string },
 }
 
 /** Snapshot externally held content/chat before publishing the copied identity. Local files already
- * came with Finder's copy. Keep the new app-data DBs only when the marker commits; restore detached
- * links on failure so a retry still resolves the source. The original DB is opened read-only.
+ * came with Finder's copy. Tovu owns which databases exist and where they live; `@jini-ai/desktop-host`
+ * owns the snapshot, commit and rollback ordering (new app-data DBs kept only when the marker commits,
+ * detached links restored on failure so a retry still resolves the source). The original DB is opened read-only.
  * @complexity O(database bytes) plus fixed metadata probes, with SQLite doing the snapshot I/O.
  */
 function withCopiedDatabases({ siteDir, id, siteId, workspace, commit }: {
@@ -68,24 +70,24 @@ function withCopiedDatabases({ siteDir, id, siteId, workspace, commit }: {
     from: workspace.databasePath({ dir: siteDir, id, filename }),
     to: workspace.databasePath({ dir: siteDir, id: siteId, filename, placement: 'appData' }),
   })).filter(row => fs.existsSync(row.from) && !fs.realpathSync(row.from).startsWith(siteDir + path.sep));
-  const [firstSource] = sources;
-  if (firstSource === undefined) { commit(); return; }
-  const targetDir = path.dirname(firstSource.to);
-  if (fs.existsSync(targetDir)) throw new Error('Copied database target already exists.');
-  const links: { from: string; backup: string }[] = [];
-  fs.mkdirSync(path.dirname(targetDir), { recursive: true });
-  fs.mkdirSync(targetDir); // Exclusive creation: rollback must never erase someone else's folder.
-  try {
-    for (const row of sources) snapshotDatabase({ from: row.from, to: row.to });
-    detachDatabaseLinks({ siteDir, siteId, links });
-    commit();
-  } catch (error) {
-    for (const link of links.reverse()) fs.renameSync(link.backup, link.from);
-    fs.rmSync(targetDir, { recursive: true, force: true });
-    throw error;
-  }
-  for (const link of links) fs.unlinkSync(link.backup);
+  commitWithCopiedDatabases({
+    sources,
+    pointerPaths: ['data.nosync', 'content.db', 'chat.db', 'data.nosync/content.db', 'data.nosync/chat.db'].map(relative => path.join(siteDir, relative)),
+    backupPath: ({ index }) => path.join(siteDir, `.copied-database-${siteId}-${index}`),
+    commit,
+    filesystem: nodeCopiedDatabaseFilesystem,
+    snapshot: snapshotDatabase,
+  });
 }
+
+const nodeCopiedDatabaseFilesystem: CopiedDatabaseFilesystem = {
+  exists: ({ path: target }) => fs.existsSync(target),
+  makeDirectory: ({ path: target, recursive }) => { fs.mkdirSync(target, { recursive }); },
+  removeTree: ({ path: target }) => { fs.rmSync(target, { recursive: true, force: true }); },
+  rename: ({ from, to }) => { fs.renameSync(from, to); },
+  unlink: ({ path: target }) => { fs.unlinkSync(target); },
+  isSymbolicLink: ({ path: target }) => fs.lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink() === true,
+};
 
 /** Bind the built-in SQLite client to Jini's existing snapshot owner, only when a copy needs it.
  * @throws Open/snapshot errors; always closes the read-only source. @complexity O(database bytes).
@@ -94,20 +96,4 @@ function snapshotDatabase({ from, to }: { from: string; to: string }, _options =
   const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
   const source = new DatabaseSync(from, { readOnly: true });
   try { copySqliteInto({ source, targetPath: to }); } finally { source.close(); }
-}
-
-/** Remove copied pointers to the original DB after snapshotting, never their targets. A linked
- * data.nosync directory is detached before probing its children, preserving the source directory.
- * @complexity O(1), five known site-layout paths. Renames remain reversible until marker commit.
- */
-function detachDatabaseLinks({ siteDir, siteId, links }: {
-  siteDir: string; siteId: string; links: { from: string; backup: string }[];
-}, _options = {}): void {
-  for (const relative of ['data.nosync', 'content.db', 'chat.db', 'data.nosync/content.db', 'data.nosync/chat.db']) {
-    const from = path.join(siteDir, relative);
-    if (!fs.lstatSync(from, { throwIfNoEntry: false })?.isSymbolicLink()) continue;
-    const backup = path.join(siteDir, `.copied-database-${siteId}-${links.length}`);
-    fs.renameSync(from, backup);
-    links.push({ from, backup });
-  }
 }

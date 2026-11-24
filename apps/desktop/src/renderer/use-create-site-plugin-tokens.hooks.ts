@@ -1,3 +1,4 @@
+import { tokensForCreate } from "@jini-ai/agent-plugins/connect";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateSiteInput, CreatedSiteRecord, TokenSignInPlugin } from '../contracts/project.js';
@@ -22,19 +23,6 @@ export interface CreateSitePluginTokens {
   inputRef: (required: { pluginId: string }, options?: {}) => (element: HTMLInputElement | null) => void;
   /** Wraps the form's `onCreate` so the typed tokens ride along (then the inputs are cleared). */
   withTokens: (required: { onCreate: (input: CreateSiteInput) => Promise<void> }, options?: {}) => (input: CreateSiteInput) => Promise<void>;
-}
-
-/**
- * The typed tokens as `CreateSiteInput.agentPluginTokens`: trimmed, blanks dropped, `undefined` when
- * nothing was typed — so a create with no token sends exactly the input it always did.
- * @complexity O(n) in the offered services.
- */
-export function tokensForCreate(values: Readonly<Record<string, string>>): Record<string, string> | undefined {
-  const out: Record<string, string> = {};
-  for (const [pluginId, value] of Object.entries(values)) {
-    if (value.trim() !== '') out[pluginId] = value.trim();
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** `supabase` -> `Supabase`, `my-crm` -> `My Crm` — the same rule Tovu uses for a plugin's name. */
@@ -108,7 +96,9 @@ export function useCreateSitePluginTokens(
         if (enabled) values[pluginId] = element.value;
         element.value = '';
       }
-      const agentPluginTokens = tokensForCreate(values);
+      // Trimmed, blanks dropped, `undefined` when nothing was typed: a create with no token sends
+      // exactly the input it always did.
+      const agentPluginTokens = tokensForCreate({ values });
       return onCreate(agentPluginTokens ? { ...input, agentPluginTokens } : input);
     },
     [enabled],

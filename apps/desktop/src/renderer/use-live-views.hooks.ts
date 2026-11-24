@@ -17,11 +17,14 @@
  *
  * If every hidden guest vetoes, the shell simply stays over the limit; the next focus change, tab
  * close or limit change tries again. There is no queue, no reservation and no polling.
+ *
+ * The admission hook itself is `@jini-ai/ui/live-views`'s `useLiveViews`; this file owns what is
+ * this app's: the probe (which routes have audited guards, which element scrolls), the bridge lookup
+ * and the "Loaded sites" bounds.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLiveViews as useGuestLiveViews, useSiteViewPreference, type LiveViews } from '@jini-ai/ui/live-views';
+import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
-import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
-import { liveViewOrder, releaseCandidates, releaseExcessViews, RELEASE_PROBE_TIMEOUT_MS, type ParkedView, type LiveGuest } from '@jini-ai/ui/core';
 
 /** The admin's own scroll container (`.admin-content`, apps/admin `styles.css`): its window never
  *  scrolls, so `window.scrollY` alone would restore every admin page to the top. */
@@ -51,79 +54,16 @@ export const RELEASE_PROBE = `(() => {
   } catch { return { release: false }; }
 })()`;
 
-interface LiveViewsState {
-  /** Live tabs, most recently focused first. */
-  readonly order: readonly string[];
-  readonly parked: Readonly<Record<string, ParkedView>>;
-}
-
-function sameIds({ a, b }: { a: readonly string[]; b: readonly string[] }, _options = {}): boolean {
-  return a.length === b.length && a.every((id, index) => id === b[index]);
-}
-
-/** Records a focus change and drops closed tabs, parked routes included; the same state if neither. */
-function syncLiveViews({ state, focusedId, openIds }: { state: LiveViewsState; focusedId: string | null; openIds: readonly string[] }, _options = {}): LiveViewsState {
-  const order = liveViewOrder({ order: state.order, focusedId, openIds });
-  const open = new Set(openIds);
-  const stale = Object.keys(state.parked).filter((id) => !open.has(id));
-  if (sameIds({ a: order, b: state.order }) && stale.length === 0) return state;
-  const parked = Object.fromEntries(Object.entries(state.parked).filter(([id]) => open.has(id)));
-  return { order, parked };
-}
-
-function applyReleases({ state, released }: { state: LiveViewsState; released: readonly { id: string; parked: ParkedView | null }[] }, _options = {}): LiveViewsState {
-  if (released.length === 0) return state;
-  const gone = new Set(released.map(({ id }) => id));
-  const parked = { ...state.parked };
-  // No guest, no route: keep whatever an earlier release recorded rather than forgetting it.
-  for (const entry of released) if (entry.parked !== null) parked[entry.id] = entry.parked;
-  return { order: state.order.filter((id) => !gone.has(id)), parked };
-}
-
-export interface LiveViews {
-  /** Whether this tab may mount its guest: the focused tab always may. */
-  isLive: (input: { id: string }) => boolean;
-  /** Each released tab's last route and scroll, for its next mount. */
-  parked: Readonly<Record<string, ParkedView>>;
-  /** The guest each tab mounted, so a probe can reach it. Stable across renders. */
-  registerGuest: (id: string, node: LiveGuest | null) => void;
-}
-
 /**
  * Owns which open tabs keep their guest. `focusedId` is the tab on screen, `null` outside Websites
  * (every tab hidden, the last one focused still the most recent).
  */
 export function useLiveViews({ openIds, focusedId }: { openIds: readonly string[]; focusedId: string | null }, {
   getBridge = runnerInventoryBridge,
-  timeoutMs = RELEASE_PROBE_TIMEOUT_MS,
+  timeoutMs,
 }: { getBridge?: () => RunnerInventoryBridge | undefined; timeoutMs?: number } = {}): LiveViews {
-  const [state, setState] = useState<LiveViewsState>({ order: [], parked: {} });
-  const { value: limit } = useSiteViewPreference({ getBridge });
-  const guests = useRef(new Map<string, LiveGuest>());
-  const registerGuest = useCallback((id: string, node: LiveGuest | null) => {
-    if (node === null) guests.current.delete(id);
-    else guests.current.set(id, node);
-  }, []);
-  // Keys, not arrays: the site list is a new array on every poll, and that alone is no change.
-  const openKey = JSON.stringify(openIds);
-  const order = liveViewOrder({ order: state.order, focusedId, openIds });
-  const orderKey = JSON.stringify(order);
-
-  useEffect(() => {
-    const ids = JSON.parse(openKey) as string[];
-    setState((current) => syncLiveViews({ state: current, focusedId, openIds: ids }));
-  }, [focusedId, openKey]);
-
-  useEffect(() => {
-    // A newer focus, close or limit cancels this pass; its answers would be about a stale order.
-    let active = true;
-    const { candidates, excess } = releaseCandidates({ order: JSON.parse(orderKey) as string[], focusedId, limit });
-    if (excess === 0) return undefined;
-    void releaseExcessViews({ candidates, excess, script: RELEASE_PROBE, guestOf: ({ id }) => guests.current.get(id) ?? null }, { timeoutMs }).then((released) => {
-      if (active) setState((current) => applyReleases({ state: current, released }));
-    });
-    return () => { active = false; };
-  }, [orderKey, focusedId, limit, timeoutMs]);
-
-  return { isLive: ({ id }) => order.includes(id), parked: state.parked, registerGuest };
+  return useGuestLiveViews(
+    { openIds, focusedId, useSiteViewPreference, getBridge, bounds: LIVE_SITE_VIEWS, probe: RELEASE_PROBE },
+    timeoutMs === undefined ? {} : { timeoutMs },
+  );
 }

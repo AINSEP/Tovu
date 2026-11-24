@@ -7,7 +7,7 @@
  */
 import { useOptimisticNumberSetting, type NumberSetting } from '@jini-ai/ui/number-stepper';
 import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
-import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
+import { useSiteViewPreference } from '@jini-ai/ui/live-views';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 
 type LoadedSitesBridge = BridgeLookup<'getMaximumLiveSiteViews' | 'setMaximumLiveSiteViews' | 'onMaximumLiveSiteViewsChanged'>;
@@ -28,7 +28,7 @@ export function useLoadedSites(
   _input: Record<string, never> = {},
   { getBridge = runnerInventoryBridge }: { getBridge?: LoadedSitesBridge } = {},
 ): NumberSetting {
-  const { value, setValue } = useSiteViewPreference({ getBridge });
+  const { value, setValue } = useSiteViewPreference({ getBridge, bounds: LIVE_SITE_VIEWS });
   const setMaximum = getBridge()?.setMaximumLiveSiteViews;
   const write = setMaximum && (({ next }: { next: number }) => setMaximum({ maximum: next }));
   return useOptimisticNumberSetting(

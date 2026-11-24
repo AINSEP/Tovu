@@ -14,9 +14,9 @@ import { createRequire } from 'node:module';
 import { act, createElement } from 'react';
 
 import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from '@jini-ai/ui/core';
-import { FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
-import { liveAnchorSelection, type FindBridge, type FindableGuest } from './find-target.js';
-import { liveFindClock, type FindFocusClock } from './find-focus-clock.js';
+import { FIND_FOCUS_RECLAIM_MS } from '@jini-ai/ui/find';
+import { liveAnchorSelection, type FindBridge, type FindableGuest } from '@jini-ai/ui/find';
+import { liveFindClock, type FindFocusClock } from '@jini-ai/ui/find';
 import { useComposedGuestRef, useFindInPage, type FindInPage } from './use-find-in-page.hooks.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
 

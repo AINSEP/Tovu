@@ -126,7 +126,7 @@ test('SiteWorkspace: a running site mounts its guest on its own partition, regis
   const overlay = workspace.querySelector('.workspace__overlay--loading');
   assert.equal(overlay?.getAttribute('role'), 'status');
   assert.equal(overlay?.textContent, 'Loading Site a…');
-  assert.ok(overlay?.querySelector('.spinner'));
+  assert.ok(overlay?.querySelector('.jini-loading-spinner'));
   assert.equal(view.byLabel({ label: 'Reload' })?.hasAttribute('disabled'), false);
   await act(async () => { guest.dispatchEvent(new dom.window.Event('did-finish-load')); });
   assert.equal(workspace.querySelector('.workspace__overlay'), null, 'first content answered; the overlay goes');

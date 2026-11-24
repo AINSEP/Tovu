@@ -1,8 +1,12 @@
 /** Settings › Check for updates…: main runs the check and shows every notice; this only waits. */
-import { useMemo, useRef, useSyncExternalStore } from 'react';
-import { createUpdateCheck, type UpdateCheckState } from '@jini-ai/desktop-host/app-version';
-import type { RunnerUpdateCheckBridge } from '../contracts/app-version.js';
+import { createUpdateCheck, type UpdateCheckBridge, type UpdateCheckState } from '@jini-ai/desktop-host/app-version';
+import { useUpdateCheck as useCheckRow } from '@jini-ai/ui/app-version';
 import { runnerInventoryBridge } from './runner-api.js';
+
+/** Main reports check failures itself; this is only a broken IPC channel. Module-level, so stable. */
+function reportBrokenChannel({ message }: { readonly message: string }, _optional = {}): void {
+  console.error(`[tovu-desktop] check for updates: ${message}`);
+}
 
 /**
  * One check at a time from this window; `onDone` closes the menu once main has answered.
@@ -12,17 +16,7 @@ import { runnerInventoryBridge } from './runner-api.js';
  */
 export function useUpdateCheck(
   { onDone }: { onDone: () => void },
-  { bridge = runnerInventoryBridge() }: { bridge?: Partial<RunnerUpdateCheckBridge> } = {},
+  { bridge = runnerInventoryBridge() }: { bridge?: UpdateCheckBridge } = {},
 ): UpdateCheckState & { checkForUpdates: () => Promise<void> } {
-  // An inline `onDone` is a new function every render; the controller keeps calling the latest one.
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
-  const check = useMemo(() => createUpdateCheck({
-    bridge,
-    onDone: () => onDoneRef.current(),
-    // Main reports check failures itself; this is only a broken IPC channel.
-    report: ({ message }) => console.error(`[tovu-desktop] check for updates: ${message}`),
-  }), [bridge]);
-  const state = useSyncExternalStore(check.subscribe, check.getSnapshot);
-  return { ...state, checkForUpdates: check.checkForUpdates };
+  return useCheckRow({ bridge, onDone, report: reportBrokenChannel, createCheck: createUpdateCheck });
 }

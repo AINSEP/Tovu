@@ -1,7 +1,7 @@
 import { startThenNotify, useSiteStart } from '../App.hooks.js';
 import { sitePortPresentation } from '../site-port.rules.js';
 import type { SiteRecord } from '../../contracts/project.js';
-import { Spinner } from './Spinner.js';
+import { Spinner } from '@jini-ai/ui';
 import { useEffect, useRef } from 'react';
 
 /**
@@ -52,7 +52,7 @@ export function SiteStartPanel({
           kicks off, not the (usually much shorter) admin load `SiteWorkspace`'s own overlay covers
           once the guest mounts. Shown ONLY while `starting`: a spinner sitting beside an already-
           idle "Start site" button would read as the page being broken, not as progress. */}
-      {starting && <Spinner />}
+      {starting && <Spinner size={20} />}
       <h2 className="empty__title">{project.displayName}</h2>
       <p className="empty__body">
         {panelBodyText({ starting, body, project })}

@@ -750,22 +750,16 @@ webview { display: flex; }
 .workspace__overlay--loading p { margin: 0; color: var(--muted); font-size: 0.8125rem; }
 
 /* One small rotating ring, shared by `SiteStartPanel`'s server-boot state and the overlay just
-   above — "still working", not its own moment. `border-top-color` carries the motion; the rest of
-   the ring stays a faint outline so the shape still reads on the single frame reduced motion
-   freezes it on. */
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+   above — "still working", not its own moment. The ring is `@jini-ai/ui`'s `Spinner` (a
+   `.jini-loading-spinner` wrapper around an `icon-spin` svg); this app skins and animates it, and
+   reduced motion freezes it on a single frame that still reads as the spinner glyph. */
+.jini-loading-spinner { display: inline-flex; color: var(--primary); }
+.jini-loading-spinner .icon-spin { animation: spin 0.8s linear infinite; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner { animation: none; }
+  .jini-loading-spinner .icon-spin { animation: none; }
 }
 
 /* ---------- find bar ---------- */
@@ -1980,8 +1974,9 @@ webview { display: flex; }
    with the button itself — see `App.tsx`'s own comment where that button was for why a host-page
    FAB was worse than none: it advertised a chat with no main-process half, and being
    `position: fixed` over the `<webview>` it intercepted clicks meant for the site's real
-   assistant. The `.chat-fab`/`.chat-fab-open` rules above are kept for `WorkspaceChatPane`, which is
-   still unwired. */
+   assistant. The `.chat-fab`/`.chat-fab-open` rules above, and the `.runner-chat-pane` host skin below, are
+   kept for `@jini-ai/chat/react/conversation-chat-pane`'s `ConversationChatPane` (pass
+   `className="runner-chat-pane"`), which is still unwired here. */
 
 .runner-chat-pane {
   /* Docked sidebar, not a floating card: it occupies the grid's second column in the content row,

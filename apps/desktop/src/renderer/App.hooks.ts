@@ -36,14 +36,8 @@ export { useProjectMutations, type SiteMutationsState } from './use-project-muta
 export { appPresentation, deriveSitesHomeView, type SitesHomeView } from './sites-home-view.js';
 export { useDeleteConfirmation } from './use-delete-confirmation.hooks.js';
 export { performSiteStart, startThenNotify, useSiteStart, type SiteStartResult } from './use-site-start.hooks.js';
-export { useWebviewLoadFailure } from './use-webview-load-failure.hooks.js';
 export { useWorkspaceChatTransport } from './use-workspace-chat-transport.hooks.js';
-export {
-  useConversationDeleteConfirmation,
-  useRunnerConversations,
-  type ConversationDeleteConfirmationState,
-  type UseRunnerConversations,
-} from './use-runner-conversations.hooks.js';
+export { useRunnerConversations, type UseRunnerConversations } from './use-runner-conversations.hooks.js';
 export {
   buildCreateProjectInput,
   computeCanCreate,

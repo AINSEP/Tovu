@@ -10,7 +10,7 @@ import { createElement } from 'react';
 import { act, installBridge, mount, settle, site, type TestContext } from './component-harness.js';
 import { closeHost } from '../app-render-harness.js';
 import { SiteStartPanel } from './SiteStartPanel.js';
-import { Spinner } from './Spinner.js';
+import { Spinner } from '@jini-ai/ui';
 import type { SiteRecord } from '../../contracts/project.js';
 
 after(closeHost);
@@ -35,9 +35,16 @@ function renderPanel(t: TestContext, { project, body, withOnStarted = true }: { 
   return { ...view, starts, events, button };
 }
 
-test('Spinner: one decorative ring, hidden from assistive tech', (t) => {
-  const view = mount({ t, element: createElement(Spinner) });
-  assert.equal(view.container.innerHTML, '<span class="spinner" aria-hidden="true"></span>');
+test('Spinner: Jini\'s polite status ring with no accessible name of its own, its icon hidden', (t) => {
+  // The sentence beside it (a `role="status"` overlay or the panel body) carries the message, so the
+  // ring adds no name: an empty status announces nothing rather than announcing twice.
+  const view = mount({ t, element: createElement(Spinner, { size: 20 }) });
+  const ring = view.container.querySelector('.jini-loading-spinner');
+  assert.ok(ring, 'the Jini spinner renders');
+  assert.equal(ring.getAttribute('role'), 'status');
+  assert.equal(ring.getAttribute('aria-live'), 'polite');
+  assert.equal(ring.textContent, '', 'no accessible name: no label text');
+  assert.equal(ring.querySelector('svg')?.getAttribute('aria-hidden'), 'true');
 });
 
 test('SiteStartPanel: a stopped site shows its name, its status sentence and an idle Start', (t) => {
@@ -46,7 +53,7 @@ test('SiteStartPanel: a stopped site shows its name, its status sentence and an 
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Stopped.');
   assert.equal(view.button()?.textContent, 'Start site');
   assert.equal(view.button()?.hasAttribute('disabled'), false);
-  assert.equal(view.container.querySelector('.spinner'), null, 'no spinner beside an idle button');
+  assert.equal(view.container.querySelector('.jini-loading-spinner'), null, 'no spinner beside an idle button');
   assert.equal(view.container.querySelector('.workspace__error'), null);
 });
 
@@ -71,7 +78,7 @@ test('SiteStartPanel: Start shows the boot wait, then hands main\'s record on be
   await view.click({ el: view.button() });
   assert.equal(view.starts[0]?.id, 'a');
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Starting the server. This can take up to a minute.');
-  assert.ok(view.container.querySelector('.workspace__idle > .spinner'));
+  assert.ok(view.container.querySelector('.workspace__idle > .jini-loading-spinner'));
   assert.equal(view.button()?.textContent, 'Starting…');
   assert.equal(view.button()?.hasAttribute('disabled'), true, 'one start at a time');
   await act(async () => { view.starts[0]!.resolve(site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })); });
@@ -127,5 +134,5 @@ test('SiteStartPanel: a site another path is starting reads Starting, never Stop
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Starting the server. This can take up to a minute.');
   assert.equal(view.button()?.textContent, 'Starting…');
   assert.equal(view.button()?.hasAttribute('disabled'), true);
-  assert.ok(view.container.querySelector('.spinner'));
+  assert.ok(view.container.querySelector('.jini-loading-spinner'));
 });

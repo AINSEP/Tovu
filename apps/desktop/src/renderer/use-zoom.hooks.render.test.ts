@@ -1,7 +1,7 @@
 /**
  * @file `useZoom` rendered from its real module under jsdom (see `dom-hook-harness.ts`), with the
  * bridge and storage injected through the hook's ports. The routing and persistence helpers have
- * direct tests in `use-zoom.hooks.test.ts`; this file asserts what the hook owns: the registered
+ * direct tests beside `@jini-ai/ui/zoom`; this file asserts what the hook owns: the registered
  * guests map, re-applying a remembered level, and routing the menu command to the live target.
  */
 import assert from 'node:assert/strict';
@@ -10,7 +10,8 @@ import test from 'node:test';
 import type { ZoomDirection } from '../contracts/zoom.js';
 import { installDom, renderHook } from './dom-hook-harness.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
-import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
+import type { ZoomableGuest } from '@jini-ai/ui/zoom';
+import { useZoom } from './use-zoom.hooks.js';
 
 /** An in-memory `Storage`. */
 function memoryStorage(seed: Record<string, string> = {}) {

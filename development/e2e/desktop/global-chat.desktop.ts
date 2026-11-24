@@ -7,8 +7,8 @@ import { successfulRunFixture } from "./_run-fixture.js";
 /**
  * D4 (SCOPE.md §3.3), narrowed to what is built. The app-level "global chat" (one-chat FAB, 900 px
  * panel) does NOT exist: `App.tsx` (~line 189) documents that the host page carries no chat FAB on
- * purpose, `WORKSPACE_CHAT_CHANNELS` has no `ipcMain.handle`, and `WorkspaceChatPane` has zero call
- * sites. So this file covers:
+ * purpose, `WORKSPACE_CHAT_CHANNELS` has no `ipcMain.handle`, and the workspace chat pane
+ * (`@jini-ai/chat/react/conversation-chat-pane`) has zero call sites. So this file covers:
  *  - the host sites home has no `.chat-fab` and no `aside[aria-label="Runner chat"]` (a regression
  *    guard against reintroducing a dead control over the guest's own FAB);
  *  - the SITE's own assistant, inside the tab's `<webview>` guest, answers a stubbed run.

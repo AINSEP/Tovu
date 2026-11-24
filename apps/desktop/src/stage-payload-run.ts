@@ -14,8 +14,7 @@ import path from "node:path";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import type { assertDistImportsDeclared } from "./dist-import-check.ts";
-import { shellStalenessFailure } from "./shell-staleness.ts";
-import type { StalenessShell } from "./shell-staleness.ts";
+import { shellStalenessFailure, type StalenessShell } from "@jini-ai/devops/packaging/electron";
 import { isExcluded, resolveTargets } from "./stage-payload-lib.ts";
 import type * as lib from "./stage-payload-lib.ts";
 
@@ -252,9 +251,20 @@ function failIfDistIsStale({ layout, ports: { fs } }: { layout: StageLayout; por
 }
 
 /**
+ * Why this incident wording stays here: until 2026-09-12 staging checked only that each shell's
+ * marker EXISTED, so a packaged app shipped an admin bundle twelve days older than its source,
+ * missing two committed fixes, while the package step reported SUCCESS. The neutral predicate
+ * (`@jini-ai/devops/packaging/electron` `shellStalenessFailure`) owns the comparison and is
+ * tested there; the host injects this consequence so the refusal says why it is not noise.
+ */
+const STALE_SHELL_CONSEQUENCE =
+  "Packaging this ships a bundle that does not contain committed changes, which is exactly the " +
+  "failure that shipped a twelve-day-old admin bundle on 2026-09-12 while this step reported success.";
+
+/**
  * Refuse a shell whose build output is OLDER than its own source. The comparison itself lives in
- * `./shell-staleness.ts` (and is tested there, against the real 2026-09-12 incident); this
- * function is only the filesystem half.
+ * `@jini-ai/devops/packaging/electron` `shellStalenessFailure`; this function is only the
+ * filesystem half plus the host's incident wording (`STALE_SHELL_CONSEQUENCE`).
  *
  * BEHAVIOUR CHANGE, deliberately: anyone packaging from a checkout whose shells are behind their
  * source now hits a HARD STOP where they previously got a shipped-but-wrong artifact.
@@ -276,7 +286,7 @@ function failIfShellIsStale(
   for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime({ abs: path.join(repoRoot, dir) }));
   for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime({ abs: path.join(repoRoot, file) }));
 
-  const failure = shellStalenessFailure({ builtAt, sourceAt, shell });
+  const failure = shellStalenessFailure({ builtAt, sourceAt, shell }, { consequence: STALE_SHELL_CONSEQUENCE });
   if (failure) fail({ message: failure });
 }
 

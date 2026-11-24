@@ -373,13 +373,6 @@
       "value": 100
     },
     {
-      "file": "apps/desktop/src/renderer/WorkspaceChatPane.tsx",
-      "function": "WorkspaceChatPane#1",
-      "line": 21,
-      "rule": "max-lines-per-function",
-      "value": 92
-    },
-    {
       "file": "apps/desktop/src/renderer/app/SiteWorkspace.tsx",
       "function": "SiteWorkspace#1",
       "line": 103,

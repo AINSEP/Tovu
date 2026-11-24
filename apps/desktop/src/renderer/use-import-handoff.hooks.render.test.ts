@@ -8,7 +8,9 @@ import test from 'node:test';
 import { act } from 'react';
 import type { ImportHandoffRequest } from '../contracts/import-handoff.js';
 import { renderHook } from './dom-hook-harness.js';
-import { handoffAddress, useImportHandoff } from './use-import-handoff.hooks.js';
+import { handoffAddress } from '@jini-ai/ui/import-handoff';
+import { websiteAddress } from './import-site-entry.js';
+import { useImportHandoff } from './use-import-handoff.hooks.js';
 
 function fakeBridge() {
   const listeners = new Set<(request: ImportHandoffRequest) => void>();
@@ -63,8 +65,8 @@ test('useImportHandoff: subscribes once and detaches on unmount; without a bridg
 });
 
 test('handoffAddress: only a string the Import page accepts survives', () => {
-  assert.equal(handoffAddress({ request: { address: 'https://example.com' } }), 'https://example.com/');
-  assert.equal(handoffAddress({ request: { address: 'localhost' } }), null);
-  assert.equal(handoffAddress({ request: { address: 7 } }), null);
-  assert.equal(handoffAddress({ request: undefined }), null);
+  assert.equal(handoffAddress({ request: { address: 'https://example.com' }, accept: websiteAddress }), 'https://example.com/');
+  assert.equal(handoffAddress({ request: { address: 'localhost' }, accept: websiteAddress }), null);
+  assert.equal(handoffAddress({ request: { address: 7 }, accept: websiteAddress }), null);
+  assert.equal(handoffAddress({ request: undefined, accept: websiteAddress }), null);
 });

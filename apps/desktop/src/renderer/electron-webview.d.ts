@@ -108,8 +108,8 @@ declare global {
     removeEventListener(event: 'did-navigate-in-page', listener: (event: WebviewDidNavigateInPageEvent) => void): void;
     addEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void, useCapture?: boolean): void;
     removeEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void): void;
-    /** Fires once the guest is usable. Until it has, every `WebviewTagMethods` method throws — which is why
-     *  `use-zoom.hooks.ts`'s `applyStoredZoom` waits on it before re-applying a remembered zoom. */
+    /** Fires once the guest is usable. Until it has, every method below throws — which is why
+     *  `@jini-ai/ui/zoom`'s `applyStoredZoom` waits on it before re-applying a remembered zoom. */
     addEventListener(event: 'dom-ready', listener: (event: Event) => void, useCapture?: boolean): void;
     removeEventListener(event: 'dom-ready', listener: (event: Event) => void): void;
   }

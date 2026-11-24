@@ -22,7 +22,7 @@
  * before staging), but `electron .`/`npm run dev` used directly is exactly the incident's shape.
  *
  * Reuses `shellStalenessFailure`, the SAME pure predicate `scripts/stage-payload.ts` already uses to
- * refuse a stale `apps/admin`/`apps/site-chat` bundle (`shell-staleness.ts`'s own header records
+ * refuse a stale `apps/admin`/`apps/site-chat` bundle (`stage-payload-run.ts`'s `STALE_SHELL_CONSEQUENCE` records
  * that original incident) — this is that same class of bug, one directory over, so the same check
  * rather than a new one.
  *
@@ -35,7 +35,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { shellStalenessFailure, type StalenessShell } from "../shell-staleness.ts";
+import { shellStalenessFailure, type StalenessShell } from "@jini-ai/devops/packaging/electron";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..", "..");
