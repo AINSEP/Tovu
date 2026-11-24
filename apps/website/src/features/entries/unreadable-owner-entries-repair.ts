@@ -22,7 +22,7 @@ import type { TrashEntry } from "@jini-ai/cms/trash";
  * and a row is removed only when its `ext` has namespaces and none of them is the owner's. A row with
  * the owner's key present is never touched, even when malformed or carrying a stray namespace too.
  *
- * Marker: a reserved `setting_values_global` row, as `post/search-index.ts`'s projection version
+ * Marker: a reserved `setting_values_global` row, as `@jini-ai/cms/posts/sql`'s `search-index.ts` projection version
  * (no schema change on any dialect; no setting definition, so no settings surface shows it). It also
  * records what was removed (ids and types only, never payloads), since the rows themselves are gone.
  */

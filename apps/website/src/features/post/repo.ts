@@ -33,7 +33,7 @@ import { postSearchFor, type PostSearchProjection } from "@jini-ai/cms/posts/sql
  * That is the whole sync obligation, because `title`/`slug`/`bodyJson` are the only indexed values
  * and this is their only writer. `softDelete()` deliberately does NOT touch it; a trashed post is
  * excluded by the search query's own `deleted_at IS NULL` filter against the live row, which is also
- * what makes a later restore searchable again with no extra step. See `search-index.ts`.
+ * what makes a later restore searchable again with no extra step. See `@jini-ai/cms/posts/sql`'s `search-index.ts`.
  */
 
 

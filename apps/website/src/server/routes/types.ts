@@ -557,7 +557,7 @@ export interface PostDeps {
    * A sibling of `postRepo` rather than a method on it: `PostRepoPort` is a record store of exact
    * lookups whose in-memory adapter is three array scans, while this is a durable inverted index
    * with its own migration, sync obligation and backfill. See `features/post/search.ts` for the
-   * full argument, and `search-index.sqlite.ts` for why the index carries only text while
+   * full argument, and `@jini-ai/cms/posts/sql`'s `search-index.sqlite.ts` for why the index carries only text while
    * workspace/kind/status/trash stay query-time filters on the live row.
    */
   postSearch: PostSearchPort;
