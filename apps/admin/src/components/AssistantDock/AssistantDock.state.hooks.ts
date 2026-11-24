@@ -1,3 +1,4 @@
+import { isAbortError } from '@jini-ai/core/text';
 import { useConfirmRequest } from "@jini-ai/admin/react";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -259,7 +260,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
   const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t({ key: "Tovu assistant" }) });
   // One policy-gated selection handler for both the failure card and the picker.
   const handleSelectionChange = executionPolicy.selectionChange({ change: handleLocalCliSelectionChange });
-  const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
+  const failureSurface = useAgentFailureSurface({ transport, isAbortError, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
   const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });

@@ -1,3 +1,4 @@
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { partitionChatPackages } from "./chat-package-kind";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
@@ -132,7 +133,7 @@ const RECENT_DIRECTORY_NAMES_STORAGE_KEY = "tovu.assistant.recentWorkingDirector
  * const workingDirectoryAccess = useWorkingDirectoryAccess();
  */
 export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
-  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY }), []);
+  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync }), []);
 }
 
 export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}

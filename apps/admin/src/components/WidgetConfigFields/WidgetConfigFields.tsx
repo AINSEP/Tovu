@@ -1,3 +1,4 @@
+import { isAbortError } from '@jini-ai/core/text';
 import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isUserCollection } from "../../features/collections/rules";
@@ -350,7 +351,7 @@ function RecentEntriesConfigFields({
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"] },
+    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"], isAbortError },
     { errorFallback: t("failed to load collections") },
   );
   const c = useRecentEntriesConfigHook({ config: props.config, onChange: props.onChange });
@@ -437,7 +438,7 @@ function MenuConfigFields({
   ...props
 }: FetchedConfigFieldsProps) {
   const { items: menus, error } = useOptions<AdminMenu>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"] },
+    { fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"], isAbortError },
     { errorFallback: t("failed to load menus") },
   );
 
@@ -478,7 +479,7 @@ function ContactFormConfigFields({
   ...props
 }: FetchedConfigFieldsProps) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"] },
+    { fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"], isAbortError },
     { errorFallback: t("failed to load forms") },
   );
 
