@@ -83,6 +83,9 @@ export function analyticsProviderRouteDeps(
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
       // These general forwarders have no anonymous-level contract.
+      // Consent gate: when the visitor has not allowed full analytics (consent off, or only the
+      // anonymous level), nothing is forwarded to any vendor. Pinned by
+      // `composition/__tests__/analytics-consent-off.pin.unit.test.ts`.
       consentAllowsAnalytics: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).analyticsLevel === 'full',
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,
