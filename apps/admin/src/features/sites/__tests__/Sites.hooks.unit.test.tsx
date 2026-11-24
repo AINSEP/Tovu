@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import {
   resolveDatabaseOptionClassName,
   resolveSiteCardTitle,
   resolveSiteDatabaseOptions,
   resolveSiteRegistrationBadge,
-  resolveSitesEmpty,
   resolveSitesTabId,
   resolveSitesTabs,
-  resolveSiteSubtitle,
   SITES_TAB_IDS,
   useCreateSiteDatabase,
   type SiteDatabaseOption,
@@ -69,13 +67,6 @@ describe("resolveSitesTabs", () => {
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 3 });
     expect(tabs[0].count).toBe(3);
     expect(tabs.slice(1).map((tab) => tab.count)).toEqual([undefined]);
-  });
-});
-
-describe("resolveSitesEmpty", () => {
-  it("is true only for an empty list", () => {
-    expect(resolveSitesEmpty({ sites: [] })).toBe(true);
-    expect(resolveSitesEmpty({ sites: [entry("alpha")] })).toBe(false);
   });
 });
 
@@ -206,18 +197,6 @@ function snapshotFor(entryName: string, listed: boolean): AdminSitesSnapshot {
 describe("resolveSiteCardTitle", () => {
   it("is the absolute path, which the card carries as its hover tooltip", () => {
     expect(resolveSiteCardTitle(entry("alpha"))).toBe("/repo/sites/alpha");
-  });
-});
-
-describe("resolveSiteSubtitle", () => {
-  it("is null when the display name only repeats the folder name — initSite's own default", () => {
-    // `initSite` defaults `config.json.name` to the folder basename, so this is the common case and
-    // rendering it would spend a line of the compact card saying the same word twice.
-    expect(resolveSiteSubtitle(entry("alpha"))).toBeNull();
-  });
-
-  it("is the display name when an operator has actually set a different one", () => {
-    expect(resolveSiteSubtitle({ ...entry("alpha"), displayName: "Alpha Client Site" })).toBe("Alpha Client Site");
   });
 });
 

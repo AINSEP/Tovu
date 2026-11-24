@@ -1,0 +1,17 @@
+/* The workspace screen's `jini-*` classes that `integrations/jini-admin/jini-media.css` does not
+   already style — the same declarations the screen's former host classes carried in `styles.css`
+   (`.workspace-page`, `.form-measure`, `.integrations-form`, `.settings-layer-*`,
+   `.workspace-identity-grid`, `.card-danger`), scoped to this screen. */
+.jini-workspace-page { max-width: var(--form-measure); }
+.jini-workspace-page .jini-form-measure { max-width: var(--form-measure); }
+.jini-workspace-page .jini-integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.jini-workspace-page .jini-integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
+.jini-workspace-page .jini-form-measure.jini-integrations-form label { max-width: none; }
+/* The ID/Created chips span the measured box so the `auto-fit` grid has a width to fit into. */
+.jini-workspace-page .jini-form-measure.jini-integrations-form > .jini-settings-layer-grid { align-self: stretch; }
+.jini-workspace-page .jini-settings-layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.7rem; }
+.jini-workspace-page .jini-settings-layer-cell { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border-radius: var(--r-md); padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+.jini-workspace-page .jini-settings-layer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
+.jini-workspace-page .jini-workspace-identity-grid { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.jini-workspace-page .jini-card-danger { border-color: var(--danger); background: var(--danger-bg); }
+.jini-workspace-page .jini-card-danger .jini-card-title { color: var(--danger); }

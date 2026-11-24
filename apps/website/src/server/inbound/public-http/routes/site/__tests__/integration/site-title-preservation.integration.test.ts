@@ -16,7 +16,7 @@ import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
-import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import type { SiteTitlePreservationStorePort } from "#src/features/settings/site-title";
@@ -572,7 +572,7 @@ const RENAMED_SITE_NAME = "Renamed Site";
 function renameSiteConfig(dir: string, name: string): void {
   const configPath = path.join(dir, "config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
-  writeJsonFileAtomic({ filePath: configPath, data: { ...config, name } }, {});
+  writeJsonFileAtomic({ filePath: configPath, data: { ...config, name }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
 
 test("AC-22 (REQ-13, EC-01): a config.json rename on a running new site renders on the next request with no restart, and an owner title still wins over a later one", async (t) => {

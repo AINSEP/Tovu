@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resetCustomFsRootForTests, setCustomFsRoot } from "../custom-root-store.js";
+import { resetCustomFsRootForTests, setCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, resolveFsRoots } from "../layout.js";
 
 /**

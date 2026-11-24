@@ -5292,6 +5292,638 @@
     {
       "id": "75eba65f9f7e",
       "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/site-key-permission.ts (batch P; the product site-key name is the injected siteKeyName, K3); reworded neutral where it named the product or host paths. Was apps/website/src/features/identity/site-key-permission.ts:64-69."
+    },
+    {
+      "id": "7b602d675672",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AdminPermanentDeletes.tsx (Jini fc27493a), reworded neutral."
+    },
+    {
+      "id": "cc923745e882",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AdminAssistantSwitch.tsx (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "7888fc3eb6ba",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AdminAssistantSwitch.tsx (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "6fd8476039f5",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AssistantDaemonRestart.tsx (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "fe5c91f41b52",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AssistantDaemonRestart.tsx (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "c0e3b31adc1c",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/AssistantDaemonRestart.tsx (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "bc92b1b23282",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/VisitorAssistantPanel.tsx (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "066e5aa66a5c",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/VisitorAssistantPanel.tsx (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "d1ee6ee65708",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/__tests__/use-admin-assistant-switch.hooks.unit.test.ts (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "7487ad31449d",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/__tests__/use-admin-assistant-switch.hooks.unit.test.ts (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "2ad11d03e1c6",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "0aedd119af3f",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "d50f39e9d098",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "0a366382957d",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "bc0e2cf427af",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "1d7ba27f9693",
+      "reason": "Test moved to Jini packages/admin/src/react/__tests__/hooks/use-process-restart.test.tsx (Jini 7273a8a6); case comments reworded neutral."
+    },
+    {
+      "id": "e7c3c99ed41f",
+      "reason": "Moved to Jini packages/core/src/contracts/site/api-ai-assistant-api-types.ts (Jini ad38a80c), reworded neutral."
+    },
+    {
+      "id": "f1d330f19624",
+      "reason": "Moved to Jini packages/core/src/contracts/site/api-ai-assistant-api-types.ts (Jini ad38a80c), reworded neutral."
+    },
+    {
+      "id": "046b0c41c416",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-ai-assistant.hooks.ts (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "1eef3cece84d",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "e11773b8c2a3",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "d089ce415a1a",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-admin-assistant-switch.hooks.ts (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "8076ff093bac",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-admin-permanent-deletes.hooks.ts (Jini fc27493a), whose doc carries the same rationale."
+    },
+    {
+      "id": "f0f2a4675553",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-ai-assistant.hooks.ts (Jini b458f4db), reworded neutral."
+    },
+    {
+      "id": "3c1bec9ebd05",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "231d09fb5283",
+      "reason": "Deduped onto Jini packages/admin/src/react/hooks/use-process-restart.ts (Jini 7273a8a6), whose doc carries the same rationale."
+    },
+    {
+      "id": "7edfc3f52a2a",
+      "reason": "Deduped onto Jini packages/admin/src/react/hooks/use-process-restart.ts (Jini 7273a8a6), whose doc carries the same rationale."
+    },
+    {
+      "id": "8dd4a28a9708",
+      "reason": "Deduped onto Jini packages/admin/src/react/hooks/use-process-restart.ts (Jini 7273a8a6), whose doc carries the same rationale."
+    },
+    {
+      "id": "a80a47d31d06",
+      "reason": "Deduped onto Jini packages/admin/src/react/hooks/use-process-restart.ts (Jini 7273a8a6), whose doc carries the same rationale."
+    },
+    {
+      "id": "f8616c299002",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "ca4261c0b841",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-assistant-panel.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "db935a98e62c",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "90dd39ce2944",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-port.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "db6b0bbd3214",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "4e9709812666",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-port.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "820ea3336db6",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "4a38b27c099f",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "2d59ed98e34b",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "7ecbd45e3d42",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "403cf4388158",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "e45f35e7e9ee",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form.rules.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "62a3d1c19e55",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "5c665e96d031",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "d7ba677f2f51",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "3b5d50ac6259",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "c31eb203bba2",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "fc1cd2b05ebc",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "d29dcf6de99b",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-port.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "e034f6e4534f",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "0af102223a30",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-actions.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "3931877912c9",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "c068e7e4d99d",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "b333ada3db17",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-discovery.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "5bcd2b7529ed",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-discovery.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "d50cdff42645",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "2e2caa5199bd",
+      "reason": "Moved to Jini packages/admin/src/screens/assistant-settings/use-visitor-credential-form.hooks.ts (Jini b8471665), reworded neutral."
+    },
+    {
+      "id": "c28ac738b02f",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "79052dd3e6fb",
+      "reason": "Moved within the host to apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts, reworded."
+    },
+    {
+      "id": "ec7b87fa8ac2",
+      "reason": "Deduped onto Jini packages/admin/src/screens/assistant-settings/visitor-credential-form-port.ts (Jini b8471665), whose doc carries the same rationale."
+    },
+    {
+      "id": "30c94672243e",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/use-folder-drop.hooks.ts (Jini 45e07e35), reworded neutral."
+    },
+    {
+      "id": "3938f1dba76b",
+      "reason": "Deduped onto Jini packages/admin/src/screens/fs-files/use-folder-drop.hooks.ts (Jini 45e07e35), whose doc carries the same rationale."
+    },
+    {
+      "id": "03e4402212da",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/folder-drop.rules.ts (Jini 45e07e35), reworded neutral."
+    },
+    {
+      "id": "0e893bbdbfaa",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/use-folder-drop.hooks.ts (Jini 45e07e35), reworded neutral."
+    },
+    {
+      "id": "2ace7e77e6be",
+      "reason": "Moved to Jini packages/admin/src/screens/fs-files/use-native-folder-picker.hooks.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "b2dceec37943",
+      "reason": "Deduped onto Jini packages/admin/src/screens/fs-files/use-native-folder-picker.hooks.ts (Jini b60d28d2), whose doc carries the same rationale."
+    },
+    {
+      "id": "f85d40102888",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/AllSitesTab.tsx (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "7bf22ed286ed",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/SiteCardView.tsx (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "0d9c66f3745d",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/SiteCardView.tsx (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "50fa6553aa81",
+      "reason": "Deduped onto Jini packages/admin/src/screens/sites/AllSitesTab.tsx (Jini 6719dfe8), whose doc carries the same rationale."
+    },
+    {
+      "id": "bf80e5c7597b",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/AllSitesTab.tsx (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "40560e192e16",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/sites-list-rules.ts (Jini edc8ceba), reworded neutral."
+    },
+    {
+      "id": "7fa4856a75ca",
+      "reason": "Moved to Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "8f929ca04f57",
+      "reason": "Moved to Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "e9cdafa80c90",
+      "reason": "Moved to Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "58448c7ae00b",
+      "reason": "Moved to Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "f7e07caf5344",
+      "reason": "Deduped onto Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), whose doc carries the same rationale."
+    },
+    {
+      "id": "3ec770e8db4f",
+      "reason": "Deduped onto Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), whose doc carries the same rationale."
+    },
+    {
+      "id": "fc2296b4f8a8",
+      "reason": "Moved to Jini packages/core/src/contracts/site/admin-sites.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "fe2539e801df",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/sites-port.hooks.ts (Jini 476d5356), reworded neutral."
+    },
+    {
+      "id": "590414f72bef",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/use-created-site-return.hooks.ts (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "99f406e05843",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/use-created-site-return.hooks.ts (Jini 6719dfe8), reworded neutral."
+    },
+    {
+      "id": "ae02285e6be8",
+      "reason": "Deduped onto Jini packages/admin/src/screens/sites/use-local-sites.hooks.ts (Jini 476d5356), whose doc carries the same rationale."
+    },
+    {
+      "id": "a33301747b0f",
+      "reason": "Deduped onto Jini packages/admin/src/screens/sites/use-site-confirm.hooks.ts (Jini edc8ceba), whose doc carries the same rationale."
+    },
+    {
+      "id": "e053301c3680",
+      "reason": "Moved to Jini packages/admin/src/screens/sites/use-site-confirm.hooks.ts (Jini edc8ceba), reworded neutral."
+    },
+    {
+      "id": "816a1b048166",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "47019c6584e4",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "7e0b4929fa71",
+      "reason": "Deduped onto Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), whose doc carries the same rationale."
+    },
+    {
+      "id": "da659cf51544",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "d704a8e0dc1a",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "163c7e623de4",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "7967ba20df89",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/Workspace.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "4b9b436fded5",
+      "reason": "Test moved to Jini packages/admin/src/screens/workspace/__tests__/Workspace.unit.test.tsx (Jini bc421785); case comments reworded neutral."
+    },
+    {
+      "id": "b587443331a5",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/__tests__/Workspace.unit.test.tsx (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "1787f36e1ac2",
+      "reason": "Test moved to Jini packages/admin/src/screens/workspace/__tests__/use-workspace.hooks.unit.test.ts (Jini b591632f); case comments reworded neutral."
+    },
+    {
+      "id": "5ea32a13241a",
+      "reason": "Deduped onto Jini packages/core/src/contracts/site/cms-workspace.ts (Jini bc421785), whose doc carries the same rationale."
+    },
+    {
+      "id": "856f66e92b82",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/hooks/use-workspace.hooks.ts (Jini b591632f), reworded neutral."
+    },
+    {
+      "id": "7fc4d0860916",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/hooks/use-workspace.hooks.ts (Jini b591632f), reworded neutral."
+    },
+    {
+      "id": "e8aa0701ea9b",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/hooks/use-workspace.hooks.ts (Jini b591632f), reworded neutral."
+    },
+    {
+      "id": "26b229bc42a9",
+      "reason": "Moved to Jini packages/admin/src/screens/workspace/hooks/workspace-port.hooks.ts (Jini bc421785), reworded neutral."
+    },
+    {
+      "id": "ad632c7d77c1",
+      "reason": "Moved to Jini packages/core/src/contracts/site/api-ai-assistant-api-types.ts (Jini ad38a80c), reworded neutral."
+    },
+    {
+      "id": "86095773e6d6",
+      "reason": "Moved to Jini packages/core/src/tool-metadata/workspace.ts (Jini 82102395), reworded neutral."
+    },
+    {
+      "id": "ae0f4a71eabd",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-permission.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "b09e1a777608",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "135213fc8e5a",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "d103b1caf80f",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "5d0b2621d9b7",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "45a5fcbb5d0e",
+      "reason": "Moved to Jini packages/cms/src/fs-files/custom-root-store.ts (Jini b60d28d2), reworded neutral."
+    },
+    {
+      "id": "f6e971777cb4",
+      "reason": "Moved to Jini packages/diagnostics/src/web-evidence/__tests__/published-page.test.ts (Jini 79e3c4a8), reworded neutral."
+    },
+    {
+      "id": "abee12936650",
+      "reason": "Moved to Jini packages/diagnostics/src/web-evidence/published-page.ts (Jini 79e3c4a8), reworded neutral."
+    },
+    {
+      "id": "8a3c1be3ca1a",
+      "reason": "Moved to Jini packages/diagnostics/src/web-evidence/published-page.ts (Jini 79e3c4a8), reworded neutral."
+    },
+    {
+      "id": "e6f7bba662c0",
+      "reason": "Test moved to Jini packages/diagnostics/src/web-evidence/__tests__/playwright-page-capture.test.ts (Jini 3e1d7d79); case comments reworded neutral."
+    },
+    {
+      "id": "e90800478c4d",
+      "reason": "Moved to Jini packages/integrations/src/web-screenshot/capture-files.ts (Jini 7463cfdd), reworded neutral."
+    },
+    {
+      "id": "ab7eab43073f",
+      "reason": "Moved to Jini packages/integrations/src/web-screenshot/own-site-opener.ts (Jini 7463cfdd), reworded neutral."
+    },
+    {
+      "id": "927134031817",
+      "reason": "Moved to Jini packages/diagnostics/src/web-evidence/playwright-page-capture.ts (Jini 3e1d7d79), reworded neutral."
+    },
+    {
+      "id": "68fcfdaad464",
+      "reason": "Moved to Jini packages/cms/src/workspace/site/__tests__/repo.sqlite.characterization.test.ts (Jini b591632f), reworded neutral."
+    },
+    {
+      "id": "46ae36a98d44",
+      "reason": "Test moved to Jini packages/cms/src/workspace/__tests__/tool-registrations.test.ts (Jini cd25cb27); case comments reworded neutral."
+    },
+    {
+      "id": "908913577b1c",
+      "reason": "Moved to Jini packages/cms/src/workspace/agent-tools.ts (Jini cd25cb27), reworded neutral."
+    },
+    {
+      "id": "7c4bb035718a",
+      "reason": "Deduped onto Jini packages/cms/src/workspace/index.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "ba240bce1b40",
+      "reason": "Moved to Jini packages/cms/src/workspace/index.ts (Jini cd25cb27), reworded neutral."
+    },
+    {
+      "id": "2a346202a6bb",
+      "reason": "Deduped onto Jini packages/cms/src/workspace/tool-registrations.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "1e93f2203971",
+      "reason": "Deduped onto Jini packages/cms/src/workspace/tool-registrations.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "da36286dd779",
+      "reason": "Deduped onto Jini packages/cms/src/workspace/site/tool-registrations.ts (Jini 82102395), whose doc carries the same rationale."
+    },
+    {
+      "id": "a083f3ea4160",
+      "reason": "Moved to Jini packages/cms/src/workspace/site/tool-registrations.ts (Jini 82102395), reworded neutral."
+    },
+    {
+      "id": "0c8e55403529",
+      "reason": "Test moved to Jini packages/platform/src/fs/__tests__/atomic-write.test.ts (Jini cd25cb27); case comments reworded neutral."
+    },
+    {
+      "id": "a827bd6d5cca",
+      "reason": "Reworded in place in apps/website/src/platform/site-dir/__tests__/unit/read-site-dir.unit.test.ts (the host file it named is gone)."
+    },
+    {
+      "id": "20c443d419d7",
+      "reason": "Deduped onto Jini packages/platform/src/fs/atomic-write.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "55a62b7114eb",
+      "reason": "Moved within the host to apps/website/src/platform/site-dir/init-site.ts, reworded."
+    },
+    {
+      "id": "44a8df65f3c0",
+      "reason": "Deduped onto Jini packages/platform/src/fs/atomic-write.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "13c36b3afe5f",
+      "reason": "Deduped onto Jini packages/platform/src/fs/atomic-write.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "3b7beaeea532",
+      "reason": "Deduped onto Jini packages/platform/src/fs/atomic-write.ts (Jini cd25cb27), whose doc carries the same rationale."
+    },
+    {
+      "id": "05178a83f910",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/__tests__/detect-agents-projection.test.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "cd88217f90c9",
+      "reason": "Test moved to Jini packages/cms/src/admin-http/routes/assistant/__tests__/stored-credential-probe.test.ts (Jini 7914ab0d); case comments reworded neutral."
+    },
+    {
+      "id": "1d6b91e204da",
+      "reason": "Test moved to Jini packages/cms/src/admin-http/routes/assistant/__tests__/stored-credential-probe.test.ts (Jini 7914ab0d); case comments reworded neutral."
+    },
+    {
+      "id": "5693ef6fa013",
+      "reason": "Deduped onto Jini packages/cms/src/admin-http/routes/assistant/detect-agents.ts (Jini 7914ab0d), whose doc carries the same rationale."
+    },
+    {
+      "id": "042609f1a04f",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/detect-agents.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "fabdbc47bd9e",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/get-chat-attachment.ts (Jini bac6c7df), reworded neutral."
+    },
+    {
+      "id": "54ad6ea02f04",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/get-chat-attachment.ts (Jini bac6c7df), reworded neutral."
+    },
+    {
+      "id": "73a3a178566f",
+      "reason": "Moved within the host to apps/website/src/server/runtime/composition/modules/assistant-attachment-read.ts, reworded."
+    },
+    {
+      "id": "9067455a57a1",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/get-chat-attachment.ts (Jini bac6c7df), reworded neutral."
+    },
+    {
+      "id": "838e97f89821",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/list-models.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "e26a46a99a13",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/stored-credential-probe.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "d5aa10f83bd1",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/stored-credential-probe.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "dec1f5d6ee8e",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/stored-credential-probe.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "98d97cc5e525",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/stored-credential-probe.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "fe0656e11bfa",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/assistant/test-connection.ts (Jini 7914ab0d), reworded neutral."
+    },
+    {
+      "id": "97bb5471edd1",
+      "reason": "Deduped onto Jini packages/cms/src/admin-http/routes/assistant/visitor-tools.ts (Jini 7914ab0d), whose doc carries the same rationale."
+    },
+    {
+      "id": "697e05d1ae45",
+      "reason": "Obsolete: labelled props as test seams defaulted to the real hooks; the hook props are now required (owner rule: hooks reach Jini components as required props), panel moved to Jini assistant-settings/VisitorAssistantPanel.tsx."
+    },
+    {
+      "id": "8813b1ebd904",
+      "reason": "Obsolete: labelled a test seam defaulting to the wired tools panel; toolsPanel is now a required prop of Jini assistant-settings/VisitorAssistantTabs.tsx."
+    },
+    {
+      "id": "6989af100508",
+      "reason": "Obsolete: labelled a hook prop defaulted to the real hook; it is now a required prop of Jini assistant-settings/VisitorToolsPanel.tsx."
+    },
+    {
+      "id": "5c7c7437be89",
+      "reason": "Step label of a deleted duplicate test; the hook was deduped onto Jini useProcessRestart, whose use-process-restart.test.tsx covers the follow-up check by case title."
+    },
+    {
+      "id": "ae68fa77c07e",
+      "reason": "Step label of a deleted duplicate test (mount-time status read); covered by Jini use-process-restart.test.tsx."
+    },
+    {
+      "id": "5aadd1b49b09",
+      "reason": "Step label of a deleted duplicate test (restart microtask); covered by Jini use-process-restart.test.tsx."
+    },
+    {
+      "id": "719091fd899f",
+      "reason": "Obsolete: documented createFakeAssistantDaemonRestartPort, deleted with its only user (the deduped hook test)."
+    },
+    {
+      "id": "ab956a6977cc",
+      "reason": "Obsolete: documented the deleted in-memory fake restart port (its only user, the deduped hook test, was deleted)."
+    },
+    {
+      "id": "e7aacdd44383",
+      "reason": "Obsolete: said the dep defaults to the real API; folder-drop deps are now required (Jini admin screens/fs-files/use-folder-drop.hooks.ts), bound by the host folderDropDeps."
+    },
+    {
+      "id": "e13a113aa2e2",
+      "reason": "Obsolete: said the dep defaults to the real API; folder-drop deps are now required, bound by the host folderDropDeps."
+    },
+    {
+      "id": "74798eaed19e",
+      "reason": "Obsolete: said the dep defaults to api.pickFolder; native folder picker deps are now required (Jini admin screens/fs-files), bound by the host nativeFolderPickerDeps."
+    },
+    {
+      "id": "dd3bda19eaeb",
+      "reason": "Type-narrowing note in node:test files converted to vitest in Jini (custom-root-store test moved to Jini cms/fs-files/__tests__); vitest has no SuiteContext arm, so the note no longer applies."
     }
   ]
 }

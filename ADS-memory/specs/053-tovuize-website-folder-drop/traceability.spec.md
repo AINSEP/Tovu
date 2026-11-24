@@ -78,7 +78,7 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 | EC-02 | User drops a file, not a folder | use-folder-drop.hooks.unit.test.ts; Jini packages/ui/src/__tests__/features/folder-path-drop/rules.test.ts (@ Jini 59acc4db) | "falls through (no-op) when nothing dropped is a folder (EC-02, a loose file)"; "skips a file item whose entry is not a directory" | VERIFIED |
 | EC-03 | Dropped folder is extremely large | none (custom-root-store.ts stats the path only) | — | GAP |
 | EC-04 | Second folder dropped mid-conversion | none | — | GAP |
-| EC-05 | Folder dropped on browser (non-desktop) admin chat | use-folder-drop.hooks.unit.test.ts; admin/features/fs-files/__tests__/folder-drop-port.unit.test.ts; desk/speech/preload-speech.test.ts | "does nothing when no folder-drop port is available (plain browser tab, EC-05)"; "returns null for a window with no tovuFiles bridge"; "window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths" | VERIFIED |
+| EC-05 | Folder dropped on browser (non-desktop) admin chat | use-folder-drop.hooks.unit.test.ts; Jini packages/admin/src/screens/fs-files/__tests__/folder-drop-port.unit.test.ts; desk/speech/preload-speech.test.ts | "does nothing when no folder-drop port is available (plain browser tab, EC-05)"; "returns null for a window with no bridge global (plain browser tab)"; "window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths" | VERIFIED |
 | EC-06 | Name/slug collision with existing theme or Page | none | — | GAP |
 | EC-07 | Conversion mode comes only from submitted choice | bundled-tovu-theme-package.unit.test.ts; ask-choice-tool.test.ts | B1 contract | UNRUN; no live eval |
 

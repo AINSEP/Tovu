@@ -5,7 +5,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { WEB_SCREENSHOT_PERMISSION, webScreenshotAgentToolCatalog } from "./agent-tools.js";
-import { createWebScreenshotService, readWebScreenshotInput, WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type SaveCaptureFiles, type WebScreenshotPorts, type WebScreenshotService } from "./web-screenshot.js";
+import { createWebScreenshotService, readWebScreenshotInput, WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type SaveCaptureFiles, type WebScreenshotPorts, type WebScreenshotService } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file Maps the `web-screenshot` catalog onto {@link createWebScreenshotService}. The handler gates
@@ -34,7 +34,7 @@ export function buildWebScreenshotRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [WEB_SCREENSHOT_TOOL_ID]: async (ctx) => {
-      const input = readWebScreenshotInput(requireInputRecord({ input: ctx.input }));
+      const input = readWebScreenshotInput({ input: requireInputRecord({ input: ctx.input }) });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WEB_SCREENSHOT_PERMISSION }, { entityType: "web-page" });
       return service.screenshot({ input, ...(openOwnSite ? { openOwnSite } : {}), ...(saveCaptureFiles ? { saveCaptureFiles } : {}) }, ctx.signal ? { signal: ctx.signal } : {});
     },

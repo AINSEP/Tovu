@@ -1,0 +1,12 @@
+HEAD 06a816f39
+typecheck exit=2 secs=56
+guard exit=1 secs=66
+api-check exit=0 secs=15
+size exit=1 secs=25
+complexity exit=1 secs=28
+hooks exit=0 secs=1
+why-comments exit=1 secs=24
+cross-package exit=1 secs=20
+log-safety exit=1 secs=29
+error-gate exit=0 secs=25
+DONE

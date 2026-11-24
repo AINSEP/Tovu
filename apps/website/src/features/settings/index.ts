@@ -135,7 +135,6 @@ export {
   type EnsureSettingsUiTabDefinitionsInput,
 } from "@jini-ai/core/settings";
 
-export { ensureSettingsUiTabDefinitions } from '../webmcp/settings.js';
 
 export {
   type AgentWritablePreference,

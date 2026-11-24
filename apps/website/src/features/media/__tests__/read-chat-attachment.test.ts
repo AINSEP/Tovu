@@ -16,7 +16,8 @@ import {
 
 /**
  * @file `readChatAttachmentForOwner` — the authorization and path-safety half of the chat-attachment
- * read-back route (`routes/assistant/get-chat-attachment.ts`).
+ * read-back route (`@jini-ai/cms/admin-http/routes/assistant/get-chat-attachment`, bound in
+ * `server/runtime/composition/modules/assistant-attachment-read.ts`).
  *
  * Cases stage a REAL directory laid out the way `createDiskAttachmentStore` lays one out
  * with `retainAcrossRestarts` on: `<root>/.records/<reduced-id>.json` beside `<root>/<batch>/<file>`.

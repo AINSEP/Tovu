@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { PublicAssistantSettings } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
 /**
  * @file Coverage for `ai-assistant-dependencies.hooks.ts` (2/6 funcs) —

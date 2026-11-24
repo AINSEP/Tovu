@@ -6,7 +6,7 @@ import test, { type TestContext } from "node:test";
 import sharp from "sharp";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../../fs-files/custom-root-permission.js";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { IMAGE_TRANSFORM_TOOL_ID, buildImageTransformRegistrations, contributeImageTransformTools, imageTransformDerivedRisk } from "../tool.js";
 
 /**

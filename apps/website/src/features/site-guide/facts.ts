@@ -1,4 +1,5 @@
-import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
+import { buildSiteProfile } from "@jini-ai/cms/site-inspection/site-profile";
+import { toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import type { GuideFact as SiteFact } from "@jini-ai/agentic/core";
 import type { PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 

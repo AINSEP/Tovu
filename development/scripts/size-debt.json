@@ -23,13 +23,6 @@
       "value": 103
     },
     {
-      "file": "apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts",
-      "function": "useVisitorCredentialForm#1",
-      "line": 407,
-      "rule": "max-lines-per-function",
-      "value": 145
-    },
-    {
       "file": "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
       "function": "CollectionEntryEditor#1",
       "line": 387,

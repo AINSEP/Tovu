@@ -9,7 +9,7 @@ import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagent
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { ASSISTANT_SETTING_SOURCES } from "./assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
-import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
+import { getCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 import { claimBrowserForRun, releaseBrowserForRun } from "./assistant-browser-lease.js";
 import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
 

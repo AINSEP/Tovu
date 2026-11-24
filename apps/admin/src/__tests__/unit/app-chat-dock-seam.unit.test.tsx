@@ -16,7 +16,7 @@ import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 const useAdminLocaleHook = useHostAdminLocale;
 
 const folderDrop = vi.hoisted(() => ({ handleDropCapture: vi.fn() }));
-vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
+vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: () => ({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: folderDrop.handleDropCapture }),
 }));
 

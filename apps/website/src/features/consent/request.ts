@@ -1,6 +1,7 @@
 /** @file Closed request and revision-token contract shared by HTTP and tool transports. */
 import { ToolInputError } from "@jini-ai/core";
-import { resolveSitePath } from "#src/features/site-inspection/site-path-policy";
+import { resolveSitePath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 
 /** Reject unknown request fields and malformed version tokens before any mutation. O(fields). */
 export function readConsentRequest({ body, fields }: { body: unknown; fields: readonly string[] }, _options = {}): Record<string, unknown> {
@@ -21,6 +22,6 @@ export function consentRevisionToken({ input, key }: { input: Record<string, unk
 /** Use the existing local-render path boundary before allocating a loopback server. O(path length).
  * @example consentPagePath({ path: '/privacy' }) */
 export function consentPagePath({ path }: { path: string }, _options = {}): string {
-  try { return resolveSitePath({ raw: path, base: 'http://127.0.0.1' }); }
+  try { return resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS }); }
   catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }
 }

@@ -6,7 +6,8 @@ import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
-import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
+import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
+import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
 
 /**
  * Builds the `uploadAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>`. Injectable
@@ -178,7 +179,7 @@ export function useFolderDropBridge(
     onSkillDropError?: (message: string) => void;
   } = {},
 ): UseFolderDrop {
-  const folderDrop = useFolder(input);
+  const folderDrop = useFolder(input, folderDropDeps);
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
     if (proposeSkillFiles && captureSkillDrop({ event, proposeFiles: proposeSkillFiles, fallback: folderDrop.handleDropCapture }, onSkillDropError ? { onError: onSkillDropError } : {})) return;
     folderDrop.handleDropCapture(event);
