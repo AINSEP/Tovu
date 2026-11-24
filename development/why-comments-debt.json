@@ -3612,6 +3612,14 @@
     {
       "id": "cecd3ebf4521",
       "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
+    },
+    {
+      "id": "09e11019f541",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuTargetDto doc (combine-16, with the K1 menus DTO move); the host menus.ts is gone (routes now mount the Jini cms specs)."
+    },
+    {
+      "id": "c5d16d4d85d1",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuDto doc ('mode'/'html' absent on a menu that never used HTML mode; K1 rv1123e); the host menus.ts is gone."
     }
   ]
 }
