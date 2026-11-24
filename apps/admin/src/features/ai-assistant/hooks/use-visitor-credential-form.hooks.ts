@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import {
-  nextConfigForPresetSelect,
-  resolveSelectedPreset,
-  type ByokConfig,
-  type ConnectionTestState,
-  type ExecutionPort,
-  type ModelDiscoveryState,
-  type ProviderPreset,
-} from "@jini-ai/ui";
+import { nextConfigForPresetSelect, resolveSelectedPreset } from "@jini-ai/ui";
+import type { ByokConfig, ConnectionTestState, ExecutionPort, ModelDiscoveryState, ProviderPreset } from "@jini-ai/core/contracts/execution";
 
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";

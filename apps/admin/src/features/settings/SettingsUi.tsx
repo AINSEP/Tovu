@@ -105,24 +105,8 @@ import { useEffect } from "react";
  * the shell mounts.
  */
 
-import {
-  ExecutionTab,
-  I18nProvider,
-  InstructionsTab,
-  LanguageTab,
-  MemorySettingsPanel,
-  NotificationsTab,
-  PrivacyTab,
-  SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
-  type ExecutionConfig,
-  type MemoryConfigFlagKey,
-  type MemoryEntrySummary,
-  type MemoryExtractionRecord,
-  type NotificationsPreferences,
-  type PrivacyConsentState,
-  type SettingsDialogTab,
-} from "@jini-ai/ui";
+import { ExecutionTab, I18nProvider, InstructionsTab, LanguageTab, MemorySettingsPanel, NotificationsTab, PrivacyTab, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type MemoryConfigFlagKey, type MemoryEntrySummary, type MemoryExtractionRecord, type NotificationsPreferences, type PrivacyConsentState, type SettingsDialogTab } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";

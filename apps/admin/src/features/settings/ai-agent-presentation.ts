@@ -1,4 +1,4 @@
-import type { DetectedAgent, ExecutionPort } from '@jini-ai/ui';
+import type { ExecutionCardAgent, ExecutionPort } from '@jini-ai/core/contracts/execution';
 import { getFolderDropPort } from '../fs-files/folder-drop-port';
 import { getVoiceInputPort } from '../voice-input/voice-input-port';
 import { t } from './settings-execution-i18n';
@@ -20,7 +20,7 @@ export function isDesktopAdmin(
 /** Unknown authentication is not a refusal. Warn only about a confirmed missing sign-in. */
 export function selectedAgentWarning(
   { mode, agentId, agents, locale }: {
-    mode: string; agentId: string | null; agents: readonly DetectedAgent[]; locale: string;
+    mode: string; agentId: string | null; agents: readonly ExecutionCardAgent[]; locale: string;
   }, _optional = {},
 ): string | null {
   const agent = agents.find((candidate) => candidate.id === agentId);
@@ -31,19 +31,19 @@ export function selectedAgentWarning(
 /** Empty strings suppress the shared card's divider; trim whitespace without inventing vendor copy.
  * Undefined preserves Jini's existing vendor-description fallback. */
 export function normalizeAgentDescription(
-  { agent }: { agent: DetectedAgent }, _optional = {},
-): DetectedAgent {
+  { agent }: { agent: ExecutionCardAgent }, _optional = {},
+): ExecutionCardAgent {
   return agent.description === undefined ? agent : { ...agent, description: agent.description.trim() };
 }
 
 /** Share the component's scan with the warning instead of spawning another inventory sweep.
  * Rescan results replace previous auth status; rejected scans remain failures, never empty lists. */
 export function createAgentPresentationPort(
-  { port, onAgents }: { port: ExecutionPort; onAgents: (input: { agents: readonly DetectedAgent[] }, options?: Record<string, never>) => void },
+  { port, onAgents }: { port: ExecutionPort; onAgents: (input: { agents: readonly ExecutionCardAgent[] }, options?: Record<string, never>) => void },
   _optional = {},
 ): ExecutionPort {
   let latestScan = 0;
-  const project = async ({ request }: { request: () => Promise<readonly DetectedAgent[]> }, _options = {}) => {
+  const project = async ({ request }: { request: () => Promise<readonly ExecutionCardAgent[]> }, _options = {}) => {
     latestScan += 1;
     const scan = latestScan;
     const agents = (await request()).map((agent) => normalizeAgentDescription({ agent }));

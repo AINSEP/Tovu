@@ -72,7 +72,8 @@ import { settingsApi } from "./admin-http/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingResolvedValue } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import type { SettingScope } from "@jini-ai/core/settings";
-import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
+import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionConfig, ExecutionPort } from "@jini-ai/core/contracts/execution";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No
  *  `byok.apiKey` here — see this file's header, item 2. */

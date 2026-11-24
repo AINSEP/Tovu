@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ByokConfig } from "@jini-ai/ui";
+import type { ByokConfig } from "@jini-ai/core/contracts/execution";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError as FakeApiError } from "../../lib/admin-http/request";
 import { resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

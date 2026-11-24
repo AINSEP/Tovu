@@ -1,10 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import {
-  type ExecutionConfig,
-  type MemoryTopTab,
-  type NotificationsPreferences,
-  type PrivacyConsentState,
-} from "@jini-ai/ui";
+import { type MemoryTopTab, type NotificationsPreferences, type PrivacyConsentState } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import {
   DEFAULT_EXECUTION_CONFIG,
   EXECUTION_NAMESPACE,

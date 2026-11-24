@@ -4,7 +4,7 @@ import { StrictMode, type ReactNode, type SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import { onUnauthenticated } from "../../lib/admin-http/request";
 import { adminFrontendTabId } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 

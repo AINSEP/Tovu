@@ -89,7 +89,7 @@ import {
   saveExecutionConfig,
   selectedLocalCliReasoning,
 } from "../execution-settings";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 const LEGACY_STORAGE_KEY = "tovu:execution-credentials:v1";
 

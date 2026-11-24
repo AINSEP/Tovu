@@ -1,4 +1,4 @@
-import type { ExecutionConfig } from '@jini-ai/ui';
+import type { ExecutionConfig } from '@jini-ai/core/contracts/execution';
 import type { AdminDeploymentOverview } from '../features/deployment/api/deployment-api.types';
 
 /** Local CLI is hidden on deployed sites for now (owner 2026-10-07); later an agent could

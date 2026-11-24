@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DetectedAgent, ExecutionConfig, ExecutionPort } from '@jini-ai/ui';
+import type { ExecutionCardAgent, ExecutionConfig, ExecutionPort } from '@jini-ai/core/contracts/execution';
 import { createAgentPresentationPort, isDesktopAdmin, localCliScopeCopy, selectedAgentWarning } from '../ai-agent-presentation';
 
 /** Observe the same detection that renders Settings cards, including rescans and selection changes. */
@@ -7,7 +7,7 @@ export function useAiAgentPresentation(
   { port, config, locale }: { port: ExecutionPort; config: ExecutionConfig | null; locale: string },
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ) {
-  const [agents, setAgents] = useState<readonly DetectedAgent[]>([]);
+  const [agents, setAgents] = useState<readonly ExecutionCardAgent[]>([]);
   const live = useRef(false);
   useEffect(() => {
     live.current = true;

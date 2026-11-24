@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ExecutionConfig } from '@jini-ai/ui';
+import type { ExecutionConfig } from '@jini-ai/core/contracts/execution';
 import type { AdminDeploymentOverview } from '@/features/deployment/api/deployment-api.types';
 import { deploymentApi } from '@/features/deployment/api/deployment-api';
 import { effectiveExecutionConfig, localCliAllowed, preserveSavedExecutionMode, DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
