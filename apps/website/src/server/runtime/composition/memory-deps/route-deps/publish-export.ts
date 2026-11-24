@@ -63,7 +63,7 @@ import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
  * `deps.ts`/`app.ts`/`deployment-overview.ts` cycle (deps.ts closed the same cycle via a static
  * import as of 2026-09-16, t91 F4.1-A — see that file's own doc) but does not include this edge. This file already statically
  * imports every one of those modules' own dependencies anyway (`#src/features/theme/index`,
- * `#src/features/post/index`, `#src/features/presentation/index`, `#src/features/redirects/index`,
+ * `#src/features/post/index`, `#src/features/presentation/index`, `@jini-ai/cms/redirects/site/publish-content`,
  * `#src/platform/routing/index`, `#src/contracts/core/**` are all imported above), so this static
  * import adds `features/site-export`'s own 5 files to this file's runtime closure and nothing else.
  *

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo, resolveDefinitionRaw, set, SCOPE_BIT } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, resolveDefinitionRaw, set, SCOPE_BIT } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup } from "../index.js";
 import {
@@ -17,7 +17,7 @@ import {
   PREFER_SUBAGENTS_KEY,
   REPLY_LENGTH_KEY,
   USE_CLAUDE_IN_CHROME_KEY,
-} from "../admin-interface.js";
+} from "@jini-ai/cms/settings/site/admin-interface";
 
 /**
  * @file The assistant dock's Chat settings → Display keys (owner, 2026-10-11) as the server registers
@@ -37,6 +37,7 @@ async function registeredLedger() {
     clock,
     ids,
     principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
+    ensureSettingDefinitions,
   };
   await ensureAdminInterfaceSettingDefinitions(deps, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   return deps;

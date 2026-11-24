@@ -13,7 +13,7 @@ import { AdminThemeSchemeControl } from "../admin-themes";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { useAdminAppearanceSettings } from "./hooks/use-admin-appearance-settings.hooks";
 import { accentSwatchName, describeSaveStatus } from "./rules";
-import { t as settingsT } from "./settings-i18n";
+import { t as settingsT } from "@jini-ai/admin/screens/settings/settings-i18n";
 
 /** Admin UI composes the compact scheme picker and Jini-backed accent fields.
  * @complexity O(1): a fixed palette; persistence stays in the existing controllers. */

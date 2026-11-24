@@ -1,0 +1,3 @@
+BASE-RED render.golden.characterization 12/1 at base worktree (same as combine-13)
+BASE-RED cms forms/src/__tests__/package-boundary.test.ts 1/2 identical at Jini 4902a6a1 (worktree): version 0.7.2 vs 0.7.3-next.2
+BASE-RED (Tovu base worktree f7185f153, identical counts): automatic-agent-plugins.integration 41/2; domain-no-direct-tool-registration.boundary 6/1; owner-passkey-http.integration 0/1; mail-send.golden 0/1; plugin-host.integration 22/3; render.golden.characterization 12/1

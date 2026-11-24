@@ -6,7 +6,7 @@ import { InMemoryMediaRepo, type MediaRecord } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
 import { createSeoFeaturedImagePort } from "../index.js";
-import { createSeoPageHeadHook } from "../page-head-contributor.js";
+import { createSeoPageHeadHook } from "@jini-ai/cms/seo/site/page-head-contributor";
 
 const bodyJson = { type: "doc", content: [{ type: "media", attrs: { assetId: "body", alt: "Body alt" } }] };
 const image = (id: string, status: "active" | "trashed" = "active"): MediaRecord => ({

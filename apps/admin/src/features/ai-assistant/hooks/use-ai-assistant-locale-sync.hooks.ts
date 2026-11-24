@@ -6,7 +6,7 @@ import { useI18n } from "@jini-ai/ui";
  * so `@jini-ai/ui`'s own components (`ByokProviderForm`, `SettingsDialogShell`) keep following the
  * operator's Language setting after the initial render, not just at mount.
  *
- * Same logic as `features/settings/hooks/use-settings-locale-sync.hooks.ts` (not imported from
+ * Same logic as `@jini-ai/admin/screens/settings/hooks/use-settings-locale-sync.hooks` (not imported from
  * there — this feature owns its own hook, per this app's per-feature `hooks/` convention; the two
  * are identical by coincidence of both bridging the same upstream contract, not by a shared
  * dependency). See that file's own header for why `I18nProvider` needs this at all: `initialLocale`

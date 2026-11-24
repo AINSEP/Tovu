@@ -13,7 +13,7 @@ import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
-import { FormDeliveryBindingsConflictError } from "#src/features/settings/index";
+import { FormDeliveryBindingsConflictError } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "../../delivery-bindings.js";
 
 const WORKSPACE = "ws-1";

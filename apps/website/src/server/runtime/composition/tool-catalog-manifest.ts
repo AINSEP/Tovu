@@ -16,7 +16,8 @@ import type { LoadPluginCredentialCards } from "#src/features/custom-credentials
 import path from "node:path";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { bindContentTargetInputs } from "./content-target-inputs.js";
-import { contributeConsentTools } from '#src/features/consent/tool-registrations';
+import { contributeConsentTools } from '@jini-ai/cookie-consent/site/tool-registrations';
+import { consentToolHost } from '#src/features/consent/host-bindings';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
@@ -34,7 +35,7 @@ import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createToolHumanConfirmer } from '#src/assistant/tool-approval-policy';
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
-import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
+import { contributeAnalyticsTools } from "@jini-ai/analytics/site/tool-registrations";
 import { toolMetadata as commerceToolMetadata } from '#src/contracts/core/tool-metadata/commerce';
 import { toMajorString } from '@jini-ai/commerce/money';
 import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@jini-ai/commerce/tools";
@@ -131,9 +132,15 @@ import { contributeMembersTools } from "#src/features/members/tool-registrations
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
-import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
-import { contributeSeoTools } from "#src/features/seo/tool-registrations";
-import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
+import { contributeSettingsTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
+import { VISITOR_TOOLS_TOOL_HOST_POLICY } from "#src/features/settings/visitor-tools-agent-tools";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
@@ -552,14 +559,14 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Idempotent: re-registering replaces by entity type.
   installFirstPartyPublishContentTypes();
   contributions.contributors.register({ contribution: contributeRecoveryTools() });
-  contributions.contributors.register({ contribution: contributeRedirectsTools() });
-  contributions.contributors.register({ contribution: contributeSeoTools() });
+  contributions.contributors.register({ contribution: contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }) });
+  contributions.contributors.register({ contribution: contributeSeoTools({ toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings }) });
   // Site search (S6, 2026-10-21): query/status reads plus the human-confirmed reindex and provider
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
-  contributions.contributors.register({ contribution: contributeVisitorTools() });
-  contributions.contributors.register({ contribution: contributeConsentTools() });
+  contributions.contributors.register({ contribution: contributeVisitorTools({ hostPolicy: VISITOR_TOOLS_TOOL_HOST_POLICY }) });
+  contributions.contributors.register({ contribution: contributeConsentTools({ host: consentToolHost }) });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.

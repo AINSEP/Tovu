@@ -7,7 +7,7 @@ import { registerAdminVisitorToolsRoutes, type VisitorToolsRouteDeps } from "#sr
 import { ADMIN_VISITOR_TOOLS_PATH } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { visitorManagementFixture } from "#src/features/settings/__tests__/visitor-tools-management.fixture";
-import { VisitorToolsRevisionConflictError } from "#src/features/settings/visitor-tools-write";
+import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
 import { ws } from "#src/features/settings/__tests__/visitor-tools.fixture";
 

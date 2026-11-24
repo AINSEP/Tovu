@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { createSeoFeaturedImagePort } from "../index.js";
+import { createSeoFeaturedImagePort, seoSettingsHostBindings } from "../index.js";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings.js";
+import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 
 /**
  * @file T020 — failing-first certification: `ensureSeoSettingDefinitions` is
@@ -29,7 +29,7 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 test("ensureSeoSettingDefinitions: idempotent — calling twice registers exactly 8 definitions, not 16", async () => {
   const settingsRepo = new InMemorySettingsRepo();
-  const deps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: new InMemoryPrincipalRepo({}, { initialRows: [] }),
+  const deps = { ...seoSettingsHostBindings, settingsRepo, clock, ids, authorize: alwaysAllow, principals: new InMemoryPrincipalRepo({}, { initialRows: [] }),
     media: { featuredImage: createSeoFeaturedImagePort({ deps: { mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }) } }, {}) },
   };
   const input = { workspaceId: "workspace-1", systemPrincipalId: "system-seo" };

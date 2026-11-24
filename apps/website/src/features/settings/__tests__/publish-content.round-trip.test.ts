@@ -24,7 +24,14 @@ import {
   WORKSPACE_ID,
 } from "../../publish-content/__tests__/round-trip-harness.js";
 import { clear, resolveDefinitionRaw, set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
-import { contributeSiteSettingPublish, pointsAtThisComputer } from "../publish-content.js";
+import { contributeSiteSettingPublish as contributeSiteSettingPublishWith, pointsAtThisComputer } from "@jini-ai/cms/settings/site/publish-content";
+import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
+import { createSettingsPrincipalLookup } from "../index.js";
+import { SETTINGS_WRITE_POLICIES } from "../settings-write-policies.js";
+
+/** The same host bindings `server/runtime/composition/publish-content-manifest.ts` passes. */
+const contributeSiteSettingPublish = () => contributeSiteSettingPublishWith({ createRepoPublishHandler, gatewayDeps, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup });
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

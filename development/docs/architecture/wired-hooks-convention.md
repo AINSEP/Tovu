@@ -78,7 +78,7 @@ Live examples, in order of how much surface they cover:
   {port,dependencies}.hooks.ts` — a port scoped to TWO calls out of a file that reaches several
   things; see "When it does not apply" below for why the rest of that file's reaches were left alone.
 - `apps/admin/src/features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks.ts` +
-  `apps/admin/src/features/settings/hooks/use-settings-locale-sync.hooks.ts` — the smallest instance:
+  `@jini-ai/admin/screens/settings/hooks/use-settings-locale-sync.hooks` — the smallest instance:
   injecting `{ activeLocale, setLocale }` in place of a direct `useI18n()` call. No separate port file
   — two fields don't earn one; the interface lives inline in the hook file.
 

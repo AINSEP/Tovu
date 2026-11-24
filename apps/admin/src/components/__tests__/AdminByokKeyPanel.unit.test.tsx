@@ -9,7 +9,7 @@ import {
   resolveByokSettingsStatusLine,
 } from "../AdminByokKeyPanel";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
-import { t as tSettingsExecution } from "../../features/settings/settings-execution-i18n";
+import { t as tSettingsExecution } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
 
 /**
  * @file Presentational-only coverage for `AdminByokKeyPanel.tsx` — the migration banner and the

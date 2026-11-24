@@ -72,11 +72,11 @@ import {
 } from "../configuration/seed.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
-import { registerSlugChangeCapture } from "#src/platform/routing/adapter";
+import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";
+import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
-import { createSiteConsentReadiness } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
@@ -89,7 +89,9 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
+import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
+import { getEffective } from "@jini-ai/core/settings";
+import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
 import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 
 import { captureRouteError } from "../../inbound/shared/observability-middleware.js";
@@ -293,6 +295,7 @@ function createMemoryRedirects(context: ReturnType<typeof createMemoryRuntime> &
     matcher: redirectMatcher,
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
+    registerResolvePhase,
   }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
@@ -308,7 +311,7 @@ function createMemoryWidgets(context: ReturnType<typeof createMemoryRuntime> & R
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
   // No site directory means no creation zone; an unset `core.site.timezone` uses the server's zone.
-  const siteTimeZone = createSiteTimeZonePort({ settingsRepo });
+  const siteTimeZone = createSiteTimeZonePort({ settingsRepo, getEffective, reportFallback: createSiteTimeZoneFallbackReporter() });
   wireCoreResolvers({
     siteTimeZone,
     crypto: globalThis.crypto,

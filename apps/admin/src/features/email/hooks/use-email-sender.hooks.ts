@@ -5,7 +5,7 @@ import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 
 /**
  * @file Sender & DNS tab state. The sender is two ordinary settings (`core.mail.senderName`,
- * `core.mail.senderEmail`, `features/settings/mail-sender.ts`) saved with the settings API; the
+ * `core.mail.senderEmail`, `@jini-ai/cms/settings/site/mail-sender`) saved with the settings API; the
  * next email uses them. DNS is `GET …/mail-dns` on open and `POST …/mail-dns/verify` for
  * **Check again** — neither changes DNS.
  */

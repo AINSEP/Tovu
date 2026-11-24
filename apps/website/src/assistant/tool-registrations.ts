@@ -90,8 +90,8 @@ import type { MembersToolDeps } from "../features/members/tool-registrations.js"
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
 import type { NewsletterDeliveryToolDeps } from "../features/newsletter/delivery/tool-registrations.js";
-import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
-import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
+import type { SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
@@ -124,7 +124,7 @@ export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contract
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/tool-registrations").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("@jini-ai/analytics/site/tool-registrations").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
     commerce?: import("./host-contracts.js").CommerceToolHost;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
@@ -154,7 +154,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   PublishContentToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
-  SettingsToolDeps & import("../features/settings/tool-registrations.js").VisitorToolsToolDeps &
+  SettingsToolDeps & import("@jini-ai/cms/settings/site/visitor-tools-registrations").VisitorToolsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &

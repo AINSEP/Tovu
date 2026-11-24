@@ -16,16 +16,17 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
   pointers, so `replaced` is exactly what the switch displaced; the same
   transaction records `replaced` as retired until its index drop is confirmed.
   `settle` is a compare-and-swap UPDATE on the observed revision and task id.
-- `cms-document-source.ts` — `createCmsSearchDocumentSources({ kernel, now })`:
-  `post` and `page` sources (the two `kind`s of `posts`). `documentIdOf` claims
-  only post.ts's `entry.published|updated|unpublished` with its own
-  `payload.contentType`. `load`/`scan` index exactly what the public site shows
-  (`isLiveAt`); text comes from the post FTS projection's extraction
-  (`toPostSearchDocument`), URLs from `postPublicPath`.
-- `access.ts` — `createCmsSearchAccessPort({ kernel, now })`: re-reads the hit
-  rows (one query per collection) and keeps only live, same-site, same-workspace
-  keys whose member gate admits the viewer. `memberSearchAudiences({ context })`
-  turns a validated `MemberContext` into audience tokens.
+- `cms-search-rules.ts` — `CMS_SEARCH_RULES`: the host rules the CMS search
+  source and access port in `@jini-ai/search/site/{cms-document-source,access}`
+  require — `isLiveAt` (public publish rule), `postPublicPath`, `toSearchText`
+  (`toPostSearchDocument(toRecord(row))`, the post FTS projection's extraction)
+  and `resolveMemberAccess` (`resolvePostMemberAccess`). The composition
+  (`server/runtime/composition/modules/site-search.ts`) and `cms-search.test.ts`
+  spread it into `createCmsSearchDocumentSources` / `createCmsSearchAccessPort`.
+  The sources (`post` and `page`; `documentIdOf` claims only post.ts's
+  `entry.published|updated|unpublished` with its own `payload.contentType`), the
+  fail-closed access port and `memberSearchAudiences` moved to Jini; their pure
+  unit tests live there, the dialect-matrix tests stay here.
 - `settings.ts` — the per-site `core.search/provider` setting (default `builtin`):
   `ensureSearchProviderSetting`, `readSearchProviderSetting`,
   `writeSearchProviderSetting` (through the host settings chokepoint).
