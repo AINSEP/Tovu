@@ -112,6 +112,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   height: "transferred",
   cssClass: "transferred",
   htmlAttributes: "transferred",
+  captions: "transferred",
 };
 
 const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";

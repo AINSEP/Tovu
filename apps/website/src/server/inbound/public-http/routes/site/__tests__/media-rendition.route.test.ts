@@ -157,3 +157,14 @@ test('distinct asset misses share one reference index and content writes invalid
   assert.equal((await fetch(url(first.id))).status, 200, 'the unrelated asset stays public');
   assert.equal(listings.mock.callCount(), afterFirst + 1);
 });
+
+test("G7-9: an uploaded WebVTT captions file is served on the original route as text/vtt, nosniff", async t => {
+  const { deps, baseUrl } = await boot(t);
+  const cues = "WEBVTT\n\n00:00.000 --> 00:01.000\nHello\n";
+  const media = await upload(deps, { bytes: new TextEncoder().encode(cues), filename: "clip-en.vtt", contentType: "text/vtt" });
+  const response = await fetch(`${baseUrl}/m/${media.id}/original`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type")?.split(";")[0], "text/vtt");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(await response.text(), cues);
+});
