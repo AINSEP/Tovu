@@ -99,7 +99,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 import { withToolMetadata } from "@jini-ai/core";
 import { toolMetadata } from "../contracts/core/tool-metadata/frontend-control.js";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
-import { PUBLISH_CONTENT_CAPABILITY } from "@jini-ai/cms/publish/content/ui";
+import { PUBLISH_CONTENT_CAPABILITY } from "../features/publish-content/ui/index.js";
 
 /**
  * Tovu-native capabilities that reach the admin's own browser tab through the same frontend-session
