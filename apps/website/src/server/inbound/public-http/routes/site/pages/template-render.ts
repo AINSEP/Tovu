@@ -14,7 +14,7 @@ import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { renderAssignedTermsBlock } from "../../../http/site/render/post-body.js";
 import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";

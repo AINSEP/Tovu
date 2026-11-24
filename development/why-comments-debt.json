@@ -4508,6 +4508,78 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "023003458061",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "1d5ae7b28d10",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "303756e9cece",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "9385f6d6875f",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c7a5720b88b8",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-schema.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "daa931de883b",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-schema.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "66a6ac60f819",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "921a6efa8f8f",
+      "reason": "Moved to Jini packages/db/src/__tests__/recovery/journal-kernel.test.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "0530c2001bb6",
+      "reason": "Moved to Jini packages/cms/src/publish/content/sql/baseline-repo.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "80f94c69c7ce",
+      "reason": "Moved to Jini packages/cms/src/publish/transfer/sql/bundle-repo.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "3708cda0e1c2",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "7de35079c2ee",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "be0050632042",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "7f774113cf7d",
+      "reason": "Moved to Jini packages/db/src/watermark/kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "8f60ed6244db",
+      "reason": "Moved to Jini packages/db/src/watermark/kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "8263414e03a0",
+      "reason": "Moved to Jini packages/oauth/src/errors.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c957affd9e84",
+      "reason": "Moved to Jini packages/oauth/src/registry.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c4fc15f69e0c",
+      "reason": "Pointer comment of the deleted oauth/errors.ts re-export shell (\"declarations live in Jini errors.ts\"); importers now import @jini-ai/oauth directly, so there is nothing left for it to point from."
     }
   ]
 }

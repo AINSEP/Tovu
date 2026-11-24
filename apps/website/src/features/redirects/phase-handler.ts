@@ -3,7 +3,7 @@
  * Jini `packages/cms/src/redirects/{resolver,target-gate}.ts` (INV-03).
  */
 import { createRedirectResolver, type RedirectPhaseHandlerDeps, type RedirectResolver, type RedirectResolution } from "@jini-ai/cms/redirects";
-import { registerResolvePhase } from "#src/platform/routing/adapter";
+import { registerResolvePhase } from "#src/platform/routing/index";
 import { type RouteResolveContext, type RouteResolvePhaseOutcome } from '@jini-ai/cms/routing';
 
 /** Product ports, or an injected resolver for registry lifecycle characterization. */

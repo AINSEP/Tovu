@@ -1,7 +1,7 @@
 import type { SlugChangeCapture } from "@jini-ai/cms/routing";
 import { SLUG_FORMAT_PATTERN, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM, derivePostSlugBase } from "@jini-ai/cms/posts/slug";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { PostValidationError, ROOT_SLUG, type PostRepoPort, type PostRecord, PostConflictError } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import type { CreatePostInput } from "./post-create.js";

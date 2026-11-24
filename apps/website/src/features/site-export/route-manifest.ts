@@ -5,7 +5,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";

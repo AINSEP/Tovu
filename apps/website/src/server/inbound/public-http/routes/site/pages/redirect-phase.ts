@@ -1,5 +1,5 @@
 import type { Response } from "express";
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 
 /**
  * SPEC-009 (Redirects) REQ-18/19: run the registered `pre_content` phase

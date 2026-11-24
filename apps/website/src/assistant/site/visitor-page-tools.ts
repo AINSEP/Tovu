@@ -5,7 +5,7 @@ import { findCapabilityInputError, type CapabilityDef } from '@jini-ai/core/cont
 import type { ToolRegistration } from '@jini-ai/core';
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from './public-content.js';
 import { checkSiteRelativeTarget } from '@jini-ai/cms/routing/site/reserved-paths';
-import { postPublicPath } from '#src/platform/routing/adapter';
+import { postPublicPath } from '#src/platform/routing/index';
 import type { VisitorCapabilityContract } from './visitor-executor.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
 

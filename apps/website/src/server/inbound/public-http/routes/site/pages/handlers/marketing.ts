@@ -5,7 +5,7 @@ import { PostNotFoundError } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 import { isStandaloneThemePage } from "#src/features/theme/theme-page-eligibility";
 import { type DiscoveredTheme } from "#src/features/theme/theme";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "../../../../http/site/render/site-assistant-mount.js";
 import type { RouteDeps } from "#src/server/routes/types";

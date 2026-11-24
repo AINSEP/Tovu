@@ -5,7 +5,7 @@ import type { MemberContext, MemberAccessResolver } from "#src/features/members/
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { resolveTemplateBranchChoice, isBarePageChoice } from "#src/features/theme/static-template-choice";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { renderSite } from "../../../../http/site/render-site.js";
 import { renderBareEntryDocument } from "../../../../http/site/bare-page.js";
 import type { RouteDeps } from "#src/server/routes/types";

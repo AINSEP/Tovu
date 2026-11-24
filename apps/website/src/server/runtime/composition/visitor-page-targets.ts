@@ -4,7 +4,7 @@ import { listPublishedPosts } from '#src/features/post/index';
 import { resolveActiveTheme, isStandaloneThemePage } from '#src/features/theme/index';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
 import { checkSiteRelativeTarget, RESERVED_SEGMENTS } from '@jini-ai/cms/routing/site/reserved-paths';
-import { postPublicPath } from '#src/platform/routing/adapter';
+import { postPublicPath } from '#src/platform/routing/index';
 import { readAnonymousPublishedPosts } from '#src/assistant/site/public-content';
 import { RedirectPhaseHandlerResolver, redirectMatcher } from '@jini-ai/cms/redirects';
 import type { RouteDeps } from '#src/server/routes/types';
