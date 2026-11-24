@@ -13852,6 +13852,10 @@
     {
       "id": "58fb9fa45c08",
       "reason": "The `@jini-ai/cms/publish/content/dialog` path this comment named no longer exists: 8d589429f repointed the test at `publish/content/ui`, and the comment at the same lines was updated in place with the same rationale (admin and the server tool import from the package; guard its SOURCE folder)."
+    },
+    {
+      "id": "6c7121106d73",
+      "reason": "Not deleted: wct 47b1a930e restored the merge-19 original sentence verbatim (merge-19 debt) and kept the merge-20 packager point (2f6bfeed7) as the following line in the same comment (source-control-tool-wiring.test.mjs:58-60)."
     }
   ]
 }

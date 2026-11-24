@@ -22,7 +22,7 @@
  * The moved copy is kept under `<workspace>/.bundled-id-upgrade/<id>/<digest>` (dot-prefixed, so the
  * package index never reads it as a plugin) and is put back when the replacement does not seed.
  */
-import { RENAMED_TO_JINI } from "../plugins/renamed-bundled-plugin-ids.js";
+import { RENAMED_TO_JINI } from "../../contracts/core/renamed-bundled-plugin-ids.js";
 import { upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort, type BundledPluginRenames } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
 
 /** Local id -> the pre-rename and canonical publisher-qualified ids. The exact map stays in Tovu. */

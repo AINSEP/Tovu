@@ -1,5 +1,5 @@
 /**
- * @file The bundled plugin ids whose package moved publisher. This is provider data, so it lives here and
+ * @file The bundled plugin ids whose package moved publisher. This is provider data, so it lives in this host contract and
  * not in the vendor-neutral `agent-plugins` seam (`api-connections/__tests__/vendor-neutrality.test.ts`
  * keeps that seam free of provider ids); `agent-plugins/bundled-id-upgrade.ts` only consumes the list.
  */

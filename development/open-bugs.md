@@ -338,7 +338,7 @@ Owner-approved holds on top of combine-13 (`0d7f78fa4`, Jini merge-13 linked). D
 - `adminFailureResponse` returns the typed `DatabaseDiskSpaceError` refusal before logging/reporting; no incident,
   no error ID. An explicit status override still reports.
 
-### `C026` vendor names in generic seam files — **m21:** DONE `9a3319b4f` (vendor-neutrality.test.ts 2/2 GREEN; provider ids moved to `features/plugins/renamed-bundled-plugin-ids.ts` + fixture, Google Workspace client pins to `server/runtime/composition/__tests__/google-workspace-connection-clients.unit.test.ts`, 2 stale federate-mcp allowlist entries dropped; guard/seams/allowlist semantics unchanged); earlier: PARTIAL (`8f6818798`)
+### `C026` vendor names in generic seam files — **m21:** DONE `9a3319b4f` (vendor-neutrality.test.ts 2/2 GREEN; provider ids moved to `contracts/core/renamed-bundled-plugin-ids.ts` + fixture, Google Workspace client pins to `server/runtime/composition/__tests__/google-workspace-connection-clients.unit.test.ts`, 2 stale federate-mcp allowlist entries dropped; guard/seams/allowlist semantics unchanged); earlier: PARTIAL (`8f6818798`)
 - `shared-owner.ts:81` reworded (plain-English "picker"). The guard still lists 28 hits (combine-11 had 4).
   Two are new production seam hits: `admin-surfaces/public-config.ts:15` (`JINI_GOOGLE_PICKER_*` in the generic
   public-name pattern) and `api-connections/contribution.ts:77` (`google-workspace` → `JINI_` client namespace).
