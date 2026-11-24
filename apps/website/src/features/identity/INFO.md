@@ -93,3 +93,9 @@ What this host injects into the Jini identity modules (`@jini-ai/user-management
   user port share one INV-08 serialization queue; each call injects `DeleteUserDeps` (the Trash-bound
   `removeUser` and `isInTrash`). The stateless account-contract checks and error identities are
   imported from `@jini-ai/user-management/identity/delete-user-service` at each call site.
+- `boot-session-token-binding.ts` calls `createBootSessionTokenStore()` ONCE for the process and
+  exports its `mint`/`redeem`: `cli/commands/serve-listen.ts` mints the `--emit-boot-token` token and
+  `server/inbound/admin-http/dev-auth.ts`'s boot-session route redeems it from the same store
+  (`__tests__/boot-session-token-binding.test.ts`, `serve-command-wiring.unit.test.ts` and
+  `admin-boot-session-route.test.ts` pin the sharing). The local-boot-session route builds its own
+  request-scoped store and never touches this one.

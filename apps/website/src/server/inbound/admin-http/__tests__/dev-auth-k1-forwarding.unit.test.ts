@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { mintBootSessionToken } from "@jini-ai/user-management/identity/boot-session-token";
+import { mintBootSessionToken } from "../../../../features/identity/boot-session-token-binding.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { createRouteDeps } from "../../../runtime/composition/app.js";
 import { captureRouteError } from "../../shared/observability-middleware.js";

@@ -15,6 +15,9 @@ import { useModulePanel } from './modules.hooks';
 /** The owner account controls shown above the tabs; the host's real clients by default. */
 export interface SecurityOwnerPorts { mfa: TotpSettingsPort; recovery: OwnerRecoveryPort; passkeys: PasskeySettingsPort }
 const hostOwnerPorts: SecurityOwnerPorts = { mfa: ownerMfaPort, recovery: ownerRecoveryPort, passkeys: ownerPasskeySettingsPort };
+/** The root-key Copy's clipboard (a required Security input). Resolved at copy time, so a missing or denied
+ * browser clipboard fails silently inside the copy. */
+const browserClipboard = { writeText: (text: string) => globalThis.navigator.clipboard.writeText(text) };
 
 // The card imports no hook: the host binds each recovery controller to its inner owner hook.
 const useHostRecoveryKit = (args: OwnerRecoveryHookArgs) => useOwnerRecoveryKit(args, { useJiniRecoveryKitHook: useRecoveryKit });
@@ -41,7 +44,7 @@ function OwnerControls({ locale, ports }: { locale: string; ports: SecurityOwner
  * @example createHostSecurityModule({});
  */
 export function createHostSecurityModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale, ownerPorts = hostOwnerPorts }: { useAdminLocaleHook?: () => string; ownerPorts?: SecurityOwnerPorts } = {}): HostSecurityModule {
-  const feature = security({ ui: reactModuleUi, ChipField: OnboardingChipField }, {
+  const feature = security({ ui: reactModuleUi, ChipField: OnboardingChipField, clipboard: browserClipboard }, {
     t: createSecurityTranslator({ locale: 'en' }),
     // The host never generates a site key in the browser; its env var and confirm flow stay as before.
     rootKeyTab: { generate: 'hidden', defaultEnvVarName: 'TOVU_SITE_KEY', previewRequired: false },
