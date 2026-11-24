@@ -1,4 +1,4 @@
-import type { DriftStatus, SchemaSnapshot } from "../../platform/db/drift.js";
+import type { DriftStatus, SchemaSnapshot } from "@jini-ai/db/recovery/drift";
 
 /**
  * @file `DatabaseIntrospectionPort` and its summary types — the port

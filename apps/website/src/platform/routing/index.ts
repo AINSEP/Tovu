@@ -1,5 +1,4 @@
-export { checkSitePathname, checkSiteRelativeTarget, RESERVED_SEGMENTS } from './reserved-paths.js';
-export type { ReservedSurface, SitePathCheck, SiteRelativeTargetCheck } from './reserved-paths.js';
+/** Public door of Tovu's site routing adapter; reserved-path checks live in `@jini-ai/cms/routing/site/reserved-paths`. */
 export {
   postPublicPath,
   entryPublicPath,

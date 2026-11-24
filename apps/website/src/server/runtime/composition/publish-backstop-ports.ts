@@ -6,7 +6,9 @@ import { listPublishContentContributors } from "#src/features/publish-content/ty
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import type { BlobStorePort } from "#src/features/media/index";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
-import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
+import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
+import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
+import { tableExists } from "@jini-ai/db/kernel";
 
 /** Read coverage fresh at request time, like the catalog. The raw policy cannot accidentally
  * retain a stale table/root allowlist when another typed contributor becomes available. */
@@ -17,7 +19,7 @@ export function buildPublishBackstopPorts(
   const contributors = listPublishContentContributors();
   return {
     ...(contentKernel?.dialect === "sqlite" ? { rows: createRawRowSqlitePort({ kernel: contentKernel, tableInfo: sqliteTableInfo, checkedTransaction: sqliteForeignKeyCheckedTransaction }) } : {}),
-    ...(contentKernel?.dialect === "sqlite" ? { audit: createBackstopAuditSqlitePort({ kernel: contentKernel }) } : {}),
+    ...(contentKernel?.dialect === "sqlite" ? { audit: createBackstopAuditSqlPort({ kernel: contentKernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }) } : {}),
     ...(siteBinding ? { files: createRawFileSitePort({ siteDir: siteBinding.dir }) } : {}),
     blobs: blobStore, fileBlobIndex, fileRollbacks: [], inverses: [],
     coveredTables: [...new Set(contributors.flatMap((c) => c.coversTables ?? []))],

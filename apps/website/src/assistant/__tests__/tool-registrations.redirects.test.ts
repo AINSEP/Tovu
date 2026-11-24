@@ -1,4 +1,4 @@
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";

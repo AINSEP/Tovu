@@ -1,7 +1,8 @@
-import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import { removeUnreadableOwnerEntries } from "#src/features/entries/unreadable-owner-entries-repair";
 import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 
 /**
  * @file The stored-data repairs every store opener runs once its content store is migrated and
@@ -35,7 +36,9 @@ export async function runBootDataRepairs(
     removeUnreadableOwnerEntries: unreadable = removeUnreadableOwnerEntries,
     logError = console.error,
   } = optional;
-  const stampWatermark = kernelStampWatermark({ kernel });
+  // The kernel is erased at stamp time, not here: building the binding must not touch the kernel,
+  // only a repair that actually writes does.
+  const stampWatermark = () => kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES })();
   await footer({ kernel, stampWatermark });
   try {
     await unreadable({ kernel, stampWatermark });

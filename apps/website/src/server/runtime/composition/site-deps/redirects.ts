@@ -1,5 +1,5 @@
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { RedirectSlugChangeCapture } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

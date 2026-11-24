@@ -10,7 +10,9 @@ import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/
 import * as rawFileContributor from "#src/features/publish-content/raw-file-contributor";
 import * as rawRowContributor from "#src/features/publish-content/raw-row-contributor";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
+import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
+import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
+import { tableExists } from "@jini-ai/db/kernel";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -66,7 +68,7 @@ async function destination(t: TestContext, inverses: readonly BackstopInverse[],
   // Test-only schema; no active migration is created or installed.
   db.exec(AUDIT_TABLE);
   const kernel = contentKernel({ store: db });
-  const audit = createBackstopAuditSqlitePort({ kernel });
+  const audit = createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists });
   await audit.save({ record: record(inverses) });
   if (options.refuseAuditWrites) {
     db.exec(`CREATE TRIGGER refuse_update BEFORE UPDATE ON publish_backstop_log BEGIN SELECT RAISE(ABORT, 'audit write refused'); END;

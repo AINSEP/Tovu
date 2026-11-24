@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
-import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";

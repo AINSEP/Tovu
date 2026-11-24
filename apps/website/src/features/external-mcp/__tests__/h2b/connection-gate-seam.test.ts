@@ -13,7 +13,7 @@ import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
-import type { OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";

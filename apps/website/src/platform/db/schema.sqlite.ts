@@ -1221,7 +1221,7 @@ export const apiKeys = sqliteTable(
  * caller's own already-open transaction (same-transaction atomicity, INV-01). Not
  * workspace-scoped: one counter per `content.db` (one site), matching ADR-041's storage-domain
  * boundary. `prepareContentStore` guarantees the singleton row exists right after migration, so
- * `platform/db/watermark-kernel.ts` never has to special-case "row missing".
+ * Jini `@jini-ai/db/watermark/kernel` never has to special-case "row missing".
  */
 export const databaseWriteWatermark = sqliteTable("database_write_watermark", {
   id: integer("id").primaryKey(),

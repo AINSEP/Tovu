@@ -1,4 +1,4 @@
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file RED->GREEN for wm S16 (redirects half): the redirects tool handlers threw the plain-`Error`
  * `Redirect*Error` classes and the kit's `ForbiddenError` with no `withModelFacingErrors` wrap, so

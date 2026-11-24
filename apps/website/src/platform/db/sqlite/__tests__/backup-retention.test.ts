@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { journalKernel } from "../database-journal-db.js";
-import { SqliteRestorePointsRepo } from "../database-journal-repo.js";
+import { SqliteRestorePointsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { openContentDb } from "../content-db.js";
 import { contentKernel } from "../../content-kernel.js";
 import { SqlPublishContentRunRepo } from "../../repos/publish-content-run-repo.js";
@@ -48,7 +49,7 @@ test("retention cleanup cannot turn a save into an error, and an unlink failure 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-cleanup-"));
   const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
+  const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s", errorRedaction: TOVU_ERROR_REDACTION_OPTIONS });
   t.mock.method(fsp, "rm", async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); });
   const warnings = t.mock.method(console, "warn", () => {});
   for (let i = 1; i <= 6; i++) {

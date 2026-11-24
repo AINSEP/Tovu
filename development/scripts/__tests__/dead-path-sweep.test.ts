@@ -385,10 +385,12 @@ test("historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as
 
 /** The journal's drizzle config as it stood when it was removed (2026-09-29: its schema became raw
  *  DDL, so a generate would have dropped the tables). Both drizzle configs are gone now; this copy
- *  keeps the positive control, because both paths it names still exist. */
+ *  keeps the positive control, because both paths it names still exist. The journal DDL itself moved to
+ *  Jini (`@jini-ai/db/recovery/journal-schema`, 2026-11-24), so the schema line names the journal's
+ *  driver binding that stays beside it and still applies that DDL. */
 const DRIZZLE_JOURNAL_CONFIG_AFTER_7FB47F55 = `export default defineConfig({
   dialect: "sqlite",
-  schema: "./apps/website/src/platform/db/sqlite/database-journal-schema.ts",
+  schema: "./apps/website/src/platform/db/sqlite/database-journal-db.ts",
   out: "./apps/website/src/platform/db/drizzle-database-journal",
 });
 `;
@@ -398,7 +400,7 @@ test("historical: a repointed drizzle config's path strings resolve, so the chec
   const source = DRIZZLE_JOURNAL_CONFIG_AFTER_7FB47F55;
   const paths = repoRelativePathsIn(source, segments);
 
-  assert.deepEqual(paths, ["apps/website/src/platform/db/sqlite/database-journal-schema.ts", "apps/website/src/platform/db/drizzle-database-journal"]);
+  assert.deepEqual(paths, ["apps/website/src/platform/db/sqlite/database-journal-db.ts", "apps/website/src/platform/db/drizzle-database-journal"]);
   for (const p of paths) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 7fb47f55`);
   }

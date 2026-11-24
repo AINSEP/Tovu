@@ -2,7 +2,7 @@
 import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, ExternalMcpValidationError } from '@jini-ai/mcp/federation/hosted';
 import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '@jini-ai/mcp/federation/hosted';
 import { ExternalMcpSecretStoreUnconfiguredError } from '@jini-ai/mcp/federation/hosted';
-import { OAuthError } from '../../platform/oauth/errors.js';
+import { OAuthError } from '@jini-ai/oauth';
 import type { AgentPluginMcpContext } from './service-ports.js';
 import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 

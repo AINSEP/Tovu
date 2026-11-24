@@ -500,7 +500,7 @@ test("fetchPublishedPage: the /api guard holds even though the admin API is moun
 });
 
 test("fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on that same app", async () => {
-  // Widened from `/api/` only when `platform/routing/reserved-paths.ts` became the single copy of
+  // Widened from `/api/` only when `@jini-ai/cms/routing/site/reserved-paths` (then `platform/routing/reserved-paths.ts`) became the single copy of
   // this rule (`redirects` needs the identical answer for a stored redirect target). `/admin` is
   // `app.use("/admin", express.static(...))` in `admin-static.ts` — as much "not a published page"
   // as the API is.

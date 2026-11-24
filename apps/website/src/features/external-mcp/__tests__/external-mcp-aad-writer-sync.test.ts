@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";

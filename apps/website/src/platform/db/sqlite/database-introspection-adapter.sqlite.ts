@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { sql } from "kysely";
 
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { getDriftStatus } from "../drift.js";
+import { getDriftStatus, type SchemaSnapshot } from "@jini-ai/db/recovery/drift";
 import { tableExists } from "@jini-ai/db/kernel";
 import { LEGACY_BASELINE_ID } from "../migrations/0000_legacy_baseline.js";
 import { CONTENT_MIGRATIONS } from "../migrations/index.js";
@@ -17,7 +17,6 @@ import type {
   SchemaStateSummary,
 } from "#src/features/database/adapter.sqlite";
 import type { ContentDb } from "./content-db.js";
-import type { SchemaSnapshot } from "../drift.js";
 
 const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
 
@@ -72,7 +71,7 @@ const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
  * (via `settings`/`post`) would have closed a cycle. `drift.ts` is pure, dependency-free
  * classification logic with exactly two real callers, both already `db`-side or type-only, so moving
  * it here (rather than narrowing the import further) removes the edge outright. See
- * `db/drift.ts`'s own header for the full trace.
+ * `db/drift.ts`'s own header (now Jini `@jini-ai/db/recovery/drift`) for the full trace.
  */
 
 /** One `db/drizzle/meta/_journal.json` entry — `idx`/`tag` identify the migration (RT-005);

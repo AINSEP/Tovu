@@ -9,13 +9,14 @@ import Database from "better-sqlite3";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops-adapter";
-import { contentKernel } from "#src/platform/db/content-kernel";
-import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /** `n` watermark stamps, each its own statement (how the taxonomy write-service stamps). */
 async function stampWatermark(db: ContentDb, n: number): Promise<void> {
-  const stamp = kernelStampWatermark({ kernel: contentKernel({ store: db }) });
+  const stamp = kernelStampWatermark({ kernel: schemaErasedKernel({ store: db }), tables: WRITE_WATERMARK_TABLES });
   for (let i = 0; i < n; i += 1) await stamp();
 }
 

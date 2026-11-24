@@ -12,7 +12,7 @@ import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
-import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { SqliteMigrationRunsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 
 const require = createRequire(import.meta.url);
 

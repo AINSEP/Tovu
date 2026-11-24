@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkSitePathname, checkSiteRelativeTarget } from "../reserved-paths.js";
+import { checkSitePathname, checkSiteRelativeTarget } from "@jini-ai/cms/routing/site/reserved-paths";
 import { resolveSitePath as resolveSameOriginPath } from "#src/features/site-inspection/site-path-policy";
 
 /**

@@ -12,7 +12,7 @@ import { buildBootModules } from "../../runtime/boot/bootstrap.js";
 import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
 import { createApp } from "../../runtime/composition/app.js";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
-import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { SqliteMigrationRunsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 import { loginAsOwner, startTestServer } from "../helpers/http-test-server.js";
 
 /**
