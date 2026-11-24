@@ -13,7 +13,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
 import { registerAdminMemberDisableRoute, registerAdminMemberGetRoute, registerAdminMemberListRoute } from "#src/server/runtime/composition/modules/members";
-import { registerAdminMemberRequestMagicLinkRoute } from "../../inbound/admin-http/routes/members/request-magic-link.js";
+import { registerAdminMemberRequestMagicLinkRoute } from "../../runtime/composition/modules/members.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

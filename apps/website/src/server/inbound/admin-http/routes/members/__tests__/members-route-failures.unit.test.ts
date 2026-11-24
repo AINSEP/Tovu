@@ -6,7 +6,7 @@ import { encodeListCursor } from '@jini-ai/core/list-page';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 import { registerAdminMemberGetRoute, registerAdminMemberListRoute } from '#src/server/runtime/composition/modules/members';
-import { registerAdminMemberRequestMagicLinkRoute } from '../request-magic-link.js';
+import { registerAdminMemberRequestMagicLinkRoute } from '#src/server/runtime/composition/modules/members';
 import { WS, BASE, INTERNAL_CODE, allowed, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 import { registerAdminMemberDisableRoute } from '#src/server/runtime/composition/modules/members';
 

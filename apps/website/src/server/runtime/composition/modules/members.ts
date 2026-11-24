@@ -4,7 +4,7 @@ import { memberDisableRoute } from "@jini-ai/cms/admin-http/routes/members/disab
 import { memberGetRoute } from "@jini-ai/cms/admin-http/routes/members/get-by-id";
 import { memberListRoute } from "@jini-ai/cms/admin-http/routes/members/list";
 import type { MemberErrorClassifier } from "@jini-ai/cms/admin-http/routes/members/shared";
-import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/admin-http/routes/members/request-magic-link";
+import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/members/request-magic-link";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistrar } from "#src/server/routes/types";
@@ -20,7 +20,8 @@ import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/rout
 import type { ServerModuleHandle } from "./types.js";
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
-import { disableMember, MemberConflictError, MemberNotFoundError, MemberValidationError, SqlMemberExternalIdentityRepo, trashMember } from "#src/features/members/index";
+import { disableMember, MemberConflictError, MemberNotFoundError, MemberSignInUnavailableError, MemberValidationError, requestSignInLink, SqlMemberExternalIdentityRepo, trashMember } from "#src/features/members/index";
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";
@@ -51,6 +52,8 @@ export const classifyMemberError: MemberErrorClassifier = ({ err }, _optional = 
   if (err instanceof MemberNotFoundError) return "not-found";
   if (err instanceof MemberConflictError) return "conflict";
   if (err instanceof MemberValidationError) return "validation";
+  if (err instanceof MemberSignInUnavailableError) return "sign-in-unavailable";
+  if (err instanceof SenderIdentityNotConfiguredError) return "sender-not-configured";
   return undefined;
 };
 
@@ -92,6 +95,25 @@ export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: rout
     classifyMemberError,
   };
   mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions("routes/members/delete", "guarded"));
+};
+
+/** The 503 copy for a site whose mailer has no sender identity: the mailer's own message names internal setup. */
+export const MEMBER_SENDER_NOT_CONFIGURED_MESSAGE = "Member sign-in is unavailable: email is not set up for this site.";
+
+/**
+ * POST request-magic-link: an operator-triggered resend of a member's sign-in link. The challenge service
+ * takes the member bundle built from this request's deps, so it is bound lazily here; `requestSignInLink` is
+ * read from the members library at call time. The limiter is the app's shared `MAGIC_LINK_PER_EMAIL`
+ * instance (C-015), consulted by the spec only after `authorize()` (INV-NEW-03). Direct RBAC, as before.
+ */
+export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as MembersRouteDeps;
+  const magicLink = {
+    magicLinkPerEmailLimiter: deps.magicLinkPerEmailLimiter,
+    requestSignInLink: (input: { workspaceId: string; email: string; redirectPath: string | undefined }) => requestSignInLink({ deps: toMembersWriteServiceDeps(deps), input }),
+    classifyMemberError, senderNotConfiguredMessage: MEMBER_SENDER_NOT_CONFIGURED_MESSAGE,
+  };
+  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions("routes/members/request-magic-link", "direct"));
 };
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot
@@ -149,8 +171,8 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
  * (`@jini-ai/cms/admin-http/routes/members/*`) mounted behind the admin ports; `RouteDeps` is read only
  * here, at registration, so each spec sees its own small deps. The members library is not in Jini yet,
  * so the specs take its collaborators as injected deps: the disable write service, the trash move and
- * `classifyMemberError` (the library's error classes). `request-magic-link` stays hand-written: it
- * answers 429 with a `Retry-After` header, which the JSON-route refusal cannot carry.
+ * `classifyMemberError` (the library's error classes). `request-magic-link` (w3 C2d) is a spec too: its 429
+ * carries `Retry-After` through `routeReply`, and the limiter and sender-not-configured copy are injected.
  *
  * Owns 18 registrations: 5 admin routes (list/get/disable/delete/request-magic-link), 8
  * public member auth routes and 5 member OIDC routes. The original registrations moved here
