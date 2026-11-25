@@ -41,10 +41,14 @@ const TEXT_REQUEST = [
 test("the run span sums provider usage deltas and does not invent cost", async (t) => {
   const outcomes: AgentRunTrackingOutcome[] = [];
   const base = createRouteDeps();
-  const trace = base.tracker.trace.bind(base.tracker);
-  const tracker = { ...base.tracker, trace: ((spec: Parameters<typeof trace>[0], options: Parameters<typeof trace>[1]) => trace({ ...spec, run: (span) => spec.run({
-    ...span, setOutcome: (outcome: AgentRunTrackingOutcome) => { outcomes.push(outcome); span.setOutcome(outcome); },
-  } as typeof span) }, options)) as typeof trace };
+  // Records every outcome the turn's span ends with, then hands it to the real span unchanged.
+  type RunSpan = { setOutcome(outcome: AgentRunTrackingOutcome): void };
+  type RunSpec = { name: string; run: (span: RunSpan) => Promise<unknown> };
+  const trace = base.tracker.trace.bind(base.tracker) as unknown as (spec: RunSpec, options: unknown) => Promise<unknown>;
+  const recordingTrace = (spec: RunSpec, options: unknown) => trace({ ...spec, run: (span) => spec.run({
+    setOutcome: (outcome) => { outcomes.push(outcome); span.setOutcome(outcome); },
+  }) }, options);
+  const tracker = { ...base.tracker, trace: recordingTrace as unknown as typeof base.tracker.trace };
   const deps = { ...base, tracker };
   const app = express();
   app.use(express.json());
