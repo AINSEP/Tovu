@@ -13,9 +13,15 @@ import test, { type TestContext } from "node:test";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_EXPIRY_COPY, SHARE_EXPIRY_DAYS, isShareExpired, shareExpiresAt } from "../share-expiry.js";
-import { SiteShareRegistry, newShareIdentity } from "../share-registry.js";
+import { SiteShareRegistry } from "../share-registry.js";
+import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { createSiteShare, receiveSiteShareArtifact, type ShareDelivery } from "../share-service.js";
 import { createSiteShareBackend } from "../share-backend.js";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+// The same bundled-file policy production composes (`site-deps/site-sharing.ts`).
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 import type { SiteSharePlanContent } from "../plan-content.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -53,7 +59,7 @@ test("no expiry by default", async t => {
   assert.equal(shareExpiresAt({ days: null, now: clock.now, destination: ownFolder(registry), copy }), null);
   const row = await createSiteShare({ registry, site: "ws", name: "Shop", archive: ZIP });
   assert.equal(row.expiresAt ?? null, null);
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => clock.now });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => clock.now });
   const viaBackend = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 5000 }) as { expiresAt?: string | null };
   assert.equal(viaBackend.expiresAt ?? null, null, "a create without a choice records Never");
   clock.now += TEN_YEARS;
@@ -124,7 +130,7 @@ test("remote-provider refusal before any job", async t => {
   const registry = await registryAt(t, { now: Date.now() });
   const counter = { uploads: 0 };
   let prepared = 0;
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { prepared += 1; return planContent(); }, zip: zipFolderFiles, delivery: async () => remote(counter) });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => { prepared += 1; return planContent(); }, zip: zipFolderFiles, delivery: async () => remote(counter) });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 30 }), { code: "INVALID_INPUT", message: "Links stored with s3 can't expire yet. Choose Never, or turn off that storage for this export." });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 14 }), { code: "INVALID_INPUT", message: CHOICES });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static", expiresInDays: 7 }), { code: "INVALID_INPUT", message: copy.notHostedHere });
@@ -137,7 +143,7 @@ test("remote-provider refusal before any job", async t => {
 test("the backend records the owner's choice from its own clock for its own folder", async t => {
   const registry = await registryAt(t, { now: Date.now() });
   const now = Date.parse("2026-12-01T00:00:00.000Z");
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => now });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => now });
   const chosen = await backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 90 }, { waitMs: 5000 }) as { expiresAt?: string | null };
   assert.equal(chosen.expiresAt, "2027-03-01T00:00:00.000Z");
 });

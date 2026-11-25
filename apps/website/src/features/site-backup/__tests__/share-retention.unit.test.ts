@@ -12,7 +12,8 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "../share-registry.js";
+import { SiteShareRegistry, type SiteShareRecord } from "../share-registry.js";
+import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { acknowledgeSiteShare, receiveSiteShareArtifact, revokeSiteShare } from "../share-service.js";
 import { createShareMutex, createShareRetention, type ShareRetentionFs } from "../share-retention.js";
 
