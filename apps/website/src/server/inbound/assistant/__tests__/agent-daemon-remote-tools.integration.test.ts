@@ -34,7 +34,7 @@ async function bootAttachmentOwner(t: import("node:test").TestContext) {
   await evaluateDaemonStatements([registration], {
     app, attachmentStore: store,
     mountJiniRoutes,
-    routeHost: daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024 }),
+    routeHost: daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024, errors: createRouteIncidentReporter().errors }),
     // Keep the production gate and inject only the boot secret, never a substitute registrar.
     registerDaemonAttachmentLookup: (required: Parameters<typeof registerDaemonAttachmentLookup>[0]) =>
       registerDaemonAttachmentLookup(required, { env: { TOVU_AGENT_DAEMON_TOKEN: token } }),
@@ -114,7 +114,7 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
   const serverApp = express();
   registerAssistantToolExecRoutes({ router: serverApp, toolSurface: { daemonCalls: {
     executor: createToolExecutor({ registry: serverRegistry }), listToolsFor: async () => serverRegistry.list({}),
-  } }, runStore: deps.chatRunLedger.durable, workspaceId: deps.workspaceId });
+  } }, runStore: deps.chatRunLedger.durable, workspaceId: deps.workspaceId, reporter: createRouteIncidentReporter().reporter });
   const siteUrl = await startTestServer(serverApp, t);
   const baseUrl = options.dropResponse ? await startResettingToolProxy(t, new URL(siteUrl)) : siteUrl;
   const registry = createToolRegistry({});

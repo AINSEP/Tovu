@@ -29,7 +29,7 @@ function mount() {
   const runCredentials = { resolveCaller: ({ token }: { token: string }) => { const runId = TOKENS.get(token); return runId ? { runId, principalId: principalByRunId.get(runId)!.id } : undefined; } };
   const catalogFor = createToolCatalogFor({ catalog, registry, resolvePrincipal: discoveryPrincipalResolver({ runCredentials, principalByRunId }) });
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };
-  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024 }) });
+  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024, errors: createRouteIncidentReporter().errors }) });
   return async (token: string | undefined, path: string, params: Record<string, string> = {}) => {
     const route = routes.find(candidate => candidate.path === path);
     assert.ok(route, `route ${path} mounted`);

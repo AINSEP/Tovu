@@ -43,8 +43,7 @@ async function startRpc(t: TestContext, find: ((required: { runId: string }) => 
       executor: { execute: async (call: Rpc["executed"][number]) => { executed.push(call); return { status: "completed", output: { ok: true } }; } },
       listToolsFor: async ({ principalId }: { principalId: string }) => { listedFor.push(principalId); return []; },
     } } as never,
-    plugins: { controller: { forget: ({ runId }: { runId: string }, optional: { preservePending?: unknown } = {}) => { forgotten.push({ runId, preservePending: optional.preservePending }); } } } as never,
-  });
+    plugins: { controller: { forget: ({ runId }: { runId: string }, optional: { preservePending?: unknown } = {}) => { forgotten.push({ runId, preservePending: optional.preservePending }); } } } as never, reporter: createRouteIncidentReporter().reporter });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));

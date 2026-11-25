@@ -92,7 +92,7 @@ async function withLookupDaemon<T>(fn: (input: { url: string; parserCalls: () =>
     resolveForRun: async ({ ref, runId }: { ref: string; runId: string }) => ({ ref, runId, path: "/tmp/x" }),
     listPendingForOwner: async () => [],
   };
-  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024 });
+  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024, errors: createRouteIncidentReporter().errors });
   access.registerDaemonAttachmentLookup({ app, store: store as never, host, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env });
   let parsed = 0;
   app.use((req, res, next) => { parsed += 1; next(); });

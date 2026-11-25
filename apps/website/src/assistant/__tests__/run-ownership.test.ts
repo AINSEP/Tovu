@@ -74,7 +74,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   // 100 KiB: the default limit of the `express.json()` parser above.
-  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024, errors: createRouteIncidentReporter().errors }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");

@@ -101,7 +101,7 @@ async function startRoute(
 ): Promise<string> {
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });
   return startTestServer(app, t);
 }
 

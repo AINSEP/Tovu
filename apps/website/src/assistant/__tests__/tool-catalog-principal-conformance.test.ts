@@ -46,7 +46,7 @@ function build() {
   } };
   const catalogFor = createToolCatalogFor({ catalog, registry, resolvePrincipal: discoveryPrincipalResolver({ runCredentials, principalByRunId }) });
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };
-  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024 }) });
+  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024, errors: createRouteIncidentReporter().errors }) });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   // The production composition (agent-daemon-scope-tools.ts): the read-only gate wraps the assistant
   // stack outermost, so it holds for every tool id no matter which decorator dispatches it.

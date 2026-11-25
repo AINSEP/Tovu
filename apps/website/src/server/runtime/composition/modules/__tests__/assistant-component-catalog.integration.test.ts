@@ -30,8 +30,7 @@ test("component discovery derives identity from a live site run and preserves ad
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }),
       cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
-    components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } },
-  }, {});
+    components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   const headers = { authorization: `Bearer ${ensureToolExecToken({}, {})}` };
   const read = (query: string, authenticated = true) => fetch(`${baseUrl}/internal/component-catalog?${query}`, { headers: authenticated ? headers : {} });
@@ -75,8 +74,7 @@ test("component discovery rechecks the live attempt after plugin readiness", asy
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }),
       cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
-    components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } },
-  }, {});
+    components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   const pending = fetch(`${baseUrl}/internal/component-catalog?runId=waiting`, { headers: { authorization: `Bearer ${ensureToolExecToken({}, {})}` } });
   await runRead;

@@ -10,7 +10,7 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { RouteErrorPorts, RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/core/contracts/server";
 import { NOOP_OPERATION_TRACKER, type ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
-import { createReporterRouteInternalError, reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes, nodeRequestHeaders, sendWebResponse } from "@jini-ai/http-kit/node-bridge";
 import type { Express, Request as ExpressRequest, RequestHandler, Response as ExpressResponse } from "express";
 import { requestFactsLocals } from "#src/platform/express/request-facts";
@@ -196,17 +196,17 @@ export const NO_OPERATION_TRACKING: Pick<ObservabilityPort, "trackOperation"> = 
 
 /**
  * The host object for every Jini route group of one daemon scope. Build it once per scope.
- * @param required.context - The same-origin policy (and legacy incident sink) the scope already builds for its routes.
+ * @param required.context - The same-origin policy the scope already builds for its routes.
  * @param required.parserLimitBytes - The byte limit of the JSON parser the scope mounts above the routes. A route re-reads the body that parser produced, and re-serialized JSON can be up to 5.25 times longer (a number such as `1e20` prints as 21 digits), so the routes' own limit is derived from it; the parser's limit stays the effective one.
- * @param required.errors - The OWNING site's reporter and operation tracking (use {@link NO_OPERATION_TRACKING} where it has none). Puts every route group of this host in reporter mode: a route incident is one record and one tracker report under one ERR- id, and `reportInternalError` writes through the same reporter. Per site, never process-wide: a reporter carries its site's tracker, so a shared one would report one site's incident into another's. Absent → the legacy SEC-005 path, kept only until every caller can supply its site's binding.
+ * @param required.errors - The OWNING site's reporter and operation tracking (use {@link NO_OPERATION_TRACKING} where it has none). Puts every route group of this host in reporter mode: a route incident is one record and one tracker report under one ERR- id, and `reportInternalError` writes through the same reporter. Per site, never process-wide: a reporter carries its site's tracker, so a shared one would report one site's incident into another's. Required (P4-T3b): a host with no incident owner is a wiring error at startup, never a silent console line on its first failure.
  */
 export function daemonRouteHost(
-  { context, parserLimitBytes, errors }: { context: RouteHostContext; parserLimitBytes: number; errors?: RouteErrorPorts },
+  { context, parserLimitBytes, errors }: { context: RouteHostContext; parserLimitBytes: number; errors: RouteErrorPorts },
   _optional: Record<string, never> = {},
 ): DaemonRouteHost {
   return {
-    context: errors ? { ...context, errors } : context,
-    reportInternalError: errors ? createReporterRouteInternalError({ reporter: errors.reporter }) : reportRouteInternalError,
+    context: { ...context, errors },
+    reportInternalError: createReporterRouteInternalError({ reporter: errors.reporter }),
     scheduler: nodeIntervalScheduler,
     timingSafeEqual: nodeTimingSafeEqual,
     jsonBodyMaxBytes: maxReserializedJsonBytes({ parserLimitBytes }),

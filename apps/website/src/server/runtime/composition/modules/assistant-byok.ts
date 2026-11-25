@@ -579,7 +579,7 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
         return report.connections.some(connection => connection.connectionId === "tovu-desktop");
       } }, {});
     },
-    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: { daemonCalls: serverFederation.daemonCalls },
+    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, reporter, toolSurface: { daemonCalls: serverFederation.daemonCalls },
       runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps, core: routeDeps,
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {

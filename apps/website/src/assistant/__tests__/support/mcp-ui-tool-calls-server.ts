@@ -39,7 +39,7 @@ export async function startMcpUiToolCallsServer(
   const responses: express.Response[] = [];
   app.use((_req, res, next) => { responses.push(res); next(); });
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: required.deps });
+  registerMcpUiToolCallsRoute({ app, deps: required.deps, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, required.t);
   return {
     post: async ({ body, principalId }) => {

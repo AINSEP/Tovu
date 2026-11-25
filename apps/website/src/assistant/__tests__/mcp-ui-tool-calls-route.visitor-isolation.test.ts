@@ -46,7 +46,7 @@ test("admin MCP-UI replies cannot deliver visitor exchanges and the site assista
   const app = express();
   app.use(express.json());
   registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler,
-    toolExecutor: createToolExecutor({ registry: createToolRegistry({}) }), surfaceExchanges: store } });
+    toolExecutor: createToolExecutor({ registry: createToolRegistry({}) }), surfaceExchanges: store }, errors: createRouteIncidentReporter().errors });
   try {
     const baseUrl = await startTestServer(app, t);
     for (const replyPrincipal of ["admin-principal", principalId]) {

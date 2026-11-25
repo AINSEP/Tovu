@@ -74,10 +74,11 @@ export function createScopeApp(required: ScopeAppPorts, _optional = {}) {
 const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
-    // This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
-    // the explicit no-op keeps reporter mode on rather than falling back to legacy SEC-005 logging.
-    errors: { reporter: required.reporter, observability: NO_OPERATION_TRACKING } }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
+  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+// This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
+// the explicit no-op keeps every route host of the scope (surface routes included) in reporter mode.
+const routeErrors = { reporter: required.reporter, observability: NO_OPERATION_TRACKING }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
+    errors: routeErrors }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
   const ports = { ...required, app, routeHost, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
     resolvePrincipal: ({ request }: { request: DelegatedToolExecuteRequest }) => resolvePrincipal({ principalByRunId: required.principalByRunId, request }) };
   mountRunRoutes(ports);
@@ -241,14 +242,14 @@ function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendContr
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
 // `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler } });
+registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler }, errors: routeErrors });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
 // `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
 // the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
 // fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
 // reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
 // token like every other forwarded route.
-registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
+registerA2uiActionsRoute({ app, deps: { surfaceExchanges }, errors: routeErrors });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`

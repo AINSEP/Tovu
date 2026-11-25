@@ -9,6 +9,7 @@ import { JINI_REQUEST_FACTS } from "@jini-ai/core/contracts/site/request-facts";
 import { captureRequestFacts } from "#src/platform/express/request-facts";
 import { createRecordingObservability, createRecordingReporter } from "@jini-ai/core/errors/testing";
 import { agentRoutes } from "@jini-ai/daemon/http";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes, NO_OPERATION_TRACKING } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */
@@ -106,12 +107,14 @@ test("without rawBody the consumed upload would arrive as re-serialized JSON, wh
   assert.equal(Buffer.from(await from(response) as number[]).toString("utf8"), '{"spaced":1}');
 });
 
-test("the daemon route host: the scope's context as given, a body limit no parser-accepted body can exceed, a real constant-time compare, real unref'd timers, and request IDs", async () => {
+test("the daemon route host: the scope's context with its errors, a body limit no parser-accepted body can exceed, a real constant-time compare, real unref'd timers, and reporter-owned request IDs", async () => {
   const context = { originPolicy: allowAllOrigins };
-  const host = daemonRouteHost({ context, parserLimitBytes: 6 * 1024 * 1024 });
-  assert.equal(host.context, context);
+  const incidents = createRouteIncidentReporter();
+  const host = daemonRouteHost({ context, parserLimitBytes: 6 * 1024 * 1024, errors: incidents.errors });
+  assert.equal(host.context.originPolicy, context.originPolicy);
+  assert.equal(host.context.errors, incidents.errors);
   assert.equal(host.jsonBodyMaxBytes, 33_030_144);
-  assert.equal(daemonRouteHost({ context, parserLimitBytes: 102_400 }).jsonBodyMaxBytes, 537_600);
+  assert.equal(daemonRouteHost({ context, parserLimitBytes: 102_400, errors: incidents.errors }).jsonBodyMaxBytes, 537_600);
 
   const bytes = (value: string): Uint8Array => new TextEncoder().encode(value);
   assert.equal(host.timingSafeEqual({ left: bytes("secret-a"), right: bytes("secret-a") }), true);
@@ -129,15 +132,14 @@ test("the daemon route host: the scope's context as given, a body limit no parse
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(ticks, seen);
 
-  const reported: unknown[] = [];
+  // P4-T3b: the host's `reportInternalError` is the injected reporter's, never the retired legacy sink.
   const failure = new Error("boom");
-  const answer = host.reportInternalError({ report: { error: failure }, logSource: "jini-routes-test", message: "It failed." }, { onInternalError: (report) => { reported.push(report); } });
+  const answer = host.reportInternalError({ report: { error: failure }, logSource: "jini-routes-test", message: "It failed." });
   assert.equal(answer.code, "INTERNAL_ERROR");
-  assert.equal(answer.message, "It failed.");
-  assert.match(String(answer.requestId), /^[0-9a-f-]{36}$/);
-  assert.equal(reported.length, 1);
-  assert.equal((reported[0] as { error: unknown; correlationId: string }).error, failure);
-  assert.equal((reported[0] as { correlationId: string }).correlationId, answer.requestId);
+  assert.equal(answer.requestId, "ERR-7E57-0000-0000-0000");
+  assert.equal(answer.message, "It failed. (error ERR-7E57-0000-0000-0000)");
+  assert.deepEqual(recordedIds(incidents.entries), ["ERR-7E57-0000-0000-0000"]);
+  assert.equal(incidents.reports.length, 1);
 });
 
 // Pin A9: every route a list mounts through `mountJiniRoutes` is given this request's facts, and nothing set earlier can stand in for them.

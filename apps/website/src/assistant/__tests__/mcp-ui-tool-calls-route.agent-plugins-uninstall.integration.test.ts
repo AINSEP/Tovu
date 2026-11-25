@@ -161,7 +161,7 @@ for (const { decision, expectUninstalled } of DECISIONS) {
 
       const app = express();
       app.use(express.json());
-      registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+      registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });
       const baseUrl = await startTestServer(app, t);
 
       const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

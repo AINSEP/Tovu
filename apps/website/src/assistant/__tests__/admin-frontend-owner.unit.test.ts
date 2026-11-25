@@ -69,7 +69,7 @@ async function adminRoutesWithoutFacts({ url, method = 'GET', headers = {} }: { 
   const reports: unknown[] = [];
   const control = createFrontendControl({ capabilities: [{ id: 'page.click', description: 'Activate one control.' }], resolveBindToken: () => undefined, setTimer: nodeSessionTimer,
     session: { resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: 'site' }) } });
-  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 1024 });
+  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 1024, errors: createRouteIncidentReporter().errors });
   const dispatcher = createNodeDispatcher({}, { expressCompatible: true });
   for (const route of control.routes({ host: { ...host, reportInternalError: (required, optional) => { reports.push(required.report); return host.reportInternalError(required, optional); } } })) dispatcher.server.route(route);
   const app = express();

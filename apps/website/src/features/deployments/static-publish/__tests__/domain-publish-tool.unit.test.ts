@@ -284,7 +284,7 @@ for (const noPreview of [false, true]) test(`assembled custom-domain publish (pr
   app.use(express.json());
   registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...executor, execute: (...args) => { routeExecutions++; return executor.execute(...args); },
-  } } });
+  } }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
   const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run,

@@ -54,8 +54,7 @@ test("plugin preflight uses the site's live run identity and releases terminal c
       pinnedPrefix: async ({ pluginRefIds }) => { assert.deepEqual(pluginRefIds, ["picked"]); return "pinned guidance"; },
       emit: async ({ principalId, runId, payload }) => { assert.equal(principalId, "member"); assert.equal(runId, "plugin-run"); assert.equal(payload.type, "agent_plugins"); },
       refusalPrefix: () => "withheld tools",
-    },
-  }, {});
+    }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   // Boot installs the RPC token before serving, including before an unauthenticated first request.
   const token = ensureToolExecToken({}, {});
@@ -93,8 +92,7 @@ test("a stopped run cannot publish late plugin consent or receive a prepared pre
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     plugins: { controller: { start: async ({ context }) => { assert.equal(context.query, "hello", "a missing userPrompt falls back to the saved prompt"); entered(); await waiting; await context.publish({ conversationId, state: context.state, plugins: [] }); return "late"; }, forget: ({ runId }) => { forgotten.push(runId); } },
-      pinnedPrefix: async () => "", emit: async () => { emissions++; }, refusalPrefix: () => "" },
-  }, {});
+      pinnedPrefix: async () => "", emit: async () => { emissions++; }, refusalPrefix: () => "" }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   const pending = fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId: "stopped-run" }) });
   assert.equal(await Promise.race([started.then(() => "started"), pending.then(() => "responded")]), "started", "a valid preflight must reach the server controller");

@@ -39,7 +39,7 @@ async function fixture(t: import("node:test").TestContext) {
   const exchangeId = (emissions[0]!.payload['surfaceExchange'] as { exchangeId: string }).exchangeId;
   controller.abort(); await first;
   const app = express(); app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: store, toolExecutor: executor } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: store, toolExecutor: executor }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
   return { baseUrl, store, calls, saved, exchangeId };
 }
