@@ -126,7 +126,7 @@ export interface MediaGenerationToolDeps {
       credentials: ProviderCredentials;
       options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
     },
-    optional?: Record<string, never>
+    optional?: { signal?: AbortSignal }
   ) => Promise<MediaGenerationResult>;
   /**
    * The credential-env lookup table {@link resolveCredentialForProvider}'s env fallback reads from.
@@ -162,7 +162,7 @@ async function defaultGenerateMedia(
     credentials: ProviderCredentials;
     options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
   },
-  _optional = {}
+  optional: { signal?: AbortSignal } = {}
 ): Promise<MediaGenerationResult> {
   const { registry } = options;
   const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient, guardedFetch: nodeMediaGuardedFetch }, {
@@ -171,7 +171,10 @@ async function defaultGenerateMedia(
     allowStubFallback: options.allowStubFallback,
   });
   const { surface, model, ...optionalRequest } = request;
-  return engine.generate({ surface, model }, optionalRequest);
+  return engine.generate(
+    { surface, model },
+    { ...optionalRequest, ...(optional.signal ? { signal: optional.signal } : {}) },
+  );
 }
 
 /**
@@ -355,6 +358,7 @@ async function storeGeneratedImage(
   // bytes — most registered vendors return PNG (`dispatch/stub.ts`'s placeholder included),
   // but this is no longer an OpenAI-specific fact now that `model` can select any vendor.
   const contentType = "image/png";
+  // A started multi-write storage sequence must not be interrupted halfway through.
   ctx.signal.throwIfAborted();
   const { media } = await uploadMedia({
     deps: {
@@ -462,8 +466,10 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
               credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) };
           }
 
+          // Waiting on credentials opens a fresh cancellation window.
+          ctx.signal.throwIfAborted();
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
-          const generated = await generate({ request: { surface: "image", model, prompt }, credentials: credential ?? {}, options: { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry } });
+          const generated = await generate({ request: { surface: "image", model, prompt }, credentials: credential ?? {}, options: { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry } }, { signal: ctx.signal });
 
           const { media, sniffed } = await storeGeneratedImage({ routeDeps, ctx, input, prompt, generated, provenance: generatedProvenance({ model, generated }) });
 

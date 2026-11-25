@@ -1,4 +1,4 @@
-import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
+import { decodeListCursor, listPageForModel, pageFromOverfetch, parseListPageRequest } from "@jini-ai/core/list-page";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/newsletter';
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
@@ -62,7 +62,6 @@ import type {
   SubscriberDirectoryPort,
 } from "@jini-ai/user-management/newsletter/ports";
 import { pauseCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
-import { DEFAULT_LIST_LIMIT } from "@jini-ai/user-management/newsletter/repo-subscribers";
 import {
   saveSubscription,
   unsubscribeSubscription,
@@ -352,16 +351,38 @@ function createNewsletterListSubscriptionsHandler(deps: NewsletterToolDeps): Too
 };
 }
 
-function createNewsletterListSendLogHandler(deps: NewsletterToolDeps): ToolHandler {
+function createNewsletterListSendLogHandler({ deps }: { deps: NewsletterToolDeps }, _optional = {}): ToolHandler {
   return async (ctx) => {
-  const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+  const input = requireInputRecord({ input: ctx.input });
+  const campaignId = requireString({ input, key: "campaignId" });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_campaign" });
 
   await deps.newsletterReady;
   const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-  const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId, limit: DEFAULT_LIST_LIMIT + 1 });
-  return { sends: rows.slice(0, DEFAULT_LIST_LIMIT).map(toSendLogToolView), truncated: rows.length > DEFAULT_LIST_LIMIT };
+  const { limit, cursor } = parseListPageRequest(
+    { value: input },
+    { defaultLimit: 100, maxLimit: 100 },
+  );
+  const after = cursor != null ? decodeListCursor({ cursor, shape: ["string"] }) : null;
+  const afterId = after ? String(after[0]) : undefined;
+  // One extra row proves continuation.
+  const rows = await deps.newsletterSendRepo.listByCampaign({
+    workspaceId: deps.workspaceId,
+    campaignId,
+    afterId,
+    limit: limit + 1,
+  });
+  const page = pageFromOverfetch({ rows, limit, positionOf: (row) => [row.id] });
+  const { items, ...continuation } = listPageForModel({
+    page,
+    toolId: "newsletter_list_send_log",
+  });
+  return {
+    sends: items.map(toSendLogToolView),
+    ...continuation,
+    truncated: continuation.nextCursor !== null,
+  };
 };
 }
 
@@ -537,7 +558,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
     newsletter_get_campaign: createNewsletterGetCampaignHandler(deps),
     newsletter_list_lists: createNewsletterListListsHandler(deps),
     newsletter_list_subscriptions: createNewsletterListSubscriptionsHandler(deps),
-    newsletter_list_send_log: createNewsletterListSendLogHandler(deps),
+    newsletter_list_send_log: createNewsletterListSendLogHandler({ deps }),
     newsletter_create_campaign: createNewsletterCreateCampaignHandler(deps),
     newsletter_update_campaign: createNewsletterUpdateCampaignHandler(deps),
     newsletter_cancel_campaign: createNewsletterCancelCampaignHandler(deps),

@@ -33,3 +33,21 @@ test("fills Jini chat's {name} placeholders and keeps unknown ones", () => {
   assert.equal(t('Thinking… {time}'), 'Thinking… {time}');
   dom.window.close();
 });
+
+// Key presence alone does not prove the rendered label is nonblank: resolve through the translator.
+test('Hindi, Urdu and Bangla launcher and panel keys resolve without an empty or English fallback', () => {
+  const dom = new JSDOM('<html lang="en"></html>');
+  const publicKeys = Object.keys(SITE_CHAT_DICTIONARY.es!);
+  for (const language of ['hi', 'ur', 'bn']) {
+    dom.window.document.documentElement.lang = language;
+    const { t } = createSiteChatI18n({ document: dom.window.document }, {});
+    const launcher = t('Chat with this site');
+    assert.ok(launcher.trim().length > 0 && launcher !== 'Chat with this site', `${language} launcher label`);
+    for (const key of publicKeys) {
+      const value = t(key);
+      assert.ok(value.trim().length > 0, `${language} ${key} is blank`);
+      assert.notEqual(value, key, `${language} ${key} falls back to English`);
+    }
+  }
+  dom.window.close();
+});

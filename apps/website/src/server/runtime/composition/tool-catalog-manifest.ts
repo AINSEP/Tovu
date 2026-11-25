@@ -22,7 +22,7 @@ import { consentToolHost } from "#src/features/consent/host-bindings";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeAgentPauseTools } from "./agent-pause-tools.js";
-import { contributeSiteUpdateTools, type SiteUpdateRuntime } from "#src/features/site-update/tools";
+import { contributeSiteUpdateTools, type SiteUpdateCheckRuntime } from "#src/features/site-update/tools";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
@@ -598,8 +598,10 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // H4: the owner-approved resume of agent work the assistant switch paused (`agent-pause-gate.ts`).
   contributions.contributors.register({ contribution: contributeAgentPauseTools({}) });
   // Site update: absent unless the host composes a platform runtime as `siteUpdateRuntime` (desktop, self-hosted).
-  contributions.contributors.register({ contribution: { ...contributeSiteUpdateTools(), build: (deps: AssistantToolRegistryDeps & { siteUpdateRuntime?: SiteUpdateRuntime | null }, surfaces) => contributeSiteUpdateTools().build({
+  contributions.contributors.register({ contribution: { ...contributeSiteUpdateTools(), build: (deps: AssistantToolRegistryDeps & { siteUpdateRuntime?: SiteUpdateCheckRuntime | null; ownerPrincipalId?: Promise<string> }, surfaces) => contributeSiteUpdateTools().build({
     authorize: ({ ctx, permission }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "site-update" }),
+    // No owner id composed means no principal can match it, so every update approval is refused.
+    readOwnerId: async () => { if (!deps.ownerPrincipalId) throw new Error("The installation owner is not known."); return await deps.ownerPrincipalId; },
     runtime: deps.siteUpdateRuntime ?? null,
   }, surfaces) } });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });

@@ -127,7 +127,7 @@ export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contract
 export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/tool-registrations").ConsentToolDeps & ToolGapsToolDeps & import("@jini-ai/agentic/skills/site/install-tool").SkillsInstallToolDeps & import("@jini-ai/analytics/site/tool-registrations").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
     commerce?: import("./host-contracts.js").CommerceToolHost;
-    siteUpdateRuntime?: import("../features/site-update/tools.js").SiteUpdateRuntime | null;
+    siteUpdateRuntime?: import("../features/site-update/tools.js").SiteUpdateCheckRuntime | null;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
     // Dynamically installed provider/project-key contributors consume these narrow ports too.
     projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;

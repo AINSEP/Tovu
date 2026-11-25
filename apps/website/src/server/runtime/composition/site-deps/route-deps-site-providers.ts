@@ -20,6 +20,7 @@ import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-e
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
+import { captureOutboxTraceParent } from "#src/contracts/core/events/outbox-trace-parent";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { buildAnalyticsProviders } from "../analytics-providers.js";
 import { builtInThemesDir } from "../site-paths.js";
@@ -104,7 +105,9 @@ export function routeDepsSiteThemesTelemetry(required: RouteDepsSiteThemesTeleme
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
-    changeSets: new SqliteChangeSetRepo({ store: kernel }),
+    // P10-O4: the same late-read capture as the outbox binding; executeCommand's co-persisted
+    // event carries its producer's trace parent to the background drainer.
+    changeSets: new SqliteChangeSetRepo({ store: kernel }, { prepareOutboxEvent: captureOutboxTraceParent({ activeTraceparent: () => observability.activeTraceparent?.() }) }),
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).

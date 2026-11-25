@@ -15,15 +15,18 @@ import { resolveDevTls } from "../../../../platform/dev-host/dev-tls.js";
 import { resolveDevTlsCertPaths } from "../../../../platform/dev-host/dev-tls.js";
 import { seedDevCapabilityOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import type { SiteStore } from "../open-site-store.js";
+import { captureOutboxTraceParent } from "#src/contracts/core/events/outbox-trace-parent";
 
 interface ComposeEventsOriginRequired {
   kernel: SiteStore["content"];
   clock: { nowMs: () => number; nowIso: () => string };
   workspaceId: string;
+  /** The producer's current W3C trace parent, read on each enqueue (the tracing provider is chosen later in boot). */
+  activeTraceparent: () => string | undefined;
 }
 
 export function composeEventsOrigin(required: ComposeEventsOriginRequired, _optional = {}) {
-  const { kernel, clock, workspaceId } = required;
+  const { kernel, clock, workspaceId, activeTraceparent } = required;
 
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
   // OriginRegistry and `routing`'s registration functions, mirroring `apps/website/src/server/runtime/composition/app.ts`'s identical
@@ -32,7 +35,10 @@ export function composeEventsOrigin(required: ComposeEventsOriginRequired, _opti
   // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
   // survive a restart; `SqliteChangeSetRepo.insert()`'s co-persisted event and this adapter's
   // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
-  const outbox = new SqliteOutboxAdapter({ store: kernel });
+  // P10-O4: each enqueue stores its producer's trace parent, so the background drainer's delivery
+  // descends from the request that caused it. A timer's inherited context is neither durable nor
+  // attributable to the right request (see `contracts/core/events/outbox-trace-parent.ts`).
+  const outbox = new SqliteOutboxAdapter({ store: kernel }, { prepareOutboxEvent: captureOutboxTraceParent({ activeTraceparent }) });
   const bus = new InMemoryEventBus();
   // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter.
   //

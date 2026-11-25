@@ -74,6 +74,13 @@ it("fresh URLs preserve absolute site origin, queries and fragments", () => {
   );
 });
 
+it("fresh URLs preserve encoded $& in the pathname and literal $& in the decoded query", () => {
+  const url = new URL(freshPreviewUrl({ url: "/theme-assets/test/theme.css?label=%24%26", revision: "$&" }), "https://preview.invalid");
+  expect(url.pathname).toBe("/theme-preview-assets/%24%26/test/theme.css");
+  expect(url.searchParams.get("label")).toBe("$&");
+  expect(url.searchParams.get("__tovu_preview")).toBe("$&");
+});
+
 it("wired reload button shows a failed reload as an alert and clears it when the next reload succeeds", async () => {
   const outcomes: Array<() => Promise<void>> = [
     () => Promise.reject(new Error("preview host unreachable")),

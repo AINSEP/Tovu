@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isKnownPermission, listPermissions } from "@jini-ai/user-management";
@@ -16,8 +17,8 @@ test("boot reconciles visitor-tools.manage to existing owner/admin policies, ide
   const idGen = { newId: () => `permission-${++id}` };
   const clock = { nowIso: () => "2026-10-22T00:00:00.000Z", nowMs: () => 0 };
   const repos = createTransactionalInMemoryIdentityRepos({ repos: {
-    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({ assertVersionedWrite }), sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }), policies: new InMemoryPolicyRepo({ assertVersionedWrite }), policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}),
   } });
   await seedIdentity({ deps: { repos, clock, idGen, hasher: { hash: async ({ password }) => password, verify: async ({ hash, password }) => hash === password } },

@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
@@ -56,7 +57,7 @@ function harness(initial: TrashItem[] = [row("a")]) {
     },
     customCredentialSetRepo: repo, sourceControlCredentialSetRepo: repo, vendorCredentialSetRepo: repo,
     principalRepo,
-    principalRoleRepo: new InMemoryPrincipalRoleRepo({}), roleRepo: new InMemoryRoleRepo({}), rolePolicyRepo: new InMemoryRolePolicyRepo({}),
+    principalRoleRepo: new InMemoryPrincipalRoleRepo({}), roleRepo: new InMemoryRoleRepo({ assertVersionedWrite }), rolePolicyRepo: new InMemoryRolePolicyRepo({}),
     principalPolicyRepo: new InMemoryPrincipalPolicyRepo({}, { initialRows: ["owner", "seeded-owner"].map(principalId => ({
       id: `${principalId}-grant`, workspaceId: "ws", principalId, policyId: "owner-policy",
     })) }),

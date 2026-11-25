@@ -36,7 +36,7 @@ async function applyThroughCard(kind: "desktop" | "self-hosted", decision: "conf
   const host: SiteUpdateHost = hosts[kind];
   const runtime = createSiteUpdateRuntime({ host, shared });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildSiteUpdateRegistrations({ authorize: async () => {}, runtime }, { surfaceExchanges } as never).find((r: ToolRegistration) => r.descriptor.id === APPLY)!;
+  const tool = buildSiteUpdateRegistrations({ authorize: async () => {}, readOwnerId: async () => "owner-1", runtime }, { surfaceExchanges } as never).find((r: ToolRegistration) => r.descriptor.id === APPLY)!;
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (s) => void emitted.push(s);
   const pending = tool.handler({ executionId: "e", principal: { id: "owner-1" }, run: { id: "r" }, input: {}, signal: new AbortController().signal } as ToolExecutionContext, { emitSurface });
@@ -78,7 +78,7 @@ test("no host kind, or one this build does not know, gives no runtime and the to
   for (const host of [{ kind: "none" }, { kind: "hosted-elsewhere" }] as unknown as SiteUpdateHost[]) {
     const runtime = createSiteUpdateRuntime({ host, shared });
     assert.equal(runtime, null);
-    assert.deepEqual(buildSiteUpdateRegistrations({ authorize: async () => {}, runtime }, {} as never), []);
+    assert.deepEqual(buildSiteUpdateRegistrations({ authorize: async () => {}, readOwnerId: async () => "owner-1", runtime }, {} as never), []);
   }
 });
 
@@ -86,7 +86,7 @@ test("nothing is automatic: building the runtime and the tools touches no port",
   const { hosts, shared, platform } = world();
   let feedCalls = 0;
   const feed = { latestRelease: async () => { feedCalls += 1; return null; } };
-  for (const host of [hosts.desktop, hosts["self-hosted"]]) buildSiteUpdateRegistrations({ authorize: async () => {}, runtime: createSiteUpdateRuntime({ host, shared: { ...shared, feed } }) }, {} as never);
+  for (const host of [hosts.desktop, hosts["self-hosted"]]) buildSiteUpdateRegistrations({ authorize: async () => {}, readOwnerId: async () => "owner-1", runtime: createSiteUpdateRuntime({ host, shared: { ...shared, feed } }) }, {} as never);
   assert.equal(feedCalls, 0);
   assert.deepEqual(platform, []);
 });

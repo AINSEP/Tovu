@@ -38,6 +38,11 @@ import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/
 import { registerAdminCustomCredentialsRoutes, registerAdminPublishCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
 import { registerAdminCredentialCopyRoutes } from "../modules/system-credential-copy.js";
 import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/system/site-key.js";
+import { siteUpdateStatusRoute, type SiteUpdateStatusRouteDeps } from "@jini-ai/devops/deploy/admin-http/site-update-status";
+import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
+import { readSiteUpdateStatus, type ReadSiteUpdateStatusRequired, type SiteUpdateStatusPorts } from "#src/features/site-update/read-status";
+import type { SiteUpdateCheckRuntime } from "#src/features/site-update/tools";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
@@ -192,6 +197,47 @@ function mountSiteAdmin({ app, routeDeps }: MountInput, _optional = {}): void {
   registerAdminSiteShareRoutes({ app, deps: routeDeps });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
   registerAdminSiteBackupRoutes({ app, deps: routeDeps });
+  // Admin site-update notice: the same read as `site_update_check`, below the authenticated shell.
+  registerAdminSiteUpdateStatusRoute({ app, deps: routeDeps });
+}
+
+/** The read half of the platform runtime, copied port by port so the write ports never travel with it. */
+function siteUpdateReadPorts(runtime: SiteUpdateCheckRuntime | null | undefined, _optional = {}): SiteUpdateStatusPorts | null {
+  if (!runtime) return null;
+  return { runningVersion: () => runtime.runningVersion(), feed: runtime.feed, ids: runtime.ids };
+}
+
+/** The runtime's read-only journal read alone, so no other supervisor port travels with it. */
+function lastAttemptReader(runtime: SiteUpdateCheckRuntime | null | undefined, _optional = {}): ReadSiteUpdateStatusRequired["readLastAttempt"] {
+  const read = runtime?.readLastAttempt;
+  return read && ((required, optional) => read(required, optional));
+}
+
+/** Admin site-update status: a `system.read` GET, session credentials only, never cached.
+ * `siteUpdateRuntime` is read per request because the composition binds it after the routes mount.
+ * A failed check is reported here under a fixed label; the reply carries only `check-failed`.
+ * @complexity O(1) setup; per request one version read plus one feed request.
+ */
+export function registerAdminSiteUpdateStatusRoute(
+  required: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime"> },
+  _optional = {},
+): void {
+  const { app, deps } = required;
+  const reportFailure = ({ error }: { error: unknown }) => void reportServerFailure({ error, operation: "site-update:status" });
+  mountAdminJsonRoute<Record<string, never>, SiteUpdateStatusReply, SiteUpdateStatusRouteDeps>({
+    app,
+    spec: {
+      ...siteUpdateStatusRoute,
+      // The Jini spec takes no principal context: the operator record stays with the admin ports.
+      handle: (args, options) => siteUpdateStatusRoute.handle({ input: args.input, deps: args.deps, authorize: args.authorize }, options),
+      responseHeaders: { "Cache-Control": "no-store" },
+    },
+    deps: {
+      workspaceId: deps.workspaceId,
+      authorize: deps.authorize,
+      getStatus: (_input, options) => readSiteUpdateStatus({ runtime: siteUpdateReadPorts(deps.siteUpdateRuntime), reportFailure, readLastAttempt: lastAttemptReader(deps.siteUpdateRuntime) }, { signal: options?.signal }),
+    },
+  }, { authorization: "direct", sessionCredentialOnly: { permission: "system.read", message: "Sign in to check for site updates." } });
 }
 
 /** Consent, publish, credential-set, site-key and fs-files routes. */

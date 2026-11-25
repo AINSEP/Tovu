@@ -1,3 +1,4 @@
+import type { OutboxEventPreparation } from "@jini-ai/db/events";
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import { SqlChangeSetRepo } from "@jini-ai/db/events";
 import type { ContentDb } from "./content-db.js";
@@ -41,8 +42,11 @@ export const CHANGE_SET_TABLES = { changeSets: "change_sets", changeSetItems: "c
  * that builds it from the content db handle stays as it is.
  */
 export class SqliteChangeSetRepo extends SqlChangeSetRepo {
-  /** The connection's kernel, or the content db handle it is derived from. */
-  constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super({ kernel: schemaErasedKernel({ store }), tables: CHANGE_SET_TABLES }, {});
+  /**
+   * @param required.store the connection's kernel, or the content db handle it is derived from.
+   * @param optional.prepareOutboxEvent host hook run on the co-persisted event inside the insert's one transaction.
+   */
+  constructor({ store }: { store: ContentKernel | ContentDb }, optional: OutboxEventPreparation = {}) {
+    super({ kernel: schemaErasedKernel({ store }), tables: CHANGE_SET_TABLES }, optional);
   }
 }

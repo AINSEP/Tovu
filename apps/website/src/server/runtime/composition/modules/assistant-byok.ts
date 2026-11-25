@@ -91,6 +91,7 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { createByokRunUsage } from "./assistant-byok-run-usage.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
@@ -410,6 +411,7 @@ async function resolveTurnInputsOrRespond(
   res: Response,
   credentialPort: ExecutionCredentialPort,
   routeDeps: RouteDeps,
+  signal: AbortSignal,
 ): Promise<ByokTurnInputs | null> {
   const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown; attachmentIds?: unknown; folders?: unknown };
   const history = resolveMessages({ raw: body.messages });
@@ -438,6 +440,8 @@ async function resolveTurnInputsOrRespond(
     });
     return null;
   }
+  // The credential read is a cancellation window: a browser gone by now gets no attachment work.
+  if (signal.aborted) return null;
 
   if (!await attachTurnMessagesOrRespond({ attachmentIds: body.attachmentIds, messages, principalId: authed.id, routeDeps, res })) return null;
   return { messages, principal: { id: authed.id }, credential };
@@ -722,67 +726,84 @@ async function preparePluginGuidance({ req, res, run, principal, messages, abort
 
 
 /** Arms this turn's abort before its first await and reports a response that closed before entry,
- * since an already-closed response emits no further `close`. `release` detaches the listener.
- * @complexity O(1); no I/O. */
+ * since an already-closed response emits no further `close`. The same controller later reaches the
+ * provider and every tool call. `release` detaches the listener.
+ * @complexity O(1); one close listener, removed by `release`; no I/O. */
 function bindTurnAbort({ res }: { res: Response }, _optional = {}): { abort: AbortController; release: () => void } {
   // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
   // upstream provider call and any in-flight tool execution, not run to completion unobserved.
   const abort = new AbortController();
   const onClose = () => { if (!res.writableEnded) abort.abort(); };
   res.once("close", onClose);
-  if (res.destroyed) abort.abort();
+  if ((res.destroyed || res.closed) && !res.writableEnded) abort.abort();
   return { abort, release: () => { res.off("close", onClose); } };
 }
 
-/** Resolves inputs, extension tools, federation and the prompt, checking the turn's abort after each
- * so a disconnected user never reaches credential-backed provider work. Closed responses end quietly.
- * @complexity Awaits the existing input, surface and prompt owners once each; the federation wait is
- * shared across turns and is never cancelled by this one. */
+/** Arms the turn's abort, then prepares and runs it; the close listener is detached on every exit.
+ * @complexity O(1) here; the cost is `runWatchedByokTurn`'s. */
 async function handleTurn({ req, res, context }: { req: Request; res: Response; context: ByokTurnContext }, _optional = {}): Promise<void> {
-    const { routeDeps, resolvedToolSurface, credentialPort } = context;
-    // A disconnected user must not leave paid work running: the abort is armed before credential,
-    // attachment or federation I/O, and every step below re-checks it before starting new work.
+    // Why: awaiting turn preparation (credentials, readiness, federation, prompt) opens a
+    // cancellation window before the stream exists. A close listener bound only once streaming
+    // starts never fires for a browser that already left, and the turn would then pay a provider
+    // for an answer nobody reads. So the abort is armed before credential, attachment or federation
+    // I/O, every step re-checks it before starting new work, and the listener is detached on every exit.
     const { abort, release } = bindTurnAbort({ res });
-    try {
-      const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
-      if (!inputs || abort.signal.aborted) return undefined;
-
-      // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
-      // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
-      // `search_tools`/`describe_tool` catalog rebuilt to include them — see `ByokToolSurface.ready`'s
-      // own doc. Awaited here, once per turn, so `search_tools` can find a just-registered extension
-      // tool before the model's first tool call this turn, not only after it. Resolves instantly for
-      // every turn after the first (the promise is already settled) and for a caller-supplied
-      // `toolSurface` that predates this field, which has no `ready` to wait on at all.
-      await (resolvedToolSurface.ready ?? Promise.resolve());
-
-      // Starts (or awaits) this surface's lazy federation boot pass, bounded to
-      // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
-      // lands before the boot pass has settled can actually wait (a roster-change reload is never
-      // awaited here); every later turn finds the boot pass already settled and this resolves at
-      // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
-      // live — empty before federation has admitted anything, and always when this surface was built
-      // with `installExtensions: false` (`federation` is `undefined` there). No signal is passed: the
-      // boot pass is shared, so one closed tab must not stop it for other turns.
-      const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
-      if (abort.signal.aborted) return undefined;
-      const system = await resolveByokSystemPrompt(routeDeps, {
-        refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
-        stillConnecting: !federationOutcome.settled,
-      });
-      if (abort.signal.aborted) return undefined;
-      return await runByokTurn({ req, res, context, inputs, abort, system });
-    } finally { release(); }
+    try { return await runWatchedByokTurn({ req, res, context, abort }); }
+    finally { release(); }
   }
 
-/** Opens the stream, registers the live run for access lowering and drives the provider turn.
- * The run's registration and cleanup stay paired in one try/finally; a lowered run ends cleanly.
+/** Resolves inputs, extension tools, federation and the prompt before the stream opens, rechecking the
+ * turn's abort after each so a disconnected user never reaches credential-backed provider work.
+ * Returns null when the request was answered or the browser left; then no stream, run or call starts.
+ * @complexity Awaits the existing input, surface and prompt owners once each; the federation wait is
+ * shared across turns and is never cancelled by this one. */
+async function prepareByokTurnSetup({ req, res, context, abort }: {
+    req: Request; res: Response; context: ByokTurnContext; abort: AbortController;
+  }, _optional = {}): Promise<(ByokTurnInputs & { system: string }) | null> {
+    const { routeDeps, resolvedToolSurface, credentialPort } = context;
+    const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps, abort.signal);
+    if (!inputs || abort.signal.aborted) return null;
+
+    // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
+    // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
+    // `search_tools`/`describe_tool` catalog rebuilt to include them — see `ByokToolSurface.ready`'s
+    // own doc. Awaited here, once per turn, so `search_tools` can find a just-registered extension
+    // tool before the model's first tool call this turn, not only after it. Resolves instantly for
+    // every turn after the first (the promise is already settled) and for a caller-supplied
+    // `toolSurface` that predates this field, which has no `ready` to wait on at all.
+    await (resolvedToolSurface.ready ?? Promise.resolve());
+    if (abort.signal.aborted) return null;
+
+    // Starts (or awaits) this surface's lazy federation boot pass, bounded to
+    // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
+    // lands before the boot pass has settled can actually wait (a roster-change reload is never
+    // awaited here); every later turn finds the boot pass already settled and this resolves at
+    // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
+    // live — empty before federation has admitted anything, and always when this surface was built
+    // with `installExtensions: false` (`federation` is `undefined` there). No signal is passed: the
+    // boot pass is shared, so one closed tab must not stop it for other turns.
+    const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
+    if (abort.signal.aborted) return null;
+    const system = await resolveByokSystemPrompt(routeDeps, {
+      refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
+      stillConnecting: !federationOutcome.settled,
+    });
+    return abort.signal.aborted ? null : { ...inputs, system };
+  }
+
+/** Opens the stream, registers the live run for access lowering and drives one provider turn with the
+ * armed controller. The run's registration and cleanup stay paired in one try/finally; a lowered run
+ * ends cleanly, and a Stop during plugin guidance ends the stream before provider dispatch.
  * @complexity O(admitted tools) to snapshot sources, plus plugin preparation and the provider turn. */
-async function runByokTurn({ req, res, context, inputs, abort, system }: {
-    req: Request; res: Response; context: ByokTurnContext; inputs: ByokTurnInputs; abort: AbortController; system: string;
+async function runWatchedByokTurn({ req, res, context, abort }: {
+    req: Request; res: Response; context: ByokTurnContext; abort: AbortController;
   }, _optional = {}): Promise<void> {
     const { routeDeps, resolvedToolSurface, liveToolRuns } = context;
-    const { messages, principal, credential } = inputs;
+    const setup = await prepareByokTurnSetup({ req, res, context, abort });
+    if (!setup) return undefined;
+    const { messages, principal, credential } = setup;
+    let { system } = setup;
+
     const run = { id: randomUUID() };
 
     beginStream(req, res);
@@ -792,7 +813,8 @@ async function runByokTurn({ req, res, context, inputs, abort, system }: {
     liveToolRuns.set(run.id, liveToolRun);
     try {
       system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system }, context);
-      if (abort.signal.aborted) return undefined;
+      // Plugin guidance is the last await before the paid call; a Stop during it ends here.
+      if (abort.signal.aborted) return endByokResponse({ res, lowered: liveToolRun.lowered, reason: 'stop' });
 
       // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
       const toolRun = resolvedToolSurface.createRun?.({ principal, run });
@@ -841,11 +863,12 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
         // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
         const reportRunFailure = ({ error }: { error: unknown }, _optional = {}) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
         const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+        const runUsage = createByokRunUsage();
         function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
           aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
           aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
           void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
-          span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+          span.setOutcome(runUsage.withUsage(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } })));
           if (!abort.signal.aborted && !reportedError) reportRunFailure({ error });
           endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
         }
@@ -861,6 +884,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
             onEvent: (event: ProviderTurnEvent) => {
               if (liveToolRun.lowered) return;
               aiTrace?.observe(event as unknown as Record<string, unknown>);
+              runUsage.observe(event);
               // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
               if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure({ error: new Error(event.message) }); }
               sse({ res, event: event.type === "error" ? "error" : "agent", data: stampUsage(event) });
@@ -871,7 +895,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
           return;
         }
 
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+        span.setOutcome(runUsage.withUsage(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError })));
         aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
         void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
         endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });

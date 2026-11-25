@@ -1101,7 +1101,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   declaredScripts?: import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[];
   /** Bound by `site-deps/site-update-binding.ts` for a self-hosted site that opted in (feed URL, host kind, version); absent
    *  means no update tools. The tools read it as `siteUpdateRuntime`; applying still needs the owner's approval card. */
-  siteUpdateRuntime?: import("../../features/site-update/tools.js").SiteUpdateRuntime | null;
+  siteUpdateRuntime?: import("../../features/site-update/tools.js").SiteUpdateCheckRuntime | null;
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */
