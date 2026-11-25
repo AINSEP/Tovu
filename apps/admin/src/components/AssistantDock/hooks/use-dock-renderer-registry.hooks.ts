@@ -18,7 +18,7 @@ import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/
 import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
-import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
+import { OverflowAwareMcpUiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { buildAssistantMcpUiSandboxProxyUrl } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-mcp-ui";
@@ -112,6 +112,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
      * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
      */
     registry.register({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => createElement(OverflowAwareMcpUiSurfaceCard, {
+      useTHook: useT,
       ...props,
       onToolCall: mcpUiToolCaller,
       // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see

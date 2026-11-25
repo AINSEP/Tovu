@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, expect, it, vi } from "vitest";
-import { MessageRow, clearExtEventRenderers, mcpUiSurfaceSlotKey, registerExtEventRenderer } from "@jini-ai/chat/react";
+import { MessageRow, clearExtEventRenderers, mcpUiSurfaceSlotKey, registerExtEventRenderer, useT } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { buildConfirmationSurface, type McpUiHostProps } from "@jini-ai/ui/mcp-ui";
-import { OverflowAwareMcpUiSurfaceCard } from "../../OverflowAwareMcpUiSurfaceCard";
+import { OverflowAwareMcpUiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 // Only the cross-origin iframe boundary is replaced; grouping, receipts, expiry and
@@ -30,7 +30,7 @@ const pending: AgentEvent[] = [
 ];
 const message = (events = pending, runStatus: ChatMessage["runStatus"] = "running"): ChatMessage => ({ id: "run-row", role: "assistant", content: "", events, runStatus });
 function setup(execute = vi.fn().mockResolvedValue({ delivered: true })) {
-  registerExtEventRenderer({ name: "mcp-ui", renderer: props => <OverflowAwareMcpUiSurfaceCard {...props}
+  registerExtEventRenderer({ name: "mcp-ui", renderer: props => <OverflowAwareMcpUiSurfaceCard {...props} useTHook={useT}
     sandboxProxyUrl={new URL("https://sandbox.test/proxy.html")} onToolCall={execute} /> }, { slotKey: mcpUiSurfaceSlotKey });
   return execute;
 }

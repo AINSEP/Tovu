@@ -9,7 +9,7 @@ import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@jini
 import { resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { AssistantDock } from "../AssistantDock";
-import { useAssistantTransport } from "../hooks/assistant-transport.hooks";
+import { useTovuAssistantTransport as useAssistantTransport } from "../hooks/assistant-transport.binding";
 
 const STARTING = "Starting assistant…";
 type PaneProps = ComponentProps<typeof ChatPane> & { sendingLabel?: string };

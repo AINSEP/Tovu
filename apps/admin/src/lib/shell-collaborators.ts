@@ -35,7 +35,7 @@ export function adminBrowserStreamPorts(_required = {}, _optional = {}): Browser
 
 /** Tovu wraps each MCP-UI card in its overflow-aware surface (`OverflowAwareMcpUiSurfaceCard`); the
  *  credential guide scrolls that wrapper, not the bare card, into view. */
-export const MCP_UI_CARD_WRAPPER_SELECTOR = ".mcpui-surface-overflow-wrap";
+export const MCP_UI_CARD_WRAPPER_SELECTOR = ".jini-mcpui-surface-overflow-wrap";
 
 /** The redaction callback the chat posters take, bound to Tovu's card markup. */
 export function onTovuSecretRedacted(signal: Parameters<typeof onAdminSecretRedacted>[0]): void {
