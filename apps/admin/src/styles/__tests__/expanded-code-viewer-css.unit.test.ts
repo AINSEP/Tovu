@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -21,9 +22,9 @@ describe("expanded code viewer + install tab CSS", () => {
   });
 
   it("keeps the install tab's buttons content-width in the phone container query", () => {
-    const css = read("../../components/InstallTabCard/install-tab-card.css");
+    const css = read(createRequire(import.meta.url).resolve("@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css"));
     const phone = css.slice(css.indexOf("@container admin-content (max-width: 536px)"));
-    expect(phone).toContain(".install-tab-field-controls button { align-self: flex-start; }");
+    expect(phone).toContain(".jini-install-tab-field-controls button { align-self: flex-start; }");
     expect(phone).not.toMatch(/flex:\s*1 1 100%/);
   });
 });

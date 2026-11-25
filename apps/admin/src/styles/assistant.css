@@ -1186,7 +1186,7 @@ button.jini-composer-leading,
 /* "Folder window opened on the computer running Tovu" (DockLeadingAccessory, browser tab only): a
    one-line status, so no padding or seam of its own — the composer's leading zone already draws both
    (checked in Chrome 11-01: the notice's own 6px 16px 10px + border read as a doubled rule). */
-.jini-folder-drop-notice.tovu-folder-window-note {
+.jini-folder-drop-notice.jini-folder-window-note {
   padding: 0;
   border-bottom: 0;
   color: var(--jini-chat-muted);

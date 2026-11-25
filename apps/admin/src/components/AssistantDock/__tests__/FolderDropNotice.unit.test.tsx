@@ -10,7 +10,7 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
     vars ? key.replace(/\{(\w+)\}/g, (_m, name: string) => String(vars[name] ?? `{${name}}`)) : key,
 }));
 
-import { FolderDropNotice } from "../FolderDropNotice";
+import { FolderDropNotice } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropNotice";
 
 afterEach(() => {
   cleanup();

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { DataTable } from "@jini-ai/admin/react";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { FileDropzone } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";

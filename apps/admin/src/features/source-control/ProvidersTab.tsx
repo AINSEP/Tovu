@@ -1,5 +1,5 @@
 import { CredentialHint } from "@/components/CredentialHint";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";

@@ -1,6 +1,6 @@
 import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminPublishDestinationView } from "./publish-content-api.types";
 

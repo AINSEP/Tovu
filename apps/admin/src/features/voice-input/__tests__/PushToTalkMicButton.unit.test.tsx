@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../PushToTalkMicButton";
-import type { PushToTalkCapture } from "../hooks/mic-capture";
+import type { PushToTalkCapture } from "@jini-ai/admin/screens/voice-input/hooks/mic-capture";
 import type { VoiceInputPort } from "../voice-input-port";
 
 /**
@@ -40,7 +40,7 @@ describe("PushToTalkMicButton", () => {
       name: "Voice input needs macOS — on-device transcription is not available here.",
     });
     expect(button).toBeDisabled();
-    expect(button.className).toContain("tovu-push-to-talk--unavailable");
+    expect(button.className).toContain("jini-push-to-talk--unavailable");
   });
 
   it("renders the same disabled button in a plain browser tab, saying the desktop app is needed", async () => {
@@ -52,7 +52,7 @@ describe("PushToTalkMicButton", () => {
     expect(button).toBeDisabled();
     // Web Speech is NOT wired here on purpose: it uploads audio to a third party, which is the
     // opposite of what the on-device path exists for. The button says so instead of doing it.
-    expect(button.className).toContain("tovu-push-to-talk--unavailable");
+    expect(button.className).toContain("jini-push-to-talk--unavailable");
   });
 
   it("never starts a capture from the unavailable button, even if a click gets through", async () => {
@@ -71,7 +71,7 @@ describe("PushToTalkMicButton", () => {
     render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: fakePort() }} />);
     const button = await screen.findByRole("button", { name: "Hold to talk" });
     expect(button).toHaveAttribute("aria-pressed", "false");
-    expect(button.className).not.toContain("tovu-push-to-talk--recording");
+    expect(button.className).not.toContain("jini-push-to-talk--recording");
   });
 
   it("shows the unmistakable recording state after pointerdown, and clears it after pointerup with the transcript delivered", async () => {
@@ -84,7 +84,7 @@ describe("PushToTalkMicButton", () => {
       button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
     await waitFor(() => expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true"));
-    expect(screen.getByRole("button").className).toContain("tovu-push-to-talk--recording");
+    expect(screen.getByRole("button").className).toContain("jini-push-to-talk--recording");
     expect(screen.getByRole("button", { name: "Recording — release to send" })).toBeInTheDocument();
 
     await act(async () => {

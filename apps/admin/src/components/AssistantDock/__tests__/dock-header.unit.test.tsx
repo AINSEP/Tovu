@@ -4,15 +4,15 @@ import { useState } from "react";
 import { useInfoTip } from "@jini-ai/ui/admin-widgets";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockHeaderTip } from "../DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { useDockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import type { ChatDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
-import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 
 /**
  * @file The dock header's gear menu and white icon tooltips (owner, 2026-10-11). Real hooks, real

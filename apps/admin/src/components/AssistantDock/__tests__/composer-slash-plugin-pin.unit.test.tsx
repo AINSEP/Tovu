@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Composer, useComposer } from "@jini-ai/chat/react";
 
 import { useComposerCapabilities, useComposerDiscoverySelect } from "../hooks/composer-discovery.hooks";
-import { useSelectedAgentPlugins } from "../hooks/selected-agent-plugins.hooks";
+import { useSelectedAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
 
 /**
  * @file End-to-end proof (real `@jini-ai/chat/react` `Composer`, real Tovu host wiring, no mocking

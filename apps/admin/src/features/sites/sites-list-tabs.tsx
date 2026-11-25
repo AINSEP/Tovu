@@ -16,7 +16,7 @@ import {
   buildSiteCardMenuItems, resolveSiteCardMeta, resolveSiteCardTitle, resolveSiteCardView, resolveSiteIsDefault,
   resolveSiteRegistrationBadge, resolveSiteRunningTitle, resolveSiteStatusPill,
 } from "./Sites.hooks";
-import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
+import { adminSitePreviewUrl } from "@jini-ai/admin/shell/lib/admin-http/urls";
 
 /**
  * @file Binds the shared Sites list tabs (`@jini-ai/admin/screens/sites/*`) to this admin: the card

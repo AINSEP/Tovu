@@ -1,5 +1,5 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import {

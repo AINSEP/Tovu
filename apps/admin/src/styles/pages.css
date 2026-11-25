@@ -145,7 +145,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--tovu-site-preview-bg);
+  background: var(--jini-admin-site-preview-bg);
 }
 
 .page-preview-scaler {

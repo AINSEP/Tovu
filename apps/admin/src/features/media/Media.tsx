@@ -19,25 +19,25 @@ import {
   mediaFillsPreview,
   mediaUploadAccept,
   mediaUploadLabel,
-  MEDIA_GRID_SIZE_STORAGE_KEY,
   type MediaShape,
   mediaShapeBadges,
   type MediaOrderBy,
-} from "./rules";
+} from "@jini-ai/admin/screens/media/rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
+import { t as mediaTranslate } from "./media-i18n";
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
-import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
 import { useAdminKitValues } from "@jini-ai/admin/react/kit";
-import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
-import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
+import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
-import { PINNED_MEDIA_PROVIDER_IDS } from "./pinned-media-providers";
+import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
@@ -1080,7 +1080,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
           <RowMenu
             triggerLabel={t('Actions for "{title}"').replace("{title}", () => item.title)}
             agentHandle={`${handle}-menu`}
-            items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale })}
+            items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale, translate: mediaTranslate })}
           />
         </div>
         <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
@@ -1469,6 +1469,10 @@ function MediaPageShell({
     </div>
   );
 }
+
+/** Browser-storage key for the Media grid's card size (owner default, 2026-11-01). The sizes, their parser and
+ *  `useMediaGridSize` live in `@jini-ai/admin/screens/media`; this product key is passed in at the call site. */
+const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
 export function Media(props: MediaProps) {
   // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own

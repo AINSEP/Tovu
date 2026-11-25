@@ -1,6 +1,6 @@
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { AdminApiError } from "@jini-ai/core/admin-runtime";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { CONTENT_ANALYZER_PLUGIN_ID } from "@jini-ai/admin/screens/content-analysis/rules";
 import type { ContentAnalysisPort } from "@jini-ai/admin/screens/content-analysis/hooks/content-analysis-port.hooks";
 

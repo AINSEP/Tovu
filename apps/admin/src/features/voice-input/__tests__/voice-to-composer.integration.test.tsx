@@ -7,8 +7,8 @@ import type { ChatTransport, StartRunInput } from "@jini-ai/chat/core";
 
 import { PushToTalkMicButton } from "../PushToTalkMicButton";
 import { useComposerVoiceInput } from "../hooks/use-composer-voice-input.hooks";
-import { SPACE_HOLD_TO_TALK_MS } from "../hooks/space-hold-config";
-import type { PushToTalkCapture } from "../hooks/mic-capture";
+import { SPACE_HOLD_TO_TALK_MS } from "@jini-ai/admin/screens/voice-input/hooks/space-hold-config";
+import type { PushToTalkCapture } from "@jini-ai/admin/screens/voice-input/hooks/mic-capture";
 import type { VoiceInputPort } from "../voice-input-port";
 
 /**

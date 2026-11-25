@@ -1,12 +1,6 @@
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import { request } from "../../../lib/admin-http/request";
-import { querySuffix } from "@jini-ai/core/admin-runtime";
-import type { AdminAnalyticsHit } from "@jini-ai/admin/screens/analytics/api/analytics-api.types";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { request } from "@/lib/admin-http/request";
+import { createAnalyticsApi } from "@jini-ai/admin/screens/analytics/api/analytics-api";
 
-/** The admin API calls of the analytics feature. */
-export const analyticsApi = {
-  listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
-    request<{ hits: AdminAnalyticsHit[] }>(
-      { path: `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix({ query: options.limit ? "limit=" + options.limit : "" })}` }
-    ),
-};
+/** The admin API calls of the analytics feature, over this host's `request`. */
+export const analyticsApi = createAnalyticsApi({ request, workspaceId: WORKSPACE_ID });

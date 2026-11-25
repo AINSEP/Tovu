@@ -15,7 +15,7 @@ import { type AdmissionDriftConnection, type SavedConnectionIntent } from "@jini
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
-import { EXTERNAL_MCP_DRIFT_COPY } from "../external-mcp-drift-copy";
+import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
 /**
  * @file The transport behind Settings → External MCP's "what is the assistant actually running"
  * banner: three reads the app already had clients for, and never called together.

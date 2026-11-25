@@ -3,7 +3,8 @@ import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ChatFab } from "../ChatFab/ChatFab";
+import { ChatFab } from "@jini-ai/admin/shell/components/ChatFab/ChatFab";
+import { FAB_POSITION_STORAGE_KEY } from "@/lib/chat-fab-storage-key";
 import type { FabPositionResult } from "@jini-ai/admin/shell/components/ChatFab/ChatFab.hooks";
 
 /**
@@ -36,7 +37,7 @@ afterEach(() => {
 
 describe("ChatFab — closed state", () => {
   it("renders the open affordance: aria-expanded false, 'Open <label>' name/title, sparkle icon", () => {
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
 
     expect(button).toHaveAttribute("aria-expanded", "false");
@@ -45,13 +46,13 @@ describe("ChatFab — closed state", () => {
   });
 
   it("threads a custom label through both the accessible name and the title", () => {
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} label="Jini" />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} label="Jini" />);
     expect(screen.getByRole("button", { name: "Open Jini" })).toHaveAttribute("title", "Open Jini");
   });
 
   it("falls back to the English action label when locale has no FAB_ACTION_TEMPLATE entry", () => {
     render(
-      <ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} locale="xx-unsupported" />,
+      <ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} locale="xx-unsupported" />,
     );
     expect(screen.getByRole("button", { name: "Open assistant" })).toBeInTheDocument();
   });
@@ -59,7 +60,7 @@ describe("ChatFab — closed state", () => {
 
 describe("ChatFab — open state", () => {
   it("renders the close affordance: aria-expanded true, 'Close <label>' name/title, and the dock-open class", () => {
-    render(<ChatFab open={true} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={true} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Close assistant" });
 
     expect(button).toHaveAttribute("aria-expanded", "true");
@@ -72,7 +73,7 @@ describe("ChatFab — interaction", () => {
   it("a plain click (no drag) calls onToggle", async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
-    render(<ChatFab open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
 
     await user.click(screen.getByRole("button", { name: "Open assistant" }));
 
@@ -81,7 +82,7 @@ describe("ChatFab — interaction", () => {
 
   it("forwards the ref to the underlying button element", () => {
     const ref = createRef<HTMLButtonElement>();
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} ref={ref} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} ref={ref} />);
 
     expect(ref.current).toBeInstanceOf(HTMLButtonElement);
     expect(ref.current).toBe(screen.getByRole("button", { name: "Open assistant" }));
@@ -89,7 +90,7 @@ describe("ChatFab — interaction", () => {
 
   it("a real drag past the threshold suppresses the trailing click's onToggle and applies chat-fab-dragging while in progress", () => {
     const onToggle = vi.fn();
-    render(<ChatFab open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
     vi.spyOn(button, "getBoundingClientRect").mockReturnValue({
       top: 500, bottom: 556, left: 500, right: 556, width: 56, height: 56, x: 500, y: 500, toJSON() {},
@@ -112,7 +113,7 @@ describe("ChatFab — interaction", () => {
 
   it("a pointerdown/pointerup with no meaningful movement (a tap) still calls onToggle on the trailing click", () => {
     const onToggle = vi.fn();
-    render(<ChatFab open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={onToggle} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
     vi.spyOn(button, "getBoundingClientRect").mockReturnValue({
       top: 500, bottom: 556, left: 500, right: 556, width: 56, height: 56, x: 500, y: 500, toJSON() {},
@@ -127,7 +128,7 @@ describe("ChatFab — interaction", () => {
 
   it("a non-primary pointer button (e.g. right-click) does not start a drag capture", () => {
     const setPointerCapture = HTMLElement.prototype.setPointerCapture as unknown as ReturnType<typeof vi.fn<(...args: any[]) => any>>;
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
 
     fireEvent.pointerDown(button, { button: 2, pointerId: 1, clientX: 520, clientY: 520 });
@@ -159,7 +160,7 @@ describe("ChatFab useFab injection", () => {
   it("keeps the drag handler active while the assistant dock is open", () => {
     const onPointerDown = vi.fn();
     const useFab = vi.fn(() => fakeFab({ onPointerDown }));
-    render(<ChatFab open={true} onToggle={vi.fn()} avoidBottomPx={240} avoidRightPx={360} useFab={useFab} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={true} onToggle={vi.fn()} avoidBottomPx={240} avoidRightPx={360} useFab={useFab} />);
     const button = screen.getByRole("button", { name: "Close assistant" });
 
     fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 520, clientY: 520 });
@@ -171,7 +172,7 @@ describe("ChatFab useFab injection", () => {
   });
 
   it("renders at the injected fake's position, not the real hook's clamped default", () => {
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} useFab={() => fakeFab()} />);
+    render(<ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY} open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} useFab={() => fakeFab()} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
 
     expect(button).toHaveStyle({ right: "999px", bottom: "888px" });
@@ -184,7 +185,7 @@ describe("ChatFab useFab injection", () => {
     // for a plain click with no preceding pointerdown/move, so onToggle firing zero times here can
     // only be explained by the injected fake being consulted.
     render(
-      <ChatFab
+      <ChatFab positionStorageKey={FAB_POSITION_STORAGE_KEY}
         open={false}
         onToggle={onToggle}
         avoidBottomPx={0}

@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { SkillInstallPayload } from "@jini-ai/core/contracts/site/skill-install";
 import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";

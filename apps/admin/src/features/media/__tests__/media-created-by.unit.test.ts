@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mediaCreatedByLabel } from "../rules";
+import { mediaCreatedByLabel } from "@jini-ai/admin/screens/media/rules";
 import { MEDIA_DICT, t } from "../media-i18n";
 
 /** Owner dispatch 2026-10-04: asset attribution is read-only and legacy Unknown is localized. */

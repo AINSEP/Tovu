@@ -19,7 +19,7 @@ import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
 import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
-import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
+import { ConfirmActionDialog } from "@jini-ai/admin/shell/components/ConfirmActionDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
 import { parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import {
@@ -32,7 +32,7 @@ import {
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
 import { EXTERNAL_MCP_PRODUCT_VARS } from "../../integrations/jini-admin/settings-external-mcp-copy";
 import { useHostExternalMcpOAuthConnect } from "../../integrations/jini-admin/settings-external-mcp-oauth-connect.hooks";
-import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
+import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "@jini-ai/admin/screens/settings/rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

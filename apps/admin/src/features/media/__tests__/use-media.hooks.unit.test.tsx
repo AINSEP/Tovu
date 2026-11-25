@@ -8,7 +8,9 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
-import { MEDIA_RESOURCE, visibleMediaError } from "../rules";
+import { MEDIA_RESOURCE, visibleMediaError as visibleMediaErrorRule } from "@jini-ai/admin/screens/media/rules";
+
+const visibleMediaError = (input: Omit<Parameters<typeof visibleMediaErrorRule>[0], "describeApiError">) => visibleMediaErrorRule({ ...input, describeApiError });
 
 /**
  * @file `useMedia` — the Media grid screen's list/upload/trash/purge cycle, driven against the

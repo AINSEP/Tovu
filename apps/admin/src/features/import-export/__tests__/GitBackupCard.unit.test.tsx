@@ -2,11 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
+import { GitBackupCard, SOURCE_CONTROL_HREF } from "@jini-ai/admin/screens/import-export/GitBackupCard";
 import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "@jini-ai/admin/screens/import-export/git-backup-rules";
 import { createFakeGitBackupPort, type GitBackupPlan, type GitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import { GIT_BACKUP_HOST, defaultGitBackupPort, useWiredGitBackup } from "../hooks/git-backup-dependencies.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 /**
@@ -24,7 +25,7 @@ function connection(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 const PLAN: GitBackupPlan = { planned: true, planId: "plan-1", repository: "me/site-backups", branch: "main", folder: "mysite", folderExists: true, fileCount: 12, totalSize: "3.4 MB", skipped: [{ path: "big.mov" }] };
 
 function Harness({ port, maxPushPolls }: { port: GitBackupPort; maxPushPolls?: number }) {
-  return <GitBackupCard controller={useGitBackup({ port, t, host: GIT_BACKUP_HOST }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} />;
+  return <GitBackupCard controller={useGitBackup({ port, t, host: GIT_BACKUP_HOST }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} agentHandle={agentHandle} />;
 }
 
 function fillForm(owner = "me", repo = "site-backups") {

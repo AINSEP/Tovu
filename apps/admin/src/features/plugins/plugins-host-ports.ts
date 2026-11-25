@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "@/lib/admin-http/request";
 import { createPluginsApi } from "@jini-ai/admin/screens/plugins/api/plugins-api";
 

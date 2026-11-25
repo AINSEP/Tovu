@@ -5,8 +5,8 @@ import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 import { formsApi } from "../../features/forms/forms-host-ports";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
-import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import type { WidgetConfigFieldsPort } from "@jini-ai/admin/shell/components/WidgetConfigFields/widget-config-fields-port.hooks";
 
 /**
  * @file The only place under `components/WidgetConfigFields` that reaches `lib/api` — see

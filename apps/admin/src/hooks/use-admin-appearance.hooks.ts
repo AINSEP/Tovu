@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { APPEARANCE_NAMESPACE, adminThemeAccent, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { useAdminThemeState } from "../admin-themes/use-admin-theme.hooks";
-import { advanceAppearancePreview, useAdminAppearanceSnapshot } from "./use-admin-appearance-snapshot.hooks";
+import { advanceAppearancePreview } from "@jini-ai/admin/shell/hooks/use-admin-appearance-snapshot.hooks";
+import { useAdminAppearanceSnapshot } from "./use-admin-appearance-snapshot.hooks";
 
 export interface AdminAppearancePort {
   loadAppearance(): Promise<AppearanceConfig>;

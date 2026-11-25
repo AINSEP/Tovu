@@ -1,7 +1,7 @@
 import { Login as LoginScreen } from "@jini-ai/admin/screens/auth/Login";
 import type { LoginController, LoginHookProps } from "@jini-ai/admin/screens/auth/hooks/use-login.hooks";
 import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { authApi } from "./api/auth-api";
 import { LoginErrorNotice, OwnerPasskeySignIn, OwnerRecoverySignIn } from "./auth-host-binding";

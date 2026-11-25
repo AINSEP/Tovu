@@ -86,16 +86,16 @@
 /* Settings and Media provider controls and CustomSelect menus used panel paint before material wiring.
    Resolve their exceptions locally: both panels can pin a palette, and menus portal outside them. */
 :is(.settings-ui-section, .media-providers-panel) {
-  --tovu-admin-settings-control-bg: var(--jini-control-bg);
-  --tovu-admin-settings-control-border: var(--jini-control-border);
+  --jini-admin-settings-control-bg: var(--jini-control-bg);
+  --jini-admin-settings-control-border: var(--jini-control-border);
 }
 .jini-select-menu {
   --tovu-admin-select-menu-bg: var(--jini-bg-elevated);
   --tovu-admin-select-menu-shadow: var(--jini-overlay-shadow);
 }
 :where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) :is(.settings-ui-section, .media-providers-panel) {
-  --tovu-admin-settings-control-bg: var(--jini-bg-panel);
-  --tovu-admin-settings-control-border: var(--jini-border);
+  --jini-admin-settings-control-bg: var(--jini-bg-panel);
+  --jini-admin-settings-control-border: var(--jini-border);
 }
 :where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .jini-select-menu {
   --tovu-admin-select-menu-bg: var(--jini-bg-panel);

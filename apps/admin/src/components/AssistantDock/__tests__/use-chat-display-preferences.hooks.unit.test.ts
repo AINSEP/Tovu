@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { defaultChatDisplayPreferencesPort, useChatDisplayPreferences as useDefaultChatDisplayPreferences } from "../chat-display-preferences.adapter";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import {
   useChatDisplayPreferences as useJiniChatDisplayPreferences,
   type ChatDisplayPreferences,

@@ -2,7 +2,7 @@ import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 import { getFolderDropPort, type FolderDropPort } from "@jini-ai/admin/screens/fs-files/folder-drop-port";
 import type { CustomRootFailure } from "@jini-ai/admin/screens/fs-files/folder-drop.rules";
 import type { UseFolderDropDeps } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { ApiError, authenticatedAdminRequest } from "../../../lib/admin-http/request";
 
 /** The admin API calls of the fs-files feature. */

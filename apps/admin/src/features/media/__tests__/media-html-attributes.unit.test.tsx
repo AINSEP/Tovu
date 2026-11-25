@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { isAllowedMediaHtmlAttributeName, parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
-import { describeMediaHtmlAttributeError } from "../rules";
+import { t } from "../media-i18n";
+import { describeMediaHtmlAttributeError } from "@jini-ai/admin/screens/media/rules";
 
 /**
  * @file `rules.ts`'s HTML-attributes allowlist — NOT currently wired to any form (see that file's
@@ -231,30 +232,30 @@ describe("parseMediaHtmlAttributes", () => {
 
 describe("describeMediaHtmlAttributeError", () => {
   it("names the rejected attribute in the event-handler message", () => {
-    expect(describeMediaHtmlAttributeError({ error: { reason: "event-handler", attribute: "onerror" }, locale: "en" })).toContain("onerror");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "event-handler", attribute: "onerror" }, locale: "en", translate: t })).toContain("onerror");
   });
 
   it("names the rejected attribute in the unsafe-url message (same wording as the old javascript-url reason)", () => {
-    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-url", attribute: "poster" }, locale: "en" })).toContain("poster");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-url", attribute: "poster" }, locale: "en", translate: t })).toContain("poster");
   });
 
   it("names the rejected attribute in the unsafe-style message", () => {
-    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-style", attribute: "style" }, locale: "en" })).toContain("style");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-style", attribute: "style" }, locale: "en", translate: t })).toContain("style");
   });
 
   it("names the rejected attribute in the disallowed-name message", () => {
-    expect(describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "en" })).toContain("formaction");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "en", translate: t })).toContain("formaction");
   });
 
   it("names the unparsable fragment in the malformed message", () => {
-    expect(describeMediaHtmlAttributeError({ error: { reason: "malformed", attribute: "stray-quote" }, locale: "en" })).toContain("stray-quote");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "malformed", attribute: "stray-quote" }, locale: "en", translate: t })).toContain("stray-quote");
   });
 
   it("falls back to the English source string for a locale with no translation yet", () => {
     // Same `MEDIA_DICT[locale]?.[key] ?? key` fallback every other `t()` in this feature uses — a
     // brand-new field ships English-first, not blank, for a locale that hasn't been translated yet.
     expect(
-      describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "xx-not-a-real-locale" })
+      describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "xx-not-a-real-locale", translate: t })
     ).toBe("'formaction' is not an allowed HTML attribute.");
   });
 });

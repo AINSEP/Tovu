@@ -1,5 +1,5 @@
 import { Authentication as AuthenticationScreen, type AuthenticationProps } from "@jini-ai/admin/screens/authentication/Authentication";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { AuthenticationSettingsShell } from "./authentication-host-binding";

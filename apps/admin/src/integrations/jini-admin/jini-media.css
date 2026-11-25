@@ -78,12 +78,12 @@
    Paint the trigger only; its .jini-select.jini-input wrapper must remain unpainted.
    Leave focus and missing-value paint to the owning settings-dialog.css state rules. */
 :is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select)) {
-  background-color: var(--tovu-admin-settings-control-bg);
+  background-color: var(--jini-admin-settings-control-bg);
   border-width: var(--jini-border-width, 1px);
 }
 :is(.settings-ui-section, .media-providers-panel) .jini-input:where(:not(.jini-select, :focus, .is-missing)),
 :is(.settings-ui-section, .media-providers-panel) .jini-select-trigger:where(:not(:focus-visible)) {
-  border-color: var(--tovu-admin-settings-control-border);
+  border-color: var(--jini-admin-settings-control-border);
 }
 :is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select, :focus, :focus-visible)) {
   box-shadow: var(--jini-control-shadow-inset, none);

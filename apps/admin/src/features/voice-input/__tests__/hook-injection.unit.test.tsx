@@ -36,7 +36,7 @@ describe("VoiceInputPlaceholder translation hook", () => {
 });
 
 describe("PushToTalkMicButton hooks", () => {
-  const view = { className: "tovu-push-to-talk", disabled: false, isRecording: false, label: "Hold to talk", ariaLive: "polite" } as const;
+  const view = { className: "jini-push-to-talk", disabled: false, isRecording: false, label: "Hold to talk", ariaLive: "polite" } as const;
   const talk = { available: true as const, unavailableReason: undefined, indicator: { label: "Hold to talk", ariaLive: "polite" as const, isRecording: false }, startHold: vi.fn(), endHold: vi.fn() };
 
   it("renders the view and translator supplied through the injected hooks", () => {

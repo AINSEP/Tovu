@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
 vi.mock("../../admin-themes/use-admin-theme.hooks", () => ({ useAdminThemeState: () => ({ themeId: state.themeId }) }));
 vi.mock("../use-admin-appearance-snapshot.hooks", () => ({
   useAdminAppearanceSnapshot: () => ({ data: state.data }),
+}));
+vi.mock("@jini-ai/admin/shell/hooks/use-admin-appearance-snapshot.hooks", () => ({
   advanceAppearancePreview: () => ++state.version,
 }));
 const port: AdminAppearancePort = {

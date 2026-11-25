@@ -4,7 +4,7 @@ import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 
 import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminStaticPublishTargetId } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
-import { localizePublishTargets } from "@/lib/descriptor-i18n";
+import { localizePublishTargets } from "@jini-ai/admin/shell/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../deployment-host-i18n";

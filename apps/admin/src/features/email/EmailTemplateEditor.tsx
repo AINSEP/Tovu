@@ -8,17 +8,17 @@ import "@jini-ai/ui/settings-dialog.css";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { DEVICE_PREVIEW_WIDTHS } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
-import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
+import { DevicePreviewToggle } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewToggle";
 import { ADMIN_BASE, adminHref } from "@jini-ai/admin/shell/lib/router";
 import { t as pageEditorT } from "../pages/page-editor-i18n";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import { Chip, Loaded } from "./EmailParts";
+import { Chip, Loaded } from "@jini-ai/admin/screens/email/EmailParts";
 import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
 import { useWiredEmailTemplateEditor } from "./email-hooks-host";
-import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "./hooks/use-email-template-view.hooks";
-import "./email.css";
+import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "@jini-ai/admin/screens/email/hooks/use-email-template-view.hooks";
+import "@jini-ai/admin/screens/email/email.css";
 
 /**
  * @file One email template's editor page (`/admin/email/templates/:id`), laid out like the Pages

@@ -5,15 +5,8 @@ import { useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { tPlugins as translate } from "../../../lib/i18n-common";
-import {
-  describeApiError,
-  packageFilesRead,
-  packageFilesViewState,
-  type PackageFilesListing,
-  type PackageFilesRead,
-  type PackageFilesStatus,
-  type PackageFileView,
-} from "../rules";
+import { describeApiError, packageFilesRead, packageFilesViewState } from "../rules";
+import type { PackageFilesListing, PackageFilesRead, PackageFilesStatus, PackageFileView } from "@jini-ai/admin/screens/plugins/rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

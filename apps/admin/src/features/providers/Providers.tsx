@@ -1,4 +1,4 @@
-import { navigateProvidersTab } from "./Providers.hooks";
+import { navigateProvidersTab } from "@jini-ai/admin/screens/providers/Providers.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
@@ -9,7 +9,9 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ComingSoonPanel } from "@jini-ai/ui/admin-widgets";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
-import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
+import { AlwaysAllowPanel } from "@jini-ai/admin/screens/providers/AlwaysAllowPanel";
+import "@jini-ai/admin/screens/providers/always-allow.css";
+import { useWiredAlwaysAllow } from "./hooks/use-always-allow.hooks";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { tProviders as t, tIntegrations } from "../../lib/i18n-common";
@@ -287,7 +289,7 @@ function ProvidersView(props: ProvidersProps & {
           />
         ) : null}
 
-        {activeTabId === "always-allow" ? <AlwaysAllowPanel /> : null}
+        {activeTabId === "always-allow" ? <AlwaysAllowPanel useAlwaysAllowHook={useWiredAlwaysAllow} /> : null}
 
         {activeTabId === "mcp-server" ? (
           // `<IntegrationsTab>` with no `port` prop falls back to `createFakeMcpIntegrationsPort()`,

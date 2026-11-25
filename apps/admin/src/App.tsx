@@ -26,7 +26,7 @@ import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export
 import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
 import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "./lib/shell-collaborators";
 import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
-import { useIntegrationsRedirect } from "./features/integrations/hooks/use-integrations-redirect.hooks";
+import { useAddonsRedirect } from "./lib/use-addons-redirect.hooks";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
@@ -36,14 +36,16 @@ import { translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
-import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
+import { resolveAdminLayoutClassName } from "@jini-ai/admin/shell/hooks/use-interface-preferences.hooks";
+import { useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useDrawerActiveItemCentring } from "@jini-ai/admin/shell/hooks/use-drawer-active-item-centring.hooks";
 import { useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
 import { adminTelemetry } from "./lib/browser-telemetry";
 import { useSidebarEmptyClickToggle } from "@jini-ai/admin/shell/hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
-import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
-import { ChatFab } from "./components/ChatFab/ChatFab";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
+import { ChatFab } from "@jini-ai/admin/shell/components/ChatFab/ChatFab";
+import { FAB_POSITION_STORAGE_KEY } from "./lib/chat-fab-storage-key";
 import { useListTableCellLabels } from "@jini-ai/admin/shell/hooks/use-list-table-cell-labels.hooks";
 import { useDockAutoRail } from "@jini-ai/admin/shell/hooks/use-dock-auto-rail.hooks";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
@@ -228,7 +230,7 @@ function gatedRouteElement({ route, siteSection, access }: { route: Route; siteS
  */
 function renderRoute({ route, siteSection, access, useAdminLocaleHook }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess; useAdminLocaleHook: UseAdminLocaleHook }, _options: Record<string, never> = {}): ReactNode {
   // Replace the old URL before mounting its screen; the canonical route retains the same gate.
-  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} useIntegrationsRedirectHook={useIntegrationsRedirect} />;
+  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} useIntegrationsRedirectHook={useAddonsRedirect} />;
   if (route.unknownSectionId !== undefined) {
     return <Placeholder sectionId={route.unknownSectionId} useAdminLocaleHook={useAdminLocaleHook} />;
   }
@@ -419,6 +421,7 @@ function AssistantChrome({
         locale={locale}
         avoidBottomPx={avoidBottomPx}
         avoidRightPx={avoidRightPx}
+        positionStorageKey={FAB_POSITION_STORAGE_KEY}
       />
     </>
   );

@@ -36,7 +36,7 @@ const SEAMS = [
   "apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts",
   "apps/admin/src/features/plugins/AgentPluginSurfaceFrame.tsx",
   "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
-  "apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts",
+  "apps/admin/src/features/plugins/hooks/use-host-admin-surface-frame.hooks.ts",
   "apps/admin/src/features/plugins/hooks/use-agent-plugin-surfaces.hooks.ts",
   "apps/admin/src/features/plugins/hooks/agent-plugin-surfaces-dependencies.hooks.ts",
   "apps/admin/src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx",

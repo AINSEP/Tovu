@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
+import { InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import type { AgentPluginInstallController } from "./hooks/use-agent-plugin-install.hooks";
 
@@ -53,7 +54,7 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
           }}
         />
         {!c.updating ? <>
-          <label className="install-tab-check">
+          <label className="jini-install-tab-check">
             <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
               {...agentHandle({ handle: `${handleBase}-replace` }, { role: "field", label: t("Replace existing version") })} />
             {t("Replace existing version")}
@@ -84,17 +85,17 @@ function AgentPluginUploadStatus({ controller: c }: { controller: AgentPluginIns
   return (
     <>
       {c.warnings.length > 0 ? (
-        <div className="install-tab-review" role="status">
+        <div className="jini-install-tab-review" role="status">
           {c.warnings.map((warning) => <p key={warning}>{warning}</p>)}
         </div>
       ) : null}
       {c.error ? (
-        <p className="install-tab-alert" role="alert">
+        <p className="jini-install-tab-alert" role="alert">
           {c.error}
         </p>
       ) : null}
       {c.installedMessage ? (
-        <p className="install-tab-success" role="status">
+        <p className="jini-install-tab-success" role="status">
           {c.installedMessage}
         </p>
       ) : null}
@@ -105,7 +106,7 @@ function AgentPluginUploadStatus({ controller: c }: { controller: AgentPluginIns
 /** The install/update button; its mode-specific words come from the controller's `labels`. */
 function AgentPluginUploadActions({ controller: c, handleBase }: { controller: AgentPluginInstallController; handleBase: string }) {
   return (
-    <div className="install-tab-actions">
+    <div className="jini-install-tab-actions">
       <button
         type="button"
         className="btn-primary"

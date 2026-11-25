@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, test } from 'vitest';
-import { ApiError } from '@/lib/admin-http/request';
+import { ApiError, describeApiError } from '@/lib/admin-http/request';
 import { adminFailureChannel } from '@/lib/admin-failure-channel';
-import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
+import { useAgentPluginMemory } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-memory.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks";
 import { PLUGIN_MEMORY_DICT } from "@jini-ai/admin/screens/plugins/plugins-memory-i18n";
 
@@ -19,7 +19,7 @@ test('editor saves a user note through its port and keeps learned facts separate
     read: async () => state,
     saveNote: async input => { calls.push(input); state = listing(input.pluginId, input.text); return state; },
   };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.text).toBe('Original note'));
   act(() => result.current.setText({ text: 'User brand rule' }));
   await act(async () => { await result.current.save(); });
@@ -33,7 +33,7 @@ test('a late response from a different plugin never fills this plugin’s editor
   const first = new Promise<PluginMemoryListing>(resolve => { settleFirst = resolve; });
   const port: AgentPluginMemoryPort = { read: ({ pluginId }) => pluginId === 'first' ? first : Promise.resolve(listing(pluginId, 'Second note')),
     saveNote: async () => { throw new Error('unexpected write'); } };
-  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t }), { initialProps: { pluginId: 'first' } });
+  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t, describeApiError }), { initialProps: { pluginId: 'first' } });
   rerender({ pluginId: 'second' });
   await waitFor(() => expect(result.current.text).toBe('Second note'));
   await act(async () => { settleFirst(listing('first', 'Stale first note')); await first; });
@@ -57,7 +57,7 @@ test('empty-state messages wait for a successful read and update after saving th
   let saved: PluginMemoryListing | null = null;
   const port: AgentPluginMemoryPort = { read: () => saved ? Promise.resolve(saved) : pending,
     saveNote: async input => (saved = { ...listing(input.pluginId, input.text), learned: [] }) };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   expect(result.current.editorDisabled).toBe(true);
   expect(result.current.notesEmptyMessage).toBeNull();
   expect(result.current.learnedEmptyMessage).toBeNull();
@@ -73,7 +73,7 @@ test('empty-state messages wait for a successful read and update after saving th
 
 test('a failed memory read does not claim there are no notes or learned facts', async () => {
   const port: AgentPluginMemoryPort = { read: async () => { throw new Error('offline'); }, saveNote: async () => listing('example', '') };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.status).toBe('Could not load memory.'));
   expect(result.current.editorDisabled).toBe(true);
   expect(result.current.notesEmptyMessage).toBeNull();
@@ -84,7 +84,7 @@ test('the editor stays disabled while a save is in flight and becomes editable a
   let finishSave!: (value: PluginMemoryListing) => void;
   const pendingSave = new Promise<PluginMemoryListing>(resolve => { finishSave = resolve; });
   const port: AgentPluginMemoryPort = { read: async () => listing('example', 'Original'), saveNote: () => pendingSave };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   let request!: Promise<void>;
   act(() => { request = result.current.save(); });
@@ -100,7 +100,7 @@ test('status moves from loading to idle and reports a failed save with the bound
     read: async () => listing('example', 'Original'),
     saveNote: async () => { throw failure; },
   };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}` }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}`, describeApiError }));
   expect(result.current.status).toBe('T:Loading memory…');
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   expect(result.current.status).toBeNull();
@@ -119,7 +119,7 @@ test('a save status from a previous plugin is hidden while the next plugin loads
     read: ({ pluginId }) => pluginId === 'second' ? pending : Promise.resolve(listing(pluginId, 'Original')),
     saveNote: async input => listing(input.pluginId, input.text),
   };
-  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t }), { initialProps: { pluginId: 'first' } });
+  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t, describeApiError }), { initialProps: { pluginId: 'first' } });
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   await act(async () => { await result.current.save(); });
   expect(result.current.status).toBe('Note saved.');
@@ -133,7 +133,7 @@ test('opening a saved note loads it into the editor; renaming the open note keep
   const state: PluginMemoryListing = { ...listing('example', 'Project text'), notes: [
     { relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand text' }] };
   const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async () => state };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.text).toBe('Project text'));
   act(() => result.current.openNote({ entryPath: 'brand.md' }));
   expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Brand text' });
@@ -144,7 +144,7 @@ test('opening a saved note loads it into the editor; renaming the open note keep
 test('save does nothing before the first read has filled the editor', async () => {
   const calls: unknown[] = [];
   const port: AgentPluginMemoryPort = { read: () => new Promise(() => {}), saveNote: async (input) => { calls.push(input); return listing('example', ''); } };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await act(async () => { await result.current.save(); });
   expect(calls).toEqual([]);
   expect(result.current.editorDisabled).toBe(true);
@@ -158,7 +158,7 @@ test.each(['resolves', 'rejects'] as const)('a save that %s after switching plug
       settle = () => (outcome === 'resolves' ? resolve(listing(pluginId, 'saved')) : reject(new Error('disk full')));
     }),
   };
-  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t }), { initialProps: { pluginId: 'first' } });
+  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t, describeApiError }), { initialProps: { pluginId: 'first' } });
   await waitFor(() => expect(result.current.text).toBe('first note'));
   let saving!: Promise<void>;
   act(() => { saving = result.current.save(); });
@@ -175,7 +175,7 @@ test('renaming a new note keeps its text; picking another saved note with no edi
   const port: AgentPluginMemoryPort = { read: async () => ({ ...listing('example', 'Saved project note'),
     notes: [{ relativePath: 'project.md', text: 'Saved project note' }, { relativePath: 'brand.md', text: 'Saved brand note' }] }),
   saveNote: async () => { throw new Error('unexpected write'); } };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.text).toBe('Saved project note'));
   act(() => result.current.openNote({ entryPath: 'brand.md' }));
   expect(result.current.text).toBe('Saved brand note');
@@ -192,7 +192,7 @@ test('opening another saved note while the draft has unsaved edits keeps the dra
   const port: AgentPluginMemoryPort = { read: async () => ({ ...listing('example', 'Saved project note'),
     notes: [{ relativePath: 'project.md', text: 'Saved project note' }, { relativePath: 'brand.md', text: 'Saved brand note' }] }),
   saveNote: async () => { throw new Error('unexpected write'); } };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }));
   await waitFor(() => expect(result.current.text).toBe('Saved project note'));
   act(() => result.current.setText({ text: 'Unsaved project edit' }));
   act(() => result.current.openNote({ entryPath: 'brand.md' }));

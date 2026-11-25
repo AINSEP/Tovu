@@ -8,7 +8,7 @@ import { useState } from "react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { Composer, useComposer, type ComposerDiscoveryGroup } from "@jini-ai/chat/react";
-import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
+import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 
 const catalog: readonly ComposerDiscoveryGroup[] = [
   { id: "skills", label: "Skills", items: [

@@ -7,7 +7,7 @@ import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/WidgetConfigFields';
 import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPickerDialog';
 import { t as sharedComponentsT } from '@jini-ai/admin/shell/components/shared-components-i18n';
-import { serverLabel } from '../../components/status-labels';
+import { serverLabel } from '@jini-ai/admin/shell/lib/status-labels';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
 import { slugRedirectPath } from '@jini-ai/admin/shell/lib/slug-redirect-path';
 import { createWidgetsTranslator } from './widgets-ports';

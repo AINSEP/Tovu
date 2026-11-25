@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { dockSettingsMenuSections, type DockSettingsMenuSection } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
-import { REPLY_LENGTH_OPTIONS, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS, visibleAssistantRuntimePreferences } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 
 /**
  * @file `DockSettingsMenu` section and row markup with the host's real info tip and segmented

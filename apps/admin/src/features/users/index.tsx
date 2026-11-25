@@ -1,6 +1,6 @@
 import { UsersPanel, type WiredUsersHook } from "@jini-ai/user-management/react";
 import { ServerLabel } from "@/components/status-labels";
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { useWiredUsers } from "./hooks/use-wired-users.hooks";
 import { defaultUsersPort } from "./users-host-binding";
 

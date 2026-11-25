@@ -6,7 +6,8 @@ import { useId, type ReactNode } from "react";
 
 import { packageFileIconKind, type PackageFileIconKind } from "@jini-ai/admin/agent-plugins";
 import { useAgentPluginFileTree } from "@jini-ai/admin/agent-plugins/react";
-import { PACKAGE_FILE_TREE_LOCALE, type PackageFilesStatus, type PackageFileView } from "./rules";
+import { PACKAGE_FILE_TREE_LOCALE } from "./rules";
+import type { PackageFilesStatus, PackageFileView } from "@jini-ai/admin/screens/plugins/rules";
 import { CODE_PREVIEW_MODAL_ICONS } from "@jini-ai/admin/shell/components/CodeView/preview-modal-icons";
 
 import { type Translate } from '@jini-ai/core/text';

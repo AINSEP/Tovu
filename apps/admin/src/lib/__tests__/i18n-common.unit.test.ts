@@ -124,7 +124,7 @@ describe("COMMON_I18N: composition rules (mocked Jini dictionary)", () => {
 
   it("throws at module load when a Tovu locale is missing from Jini", async () => {
     const jini = Object.fromEntries(TOVU_LOCALES.filter((l) => l !== "bn").map((l) => [l, { Save: l }]));
-    await expect(importOver(jini)).rejects.toThrow("common dictionary bn is missing from @jini-ai/admin");
+    await expect(importOver(jini)).rejects.toThrow("common dictionary bn is missing from the base dictionary");
   });
 });
 

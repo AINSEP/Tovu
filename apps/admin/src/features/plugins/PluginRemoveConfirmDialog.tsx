@@ -1,4 +1,4 @@
-import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
+import { ConfirmActionDialog } from "@jini-ai/admin/shell/components/ConfirmActionDialog";
 
 import { usePluginRemoveConfirm } from "./hooks/use-plugin-remove-confirm.hooks";
 

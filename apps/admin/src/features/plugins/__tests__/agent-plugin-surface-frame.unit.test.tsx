@@ -2,7 +2,8 @@ import { act, fireEvent, waitFor } from "@testing-library/react";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
-import { AgentPluginSurfaceFrame } from "../AgentPluginSurfaceFrame";
+import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
+import { useHostAdminSurfaceFrame } from "../hooks/use-host-admin-surface-frame.hooks";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
@@ -39,7 +40,7 @@ function fakePort(overrides: Partial<AgentPluginSurfacesPort> = {}) {
 
 /** Renders the frame, fires its first load and returns the frame window's postMessage spy and the mount nonce. */
 async function mounted(port: AgentPluginSurfacesPort, surface: AgentPluginSurfaceSummary = SURFACE) {
-  render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={surface} port={port} t={identity} />);
+  render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={surface} port={port} t={identity} />);
   const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
   const frameWindow = iframe.contentWindow!;
   const posted = vi.spyOn(frameWindow, "postMessage").mockImplementation(() => {});
@@ -65,7 +66,7 @@ function deliver(data: unknown, origin: string, source: Window | null) {
 
 describe("AgentPluginSurfaceFrame", () => {
   it("renders the frame with sandbox exactly allow-scripts and no referrer", () => {
-    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={fakePort()} t={identity} />);
+    render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={SURFACE} port={fakePort()} t={identity} />);
     const iframe = screen.getByTitle("Manage connection");
     expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
     expect(iframe.getAttribute("referrerpolicy")).toBe("no-referrer");
@@ -94,7 +95,7 @@ describe("AgentPluginSurfaceFrame", () => {
   it("does not post a bootstrap that arrives after the frame navigated", async () => {
     let resolve: (value: AdminSurfaceBootstrap) => void = () => {};
     const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(() => new Promise((done) => { resolve = done; })) });
-    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
     const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
     const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
     fireEvent.load(iframe);
@@ -221,7 +222,7 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
 
   it("shows the could-not-open notice instead of the frame when the bootstrap fails", async () => {
     const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(async () => { throw new Error("401"); }) });
-    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
     fireEvent.load(screen.getByTitle("Manage connection"));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Could not open this view. Close and reopen the plugin to try again."));
     expect(screen.queryByTitle("Manage connection")).toBeNull();
@@ -232,7 +233,7 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
     // nonce check: only "no live frame yet" stops a null `source` from matching the missing frame.
     vi.spyOn(globalThis.crypto, "getRandomValues").mockImplementation((array) => array);
     const port = fakePort();
-    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
     const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
     const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
     deliver(request("0".repeat(32)), "null", null);
@@ -245,7 +246,7 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
   it("posts nothing when the view is closed before its bootstrap arrives", async () => {
     let resolve: (value: AdminSurfaceBootstrap) => void = () => {};
     const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(() => new Promise((done) => { resolve = done; })) });
-    const view = render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    const view = render(<AgentPluginSurfaceFrame useAdminSurfaceFrame={useHostAdminSurfaceFrame} pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
     const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
     const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
     fireEvent.load(iframe);

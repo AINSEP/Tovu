@@ -24,7 +24,7 @@ import {
   type SpaceHoldPhase,
 } from "@jini-ai/chat/react/features/voice-input/space-hold-rules";
 
-import { SPACE_HOLD_TO_TALK_MS, SPACE_KEY } from "./space-hold-config";
+import { SPACE_HOLD_TO_TALK_MS, SPACE_KEY } from "@jini-ai/admin/screens/voice-input/hooks/space-hold-config";
 
 /** The class `@jini-ai/chat`'s `Composer` puts on its root element. */
 const COMPOSER_ROOT_SELECTOR = ".jini-composer";

@@ -10,7 +10,7 @@ import { ProviderSettingField } from "./PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";
 import { interpolate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";
-import "./provider-settings-dialog.css";
+import "@jini-ai/admin/screens/plugins/provider-settings-dialog.css";
 
 /**
  * @file A provider plugin's secure settings card (2026-10-26): Plugins → Installed (or Downloaded) →

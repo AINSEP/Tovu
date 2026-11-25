@@ -1,5 +1,5 @@
 import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/core/agent-handles";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 
 import { START_FRESH_CONFIRMATION, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 

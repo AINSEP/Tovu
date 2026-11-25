@@ -33,7 +33,7 @@ import {
   type InterfaceConfig,
 } from "@/lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
-import { areAnySlicesLoading, firstLoadError } from "../rules";
+import { areAnySlicesLoading, firstLoadError } from "@jini-ai/admin/screens/settings/rules";
 
 /**
  * @file `SettingsUi`'s port/slice/save-merge bootstrap, so `SettingsUi` in `SettingsUi.tsx` is only

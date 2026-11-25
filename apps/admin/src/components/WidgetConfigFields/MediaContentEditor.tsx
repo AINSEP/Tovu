@@ -6,14 +6,14 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
-import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
-import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
+import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import "../../styles/native-domain-dialogs.css";
 import "../../styles/media-content-editor.css";
 import { HtmlAttributeRows } from "./HtmlAttributeRows";
 import { useMediaContentEditor, type MediaContentEditorController, type MediaItemRow } from "./MediaContentEditor.hooks";
-import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "./media-content-rules";
-import { DevicePreviewFrame } from "../DevicePreview/DevicePreviewFrame";
+import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { useWidgetPreview } from "./WidgetPreview.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
