@@ -54,7 +54,7 @@ describe("useSourceControlCredentials", () => {
           { name: "accessToken", label: "Access token", required: true, secret: true },
           { name: "username", label: "Username", required: true },
         ],
-      } }], switchedOff: [] }),
+      } }], switchedOff: [], refusals: [] }),
     });
     const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());

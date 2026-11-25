@@ -1,7 +1,7 @@
 import { classifyCredentialSubmitError } from "../../lib/shell-collaborators";
 import type { CredentialSubmitFailure } from "@jini-ai/admin/shell/lib/credential-submit-error";
 import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
-import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId } from "@jini-ai/admin/source-control/api/source-control-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId, AdminSourceControlProvidersSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file Pure data and computation for the Source Control page — no React, no fetch, no `t()` calls
@@ -159,3 +159,40 @@ export type SourceControlCredentialSubmitFailure = CredentialSubmitFailure;
 export function classifySourceControlCredentialSubmitError({ e }: { e: unknown }, _optional = {}): SourceControlCredentialSubmitFailure {
   return classifyCredentialSubmitError({ error: e });
 }
+
+/** Why the Providers tab lists fewer hosts than expected: one sentence plus the server's reasons. */
+export interface SourceControlProvidersNotice {
+  readonly message: string;
+  readonly reasons: readonly string[];
+}
+
+/**
+ * The Providers tab's read-only explanation (open-bugs pending bug 1 / combine-23 bug 6). Why: the
+ * tab showed an empty list with no reason while the GitHub plugin read Enabled — a failed providers
+ * load was swallowed and the route's load refusals were never sent — so the owner had nothing to act
+ * on. Returns `null` when every installed host loaded; never offers an action of its own, only the
+ * next step to take in Agent Plugins.
+ *
+ * @complexity O(r + s) in refusals and switched-off hosts.
+ */
+export function sourceControlProvidersNotice(
+  { snapshot, failed, t }: { snapshot: AdminSourceControlProvidersSnapshot | undefined; failed: boolean; t: (key: string) => string },
+  _optional = {},
+): SourceControlProvidersNotice | null {
+  if (failed) return { message: t("The source-control hosts could not be loaded from Agent Plugins. Reload the page to try again."), reasons: [] };
+  if (snapshot === undefined) return null;
+  const empty = snapshot.providers.length === 0;
+  // A switched-off plugin beside a working host is a choice, not a fault; it only explains an empty list.
+  const switchedOff = empty ? snapshot.switchedOff.map(({ id, pluginId }) => `${id}: ${pluginId} ${t("is turned off")}`) : [];
+  const reasons = [...snapshot.refusals, ...switchedOff];
+  if (reasons.length === 0) {
+    return empty ? { message: t("No enabled Agent Plugin provides a source-control host. Install or turn one on in Agent Plugins."), reasons } : null;
+  }
+  return {
+    message: empty
+      ? t("No source-control host was loaded. Reinstall or turn on the plugin in Agent Plugins.")
+      : t("Some source-control hosts were not loaded. Reinstall or turn on the plugin in Agent Plugins."),
+    reasons,
+  };
+}
+

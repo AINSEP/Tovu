@@ -40,7 +40,7 @@ function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 
 describe("defaultSourceControlCredentialsPort", () => {
   it("listProviders delegates to api.listSourceControlProviders, returning the snapshot unchanged", async () => {
-    const snapshot = { providers: [{ id: "github", label: "GitHub" }], switchedOff: [] };
+    const snapshot = { providers: [{ id: "github", label: "GitHub" }], switchedOff: [], refusals: [] };
     listSourceControlProviders.mockResolvedValue(snapshot);
     await expect(defaultSourceControlCredentialsPort.listProviders()).resolves.toEqual(snapshot);
   });
@@ -76,7 +76,7 @@ describe("defaultSourceControlCredentialsPort", () => {
 
 describe("createFakeSourceControlCredentialsPort — defaults", () => {
   it("listProviders defaults to no hosts — the admin names none of its own", async () => {
-    await expect(createFakeSourceControlCredentialsPort().listProviders()).resolves.toEqual({ providers: [], switchedOff: [] });
+    await expect(createFakeSourceControlCredentialsPort().listProviders()).resolves.toEqual({ providers: [], switchedOff: [], refusals: [] });
   });
 
   it("listCredentials defaults to an empty snapshot, never a fabricated row", async () => {

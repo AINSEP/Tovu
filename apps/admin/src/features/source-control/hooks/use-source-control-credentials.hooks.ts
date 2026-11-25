@@ -24,6 +24,7 @@ import { defaultSourceControlCredentialsPort } from "./source-control-credential
 import type { SourceControlCredentialsPort } from "@jini-ai/admin/source-control/host/hooks/source-control-credentials-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import { sourceControlProvidersNotice, type SourceControlProvidersNotice } from "../rules";
 /**
  * @file The Source Control page's credential-management hook — one always-visible row per host
  * (the hosts come from plugins, `GET .../system/source-control/providers`), each with its own token
@@ -76,6 +77,8 @@ export interface SourceControlCredentialsController {
    *  both the hosts and the saved connections first load. */
   rows: readonly SourceControlCredentialRowState[] | undefined;
   loadError: string | null;
+  /** Why a host is missing (load failure, plugin refusals, switched-off plugins); `null` when none is. */
+  providersNotice: SourceControlProvidersNotice | null;
 
   setToken: (required: { providerId: AdminSourceControlProviderId; value: string }, optional?: Record<string, never>) => void;
   /** Sets one of the host's other declared fields. */
@@ -201,7 +204,9 @@ export function useSourceControlCredentials(
           };
         });
 
-  return { rows, loadError, setToken, setField, save, t };
+  const providersNotice = sourceControlProvidersNotice({ snapshot: providersQuery.data, failed: Boolean(providersQuery.error), t });
+
+  return { rows, loadError, providersNotice, setToken, setField, save, t };
 }
 
 /**

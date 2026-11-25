@@ -28,7 +28,7 @@ it("masks extra secret fields and routes edits by provider and declared field na
         ],
       },
     }],
-    loadError: null, t: (key) => key,
+    loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField, save: vi.fn().mockResolvedValue(undefined),
   };
   render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);
@@ -62,7 +62,7 @@ it("omits empty scope guidance while retaining a usable token form", () => {
       info: { id: "boreal", label: "Boreal", listed: true, tokenField: "token",
         fields: [], tokenPageUrl: "", scopeGuidanceKey: "" },
     }],
-    loadError: null, t: (key) => key,
+    loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField: vi.fn(), save: vi.fn().mockResolvedValue(undefined),
   };
   render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);
@@ -85,7 +85,7 @@ it("shows token guidance with only a token page link, or with only scope guidanc
       row("linkonly", { tokenPageUrl: "https://linkonly.example.test/tokens", scopeGuidanceKey: "" }),
       row("guideonly", { tokenPageUrl: "", scopeGuidanceKey: "Needs repo read scope." }),
     ],
-    loadError: null, t: (key) => key,
+    loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField: vi.fn(), save: vi.fn().mockResolvedValue(undefined),
   };
   render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);

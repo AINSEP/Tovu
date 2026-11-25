@@ -40,7 +40,7 @@ export function createFakeSourceControlCredentialsPort(
   } = {}
 ): SourceControlCredentialsPort {
   const emptySnapshot: AdminSourceControlCredentialsSnapshot = { credentials: [] };
-  const noProviders: AdminSourceControlProvidersSnapshot = { providers: [], switchedOff: [] };
+  const noProviders: AdminSourceControlProvidersSnapshot = { providers: [], switchedOff: [], refusals: [] };
   return {
     listProviders: overrides.listProviders ?? (() => Promise.resolve(noProviders)),
     listCredentials: overrides.listCredentials ?? (() => Promise.resolve(emptySnapshot)),

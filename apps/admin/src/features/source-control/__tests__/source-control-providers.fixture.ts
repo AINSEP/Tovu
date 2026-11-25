@@ -32,4 +32,5 @@ export const SOURCE_CONTROL_PROVIDER_DESCRIPTORS: readonly AdminSourceControlPro
 export const SOURCE_CONTROL_PROVIDERS_SNAPSHOT: AdminSourceControlProvidersSnapshot = {
   providers: [...SOURCE_CONTROL_PROVIDER_DESCRIPTORS],
   switchedOff: [],
+  refusals: [],
 };

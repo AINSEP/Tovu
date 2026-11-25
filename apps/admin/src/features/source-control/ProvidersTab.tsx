@@ -7,6 +7,7 @@ import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminSourceControlProviderId } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
+import type { SourceControlProvidersNotice } from "./rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 import type {
@@ -107,8 +108,26 @@ export function ProvidersTab({
         label: "Connect a source-control account so Tovu can read and later push to your repositories",
       })}
     >
+      <ProvidersNotice notice={controller.providersNotice} />
       <SourceControlCredentialsList controller={controller} t={controller.t} />
       <ManageAccessTokensLink t={controller.t} />
+    </div>
+  );
+}
+
+/**
+ * Why a host is missing from the rows below, read-only (see `rules.ts`'s `sourceControlProvidersNotice`):
+ * the sentence carries the next step, the list the server's own reasons naming each plugin.
+ * @complexity O(r) in the reasons listed.
+ */
+function ProvidersNotice({ notice }: { notice: SourceControlProvidersNotice | null }) {
+  if (notice === null) return null;
+  return (
+    <div className="notice" role="status"
+      {...agentHandle({ handle: "source-control-providers-notice" }, { role: "status", label: "Why no source-control host is listed" })}
+      aria-label="Why no source-control host is listed">
+      <p>{notice.message}</p>
+      {notice.reasons.length > 0 ? <ul>{notice.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}
     </div>
   );
 }

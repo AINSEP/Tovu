@@ -76,6 +76,7 @@ function controllerFixture(overrides: ControllerFixtureOverrides = {}): SourceCo
     setField: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
+    providersNotice: null,
     ...rest,
   };
 }
@@ -176,7 +177,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     const user = userEvent.setup();
     const createCredential = vi.fn(async ({ connection }: { connection: { providerId: AdminSourceControlProviderId } }) => savedCredential({ providerId: connection.providerId }));
     const port = createFakeSourceControlCredentialsPort({
-      listProviders: async () => ({ providers: [GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], switchedOff: [] }),
+      listProviders: async () => ({ providers: [GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], switchedOff: [], refusals: [] }),
       listCredentials: async () => ({ credentials: [] }),
       createCredential,
     });
@@ -449,3 +450,37 @@ describe("SourceControl — 'Create access token' cross-link to the Security pag
     expect(window.location.search).toBe("?tab=access-tokens");
   });
 });
+
+// open-bugs pending bug 1 / combine-23 new bug 6: the Providers tab was empty with no reason while
+// the bundled GitHub plugin showed Enabled — the route dropped the plugin load refusals and the hook
+// swallowed a failed providers load, so nothing on the page said why or what to do.
+describe("SourceControl — Providers tab says why no host is listed", () => {
+  function renderWithPort(listProviders: () => Promise<{ providers: never[]; switchedOff: { id: string; pluginId: string }[]; refusals: string[] }>) {
+    const port = createFakeSourceControlCredentialsPort({ listProviders, listCredentials: async () => ({ credentials: [] }) });
+    render(
+      <FetchQueryProvider>
+        <SourceControl useSourceControlCredentialsHook={() => useSourceControlCredentials({ port, t: fakeT, locale: "en" })} />
+      </FetchQueryProvider>,
+    );
+  }
+
+  it("names each refused plugin and the next step instead of an empty list", async () => {
+    renderWithPort(async () => ({ providers: [], switchedOff: [], refusals: ["source-control providers from 'tovu/github' were not loaded: reinstall the plugin from Agent Plugins"] }));
+    const notice = await screen.findByRole("status", { name: /why no source-control host is listed/i });
+    expect(notice.textContent).toContain("source-control providers from 'tovu/github' were not loaded");
+    expect(notice.textContent).toContain("Reinstall or turn on the plugin in Agent Plugins.");
+  });
+
+  it("names a switched-off plugin's host", async () => {
+    renderWithPort(async () => ({ providers: [], switchedOff: [{ id: "github", pluginId: "jini/github" }], refusals: [] }));
+    const notice = await screen.findByRole("status", { name: /why no source-control host is listed/i });
+    expect(notice.textContent).toContain("github: jini/github is turned off");
+  });
+
+  it("says the hosts could not be loaded when the providers request fails", async () => {
+    renderWithPort(async () => { throw new Error("500 boom"); });
+    const notice = await screen.findByRole("status", { name: /why no source-control host is listed/i });
+    expect(notice.textContent).toContain("The source-control hosts could not be loaded");
+  });
+});
+
