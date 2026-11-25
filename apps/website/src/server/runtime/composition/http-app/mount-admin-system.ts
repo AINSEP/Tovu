@@ -38,7 +38,8 @@ import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/
 import { registerAdminCustomCredentialsRoutes, registerAdminPublishCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
 import { registerAdminCredentialCopyRoutes } from "../modules/system-credential-copy.js";
 import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/system/site-key.js";
-import { siteUpdateStatusRoute } from "@jini-ai/devops/deploy/admin-http/site-update-status";
+import { siteUpdateStatusRoute, type SiteUpdateStatusRouteDeps } from "@jini-ai/devops/deploy/admin-http/site-update-status";
+import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
 import { readSiteUpdateStatus, type SiteUpdateStatusPorts } from "#src/features/site-update/read-status";
 import type { SiteUpdateRuntime } from "#src/features/site-update/tools";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
@@ -217,9 +218,14 @@ export function registerAdminSiteUpdateStatusRoute(
 ): void {
   const { app, deps } = required;
   const reportFailure = ({ error }: { error: unknown }) => void reportServerFailure({ error, operation: "site-update:status" });
-  mountAdminJsonRoute({
+  mountAdminJsonRoute<Record<string, never>, SiteUpdateStatusReply, SiteUpdateStatusRouteDeps>({
     app,
-    spec: { ...siteUpdateStatusRoute, responseHeaders: { "Cache-Control": "no-store" } },
+    spec: {
+      ...siteUpdateStatusRoute,
+      // The Jini spec takes no principal context: the operator record stays with the admin ports.
+      handle: (args, options) => siteUpdateStatusRoute.handle({ input: args.input, deps: args.deps, authorize: args.authorize }, options),
+      responseHeaders: { "Cache-Control": "no-store" },
+    },
     deps: {
       workspaceId: deps.workspaceId,
       authorize: deps.authorize,
