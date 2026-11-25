@@ -14,7 +14,7 @@ import { composeSiteImportBackend } from "../../../server/runtime/composition/si
 import { readRequestLine, runImportLocalCommand } from "../../commands/import-local.js";
 
 const stagedLeftovers = (root: string) => {
-  const directory = path.join(root, "profile", "site-imports", "local");
+  const directory = path.join(root, "profile", "site-imports", "local", "payloads");
   return fs.existsSync(directory) ? fs.readdirSync(directory).filter(name => name.endsWith(".stage") || name.endsWith(".upload.zip")) : [];
 };
 

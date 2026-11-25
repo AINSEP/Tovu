@@ -1,3 +1,4 @@
+import type { SiteImportRecord } from "@jini-ai/core/contracts/site/site-import-history";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -5,7 +6,6 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createSiteImportBackend } from "../import-backend.js";
 import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
-import type { SiteImportRecord } from "@jini-ai/devops/backup/site/import-registry";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 
 const uploadId = "00000000-0000-4000-8000-000000000001";
@@ -48,8 +48,8 @@ test("registry expires only old staged payloads and pending owner rows, retainin
     r.saveUpload({ row: { uploadId: id, principalId: "owner", createdAt } });
     fs.writeFileSync(r.uploadPath({ uploadId: id }), "zip");
   }
-  fs.writeFileSync(path.join(r.directory, corrupt + ".upload.json"), "{");
-  fs.writeFileSync(path.join(r.directory, "invalid.upload.json"), "{}");
+  fs.writeFileSync(path.join(r.payloadDirectory, corrupt + ".upload.json"), "{");
+  fs.writeFileSync(path.join(r.payloadDirectory, "invalid.upload.json"), "{}");
   assert.throws(() => r.getUpload({ uploadId: old, principalId: "owner" }), { code: "NOT_FOUND" });
   assert.throws(() => r.getUpload({ uploadId: fresh, principalId: "other" }), { code: "NOT_FOUND" });
   assert.throws(() => r.getUpload({ uploadId: randomUUID(), principalId: "owner" }), { code: "NOT_FOUND" });
@@ -60,29 +60,29 @@ test("registry expires only old staged payloads and pending owner rows, retainin
   const broken = randomUUID(); fs.writeFileSync(path.join(r.directory, broken + ".json"), "{");
   r.expire({});
   assert.equal(fs.existsSync(r.uploadPath({ uploadId: old })), false);
-  assert.equal(fs.existsSync(path.join(r.directory, old + ".upload.json")), false);
+  assert.equal(fs.existsSync(path.join(r.payloadDirectory, old + ".upload.json")), false);
   for (const id of [fresh, edge]) assert.equal(fs.existsSync(r.uploadPath({ uploadId: id })), true);
   assert.equal(fs.existsSync(r.stagePath(row)), false);
   assert.deepEqual(r.get({ importId: row.importId, principalId: "owner" }), { ...row, status: "failed", error: "Owner setup expired. Import the archive again." });
   assert.equal(r.get({ importId: ready.importId, principalId: "owner" }).status, "ready");
   assert.equal(fs.readFileSync(path.join(r.directory, broken + ".json"), "utf8"), "{");
-  assert.equal(fs.readFileSync(path.join(r.directory, corrupt + ".upload.json"), "utf8"), "{");
+  assert.equal(fs.readFileSync(path.join(r.payloadDirectory, corrupt + ".upload.json"), "utf8"), "{");
 });
 test("upload budget refuses a fifth payload and low disk space before retaining bytes", async t => {
   const h = await importFixture(t);
   for (let n = 0; n < 4; n++) { const uploadId = randomUUID(); fs.writeFileSync(h.registry.uploadPath({ uploadId }), "staged"); h.registry.saveUpload({ row: { uploadId, principalId: "owner", createdAt: Date.now() } }); }
   await assert.rejects(h.backend.upload({ principalId: "owner", archive: h.archive }), { code: "BUSY", message: /Four imports/ });
-  for (const file of fs.readdirSync(h.registry.directory).filter(name => name.endsWith(".upload.zip"))) fs.rmSync(path.join(h.registry.directory, file));
+  for (const file of fs.readdirSync(h.registry.payloadDirectory).filter(name => name.endsWith(".upload.zip"))) fs.rmSync(path.join(h.registry.payloadDirectory, file));
   const space = fs.statfsSync(h.registry.directory);
   t.mock.method(fs, "statfsSync", () => ({ ...space, bavail: 0 }));
   await assert.rejects(h.backend.upload({ principalId: "owner", archive: h.archive }), { code: "INSUFFICIENT_STORAGE" });
-  assert.equal(fs.readdirSync(h.registry.directory).some(name => name.endsWith(".upload.zip")), false);
+  assert.equal(fs.readdirSync(h.registry.payloadDirectory).some(name => name.endsWith(".upload.zip")), false);
 });
 test("upload metadata failure removes the private ZIP and releases the transfer lock", async t => {
   const h = await importFixture(t), failure = new Error("registry write failed");
   const fault = t.mock.method(h.registry, "saveUpload", () => { throw failure; });
   await assert.rejects(h.backend.upload({ principalId: "owner", archive: h.archive }), error => error === failure);
-  assert.equal(fs.readdirSync(h.registry.directory).some(name => name.endsWith(".upload.zip")), false);
+  assert.equal(fs.readdirSync(h.registry.payloadDirectory).some(name => name.endsWith(".upload.zip")), false);
   fault.mock.restore();
   const uploaded = await h.backend.upload({ principalId: "owner", archive: h.archive });
   assert.deepEqual(fs.readFileSync(h.registry.uploadPath(uploaded)), h.archive);

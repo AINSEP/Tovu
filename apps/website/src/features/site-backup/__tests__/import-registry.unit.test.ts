@@ -1,3 +1,6 @@
+import type { SiteImportRecord } from "@jini-ai/core/contracts/site/site-import-history";
+import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
+import { createSiteImportPayloadFs } from "#src/server/runtime/composition/site-import-payload-fs";
 /**
  * Pins every branch of the CMS import registry (id gate, record/upload reads, history listing,
  * the transfer lock and expiry) against a real temp directory, with a mocked clock for the
@@ -10,12 +13,16 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { reconcileInterruptedImports, requireStagingBudget } from "@jini-ai/devops/backup/site/import-backend-steps";
+import { SiteImportRegistry, type SiteImportUpload } from "@jini-ai/devops/backup/site/import-registry";
 import { createSiteImportHost } from "../import-backend.js";
 import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 
 const SITE_IMPORT_HOST = createSiteImportHost({ themeChecks: THEME_PLACEMENT_CHECKS });
-import type { SiteImportRecord, SiteImportUpload } from "@jini-ai/devops/backup/site/import-registry";
-import { SiteImportRegistry } from "../import-registry.js";
+const payload = {
+    fs: createSiteImportPayloadFs({}), clock: { nowMs: () => Date.now() }, lock: { withFileLock },
+    readJsonAt: ({ file }: { file: string }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
+    writeJsonAt: ({ file, value }: { file: string; value: unknown }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
+  };
 
 const NOW = Date.UTC(2026, 0, 1);
 const HOUR = 3_600_000;
@@ -29,20 +36,22 @@ function registryIn(t: TestContext, options: { clock?: boolean; log?: (line: str
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "import-registry-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   if (options.clock !== false) t.mock.timers.enable({ apis: ["Date"], now: NOW });
-  return new SiteImportRegistry({ directory }, options.log ? { log: options.log } : {});
+  const registry = new SiteImportRegistry({ directory, payload }, options.log ? { log: options.log } : {});
+  fs.mkdirSync(registry.payloadDirectory, { mode: 0o700 });
+  return registry;
 }
 function record(overrides: Partial<SiteImportRecord> = {}): SiteImportRecord {
   return { importId: ID_A, principalId: "owner", source: { uploadId: ID_B }, newSiteId: null, newSiteName: null, displayName: "Site", status: "verifying", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: NOW + HOUR, ...overrides };
 }
 function upload(overrides: Partial<SiteImportUpload> = {}): SiteImportUpload { return { uploadId: ID_B, principalId: "owner", createdAt: NOW, ...overrides }; }
 const mode = (file: string): number => fs.statSync(file).mode & 0o777;
-const raw = (registry: SiteImportRegistry, name: string, text: string): void => fs.writeFileSync(path.join(registry.directory, name), text);
+const raw = (registry: SiteImportRegistry, name: string, text: string): void => fs.writeFileSync(path.join(/\.(upload\.(json|zip)|stage)$/.test(name) ? registry.payloadDirectory : registry.directory, name), text);
 
 test("the registry directory is created private and resolved to an absolute path", t => {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "import-registry-parent-"));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const relative = path.relative(process.cwd(), path.join(parent, "nested", "imports"));
-  const registry = new SiteImportRegistry({ directory: relative });
+  const registry = new SiteImportRegistry({ directory: relative, payload });
   assert.deepEqual({ directory: registry.directory, mode: mode(registry.directory) }, { directory: path.join(parent, "nested", "imports"), mode: 0o700 });
 });
 
@@ -50,7 +59,7 @@ test("an existing registry directory is tightened to owner-only", t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "import-registry-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   fs.chmodSync(directory, 0o755);
-  new SiteImportRegistry({ directory });
+  new SiteImportRegistry({ directory, payload });
   assert.equal(mode(directory), 0o700);
 });
 
@@ -62,7 +71,7 @@ for (const id of ["../x", "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA", `${ID_A}x`, ""
 
 test("upload and stage paths are fixed names inside the registry", t => {
   const registry = registryIn(t);
-  assert.deepEqual([registry.uploadPath({ uploadId: ID_B }), registry.stagePath({ importId: ID_A })], [path.join(registry.directory, `${ID_B}.upload.zip`), path.join(registry.directory, `${ID_A}.stage`)]);
+  assert.deepEqual([registry.uploadPath({ uploadId: ID_B }), registry.stagePath({ importId: ID_A })], [path.join(registry.payloadDirectory, `${ID_B}.upload.zip`), path.join(registry.payloadDirectory, `${ID_A}.stage`)]);
 });
 
 test("upload and stage paths refuse an invalid id", t => {
@@ -99,7 +108,7 @@ test("history lists only import records, newest first, for every principal by de
   registry.put({ row: record({ importId: ID_A, createdAt: "2026-01-01T00:00:00.000Z" }) });
   registry.put({ row: record({ importId: ID_C, principalId: "other", createdAt: "2026-02-01T00:00:00.000Z" }) });
   registry.saveUpload({ row: upload() });
-  raw(registry, "notes.json", "{}"); raw(registry, `${ID_B}.upload.zip`, "PK"); fs.mkdirSync(path.join(registry.directory, `${ID_A}.stage`));
+  raw(registry, "notes.json", "{}"); raw(registry, `${ID_B}.upload.zip`, "PK"); fs.mkdirSync(path.join(registry.payloadDirectory, `${ID_A}.stage`));
   assert.deepEqual(registry.list({}).map(row => row.importId), [ID_C, ID_A]);
 });
 
@@ -194,7 +203,7 @@ test("expiry removes an upload older than one hour with its payload", t => {
   registry.saveUpload({ row: upload({ createdAt: NOW - HOUR - 1 }) });
   raw(registry, `${ID_B}.upload.zip`, "PK");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory), []);
+  assert.deepEqual(fs.readdirSync(registry.payloadDirectory), []);
 });
 
 test("expiry keeps sweeping when one entry cannot be removed, names it in the log, and deletes nothing extra", t => {
@@ -203,16 +212,21 @@ test("expiry keeps sweeping when one entry cannot be removed, names it in the lo
   const [A, B, C] = [ID_A, ID_B, ID_C];
   for (const id of [A, B, C]) registry.saveUpload({ row: upload({ uploadId: id, createdAt: NOW - HOUR - 1 }) });
   // A's payload path is a directory, so removing it throws; the sweep reaches A first.
-  fs.mkdirSync(path.join(registry.directory, `${A}.upload.zip`));
-  fs.writeFileSync(path.join(registry.directory, `${A}.upload.zip`, "keep"), "x");
+  // (Here the throw is injected: rmSync is mocked below to fail on A's payload path.)
+  raw(registry, `${A}.upload.zip`, "PK");
+  const remove = fs.rmSync;
+  t.mock.method(fs, "rmSync", (file: fs.PathLike, options?: fs.RmOptions) => {
+    if (String(file) === registry.uploadPath({ uploadId: A })) throw Object.assign(new Error("busy"), { code: "EBUSY" });
+    return remove(file, options);
+  });
   raw(registry, `${B}.upload.zip`, "PK"); raw(registry, `${C}.upload.zip`, "PK");
   const live = ID_B.replace(/b/g, "d");
   registry.saveUpload({ row: upload({ uploadId: live, createdAt: NOW }) });
   raw(registry, `${live}.upload.zip`, "PK");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [`${A}.upload.json`, `${A}.upload.zip`, `${live}.upload.json`, `${live}.upload.zip`].sort());
-  assert.equal(logged.length, 1);
-  assert.match(logged[0]!.line, /^\[site-backup\] import registry could not clear expired entry aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\.upload\.json/);
+  assert.deepEqual(fs.readdirSync(registry.payloadDirectory).sort(), [`${A}.upload.json`, `${A}.upload.zip`, `${live}.upload.json`, `${live}.upload.zip`].sort());
+  assert.equal(logged.length, 2);
+  assert.equal(logged[0]!.line, "[site-backup] expire-import-payload");
 });
 
 test("T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup", async t => {
@@ -236,14 +250,14 @@ test("T25: interrupted verification and orphaned payloads release the staging bu
   assert.deepEqual(leakedPaths.map(file => fs.existsSync(file)), [true, true, true, true]);
 
   // Reopen persisted state, then use the same locked recovery/budget sequence as upload().
-  const restarted = new SiteImportRegistry({ directory: registry.directory });
+  const restarted = new SiteImportRegistry({ directory: registry.directory, payload });
   const workspace = createSitesWorkspace({}, { homeDir: registry.directory, cwd: registry.directory,
     appDataDir: path.join(registry.directory, "profile"), sourceRoots: [],
     env: { TOVU_SITES_HOME: path.join(registry.directory, "sites") } });
   const space = fs.statfsSync(registry.directory);
   t.mock.method(fs, "statfsSync", () => ({ ...space, bsize: 4096, bavail: 1_000_000 }));
   const recover = () => restarted.exclusive({ run: async () => {
-    await reconcileInterruptedImports({ registry: restarted, workspace, put: row => restarted.put({ row }), host: SITE_IMPORT_HOST });
+    await reconcileInterruptedImports({ registry: restarted, workspace, put: row => restarted.put({ row }), host: SITE_IMPORT_HOST, activeRows: (_required, _optional = {}) => restarted.list({}).filter(row => row.status === "verifying" || row.status === "creating") });
     assert.doesNotThrow(() => requireStagingBudget({ registry: restarted, host: SITE_IMPORT_HOST }),
       "crash leftovers must not permanently exhaust the four-payload staging budget");
   } });
@@ -262,7 +276,7 @@ test("expiry keeps an upload exactly one hour old", t => {
   registry.saveUpload({ row: upload({ createdAt: NOW - HOUR }) });
   raw(registry, `${ID_B}.upload.zip`, "PK");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [`${ID_B}.upload.json`, `${ID_B}.upload.zip`]);
+  assert.deepEqual(fs.readdirSync(registry.payloadDirectory).sort(), [`${ID_B}.upload.json`, `${ID_B}.upload.zip`]);
 });
 
 test("expiry keeps an unreadable upload and ignores upload files with a foreign name", t => {
@@ -270,13 +284,13 @@ test("expiry keeps an unreadable upload and ignores upload files with a foreign 
   raw(registry, `${ID_B}.upload.json`, "{");
   raw(registry, "stray.upload.json", JSON.stringify(upload({ createdAt: 0 })));
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [`${ID_B}.upload.json`, "stray.upload.json"]);
+  assert.deepEqual(fs.readdirSync(registry.payloadDirectory).sort(), [`${ID_B}.upload.json`, "stray.upload.json"]);
 });
 
 test("expiry fails an owner setup past its deadline and removes its stage", t => {
   const registry = registryIn(t);
   registry.put({ row: record({ status: "needs-owner", expiresAt: NOW - 1 }) });
-  fs.mkdirSync(path.join(registry.directory, `${ID_A}.stage`, "inner"), { recursive: true });
+  fs.mkdirSync(path.join(registry.payloadDirectory, `${ID_A}.stage`, "inner"), { recursive: true });
   registry.expire({});
   assert.deepEqual({ row: registry.get({ importId: ID_A, principalId: "owner" }), stage: fs.existsSync(registry.stagePath({ importId: ID_A })) },
     { row: record({ status: "failed", expiresAt: NOW - 1, error: "Owner setup expired. Import the archive again." }), stage: false });
@@ -300,7 +314,7 @@ test("expiry skips unreadable records and foreign files", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_A}.json`, "{"); raw(registry, "notes.json", "{}"); raw(registry, ".import.lock", "");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [".import.lock", `${ID_A}.json`, "notes.json"]);
+  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [".import.lock", `${ID_A}.json`, "notes.json", "payloads"].sort());
 });
 
 test("expiry removes a null upload row with its payload: it can never be claimed", t => {
@@ -308,14 +322,14 @@ test("expiry removes a null upload row with its payload: it can never be claimed
   raw(registry, `${ID_B}.upload.json`, "null");
   raw(registry, `${ID_B}.upload.zip`, "PK");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory), []);
+  assert.deepEqual(fs.readdirSync(registry.payloadDirectory), []);
 });
 
 test("expiry leaves a null import record in place, as history does", t => {
   const registry = registryIn(t);
   raw(registry, `${ID_A}.json`, "null");
   registry.expire({});
-  assert.deepEqual(fs.readdirSync(registry.directory), [`${ID_A}.json`]);
+  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [`${ID_A}.json`, "payloads"].sort());
 });
 
 for (const status of ["ready", "failed"] as const) {

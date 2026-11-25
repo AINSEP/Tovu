@@ -23,7 +23,7 @@ test("B import/list authorization happens before any backend effect and binds th
   const calls: unknown[] = [];
   const backend = {
     importBackup: async (input: unknown) => { calls.push(input); return { state: "needs-owner" }; },
-    list: async (input: unknown) => { calls.push(input); return []; },
+    listPage: async (input: unknown) => { calls.push(input); return { imports: [], nextCursor: "next" }; },
   } as unknown as SiteImportBackend;
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), siteImportBackend: backend } as unknown as SiteBackupToolDeps;
   const registrations = buildSiteBackupRegistrations(deps, {} as never);
@@ -38,17 +38,19 @@ test("B import/list authorization happens before any backend effect and binds th
   allowed = true;
   await run("site_import_backup", { url: "https://example.com/site.tovu.zip" });
   await run("site_import_list", {});
-  assert.deepEqual(calls, [{ principalId: "recipient", source: { url: "https://example.com/site.tovu.zip" } }, { principalId: "recipient" }]);
+  assert.deepEqual(await run("site_import_list", { cursor: "abc" }), { imports: [], nextCursor: "next" });
+  assert.deepEqual(calls, [{ principalId: "recipient", source: { url: "https://example.com/site.tovu.zip" } }, { principalId: "recipient" }, { cursor: "abc", principalId: "recipient" }]);
 });
 
 test("import adapters reject list fields and preserve coded failures while propagating unexpected errors", async () => {
   const { SiteShareRefusal } = await import("@jini-ai/devops/backup/site/share-refusal");
   let failure: unknown = new SiteShareRefusal({ code: "BUSY", message: "Import still running" });
   let effects = 0;
-  const backend = { importBackup: async () => { effects++; throw failure; }, list: async () => { effects++; throw failure; } } as unknown as SiteImportBackend;
+  const backend = { importBackup: async () => { effects++; throw failure; }, listPage: async () => { effects++; throw failure; } } as unknown as SiteImportBackend;
   const registrations = buildSiteBackupRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } as unknown as SiteBackupToolDeps, {} as never);
   const call = (id: string, input: unknown) => registrations.find(tool => tool.descriptor.id === id)!.handler({ input, principal: { id: "owner" }, run: { id: "run" }, executionId: "exec", signal: new AbortController().signal } as never);
-  assert.deepEqual(await call("site_import_list", { extra: true }), { ok: false, code: "INVALID_INPUT", message: "site_import_list takes no fields." });
+  assert.deepEqual(await call("site_import_list", { extra: true }), { ok: false, code: "INVALID_INPUT", message: "site_import_list accepts only cursor." });
+  assert.deepEqual(await call("site_import_list", { cursor: [] }), { ok: false, code: "INVALID_CURSOR", message: "This list of imports changed. Reload it to see the newest imports." });
   assert.equal(effects, 0);
   for (const [id, input] of [["site_import_list", {}], ["site_import_backup", { url: "https://example.com/site.zip" }]] as const) assert.deepEqual(await call(id, input), { ok: false, code: "BUSY", message: "Import still running" });
   failure = new Error("unexpected backend failure");

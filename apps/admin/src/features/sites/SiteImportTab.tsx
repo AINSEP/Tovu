@@ -1,3 +1,5 @@
+import { useAdminKit } from "@jini-ai/admin/react/kit";
+import { ShowMoreImports } from "@jini-ai/devops/backup/site/react/ShowMoreImports";
 import { useRef } from "react";
 import { DataTable } from "@jini-ai/admin/react";
 import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
@@ -324,10 +326,12 @@ function OwnerStep({ controller, name, t }: { controller: SiteImportController; 
   );
 }
 
-function ImportList({ controller, t }: { controller: SiteImportController; t: Translate }) {
+function ImportList({ controller, t, useAdminKitHook = useAdminKit }: { controller: SiteImportController; t: Translate; useAdminKitHook?: typeof useAdminKit }) {
+  const { components: { Button } } = useAdminKitHook();
   if (controller.listError) return <div className="notice error">{controller.listError}</div>;
   if (!controller.imports) return <div className="notice">{t("Loading imports…")}</div>;
   return (
+    <>
     <DataTable
       rows={controller.imports}
       rowKey={(item) => item.importId}
@@ -349,6 +353,9 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
         { key: "actions", headerLabel: t("Actions"), cell: (item, index) => <ImportAction item={item} index={index} controller={controller} t={t} /> },
       ]}
     />
+    <ShowMoreImports nextCursor={controller.nextCursor} loading={controller.loadingMore} onLoadMore={controller.loadMore} Button={Button} label={t("Show more imports")} />
+    {controller.moreError ? <div className="notice error">{controller.moreError}</div> : null}
+    </>
   );
 }
 

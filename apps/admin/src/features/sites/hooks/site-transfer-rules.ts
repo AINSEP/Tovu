@@ -62,7 +62,7 @@ export async function uploadOrExplain({ port, file }: { port: SiteTransferPort; 
   try {
     return await port.uploadImportZip({ file });
   } catch (failure) {
-    if (failure instanceof ApiError && failure.code === API_UNREACHABLE_CODE) await port.listImports();
+    if (failure instanceof ApiError && failure.code === API_UNREACHABLE_CODE) await port.listImports({});
     throw failure;
   }
 }

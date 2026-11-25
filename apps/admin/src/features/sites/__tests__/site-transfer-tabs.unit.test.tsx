@@ -377,7 +377,7 @@ function exportController(overrides: Partial<SiteExportController> = {}): SiteEx
     credentialGate: () => null, acknowledge: vi.fn(async () => {}), download: vi.fn(async () => {}), ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
-  return { savedKeysPassword: "", setSavedKeysPassword: vi.fn(), imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
+  return { nextCursor: undefined, loadingMore: false, moreError: null, loadMore: vi.fn(), reset: vi.fn(), savedKeysPassword: "", setSavedKeysPassword: vi.fn(), imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
     canImport: false, importing: false, importError: null, startImport: vi.fn(async () => {}), current: null, resume: vi.fn(),
     password: "", setPassword: vi.fn(), confirm: "", setConfirm: vi.fn(), passwordProblem: null, settingOwner: false,
     ownerError: null, completeOwner: vi.fn(async () => {}), liveAddress: "", setLiveAddress: vi.fn(),
@@ -691,4 +691,17 @@ describe("rows hold still after Revoke", () => {
     expect(nextAfter).toBe(next);
     expect(nextAfter!.style.height).toBe("");
   });
+});
+
+
+it("shows more imports and keeps owner action on an appended row", async () => {
+  const pending = siteImport({ importId: "appended", state: "needs-owner" });
+  const controller = importController({ imports: [siteImport({ state: "ready" })], nextCursor: "next", loadMore: vi.fn() });
+  const ui = render(<SiteImportTab t={t} useImport={() => controller} />);
+  await userEvent.click(screen.getByRole("button", { name: "Show more imports" }));
+  expect(controller.loadMore).toHaveBeenCalledTimes(1);
+  ui.rerender(<SiteImportTab t={t} useImport={() => ({ ...controller, imports: [...controller.imports!, pending], nextCursor: undefined })} />);
+  expect(screen.queryByRole("button", { name: "Show more imports" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+  expect(controller.resume).toHaveBeenCalledWith({ item: pending });
 });

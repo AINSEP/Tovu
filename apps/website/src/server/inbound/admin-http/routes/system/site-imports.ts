@@ -1,3 +1,6 @@
+import type { SiteImportPageInput } from "@jini-ai/core/contracts/site/site-import-history";
+import { mountJsonRoute } from "@jini-ai/http-kit";
+import { ImportHistoryUnavailable, mapSqliteError } from "@jini-ai/devops/backup/site/import-index/errors";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -8,7 +11,7 @@ import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { formatByteSize } from "@jini-ai/devops/backup/site/sources";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
-  importIncident, importStep as neutralImportStep, importUnavailableReply, mapImportFailure, ownerSetupBody, parseOwnerSetupBody,
+  siteImportListRouteSpec, importIncident, importStep as neutralImportStep, importUnavailableReply, mapImportFailure, ownerSetupBody, parseOwnerSetupBody,
   uploadBusyReply, workspaceUnavailableReply,
   type SiteImportFailureCollaborators, type SiteImportReply,
 } from "@jini-ai/cms/admin-http/routes/system/site-imports";
@@ -53,21 +56,29 @@ interface ImportRouteContext {
 }
 
 /** Maps a failed import step onto its HTTP answer: refusals and parser errors are 4xx, anything else is an incident. */
-function importFailure(input: { deps: Deps; req: Request; res: Response; error: unknown }): void {
-  const { deps, req, res, error } = input;
-  const step = importStep({ req });
+function answerImportFailure({ deps, res, error, step }: { deps: Deps; res: Response; error: unknown; step: string }, _optional: Record<string, never> = {}): void {
+  try {
+    mapSqliteError({ error, messages: {
+      busy: "Import history is busy. Try again in a moment.",
+      storage: "There is not enough free disk space to record the import. Free up space and try again.",
+      damaged: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID.",
+    } });
+  } catch (mapped) { error = mapped; }
+  if (error instanceof ImportHistoryUnavailable) {
+    sendAdminFailure({ res, error, tracker: deps.tracker }, { code: error.code, message: error.message, status: error.status, field: "message" });
+    return;
+  }
   const mapped = mapImportFailure({ step, error, collaborators: failureCollaborators });
   if (mapped) { reply(res, mapped); return; }
   sendAdminFailure({ res, error, tracker: deps.tracker }, importIncident({ step }));
 }
 
 /** Common headers, workspace match, authorization and backend-availability gate; returns the backend or `false` after answering. */
-async function gateImport(input: { deps: Deps; req: Request; res: Response; permission: string }) {
-  const { deps, req, res, permission } = input;
+async function gateImport({ deps, res, workspaceId, step, permission }: { deps: Deps; res: Response; workspaceId: string; step: string; permission: string }, _optional: Record<string, never> = {}) {
   res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
-  if (req.params.workspaceId !== deps.workspaceId) { reply(res, workspaceUnavailableReply({ step: importStep({ req }) })); return false; }
+  if (workspaceId !== deps.workspaceId) { reply(res, workspaceUnavailableReply({ step })); return false; }
   if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" } })) return false;
-  if (!deps.siteImportBackend) { reply(res, importUnavailableReply({ step: importStep({ req }) })); return false; }
+  if (!deps.siteImportBackend) { reply(res, importUnavailableReply({ step })); return false; }
   return deps.siteImportBackend;
 }
 
@@ -82,11 +93,25 @@ async function gateImportOwner(input: { ctx: Pick<ImportRouteContext, "deps" | "
   return backend;
 }
 
-function registerListAndImportRoutes({ app, root, fail, gate }: ImportRouteContext, _options = {}): void {
-  app.get(root, async (req, res) => {
-    try { const backend = await gate(req, res, "system.read"); if (backend) res.json({ imports: await backend.list({ principalId: getAuthedPrincipal(res).id }) }); }
-    catch (error) { fail(res, error, req); }
-  });
+function registerListAndImportRoutes({ app, deps, root, fail, gate }: ImportRouteContext, _options = {}): void {
+  const answered = Symbol("import gate answered");
+  let backend: NonNullable<Deps["siteImportBackend"]>;
+  mountJsonRoute({ app, deps: { listPage: (input: SiteImportPageInput, _optional = {}) => backend.listPage(input) }, spec: {
+    ...siteImportListRouteSpec,
+    ports: {
+      // Authorization precedes query interpretation.
+      authenticate: async ({ raw, res }, _optional = {}) => {
+        const gated = await gateImport({ deps, res, workspaceId: String(raw.params.workspaceId), step: "Import history", permission: "system.read" });
+        if (!gated) throw answered;
+        backend = gated;
+        return { principalId: getAuthedPrincipal(res).id };
+      },
+      onReturnedError: ({ res }, _optional = {}) => res.status(400).json({ code: "INVALID_CURSOR", message: "Import history failed: This list of imports changed. Reload it to see the newest imports." }),
+      onError: ({ res, error }, _optional = {}) => {
+        if (error !== answered) answerImportFailure({ deps, res, error, step: "Import history" });
+      },
+    },
+  } });
   app.post(root, async (req, res) => {
     try {
       const backend = await gate(req, res, "system.write");
@@ -170,8 +195,8 @@ export function registerAdminSiteImportRoutes(
     app,
     deps,
     root: "/api/admin/v1/workspaces/:workspaceId/site-imports",
-    fail: (res, error, req) => importFailure({ deps, req, res, error }),
-    gate: (req, res, permission) => gateImport({ deps, req, res, permission }),
+    fail: (res, error, req) => answerImportFailure({ deps, res, error, step: importStep({ req }) }),
+    gate: (req, res, permission) => gateImport({ deps, res, workspaceId: String(req.params.workspaceId), step: importStep({ req }), permission }),
     ownerGate: (req, res) => gateImportOwner({ ctx: context, req, res }),
   };
   registerListAndImportRoutes(context);

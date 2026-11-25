@@ -1,3 +1,4 @@
+import type { SiteImportRecord } from "@jini-ai/core/contracts/site/site-import-history";
 /** Review B-2 RED: no pre-write allocation journal/reconciliation; pre-catalog status was ready. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,8 +7,7 @@ import { fork } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { createSiteImportBackend } from "../import-backend.js";
-import { SiteImportRegistry } from "../import-registry.js";
-import type { SiteImportRecord } from "@jini-ai/devops/backup/site/import-registry";
+import { SiteImportRegistry } from "@jini-ai/devops/backup/site/import-registry";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 
 for (const placement of ["inSite", "appData"] as const) for (const boundary of ["allocated", "restored", "before-register", "registered"]) {
@@ -27,7 +27,7 @@ for (const placement of ["inSite", "appData"] as const) for (const boundary of [
       assert.equal(fs.existsSync(path.join(interrupted.creation.dir, ".site-meta.json")), true);
       assert.deepEqual(h.workspace.registry({}).list({}), []);
     }
-    const backend = createSiteImportBackend({ ...h.backendPorts, registry: new SiteImportRegistry({ directory: h.registry.directory }) });
+    const backend = createSiteImportBackend({ ...h.backendPorts, registry: new SiteImportRegistry({ directory: h.registry.directory, payload: h.payload }) });
     // list acquires the transfer lane and recovers dead creation/home/name lock owners.
     const recovered = (await backend.list({ principalId: "recipient" }))[0]!;
     assert.equal(recovered.state, boundary === "registered" ? "ready" : "failed");

@@ -15,7 +15,7 @@ import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 
 
 export interface FailureOptions {
-  status?: 503;
+  status?: 503 | 507;
   operation?: string;
   code?: string;
   message?: string;
