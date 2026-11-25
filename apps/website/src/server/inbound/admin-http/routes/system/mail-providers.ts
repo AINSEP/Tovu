@@ -15,17 +15,20 @@ import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-r
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
- * @file The host binding of the admin mail provider credential save (`PUT
- * …/system/mail-providers/:providerId/credential`, Jini `mailProviderCredentialSaveRoute`): the save
- * operation, the owner id and this request's credential kind (`res.locals.authCredentialKind`, bound per
- * request), since only the owner's human SESSION may replace a shared key.
+ * @file The host binding of the admin mail provider credential save: `PUT
+ * …/system/mail-providers/:providerId/credential`, body `{token?, username?, baseUrl?}` — creates or
+ * rotates the key in the custom-credentials store WITHOUT activating the provider; the next send
+ * already uses it. `custom-credentials.write`. Never echoes a secret. Its binding stays here because only
+ * the owner's human SESSION may replace a shared key, and that reads `res.locals.authCredentialKind`,
+ * which the Jini spec (`mailProviderCredentialSaveRoute`) behind the shared admin ports gets per request
+ * through `requestDeps`.
  *
  * Its siblings (configuration read, credential plan, activate) are Jini specs
  * (`@jini-ai/cms/admin-http/routes/system/mail-providers`) over the same
  * `features/mail-status/provider-operations.ts` operations the assistant's `mail_list_providers`,
  * `mail_configure_provider` and `mail_set_provider` call. `registerAdminMailProviderRoutes`
  * (`runtime/composition/modules/system-mail.ts`) mounts them and calls this registrar in its original
- * position. All of them answer refusals through one table: {@link classifyMailProviderError} maps the
+ * position. Both halves answer refusals through one table: {@link classifyMailProviderError} maps the
  * host's error classes, the spec's `mailProviderRefusal` picks the status and body.
  */
 export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "ownerPrincipalId">
@@ -66,7 +69,10 @@ export function registerAdminMailProviderCredentialSaveRoute({ app, deps }: { ap
     saveMailProviderCredential: ({ providerId, input, allowSharedKeyReplacement }) => saveMailProviderCredential({ control: deps.mailProviderControl,
       credentials: { ...credentials, allowSharedKeyReplacement }, workspaceId: deps.workspaceId, providerId, input }, { projectKeys: deps.projectKeys }),
   } }, {
+    // Workspace match + the permission (`direct`: `deps.authorize`, no publishing-credential override)
+    // are the admin mount's ports; a refusal writes the response before the spec runs.
     authorization: "direct",
+    // Maps a refusal to its status; anything else is a logged 500 without the error's text.
     failure: { operation: "routes/system/mail-providers", code: "INTERNAL_ERROR" },
     requestDeps: ({ res, deps: base }) => ({ ...base, requestCredentialKind: () => res.locals.authCredentialKind }),
   });

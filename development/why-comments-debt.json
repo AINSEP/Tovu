@@ -13928,6 +13928,10 @@
     {
       "id": "ba63557d5b0d",
       "reason": "Moved with the code to authorizeCustom in Jini @jini-ai/cms admin-http/routes/system/custom-credentials.ts; its first two lines are kept verbatim, the third reworded because the spec throws a refusal instead of returning true after writing the response."
+    },
+    {
+      "id": "fc550fc2e03a",
+      "reason": "x8 O10: the hand-written `authorized` helper of the mail credential PUT is gone; the admin mount's workspace + `direct` authorize ports do it, restated beside `authorization: \"direct\"` in registerAdminMailProviderCredentialSaveRoute."
     }
   ]
 }
