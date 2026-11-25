@@ -10,7 +10,7 @@ import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 /**
  * @file `RouteDeps` -> `identity`/api-key service-deps mapping for the three api-keys admin routes,
  * plus the narrow `ApiKeysRouteDeps` type the `api-keys` server module's registrars need and the
- * mount options all three Jini specs share.
+ * two guards all three routes share.
  *
  * Purpose:
  * Mirrors `apps/website/src/server/inbound/admin-http/routes/users/deps.ts` exactly — same `Pick<RouteDeps, ...>` narrowing, same
@@ -19,9 +19,11 @@ import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
  * needs on top of the nine identity repos.
  *
  * Architectural role:
- * Composition-boundary glue — no business logic. The specs live in
- * `@jini-ai/user-management/admin-http/routes/api-keys/*` and the transitions in
- * `identity/api-key-service.ts`; neither knows anything about Express.
+ * Composition-boundary glue plus this family's shared HTTP concerns — no business logic. The
+ * transitions themselves live in `identity/api-key-service.ts` and know nothing about Express.
+ *
+ * Since the K1 move the guards are the Jini specs' mount options (`API_KEY_MOUNT_OPTIONS`) and the specs
+ * live in `@jini-ai/user-management/admin-http/routes/api-keys/*`.
  */
 export type ApiKeysRouteDeps = Pick<
   RouteDeps,
@@ -80,6 +82,10 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
  * is the mount's `sessionCredentialOnly` gate, so it still answers before the body is read; an
  * unmapped failure is the same redacted 500 `sendApiKeyError` wrote under this operation.
  */
+// Why the mount (not the spec) answers a gate or wiring throw, from the hand-written handler:
+// Inside the try: requireAdminSession always sets res.locals before this route runs, but
+// Express 4 doesn't catch a synchronous throw from an async handler outside try/catch (the
+// request would otherwise hang instead of 500ing).
 export const API_KEY_MOUNT_OPTIONS: AdminJsonRouteMountOptions = {
   sessionCredentialOnly: API_KEY_SESSION_CREDENTIAL_GATE,
   failure: { operation: "routes/api-keys/deps", code: "INTERNAL_ERROR" },
