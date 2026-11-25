@@ -6,8 +6,9 @@ import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "../../features/media/api/media-api";
 import { settingsApi } from "../../lib/admin-http/settings-api";
 import { ApiError } from "../../lib/admin-http/request";
-import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
-import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import { MediaPickerDialog } from "../MediaPickerDialog/media-picker-host";
+import type { MediaPickerDialogController } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
+import type { useWiredMediaPickerDialog } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 
 /**
  * @file First test file for `MediaPickerDialog` (0% before this refactor pass — no test file

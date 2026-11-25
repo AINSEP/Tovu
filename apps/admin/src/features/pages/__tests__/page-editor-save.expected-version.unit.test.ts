@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
-import { PageBodyWriteError, writePage } from "../hooks/page-editor-save";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createFakePageEditorPort, defaultPageEditorPort } from "../hooks/page-editor-dependencies.hooks";
+import { PageBodyWriteError, writePage } from "@jini-ai/cms/react/pages/hooks/page-editor-save";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { PageSavePlan } from "@jini-ai/admin/pages/page-editor-rules";
 
@@ -42,4 +42,18 @@ describe("S7b: the HTML save carries the successful metadata save's version", ()
     expect(port.current.bodyHtml).toBe("<p>Other editor</p>");
     expect(port.current.version).toBe(page.version + 2);
   });
+});
+
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("the real page binding carries the metadata response version into the body request", async () => {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init === undefined ? {} : { init }) });
+    return Response.json({ post: { ...page, version: calls.length === 1 ? 8 : 9 } });
+  });
+  await writePage({ port: defaultPageEditorPort, pageId: page.id, plan, html: "<p>Edited</p>" });
+  expect(calls).toHaveLength(2);
+  expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({ html: "<p>Edited</p>", expectedVersion: 8 });
 });

@@ -1,5 +1,8 @@
+import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import type { ComposerCapabilitySource } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/screens/plugins/resolve-composer-discovery-outcome";
-import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
+import { createInstalledSkillsComposerCapabilitySource } from "@jini-ai/agent-plugins/react/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT, loadSkillDraft } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { useCallback, useEffect, useState } from "react";
@@ -45,7 +48,11 @@ function watchComposerCapabilities(
 ): () => void {
   // One source per authenticated boot scope and document (same-origin site/API, fixed workspace).
   // No module singleton can retain another user's installed capabilities.
-  const installed = createInstalledSkillsComposerCapabilitySource();
+  const installed = createInstalledSkillsComposerCapabilitySource({
+    request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`,
+    isNotModified: error => error instanceof ApiError && error.status === 304,
+    reportFailure: (message, error) => console.error(message, error),
+  }, {}) satisfies ComposerCapabilitySource;
   const state = { cancelled: false, generation: 0, shown: "" };
   let stopPolling = () => {};
   const reload = createComposerReload({ installed, state, queryScope, setCatalog });

@@ -1,6 +1,6 @@
 import { readableTextColor } from "@jini-ai/ui";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useEffect, useRef } from "react";
+import { createAppearanceDraftStore, useAdminAppearance as useJiniAdminAppearance, useSettingsAppearance as useJiniSettingsAppearance } from "@jini-ai/admin/react/shell/appearance";
 import { APPEARANCE_NAMESPACE, adminThemeAccent, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { useAdminThemeState } from "../admin-themes/use-admin-theme.hooks";
@@ -18,7 +18,7 @@ const defaultPort: AdminAppearancePort = {
   }),
 };
 
-const previewAccents = new WeakMap<HTMLElement, Map<string, { accentColor: string | undefined; version: number }>>();
+const previewAccents = createAppearanceDraftStore({}, {});
 
 /**
  * The host inputs feed Jini's derived accent tokens, including descendants with their own theme.
@@ -54,48 +54,21 @@ function applyAccent({ accentColor, root }: { accentColor: string | undefined; r
 /** Follow the appearance ledger, protecting each theme's drafts newer than the accepted read.
  * @complexity O(n) per accepted read/theme switch for n cached drafts; root state is weakly held. */
 export function useAdminAppearance(_required: object, { port = defaultPort, root = document.documentElement } = {}) {
-  const { themeId } = useAdminThemeState({}, { root });
-  const paintedTheme = useRef(themeId);
-  const query = useAdminAppearanceSnapshot({ port }, { root });
-  const invalidate = useInvalidate();
-  useEffect(() => port.subscribeToSettingsRefresh({ listener: () => {
-    invalidate({ key: ["settings", APPEARANCE_NAMESPACE] });
-  } }), [port, root, invalidate]);
-  useEffect(() => {
-    // An older response must not repaint a newer draft, including after a theme switch.
-    // Other themes can still resolve their own saved choice; failed reads retain the last accent.
-    const drafts = previewAccents.get(root);
-    const themeChanged = paintedTheme.current !== themeId;
-    paintedTheme.current = themeId;
-    if (!query.data) {
-      // A switch must never carry the previous theme's inline colour into an unloaded theme.
-      if (themeChanged) applyAccent({ accentColor: drafts?.get(themeId)?.accentColor, root }, {});
-      return;
-    }
-    // Only an accepted snapshot retires drafts, across all themes. A later preview in another
-    // theme must never revive one that this read superseded; in-flight newer drafts survive.
-    const readVersion = query.data.readPreviewVersion;
-    drafts?.forEach((draft, id) => {
-      if (draft.version <= readVersion) drafts.delete(id);
-    });
-    const draft = drafts?.get(themeId);
-    const accentColor = draft && draft.version > readVersion
-      ? draft.accentColor
-      : adminThemeAccent({ appearance: query.data.appearance, themeId }, {});
-    applyAccent({ accentColor, root }, {});
-  }, [query.data, root, themeId]);
+  return useJiniAdminAppearance({
+    store: previewAccents, root, port,
+    useThemeStateHook: useAdminThemeState,
+    useAppearanceSnapshotHook: useAdminAppearanceSnapshot,
+    useInvalidateHook: useInvalidate,
+    paintAccent: applyAccent, resolveAccent: adminThemeAccent,
+    queryPrefix: ["settings", APPEARANCE_NAMESPACE],
+  }, {});
 }
 
 /** Preview the active theme's resolved draft before the debounced ledger save completes. */
 export function useSettingsAppearance({ accentColor, ready }: { accentColor: string | undefined; ready: boolean }, { root = document.documentElement } = {}) {
-  const { themeId } = useAdminThemeState({}, { root });
-  useEffect(() => {
-    if (ready) {
-      const version = advanceAppearancePreview({ root }, {});
-      const drafts = previewAccents.get(root) ?? new Map();
-      drafts.set(themeId, { accentColor, version });
-      previewAccents.set(root, drafts);
-      applyAccent({ accentColor, root }, {});
-    }
-  }, [accentColor, ready, root, themeId]);
+  return useJiniSettingsAppearance({
+    accentColor, ready, store: previewAccents, root,
+    useThemeStateHook: useAdminThemeState,
+    advancePreview: advanceAppearancePreview, paintAccent: applyAccent,
+  }, {});
 }

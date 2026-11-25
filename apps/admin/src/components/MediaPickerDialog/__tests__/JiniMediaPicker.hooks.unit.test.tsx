@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
 import { useJiniMediaPicker } from "@jini-ai/admin/shell/components/MediaPickerDialog/JiniMediaPicker.hooks";
 import { useHostMediaPicker } from "@/integrations/jini-admin/module-context";
-import { MediaPickerDialog, jiniMediaPickerHostArgs } from "../MediaPickerDialog";
+import { MediaPickerDialog, jiniMediaPickerHostArgs } from "../media-picker-host";
 
 const { pick, picker } = vi.hoisted(() => { const pick = vi.fn(); return { pick, picker: { pick } }; });
 vi.mock("@/integrations/jini-admin/module-context", () => ({ useHostMediaPicker: () => picker }));

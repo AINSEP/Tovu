@@ -1,3 +1,4 @@
+import type { StaticDeploymentDestination, DeploymentDestination } from "@jini-ai/core/contracts/site/deployment-admin";
 import { resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 import type { UUID } from "@jini-ai/core/primitives";
 
@@ -164,17 +165,7 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
 }
 
 /** Public replay contract; credentialId identifies a connection and never carries its secret. */
-export interface StaticPublishDestination {
-  readonly id: string;
-  readonly kind: "static";
-  readonly lastPublishedAt: string;
-  readonly label: string;
-  readonly url: string;
-  readonly target: string;
-  readonly projectName: string;
-  readonly credentialId?: string;
-  readonly configFields: Readonly<Record<string, string>>;
-}
+export type StaticPublishDestination = StaticDeploymentDestination;
 
 /** Only declared public config may enter history or a response. Credential fields are excluded even
  * if a descriptor accidentally also declares them as config. O(f*c) for f config/c credential fields.
@@ -227,24 +218,14 @@ function staticDestinations(input: { rows: readonly PublishHistoryEntry[]; regis
   }).sort((a, b) => Date.parse(b.lastPublishedAt) - Date.parse(a.lastPublishedAt));
 }
 
-export type PublishDestination = StaticPublishDestination | {
+export type PublishDestination = DeploymentDestination<{
   readonly id: string;
   readonly kind: "tovu-peer";
   readonly peerId: string;
   readonly label: string;
   readonly url: string;
   readonly lastPublishedAt: string;
-} | {
-  readonly id: string;
-  readonly kind: "deploy";
-  readonly status: "started" | "confirmed";
-  readonly statusMessage?: string;
-  readonly target: string;
-  readonly label: string;
-  readonly url: string;
-  readonly lastPublishedAt: string;
-  readonly linkedPeerId?: string;
-};
+}>;
 
 /** One bounded ledger read, no credential resolution. Only caller-authorized saved peer summaries
  * may enter this projection; deleted peers never become destinations from stale history.

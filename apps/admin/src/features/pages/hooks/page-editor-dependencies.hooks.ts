@@ -8,8 +8,11 @@ import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { createPreviewEmbedIdsLoader, usePreviewEmbedIds, type UsePreviewEmbedIds } from "./use-preview-embed-ids.hooks";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
-import type { PageEditorPort } from "./page-editor-port.hooks";
+import type { PageEditorPort as CorePageEditorPort } from "@jini-ai/core/contracts/site/content-editor-ports";
+import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
+
+export type PageEditorPort = CorePageEditorPort<AdminPost, AdminPagePluginEmbed, StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot>;
 
 /**
  * @file The only place under `features/pages/hooks` that reaches `lib/api` for these five routes —

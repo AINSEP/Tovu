@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { API_UNREACHABLE_CODE, ApiError, requestOnce, requestRidingOutRestart } from "../admin-http/request";
-import { browserServerReconnectDeps, createServerReconnect, probeReadyz, serverReconnect, serverReconnectForMode, shouldRetryAfterReconnect, type ServerReconnect } from "../server-reconnect";
+import { browserServerReconnectDeps, serverReconnect, serverReconnectForMode } from "../server-reconnect";
+import { createServerReconnect, probeReadyz, shouldRetryAfterReconnect, type ServerReconnect } from "@jini-ai/admin/browser/server-reconnect";
 
 /**
  * @file Riding out a server restart (2026-10-05, S3): the `/readyz` poll, which failures are retried,
@@ -219,12 +220,12 @@ describe("probeReadyz", () => {
       if (response instanceof Error) throw response;
       return response;
     } });
-    expect(await probeReadyz({}, reply(new Response('{"ready":true}', { status: 200 })))).toBe(true);
-    expect(await probeReadyz({}, reply(new Response('{"ready":false}', { status: 503 })))).toBe(true);
-    expect(await probeReadyz({}, reply(new Response("Bad Gateway", { status: 502 })))).toBe(false);
-    expect(await probeReadyz({}, reply(new Response("null", { status: 200 })))).toBe(false);
-    expect(await probeReadyz({}, reply(new Response('{"ok":true}', { status: 200 })))).toBe(false);
-    expect(await probeReadyz({}, reply(new TypeError("Failed to fetch")))).toBe(false);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new Response('{"ready":true}', { status: 200 })) })).toBe(true);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new Response('{"ready":false}', { status: 503 })) })).toBe(true);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new Response("Bad Gateway", { status: 502 })) })).toBe(false);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new Response("null", { status: 200 })) })).toBe(false);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new Response('{"ok":true}', { status: 200 })) })).toBe(false);
+    expect(await probeReadyz({ url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000), ...reply(new TypeError("Failed to fetch")) })).toBe(false);
     expect(calls[0]![0]).toBe("/readyz");
     expect(calls[0]![1]).toMatchObject({ credentials: "same-origin", cache: "no-store" });
     expect(calls[0]![1].signal).toBeInstanceOf(AbortSignal);
@@ -233,7 +234,7 @@ describe("probeReadyz", () => {
   it("defaults to the browser fetch", async () => {
     const urls: string[] = [];
     vi.stubGlobal("fetch", async (url: string) => { urls.push(url); return new Response('{"ready":true}'); });
-    expect(await probeReadyz()).toBe(true);
+    expect(await probeReadyz({ request: fetch, url: "/readyz", timeoutSignal: () => AbortSignal.timeout(2_000) })).toBe(true);
     expect(await browserServerReconnectDeps().probe()).toBe(true);
     expect(urls).toEqual(["/readyz", "/readyz"]);
   });
