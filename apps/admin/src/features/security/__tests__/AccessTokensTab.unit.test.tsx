@@ -10,7 +10,8 @@ import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access
 import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
-import { useCopyKeys } from "../hooks/use-copy-keys.hooks";
+import { useCopyKeys } from "@jini-ai/admin/security/host/hooks/use-copy-keys.hooks";
+import { copyKeysHostPolicy } from "../hooks/copy-keys-dependencies.hooks";
 import { accessTokenProviderInfo, accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
@@ -212,7 +213,7 @@ describe("AccessTokensTab project copy entry", () => {
     render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens()}
       useOtherCredentialsHook={() => makeOtherCredentials()}
-      useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials } })}
+      useCopyKeysHook={input => useCopyKeys({ ...input, port: { listCredentialCopySources, copyCredentials }, onGranted: vi.fn(), sharedKeys: copyKeysHostPolicy })}
     />);
     expect(screen.getByRole("button", { name: "Use a saved key" })).toBeTruthy();
     expect(listCredentialCopySources).not.toHaveBeenCalled();
@@ -322,7 +323,7 @@ describe("AccessTokensTab project copy entry, when re-enabled", () => {
       showCopyKeysEntry
       useAccessTokensHook={() => makeAccessTokens()}
       useOtherCredentialsHook={() => makeOtherCredentials()}
-      useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials: vi.fn() } })}
+      useCopyKeysHook={input => useCopyKeys({ ...input, port: { listCredentialCopySources, copyCredentials: vi.fn() }, onGranted: vi.fn(), sharedKeys: copyKeysHostPolicy })}
     />);
     await user.click(screen.getByRole("button", { name: "Use a saved key" }));
     await waitFor(() => expect(listCredentialCopySources).toHaveBeenCalledTimes(1));
