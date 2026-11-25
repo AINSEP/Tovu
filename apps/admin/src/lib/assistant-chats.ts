@@ -102,3 +102,33 @@ export async function saveMessage({ conversationId, message }: { conversationId:
     CHAT_REQUEST_OPTIONS,
   );
 }
+
+/** A chat the server kept out of a cleanup, and why (`pinned`, `open`, `active`, `recoverable`, `changed`, `unknown`). */
+export interface ChatCleanupKept { id: string; title: string | null; reason: string }
+/** `POST cleanup/preview`'s answer: the server's own count, bytes and kept list, plus the token apply needs. */
+export interface ChatCleanupPreview { count: number; bytes: number; kept: ChatCleanupKept[]; previewToken: string }
+/** `cleanup/apply` and `delete-selected`; a `previewToken` means the same confirmed preview has more to delete. */
+export interface ChatCleanupResult { deleted: string[]; kept: ChatCleanupKept[]; previewToken?: string }
+
+/** Pins or unpins one chat (`PATCH /:id`); resolves the server's saved `pinned`, not the requested one. */
+export async function setConversationPinned({ id, pinned }: { id: string; pinned: boolean }, _optional: Record<string, never> = {}): Promise<{ id: string; pinned: boolean }> {
+  const { conversation } = await authenticatedAdminRequest<{ conversation: { id: string; pinned?: boolean } }>(
+    { path: `/${encodeURIComponent(id)}`, method: "PATCH", body: { pinned } }, CHAT_REQUEST_OPTIONS,
+  );
+  return { id: conversation.id, pinned: conversation.pinned === true };
+}
+
+/** Asks the server what an age cleanup would delete. Deletes nothing. `before` is epoch ms. */
+export async function previewChatCleanup({ before }: { before: number }, _optional: Record<string, never> = {}): Promise<ChatCleanupPreview> {
+  return authenticatedAdminRequest<ChatCleanupPreview>({ path: "/cleanup/preview", method: "POST", body: { before } }, CHAT_REQUEST_OPTIONS);
+}
+
+/** Applies exactly the preview the server issued `previewToken` for; a 409 `PREVIEW_EXPIRED` means choose again. */
+export async function applyChatCleanup({ previewToken }: { previewToken: string }, _optional: Record<string, never> = {}): Promise<ChatCleanupResult> {
+  return authenticatedAdminRequest<ChatCleanupResult>({ path: "/cleanup/apply", method: "POST", body: { previewToken, confirm: true } }, CHAT_REQUEST_OPTIONS);
+}
+
+/** Deletes the chosen chats. `confirm: true` is part of the type so no caller can send it implicitly (owner rule d). */
+export async function deleteSelectedConversations({ ids, confirm }: { ids: readonly string[]; confirm: true }, _optional: Record<string, never> = {}): Promise<ChatCleanupResult> {
+  return authenticatedAdminRequest<ChatCleanupResult>({ path: "/delete-selected", method: "POST", body: { ids, confirm } }, CHAT_REQUEST_OPTIONS);
+}

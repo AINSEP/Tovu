@@ -1,6 +1,6 @@
 import { useCallback, type ComponentProps } from "react";
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { ChatSettingsSegmented, ConversationList, ConversationTitle, defaultConversationListHooks, type I18nAdapter } from "@jini-ai/chat/react";
+import { ChatSettingsSegmented, ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
@@ -13,6 +13,9 @@ import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/adm
 import { CHAT_TOOL_CALL_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { renameActiveConversation } from "./assistant-dock-props";
+import { ChatCleanupPanel } from "./ChatCleanupPanel";
+import type { WiredChatCleanup } from "./hooks/chat-cleanup.hooks";
+import type { DockTranslate } from "./chat-cleanup-copy";
 import type { ChatDisplayPreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 
@@ -41,6 +44,8 @@ export interface DockHeaderProps {
   readonly onMoreSettings: (() => void) | undefined;
   /** Whether the transcript is empty, which shows the greeting under the header row. */
   readonly empty: boolean;
+  /** Required, no default: the switcher's list hooks, pins, selection and cleanup (`useDockChatCleanup` in the app). */
+  readonly useChatCleanup: (required: { t: DockTranslate; locale: string; untitled: string }) => WiredChatCleanup;
 }
 
 /**
@@ -52,8 +57,9 @@ export interface DockHeaderProps {
  * @complexity O(c) in the number of conversations (one `find` for the active title).
  */
 export function DockHeader({
-  chats, activeTitle, mode, agentId, locale, t, chatI18n, conversationDelete, chatDisplay, agentPlugins, runtime, onMoreSettings, empty,
+  chats, activeTitle, mode, agentId, locale, t, chatI18n, conversationDelete, chatDisplay, agentPlugins, runtime, onMoreSettings, empty, useChatCleanup,
 }: DockHeaderProps) {
+  const chatCleanup = useChatCleanup({ t, locale, untitled: chatI18n.t("Untitled") });
   const onSelect = useCallback((id: string) => chats.select({ id }), [chats.select]);
   const onDelete = useCallback((id: string) => chats.remove({ id }), [chats.remove]);
   const onRename = useCallback((id: string, title: string) => chats.rename({ id, title }), [chats.rename]);
@@ -86,10 +92,14 @@ export function DockHeader({
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
         <DockHeaderTip label={t({ key: "Chats" })}>
-          {/* The chat package's list hooks are a required prop since the P11 major; the host binds the real ones here (ST-10 adds pin and cleanup). */}
+          {/* The list hooks, pins and ticked chats all come from the injected cleanup hook. */}
           <ConversationList
-            hooks={defaultConversationListHooks}
-            conversations={chats.conversations}
+            hooks={chatCleanup.listHooks}
+            conversations={chatCleanup.visibleConversations({ conversations: chats.conversations })}
+            onTogglePin={chatCleanup.togglePin}
+            selectable={chatCleanup.open}
+            selectedIds={chatCleanup.selectedIds}
+            onSelectionChange={chatCleanup.select}
             activeConversationId={chats.activeId}
             onSelect={onSelect}
             onCreate={chats.create}
@@ -108,6 +118,7 @@ export function DockHeader({
             nativeTitle={false}
           />
         </DockHeaderTip>
+        <ChatCleanupPanel cleanup={chatCleanup} confirm={conversationDelete.confirm} />
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
         <DockHeaderTip label={t({ key: "Settings" })}>
           <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
