@@ -25,7 +25,7 @@ import {
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
-import { readFileAsBase64 } from "@/features/media/rules";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
 import { t as libraryT } from "../library-i18n";
 import { libraryFileProblem, LIBRARY_ACCEPT, LIBRARY_MAX_BYTES } from "@jini-ai/admin/screens/library/rules";
 

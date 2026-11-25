@@ -1,7 +1,7 @@
 import { createEmailProviderLabel, createEmailProviderSelect } from "@jini-ai/admin/screens/email/EmailProviderTab.hooks";
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";

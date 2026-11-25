@@ -41,7 +41,7 @@ import type { UiKit } from '@jini-ai/ui/react-kit';
  *  A ui/ui-kit prop change that breaks admin fails typecheck HERE, at `satisfies`. */
 export const adminKit = {
   components: { Button, IconButton, TextField, TextArea, Select, Switch, Dialog, ConfirmDialog, Tabs, Menu, Notice, Spinner, Badge,
-    InfoTip, Lightbox, WidgetSelect, TabBar, HtmlEditor: InteractiveHtmlEditor, ErrorNotice, Icon,
+    InfoTip, Lightbox, WidgetSelect, TabBar, HtmlEditor: InteractiveHtmlEditor, ErrorNotice, Icon, SecretInput,
     RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, PreviewModalShell },
   // `useT` is ui's translator (Settings-dialog and panel copy). Chat's `useT` from `@jini-ai/chat/react`
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.

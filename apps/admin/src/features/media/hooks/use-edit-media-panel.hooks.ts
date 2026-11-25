@@ -14,7 +14,7 @@ import {
   mediaCreatedByLabel,
   parseOptionalPixelSize,
   type MediaMetadataPatch,
-} from "../rules";
+} from "@jini-ai/admin/screens/media/rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
@@ -203,7 +203,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
 
   const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "", policy: embedPolicy });
   const htmlAttributesError = htmlAttributesParsed.error
-    ? describeMediaHtmlAttributeError({ error: htmlAttributesParsed.error, locale })
+    ? describeMediaHtmlAttributeError({ error: htmlAttributesParsed.error, locale, translate: t })
     : null;
 
   async function copyHash() {

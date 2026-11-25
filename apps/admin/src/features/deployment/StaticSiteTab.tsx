@@ -1,7 +1,7 @@
 import { createStaticSiteTabTranslator } from "./StaticSiteTab.hooks";
 import { useWiredCopyToClipboard } from "@jini-ai/ui";
 import { CredentialHint } from "@/components/CredentialHint";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 

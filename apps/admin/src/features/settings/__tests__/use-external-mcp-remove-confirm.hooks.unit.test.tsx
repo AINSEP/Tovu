@@ -5,7 +5,7 @@ import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/
 import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { ConfirmActionDialog } from "@jini-ai/admin/shell/components/ConfirmActionDialog";
-import { buildExternalMcpRemoveConfirmCopy } from "../rules";
+import { buildExternalMcpRemoveConfirmCopy } from "@jini-ai/admin/screens/settings/rules";
 
 // Host integration: the moved dialog with this host's own markup (`ConfirmActionDialog`) and copy bound in.
 const HOST = {

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
-import { filterMediaByTab, hasUntypedMedia, showsUntypedMediaNote } from "../rules";
+import { filterMediaByTab, hasUntypedMedia, showsUntypedMediaNote } from "@jini-ai/admin/screens/media/rules";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
