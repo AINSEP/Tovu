@@ -6,6 +6,7 @@ import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 import { createOutboxHostServices } from "./outbox-worker.js";
+import { readOutboxTraceParent, withoutOutboxTraceParent } from "./outbox-trace-parent.js";
 
 /**
  * @file Background outbox drainer: the one owner that delivers outbox rows in a site-serving process.
@@ -50,6 +51,8 @@ export type OutboxQueueMetrics = NonNullable<NonNullable<Parameters<typeof start
  * @param optional.queueMetrics the durable depth read and the admitted metric port; when given, each
  *   drain samples `outbox.queue_depth` (the durable count, not the drain's claimed count).
  *   Omitted when the host has no read or no metric admission: no gauge, nothing else changes.
+ * @param optional.readParent reads the producer's persisted trace parent from a delivered event
+ *   (default: the host's reserved envelope value). Each delivery is traced as its child.
  * @param optional.onError receives any error a drain throws (default: `console.error`). If it throws
  *   itself, that is swallowed, so a broken reporter can never end the loop.
  * @returns a handle whose `stop()` ends the loop.
@@ -59,9 +62,13 @@ export type OutboxQueueMetrics = NonNullable<NonNullable<Parameters<typeof start
  */
 export function startOutboxDrainer(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
-  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; tracker?: Tracker; queueMetrics?: OutboxQueueMetrics } = {}
+  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; tracker?: Tracker; queueMetrics?: OutboxQueueMetrics; readParent?: typeof readOutboxTraceParent } = {}
 ): OutboxDrainer {
-  const { tracker = createNoopTracker({}), ...drainOptions } = optional;
+  const { tracker = createNoopTracker({}), readParent = readOutboxTraceParent, ...drainOptions } = optional;
   const args = outboxWorkerArgs({ ...required, ...createOutboxHostServices({}) });
-  return startJiniOutboxDrainer({ ...args, bus: trackOutboxDelivery({ bus: args.bus, tracker }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
+  // The parent is read from the stored row, then the reserved value is stripped: subscribers (and
+  // the webhook payloads they build) never see the transport value. A timer-inherited context is
+  // neither durable nor attributable to the right request, so delivery never relies on it.
+  const subscriberBus: typeof args.bus = { ...args.bus, publish: (input) => args.bus.publish({ ...input, event: withoutOutboxTraceParent({ event: input.event }) }) };
+  return startJiniOutboxDrainer({ ...args, bus: trackOutboxDelivery({ bus: subscriberBus, tracker }, { readParent }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }

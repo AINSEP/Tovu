@@ -1,5 +1,5 @@
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
-import { SqlOutboxAdapter } from "@jini-ai/db/events";
+import { SqlOutboxAdapter, type OutboxEventPreparation } from "@jini-ai/db/events";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import type { ContentDb } from "./content-db.js";
 
@@ -46,9 +46,11 @@ export class SqliteOutboxAdapter extends SqlOutboxAdapter {
   /**
    * @param required.store the connection's kernel, or the content db handle it is derived from.
    * @param optional.claimLeaseMs claim lease length (default {@link DEFAULT_OUTBOX_CLAIM_LEASE_MS}).
+   * @param optional.prepareOutboxEvent host hook run on each envelope inside its enqueue write (default: stored as given).
    */
-  constructor({ store }: { store: ContentKernel | ContentDb }, optional: { claimLeaseMs?: number } = {}) {
-    super({ kernel: schemaErasedKernel({ store }), tables: OUTBOX_TABLES, claimLeaseMs: optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS }, {});
+  constructor({ store }: { store: ContentKernel | ContentDb }, optional: { claimLeaseMs?: number } & OutboxEventPreparation = {}) {
+    const { claimLeaseMs = DEFAULT_OUTBOX_CLAIM_LEASE_MS, ...preparation } = optional;
+    super({ kernel: schemaErasedKernel({ store }), tables: OUTBOX_TABLES, claimLeaseMs }, preparation);
   }
 }
 

@@ -37,6 +37,7 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { instrumentStorageKernel } from "@jini-ai/diagnostics/observability";
 import { composeMailHttp } from "./mail-http.js";
 import { composeContentStores } from "./content-stores.js";
+import { captureOutboxTraceParent } from "#src/contracts/core/events/outbox-trace-parent";
 import { composePublishingStoresThemes } from "./publishing-stores-themes.js";
 import { composePublishContentApplyPort } from "./publish-apply.js";
 import { composeOutboundConnections } from "./outbound-connections.js";
@@ -84,16 +85,18 @@ interface ComposeSiteServicesPhaseRequired {
   mediaContentTypeStore: () => ReturnType<typeof composePublishingPhase>["mediaContentTypeStore"];
   routeDeps: () => ReturnType<typeof assembleRouteDepsPhase>["routeDeps"];
   consoleLogger: ReturnType<typeof createConsoleLogger>;
+  /** Late read: the provider selection exists only after this phase; an enqueue before it fails preparation and is stored as given. */
+  observability: () => ReturnType<typeof composeProviderLifecyclePhase>["observability"];
 }
 
 export function composeSiteServicesPhase(required: ComposeSiteServicesPhaseRequired, _optional = {}) {
-  const { mediaAccessEvidence, dbPath, overrides, onStoreClose, lifecycleTracker, routeDepsBuiltForPluginHost, formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo, mediaRepo, postRepo, mediaContentTypeStore, routeDeps, consoleLogger } = required;
+  const { observability, mediaAccessEvidence, dbPath, overrides, onStoreClose, lifecycleTracker, routeDepsBuiltForPluginHost, formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo, mediaRepo, postRepo, mediaContentTypeStore, routeDeps, consoleLogger } = required;
   logMediaProviderRefusals({ refusals: mediaProviders.refusals });
   const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo } = composeStoreBasics({ kernel, workspaceId, agentPluginLayout });
   const { pluginRuntime } = composeSitePluginRuntime({ lifecycleTracker: () => lifecycleTracker(), routeDepsBuiltForPluginHost: () => routeDepsBuiltForPluginHost(), workspaceId, clock, pluginActivationRepo, resolvedSiteBinding, contentTypeRepo: () => contentTypeRepo, idGen, outbox: () => outbox, overrides });
   const { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady } = composeIdentitySettings({ kernel, workspaceId, clock, idGen, storeBound, overrides, dbPath });
   const { menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady } = startBootData({ kernel, clock, workspaceId, dbPath, idGen, resolvedSiteBinding, blobStore, consoleLogger });
-  const { outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo } = composeEventsOrigin({ kernel, clock, workspaceId });
+  const { outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo } = composeEventsOrigin({ kernel, clock, workspaceId, activeTraceparent: () => observability().activeTraceparent?.() });
   const { trashRegistry, sqliteTrashDb, trashRepo, taxonomyFollowUpTermRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, formDeliveryRepo } = composeTrashStores({ kernel, workspaceId, outbox, clock, idGen });
   const { trashFollowUpHooks } = composeTrashFollowUpHooks({ kernel, mediaRepo: () => mediaRepo(), workspaceId, postRepo: () => postRepo(), clock, assetBlobRepo: () => assetBlobRepo(), assetRenditionRepo, blobStore, entryRefsRepo: () => entryRefsRepo, outbox, formDeliveryRepo, routeDeps: () => routeDeps(), menuRepo, idGen, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox });
   const { pluginTrashAdapter, trashAdapters } = composeTrashAdapters({ pluginRuntime, pluginActivationRepo, kernel, mediaRepo: () => mediaRepo(), entryRefsRepo: () => entryRefsRepo, postRepo: () => postRepo(), assetBlobRepo: () => assetBlobRepo(), assetRenditionRepo, blobStore, clock, identity, idGen, trashRegistry, sqliteTrashDb, trashFollowUpHooks });
@@ -169,7 +172,7 @@ export function composeInstrumentedContentPhase(required: ComposeInstrumentedCon
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   const { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeMailHttp({ workspaceId, customCredentialSetRepo, siteAssistantSecretSealer, observability, agentPluginLifecycle, externalMcpServerRepo, runtimeMode, settingsRepo, clock, idGen, settingsPrincipals, identity, siteTitleReady, kernel, originRegistry, overrides });
-  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel, mediaAccessEvidence });
+  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel, mediaAccessEvidence, prepareOutboxEvent: captureOutboxTraceParent({ activeTraceparent: () => observability.activeTraceparent?.() }) });
   return { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient, postRepo, changeSets, mediaRepo, assetBlobRepo };
 }
 
