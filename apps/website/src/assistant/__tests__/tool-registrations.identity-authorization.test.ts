@@ -237,10 +237,10 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_user_enable: { principalId: "target-principal" },
   identity_role_create: { name: "Custom Role" },
   identity_role_assign: { principalId: "target-principal", roleId: "target-role" },
-  identity_role_rename: { roleId: "target-role", name: "Renamed" },
+  identity_role_rename: { roleId: "target-role", name: "Renamed", expectedVersion: 1 },
   identity_role_delete: { roleId: "target-role" },
   identity_policy_create: { name: "Custom Policy" },
-  identity_policy_update: { policyId: "target-policy", name: "Renamed Policy" },
+  identity_policy_update: { policyId: "target-policy", name: "Renamed Policy", expectedVersion: 1 },
   identity_policy_delete: { policyId: "target-policy" },
   identity_policy_attach: { principalId: "target-principal", policyId: "target-policy" },
 };
@@ -252,8 +252,8 @@ async function seedTargets(repos: IdentityRepos): Promise<void> {
     id: "target-session", workspaceId: WORKSPACE_ID, principalId: "target-principal",
     tokenHash: "target-token-hash", createdAt: "2026-07-29T00:00:00.000Z", expiresAt: "2026-07-30T00:00:00.000Z",
   });
-  await repos.roles.save({ id: "target-role", workspaceId: WORKSPACE_ID, name: "Target Role", isBuiltin: false });
-  await repos.policies.save({ id: "target-policy", workspaceId: WORKSPACE_ID, name: "Target Policy", isBuiltin: false, isFrozen: false });
+  await repos.roles.save({ id: "target-role", workspaceId: WORKSPACE_ID, name: "Target Role", isBuiltin: false, version: 1 });
+  await repos.policies.save({ id: "target-policy", workspaceId: WORKSPACE_ID, name: "Target Policy", isBuiltin: false, isFrozen: false, version: 1 });
 }
 
 /** A cheap durable-state fingerprint: every table these tools can write. */
@@ -551,7 +551,7 @@ test("identity_policy_delete / identity_policy_update: built-in policies are ref
   assert.ok(builtin, "the seed must provide at least one built-in policy for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_policy_update").handler(...executionContext(ownerPrincipalId, { policyId: builtin.id, name: "Trusted Admin" })),
+    () => wired(deps, "identity_policy_update").handler(...executionContext(ownerPrincipalId, { policyId: builtin.id, name: "Trusted Admin", expectedVersion: 1 })),
     /built-in/,
   );
   await assert.rejects(
@@ -580,7 +580,7 @@ test("identity_role_rename / identity_role_delete: built-in roles are refused, s
   assert.ok(viewer?.isBuiltin, "viewer must be seeded built-in for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_role_rename").handler(...executionContext(ownerPrincipalId, { roleId: viewer.id, name: "Trusted Admin" })),
+    () => wired(deps, "identity_role_rename").handler(...executionContext(ownerPrincipalId, { roleId: viewer.id, name: "Trusted Admin", expectedVersion: 1 })),
     /built-in role cannot be renamed/,
   );
   await assert.rejects(

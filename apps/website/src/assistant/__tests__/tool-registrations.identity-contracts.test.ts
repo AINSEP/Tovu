@@ -337,7 +337,7 @@ test("a role view exposes isBuiltin — the flag that predicts whether rename/de
 
   assert.ok(roles.length >= 4, "the seed provides four built-in roles");
   for (const role of roles) {
-    assert.deepEqual(Object.keys(role).sort(), ["id", "isBuiltin", "name"]);
+    assert.deepEqual(Object.keys(role).sort(), ["id", "isBuiltin", "name", "version"]);
   }
   assert.equal(roles.every((role) => role.isBuiltin === true), true, "a freshly seeded workspace has only built-in roles");
 });
@@ -348,7 +348,7 @@ test("a policy view carries exactly the keys the model needs, with description o
   const withoutDescription = (await wired(deps, "identity_policy_create").handler(...asOwner(ownerPrincipalId, { name: "Bare Policy" }))) as {
     policy: Record<string, unknown>;
   };
-  assert.deepEqual(Object.keys(withoutDescription.policy).sort(), ["id", "isBuiltin", "isFrozen", "name"]);
+  assert.deepEqual(Object.keys(withoutDescription.policy).sort(), ["id", "isBuiltin", "isFrozen", "name", "version"]);
   assert.equal("description" in withoutDescription.policy, false, "a policy without a description must carry no always-undefined key");
   assert.equal(withoutDescription.policy.isBuiltin, false);
   assert.equal(withoutDescription.policy.isFrozen, false);
@@ -530,7 +530,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
   assert.deepEqual(rows.map((row) => row.policyId), [policy.id]);
 
   // 6. A rename, then a delete-while-unattached-elsewhere is refused because it is STILL attached.
-  const renamed = (await wired(deps, "identity_policy_update").handler(...asOwner(ownerPrincipalId, { policyId: policy.id, name: "Reviewer Bundle (renamed)" }))) as {
+  const renamed = (await wired(deps, "identity_policy_update").handler(...asOwner(ownerPrincipalId, { policyId: policy.id, name: "Reviewer Bundle (renamed)", expectedVersion: 1 }))) as {
     policy: { name: string };
   };
   assert.equal(renamed.policy.name, "Reviewer Bundle (renamed)");
@@ -589,7 +589,7 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
 
   const { role } = (await wired(deps, "identity_role_create").handler(...asOwner(ownerPrincipalId, { name: "Temp" }))) as { role: { id: string } };
 
-  const renamed = (await wired(deps, "identity_role_rename").handler(...asOwner(ownerPrincipalId, { roleId: role.id, name: "Temp Renamed" }))) as {
+  const renamed = (await wired(deps, "identity_role_rename").handler(...asOwner(ownerPrincipalId, { roleId: role.id, name: "Temp Renamed", expectedVersion: 1 }))) as {
     role: { name: string; isBuiltin: boolean };
   };
   assert.equal(renamed.role.name, "Temp Renamed");
