@@ -379,7 +379,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    box no wider than what it holds — expressed for controls that already have a width of their
    own. `max-width: 100%` hands control back to `.toolbar`'s own `flex-wrap` once the column is
    narrower than the row. */
-.database-filter-bar { width: fit-content; max-width: 100%; }
+.jini-database-filter-bar { width: fit-content; max-width: 100%; }
 
 /* Kicker + title + description on the left, actions on the right — mirrors the measured
    Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */
@@ -3293,8 +3293,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .status-tombstone { background: var(--danger-bg); color: var(--danger); }
 .status-cheap { background: var(--ok-bg); color: var(--ok); }
 .status-expensive { background: var(--accent-dim); color: var(--accent-text); }
-.status-success { background: var(--ok-bg); color: var(--ok); }
-.status-failure, .status-error, .jini-content-analysis-status-error { background: var(--danger-bg); color: var(--danger); }
+.status-success, .jini-status-success { background: var(--ok-bg); color: var(--ok); }
+.status-failure, .status-error, .jini-status-failure, .jini-status-error, .jini-content-analysis-status-error { background: var(--danger-bg); color: var(--danger); }
 
 /* Plugins (SPEC-005 ui.spec.md §5) — the discovery-status pill values and the trust-tier badge,
  * reusing the `.status` pill geometry above rather than introducing a new badge token. */
@@ -6939,10 +6939,10 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
   .jini-trash-toolbar[data-selection-empty="true"] .jini-trash-bulk-action { display: none; }
 
   /* DB-1/AI-4/FO-4: short desktop rows become labelled, full-width fields on phones. */
-  .database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
-  .database-filter-bar .field { min-width: 0; width: 100%; }
-  .database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
-  .database-filter-bar > button { justify-self: start; }
+  .jini-database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .jini-database-filter-bar .jini-field { min-width: 0; width: 100%; }
+  .jini-database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
+  .jini-database-filter-bar > button { justify-self: start; }
   .settings-ui-section .jini-byok-model-row,
 .jini-settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
   .settings-ui-section .jini-byok-model-row > .jini-field,
