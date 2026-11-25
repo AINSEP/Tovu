@@ -1,9 +1,8 @@
 import { createSeoPageHeadHook } from "@jini-ai/cms/seo/site/page-head-contributor";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
-import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
-import { foldPageHead, serializeHeadElements } from "@jini-ai/cms/presentation/page-head";
-import type { PageHeadContext } from "@jini-ai/cms/seo";
+import { resolveWorkspaceOrigin } from "@jini-ai/cms/seo";
+import { buildExtraHead as sharedBuildExtraHead } from "@jini-ai/cms/public-http/routes/site/pages/extra-head";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveSiteTitleForRender } from "./render-context/site-title.js";
 
@@ -36,35 +35,20 @@ import { resolveSiteTitleForRender } from "./render-context/site-title.js";
  * degradation contract (no verified origin yet -> stays relative) as `seo.ts`'s `resolveCanonical`.
  */
 export async function buildExtraHead({ deps, route, siteTitle, post }: { deps: RouteDeps; route: "home" | "post" | "page"; siteTitle: string; post: PostRecord | undefined }, { canonicalFallbackPath = "/" }: { canonicalFallbackPath?: string } = {}): Promise<string> {
-  const canonical = post
-    ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
-    : undefined;
-  const origin = deps.seoDeps.renderBaseUrl ? undefined : await resolveWorkspaceOrigin({ originRegistry: deps.originRegistry, workspaceId: deps.workspaceId, runtimeMode: deps.seoDeps.runtimeMode }, {});
-
-  const ctx: PageHeadContext = {
+  return sharedBuildExtraHead({
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: toAbsoluteUrl({ origin, baseUrl: deps.seoDeps.renderBaseUrl, path: canonical ?? (post ? postPublicPath({ slug: post.slug }) : canonicalFallbackPath) }, {}),
-    entry: post
-      ? {
-          id: post.id,
-          type: post.kind,
-          slug: post.slug,
-          title: post.title,
-          status: post.status,
-          updatedAt: post.updatedAt,
-          ext: {},
-        }
-      : undefined,
-  };
-
-  // Contributors close over this render only; another app/export cannot replace their dependencies.
-  const seoHook = createSeoPageHeadHook({
-    deps: deps.seoDeps,
-    rootSlug: deps.seoDeps.rootSlug,
-    siteTitle: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
-  });
-  const elements = await foldPageHead({ context: ctx }, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
-  return serializeHeadElements({ elements });
+    post,
+    renderBaseUrl: deps.seoDeps.renderBaseUrl,
+    postCanonical: async ({ post }) => (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl,
+    postFallbackPath: ({ post }) => postPublicPath({ slug: post.slug }),
+    resolveOrigin: ({ workspaceId }) => resolveWorkspaceOrigin({ originRegistry: deps.originRegistry, workspaceId, runtimeMode: deps.seoDeps.runtimeMode }, {}),
+    seoContributor: createSeoPageHeadHook({
+      deps: deps.seoDeps,
+      rootSlug: deps.seoDeps.rootSlug,
+      siteTitle: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
+    }),
+    pageHeadContributors: deps.pageHeadContributors ?? [],
+  }, { canonicalFallbackPath });
 }
