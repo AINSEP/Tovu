@@ -2145,3 +2145,15 @@ New / logged (not fixed here):
 - Test: `apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-password-legacy-fixture.integration.test.ts` drives the browser-only owner POST `…/site-shares/:shareId/password` → host share backend → `composeSiteSavedKeys` → real AES-GCM: revealed while unexpired; blob copied to another share id does not open; passed `expiresAt` → 400 EXPIRED; retention tombstone → 400 EXPIRED.
 - NEW BUG found and fixed (Jini `@jini-ai/devops` `share-backend.ts` `revealSharePassword`): only `revoked` was refused, so an expired share still revealed its password. Now refuses `EXPIRED` on a tombstone or a passed `expiresAt`. Jini test: `share-backend.test.ts` "refuses an ended share EXPIRED …".
 - Mutations: `M share-legacy-aad-changed` (AAD domain element `tovu-share-password`→`…X`): 1 red; (key-lookup share id altered in the reveal call): 1 red; `M share-reveal-expiry-check-removed`: 2 red (Tovu route), 1 red (Jini, lapsed-expiresAt half).
+
+### Resolved in combine-23 continuation — FIX 16 (site-update apply requires a durable hand-off)
+- `apps/website/src/features/site-update/tools.ts`: `canApply` requires `runtime.handoff`; a runtime with site ports but no hand-off (desktop today) registers `site_update_check` only. The tool's unreachable in-process `runSiteUpdate` branch was removed (`runSiteUpdate` itself stays tested in `@jini-ai/devops`).
+- Pin: `apply-tool.test.ts` "absent handoff exposes no apply operation: the runtime is check-only (FIX 16, M apply-without-handoff)". The 15 existing apply tests now run on a fake durable supervisor (apply/verify/rollback asserted on the supervisor's finished result); `host-runtime.test.ts` likewise; `desktop-binding.test.ts` two apply tests now assert desktop is check-only; `site-update-wiring.unit.test.ts` supplies a hand-off.
+- Mutation `M apply-without-handoff`: 3 red.
+- LEFT: the "redispatched exactly once after restart" pin needs the update supervisor (todos "U4b left"); not on this branch, not built.
+
+### Resolved in combine-23 continuation — FIX 11 (memory composition orphaned page-html change sets)
+- Required capability `recordedHtmlWrites: "enabled" | "disabled"` on `PageHtmlRecordingDeps`/`PagesToolDeps`/`RouteDeps`; sqlite/postgres composition (`route-deps-content-chat.ts`) binds `enabled`, memory (`trash-and-content.ts`) binds `disabled`; `recordAssistantPageHtmlWrite` refuses with a ToolInputError ("...not available... Nothing was written.") before anything is opened.
+- Pins (`html-undo.integration.test.ts`): "memory root: recorded HTML write is unavailable, page/revisions/events unchanged (FIX 11, M html-record-no-rollback)", "memory root: section writes and moves are unavailable too...", "sqlite root: a failure after the HTML write leaves page, revisions, events and change sets unchanged (FIX 11)". ROOTS loop now sqlite-only; mounted admin revert tests moved to the sqlite root.
+- Mutation `M html-record-no-rollback` (bind memory `enabled`): 2 red.
+- Consequence: assistant HTML page edits are unavailable on any in-memory-composed site (dev/e2e on the memory root, if any).
