@@ -124,20 +124,21 @@ export type AssistantAcceptanceRouteDeps = RouteDeps & {
   assistantDaemonDemand?: { ensureReady: typeof ensureAssistantDaemonReady; isReady: () => boolean };
 };
 
-/** Assembles the real acceptance for one route context; undefined when the ledger has no durable store. */
-export function ownerChatAcceptanceFor({ deps, principalId }: { deps: AssistantAcceptanceRouteDeps; principalId: string }, optional: { sleep?: OwnerChatAcceptancePorts["sleep"] } = {}): OwnerChatAcceptance | undefined {
+/** Assembles the real acceptance over the site's ledger; undefined when the ledger has no durable store. */
+export function ownerChatAcceptanceFor({ deps }: { deps: AssistantAcceptanceRouteDeps }, optional: { sleep?: OwnerChatAcceptancePorts["sleep"] } = {}): OwnerChatAcceptance | undefined {
   const store = deps.chatRunLedger.durable;
   if (!store) return undefined;
   const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
   const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
   return createOwnerChatAcceptance({
     store, now: Date.now, mintRunId: randomUUID,
-    onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principalId }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
+    // The principal comes from the accepted run itself, so one acceptance serves any owner (browser send or routine fire).
+    onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: run.principalId ?? "" }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
     launch: (required, launchOptional) => {
       if (!client.launch) throw new Error("assistant daemon has no launch operation");
       return client.launch(required, launchOptional);
     },
-    attach: (run) => finalizer.watch({ principalId, conversationId: run.conversationId, message: run.message }),
+    attach: (run) => { if (run.principalId !== null) finalizer.watch({ principalId: run.principalId, conversationId: run.conversationId, message: run.message }); },
     recover: ({ messageId }) => finalizer.recover({ messageId, trigger: "browser" }, {}),
     sleep: optional.sleep ?? (({ ms, signal }) => new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, ms);

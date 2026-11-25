@@ -186,3 +186,20 @@ test("optional strings are kept only when non-empty, and the cold-start and user
   const empty = parseRunStartContextRef({ contextRef: JSON.stringify({ prompt: "hi", principalId: "p", model: "", reasoning: "", conversationId: "", coldStartContext: "" }) });
   for (const key of ["model", "reasoning", "conversationId", "coldStartContext"]) assert.equal(Object.hasOwn(empty, key), false, key);
 });
+
+test("routine marker: absent is a normal turn, a strict marker bound to its routine conversation is decoded", () => {
+  const envelope = { prompt: "p", principalId: "owner-1" };
+  assert.equal(parseRunStartContextRef({ contextRef: JSON.stringify(envelope) }).routine, undefined);
+  const routine = { routineId: "r1", runId: "run1", catchUp: true, slotAt: 9 };
+  const decoded = parseRunStartContextRef({ contextRef: JSON.stringify({ ...envelope, conversationId: "routine-run1", routine }) });
+  assert.deepEqual(decoded.routine, routine);
+});
+
+test("routine marker: malformed, extra-key or foreign-conversation markers fail the decode", () => {
+  const base = { prompt: "p", principalId: "owner-1", conversationId: "routine-run1" };
+  const good = { routineId: "r1", runId: "run1", catchUp: false, slotAt: null };
+  for (const bad of [{ ...good, extra: 1 }, { ...good, catchUp: "no" }, { routineId: "r1" }, "x", null, []]) {
+    assert.throws(() => parseRunStartContextRef({ contextRef: JSON.stringify({ ...base, routine: bad }) }), /malformed routine marker/);
+  }
+  assert.throws(() => parseRunStartContextRef({ contextRef: JSON.stringify({ ...base, conversationId: "chat-1", routine: good }) }), /malformed routine marker/);
+});

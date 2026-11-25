@@ -69,6 +69,8 @@ export interface AssistantRoutinesHandle {
   availability: () => RoutineAvailability;
   /** For the desktop wake relay (T1b.T); a no-op when routines never started. */
   reconcile: (input: { reason: "wake" }, optional?: Record<string, never>) => Promise<void>;
+  /** Boot handoff for chat repair (`assistant-chats` `routineBoot`): only the lease owner waits for `whenInterrupted`. */
+  bootInterruption: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
 }
 
 export const ROUTINE_ROUTE_BASE = "/api/admin/assistant/routines";
@@ -174,7 +176,7 @@ function mountRefusal(required: ComposeAssistantRoutinesRequired, availability: 
   const commands = createRoutineCommands({ store: UNOPENED_STORE, service: UNOPENED_STORE as never, access: required.policy.access,
     onCommandCommitted: () => {}, availability: () => availability, target: required.policy.target ?? { mode: "create_each_run" } }, { log: required.log });
   mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, null, null) });
-  return { availability: () => availability, reconcile: async () => {} };
+  return { availability: () => availability, reconcile: async () => {}, bootInterruption: { isLeaseOwner: () => false, whenInterrupted: async () => {} } };
 }
 
 /** Adapts the scheduler port to `closeRoutineHost`'s setTimeout/clearTimeout pair. */
@@ -231,10 +233,11 @@ async function startRoutineHost(required: ComposeAssistantRoutinesRequired, { se
     availability, target: policy.target ?? { mode: "create_each_run" } }, { log });
   mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, service, sidecar.store) });
 
+  let bootRepaired: Promise<void> = Promise.resolve();
   const enable = async (reason: "start" | "assistant-enabled") => {
     service.start({}, { reason } as never);
     // Only the lease owner waits for boot repair; a passive window must not block boot on its retry.
-    if (service.leaseState({}, {}) === "owner") await service.whenReady({}, {});
+    if (service.leaseState({}, {}) === "owner") { bootRepaired = service.whenReady({}, {}); await bootRepaired; }
   };
   async function applyToggle(next: boolean) {
     if (closed || next === enabled) return;
@@ -252,5 +255,6 @@ async function startRoutineHost(required: ComposeAssistantRoutinesRequired, { se
   }
   if (enabled) await enable("start");
   await safeBeacon();
-  return { availability, reconcile: (input: { reason: "wake" }) => (enabled && !closed ? service.reconcile(input, {}) : Promise.resolve()) };
+  return { availability, reconcile: (input: { reason: "wake" }) => (enabled && !closed ? service.reconcile(input, {}) : Promise.resolve()),
+    bootInterruption: { isLeaseOwner: () => !closed && service.leaseState({}, {}) === "owner", whenInterrupted: () => bootRepaired } };
 }

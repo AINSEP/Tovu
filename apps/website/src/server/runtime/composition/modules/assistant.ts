@@ -174,7 +174,7 @@ async function proxyAcceptedRun(
   { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: AssistantRouteDeps; res: Response }, _optional = {},
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const acceptance = ownerChatAcceptanceFor({ deps, principalId: principal.id }, {});
+  const acceptance = ownerChatAcceptanceFor({ deps }, {});
   if (!acceptance || typeof decoded.conversationId !== "string" || typeof decoded.assistantMessageId !== "string") return false;
   const run = await acceptance.acceptOwnerChatRun({ principalId: principal.id, workspaceId: deps.workspaceId,
     conversationId: decoded.conversationId, messageId: decoded.assistantMessageId, context: decoded },
