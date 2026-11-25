@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { usePluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
 import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
-import { AddPluginPanel } from "../AddPluginPanel";
+import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
 import { tPlugins as t } from "../../../lib/i18n-common";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -57,7 +57,7 @@ it("renders a styled ZIP drop zone (no raw file input) and requires the same ful
   const port = createFakePluginInstallPort({ preview });
   function Harness() {
     const controller = usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} });
-    return <AddPluginPanel controller={controller} />;
+    return <AddPluginPanel productName="Tovu" controller={controller} />;
   }
   render(<Harness />); const user = userEvent.setup();
   const picker = screen.getByLabelText("Upload .zip (max 32 MiB)") as HTMLInputElement;

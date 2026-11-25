@@ -1,4 +1,5 @@
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { usePlugins, type PluginsController } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 
 import { tPlugins as translate } from "../../../lib/i18n-common";
@@ -21,5 +22,5 @@ import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 export function useWiredPlugins(): PluginsController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return usePlugins({ port: defaultPluginsPort, installPort: defaultPluginInstallPort, locale, t, translate, isApiError, rules: pluginRules });
+  return usePlugins({ port: defaultPluginsPort, installPort: defaultPluginInstallPort, locale, t, translate, isApiError, folderZip, rules: pluginRules });
 }

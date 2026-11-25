@@ -10,7 +10,7 @@ import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
 import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
 import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
 import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
-import { AddPluginPanel } from "./AddPluginPanel";
+import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
@@ -357,7 +357,7 @@ function MarketplacePanel({ controller }: PluginsTabPanelProps) {
  *  it) the tab is empty; on a server that refuses local installs the tab is disabled and never
  *  resolves here. */
 function AddPanel({ controller }: PluginsTabPanelProps) {
-  return controller.install ? <AddPluginPanel controller={controller.install} /> : null;
+  return controller.install ? <AddPluginPanel controller={controller.install} productName="Tovu" /> : null;
 }
 
 const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProps>> = {
