@@ -13,6 +13,13 @@ import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.ho
  *  `options = {}`, `updateMedia`'s `options = {}`) stays `lib/api.ts`'s to own. */
 export const defaultMediaPort: MediaPort = {
   listMedia: () => mediaApi.listMedia(),
+  // Host note for `uploadMedia`'s declared `contentType`; the same fact is why the in-memory fake in `@jini-ai/admin` just echoes it.
+
+  // The REAL server ignores this declared string and stores `sniffContentType(bytes)` instead
+  // (see `apps/website/src/server/inbound/admin-http/routes/media/upload.ts`). This fake has no bytes to sniff — its input is
+  // an opaque base64 string a test made up — so it echoes what the caller declared. A test that
+  // needs the two to disagree (uploading bytes whose real type differs from the declared one)
+  // must seed `options.media` directly rather than rely on this path.
   uploadMedia: (input, options) => mediaApi.uploadMedia(input, options),
   updateMedia: (target, options) => mediaApi.updateMedia(target, options),
   trashMedia: (id) => mediaApi.trashMedia({ id }),
