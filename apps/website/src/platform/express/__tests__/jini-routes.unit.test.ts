@@ -7,7 +7,9 @@ import { jsonResponse, readJsonBody, type ServerRoute } from "@jini-ai/core/cont
 import { allowAllOrigins } from "@jini-ai/core/contracts/server/testing";
 import { JINI_REQUEST_FACTS } from "@jini-ai/core/contracts/site/request-facts";
 import { captureRequestFacts } from "#src/platform/express/request-facts";
-import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes } from "../jini-routes.js";
+import { createRecordingObservability, createRecordingReporter } from "@jini-ai/core/errors/testing";
+import { agentRoutes } from "@jini-ai/daemon/http";
+import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes, NO_OPERATION_TRACKING } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */
 
@@ -179,4 +181,85 @@ test("an in-place route keeps the bridge's writer unless told otherwise: the ans
   mountJiniRouteInPlace({ app, route: page });
   const response = await fetch(`${await listen(t, app)}/page`);
   assert.deepEqual([response.status, response.headers.get("etag"), response.headers.getSetCookie().length, await response.text()], [201, null, 2, "<p>done</p>"]);
+});
+
+// P4-T2 host edge: a route host built with its site's `errors` and a mount given the same reporter put the
+// site's Jini routes in reporter mode — one ERR- id, shared by the reply and the site's one record.
+const ISO = "2026-01-01T00:00:00.000Z";
+const failingAgents = { listAgents: () => { throw new Error("inventory exploded"); } };
+const errorIdOf = async (response: Response): Promise<string> => {
+  const text = await response.text();
+  const id = /ERR-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}/.exec(text)?.[0];
+  assert.ok(id, `no ERR- id in ${text}`);
+  return id;
+};
+const recordedIds = (entries: readonly { level: string; meta?: Record<string, unknown> }[]): unknown[] =>
+  entries.filter((entry) => entry.level === "error").map((entry) => entry.meta?.errorId);
+
+test("a Jini route mounted through daemonRouteHost answers with the reporter's ERR id", async t => {
+  const { reporter, entries, reports } = createRecordingReporter({ ids: ["ERR-0000-0000-0000-0001", "ERR-0000-0000-0000-0002"], iso: ISO });
+  const host = daemonRouteHost({ context: { originPolicy: allowAllOrigins }, parserLimitBytes: 102_400, errors: { reporter, observability: NO_OPERATION_TRACKING } });
+  const app = express();
+  mountJiniRoutes({ app, routes: agentRoutes({ deps: failingAgents, host }) }, { reporter });
+  const response = await fetch(`${await listen(t, app)}/api/agents`);
+  assert.equal(response.status, 500);
+  assert.equal(await errorIdOf(response), "ERR-0000-0000-0000-0001");
+  assert.deepEqual(recordedIds(entries), ["ERR-0000-0000-0000-0001"]);
+  assert.equal(reports.length, 1);
+  // An in-route caller's own incident goes through the same reporter: its answer and the record share the next id.
+  const answer = host.reportInternalError({ report: { error: new Error("handled in route") }, logSource: "jini-routes-test", message: "It failed." });
+  assert.equal(answer.requestId, "ERR-0000-0000-0000-0002");
+  assert.deepEqual(recordedIds(entries), ["ERR-0000-0000-0000-0001", "ERR-0000-0000-0000-0002"]);
+});
+
+test("a pre-header failure reaches the next Express error handler without a record from the bridge", async t => {
+  const { reporter, entries, reports } = createRecordingReporter({ ids: ["ERR-0000-0000-0000-0001"], iso: ISO });
+  const app = express();
+  mountJiniRoutes({ app, routes: [{ method: "GET", path: "/throws", handler: () => { throw new Error("before headers"); } }] }, { reporter });
+  const handled: unknown[] = [];
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => { handled.push(error); res.status(599).json({ from: "express-error" }); });
+  const response = await fetch(`${await listen(t, app)}/throws`);
+  assert.deepEqual([response.status, await from(response)], [599, "express-error"]);
+  assert.equal((handled[0] as Error).message, "before headers");
+  assert.deepEqual([entries.length, reports.length], [0, 0]);
+});
+
+/** A route whose answer dies after its headers were written: only the bridge can see that failure. */
+const diesAfterHeaders: ServerRoute = { method: "GET", path: "/stream", handler: () => new Response(new ReadableStream({
+  start(controller) { controller.enqueue(new TextEncoder().encode("partial")); },
+  pull(controller) { controller.error(new Error("stream died")); },
+}), { status: 200, headers: { "content-type": "text/plain" } }) };
+
+test("a stream that dies after its headers is one record under the mount's reporter", async t => {
+  const { reporter, entries, reports } = createRecordingReporter({ ids: ["ERR-0000-0000-0000-0001"], iso: ISO });
+  const app = express();
+  mountJiniRoutes({ app, routes: [diesAfterHeaders] }, { reporter });
+  const response = await fetch(`${await listen(t, app)}/stream`);
+  assert.equal(response.status, 200);
+  await response.text().catch(() => undefined);
+  for (let tries = 0; tries < 50 && entries.length === 0; tries += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(recordedIds(entries), ["ERR-0000-0000-0000-0001"]);
+  assert.equal(reports.length, 1);
+});
+
+/** One site's daemon scope: its own reporter over its own recording tracker, its own host and app. */
+async function siteFixture(t: TestContext, { ids }: { ids: readonly string[] }) {
+  const recorded = createRecordingReporter({ ids, iso: ISO });
+  const operations = createRecordingObservability();
+  const host = daemonRouteHost({ context: { originPolicy: allowAllOrigins }, parserLimitBytes: 102_400, errors: { reporter: recorded.reporter, observability: operations.observability } });
+  const app = express();
+  mountJiniRoutes({ app, routes: agentRoutes({ deps: failingAgents, host }) }, { reporter: recorded.reporter });
+  return { ...recorded, origin: await listen(t, app) };
+}
+
+test("one site's route incident never reaches the other site's tracker", async t => {
+  const siteA = await siteFixture(t, { ids: ["ERR-000A-0000-0000-0001"] });
+  const siteB = await siteFixture(t, { ids: ["ERR-000B-0000-0000-0001"] });
+  assert.equal(await errorIdOf(await fetch(`${siteA.origin}/api/agents`)), "ERR-000A-0000-0000-0001");
+  assert.deepEqual([recordedIds(siteA.entries), siteA.reports.length], [["ERR-000A-0000-0000-0001"], 1]);
+  assert.deepEqual([siteB.entries.length, siteB.reports.length], [0, 0]);
+  // And the other way round, so neither site can be the one that happens to own a shared binding.
+  assert.equal(await errorIdOf(await fetch(`${siteB.origin}/api/agents`)), "ERR-000B-0000-0000-0001");
+  assert.deepEqual([recordedIds(siteB.entries), siteB.reports.length], [["ERR-000B-0000-0000-0001"], 1]);
+  assert.deepEqual([recordedIds(siteA.entries), siteA.reports.length], [["ERR-000A-0000-0000-0001"], 1]);
 });

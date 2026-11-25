@@ -6,9 +6,11 @@
  */
 import { timingSafeEqual } from "node:crypto";
 import type { SecretRedactionPattern, TimingSafeByteComparison } from "@jini-ai/core";
-import type { RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/core/contracts/server";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import type { RouteErrorPorts, RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/core/contracts/server";
+import { NOOP_OPERATION_TRACKER, type ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError, reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes, nodeRequestHeaders, sendWebResponse } from "@jini-ai/http-kit/node-bridge";
 import type { Express, Request as ExpressRequest, RequestHandler, Response as ExpressResponse } from "express";
 import { requestFactsLocals } from "#src/platform/express/request-facts";
@@ -23,15 +25,20 @@ import { asyncRoute } from "#src/platform/express/async-route";
  * routes below it.
  * Every dispatch gets the request facts (client address, serving protocol, `secure`, query) in `locals`, computed here per request because they follow the trust-proxy setting of the app whose layer is running.
  * @param optional.rawBody - The routes read the request body as raw bytes (uploads). The body a parser above may have produced is then NOT handed on: a route sees the untouched stream, or no body at all when a parser above consumed it. Without this an upload sent as JSON would be stored as re-serialized text.
- * @param optional.redactionPatterns - Extra secret shapes to remove from the log line written when a route throws; the bridge's own patterns always apply.
+ * @param optional.redactionPatterns - Extra secret shapes to remove from the log line written when a route throws; the bridge's own patterns always apply. Ignored with `reporter`, which owns redaction.
+ * @param optional.reporter - The mounting site's reporter, the same one its route host was built with (`daemonRouteHost`'s `errors.reporter`). A failure the bridge itself catches (after headers, or with no Express `next`) is then one record with an ERR- id under that site, instead of an unlinked console line.
  * @complexity O(routes) once; one route-table lookup per request.
  */
 export function mountJiniRoutes(
   { app, routes }: { app: { use: (handler: RequestHandler) => unknown }; routes: readonly ServerRoute[] },
-  { rawBody = false, redactionPatterns = [] }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[] } = {},
+  { rawBody = false, redactionPatterns = [], reporter }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[]; reporter?: Pick<ErrorReporter, "record"> } = {},
 ): void {
   // Express answered these routes before they were lists. Callers (and the admin proxy, which forwards a path as the client spelled it) kept their spellings: the answers stay.
-  const dispatcher = createNodeDispatcher({}, { redactionPatterns, expressCompatible: true });
+  // The dispatcher shares the route host's reporter rather than owning one: a route's in-route incident and a
+  // stream that dies after its headers are the same site's failures, so both must land in that site's one record
+  // stream and tracker, each with one ERR- id. A pre-header throw still goes to `next(error)` unrecorded: the
+  // Express error handler below owns that answer and its record.
+  const dispatcher = createNodeDispatcher({}, { redactionPatterns, expressCompatible: true, ...(reporter ? { reporter } : {}) });
   for (const route of routes) dispatcher.server.route(route);
   app.use((req, res, next) => {
     // A route that throws is answered by the dispatcher itself, so this promise always settles.
@@ -184,17 +191,24 @@ export const nodeSessionTimer: FrontendSessionTimer = ({ callback, delayMs }) =>
 /** The constant-time compare itself. Routes reach it only through Jini's `timingSafeTokenMatch`, which compares lengths first. */
 export const nodeTimingSafeEqual: TimingSafeByteComparison = ({ left, right }) => timingSafeEqual(left, right);
 
+/** Operation tracking for a host that has none: every route still runs in reporter mode, and its operation is a no-op. Explicit, so "no tracing" is a visible choice at the binding, not a missing port. */
+export const NO_OPERATION_TRACKING: Pick<ObservabilityPort, "trackOperation"> = { trackOperation: () => NOOP_OPERATION_TRACKER };
+
 /**
  * The host object for every Jini route group of one daemon scope. Build it once per scope.
- * @param required.context - The same-origin policy and incident sink the scope already builds for its routes.
+ * @param required.context - The same-origin policy (and legacy incident sink) the scope already builds for its routes.
  * @param required.parserLimitBytes - The byte limit of the JSON parser the scope mounts above the routes. A route re-reads the body that parser produced, and re-serialized JSON can be up to 5.25 times longer (a number such as `1e20` prints as 21 digits), so the routes' own limit is derived from it; the parser's limit stays the effective one.
+ * @param required.errors - The OWNING site's reporter and operation tracking (use {@link NO_OPERATION_TRACKING} where it has none). Puts every route group of this host in reporter mode: a route incident is one record and one tracker report under one ERR- id, and `reportInternalError` writes through the same reporter. Per site, never process-wide: a reporter carries its site's tracker, so a shared one would report one site's incident into another's. Absent → the legacy SEC-005 path, kept only until every caller can supply its site's binding.
  */
-export function daemonRouteHost(required: { context: RouteHostContext; parserLimitBytes: number }, _optional: Record<string, never> = {}): DaemonRouteHost {
+export function daemonRouteHost(
+  { context, parserLimitBytes, errors }: { context: RouteHostContext; parserLimitBytes: number; errors?: RouteErrorPorts },
+  _optional: Record<string, never> = {},
+): DaemonRouteHost {
   return {
-    context: required.context,
-    reportInternalError: reportRouteInternalError,
+    context: errors ? { ...context, errors } : context,
+    reportInternalError: errors ? createReporterRouteInternalError({ reporter: errors.reporter }) : reportRouteInternalError,
     scheduler: nodeIntervalScheduler,
     timingSafeEqual: nodeTimingSafeEqual,
-    jsonBodyMaxBytes: maxReserializedJsonBytes({ parserLimitBytes: required.parserLimitBytes }),
+    jsonBodyMaxBytes: maxReserializedJsonBytes({ parserLimitBytes }),
   } satisfies DaemonRouteHost;
 }
