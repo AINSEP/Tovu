@@ -1395,3 +1395,25 @@ test("owned idle stop resolves false when the agent binding rejects", async t =>
   assert.equal(await handle.stopIfIdle!(), false);
   child.exitCode = 0; child.emit('exit', 0, null);
 });
+
+test("routines wake: the owned handle sends the private reconcile over the child's ipc channel only while released", async t => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const boot = async (routinesReleaseEnabled?: boolean) => {
+    const sent: unknown[] = [];
+    const child = Object.assign(fakeChild(), {
+      connected: true,
+      send: (message: unknown, callback: (error: Error | null) => void) => { sent.push(message); callback(null); return true; },
+    });
+    const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, mirror: silentMirror(), spawnFn: () => child, routinesReleaseEnabled });
+    child.stdout.write(REAL_BOOT_LINE);
+    const handle = await starting;
+    child.exitCode = 0; child.emit('exit', 0, null);
+    return { handle, sent };
+  };
+  const released = await boot(true);
+  released.handle.sendRoutineReconcile!({ reason: "wake" });
+  assert.deepEqual(released.sent, [{ type: "routines.reconcile", reason: "wake" }]);
+  const dark = await boot();
+  assert.equal(dark.handle.sendRoutineReconcile, undefined, "release flag off: production handles gain no wake method");
+});

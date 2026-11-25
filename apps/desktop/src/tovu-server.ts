@@ -18,6 +18,8 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
 import { redactSecrets } from "@jini-ai/core";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { ROUTINES_RELEASE_ENABLED, type RoutineReconcileMessage } from "@tovu/contracts/routines";
+import { createRoutineReconcileSender } from "./main/boot/routine-wake.ts";
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -681,7 +683,9 @@ interface SpawnedChild {
   kill(signal?: NodeJS.Signals | number): boolean;
   once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
   once(event: "error", listener: (error: Error) => void): this;
-  removeListener(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
+  removeListener(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;  /** The `ipc` stdio slot's channel, read only by the routine wake sender (`main/boot/routine-wake.ts`). */
+  connected?: boolean;
+  send?(message: RoutineReconcileMessage, callback: (error: Error | null) => void): boolean;
 }
 
 /**
@@ -746,7 +750,9 @@ interface StartTovuServerInput {
   platform?: NodeJS.Platform;
   /** Test seam: win32-only tree-kill passed through to {@link stopSpawnedChild}. Defaults to `taskkill /pid
    *  <pid> /T /F`; production never passes this. */
-  killTree?: (required: { pid: number }) => void;
+  killTree?: (required: { pid: number }) => void;  /** Test seam: the routines rollout switch. Defaults to {@link ROUTINES_RELEASE_ENABLED}; production
+   *  never passes this, so the owned handle gains no wake method until the release flag flips. */
+  routinesReleaseEnabled?: boolean;
 }
 
 /** Configure the owned server's process group and platform-specific stop channel.
@@ -787,6 +793,9 @@ interface TovuServerHandle {
   stopIfIdle?(required?: {}, optional?: {}): Promise<boolean>;
   /** Bounded redacted diagnostics only, including post-ready lines; no environment snapshots. */
   outputTail?(required?: {}, optional?: {}): string;
+  /** Owned-child only, and only while routines are released: the private wake message over the
+   *  child's `ipc` channel (see `main/boot/routine-wake.ts`). Attached handles never carry it. */
+  sendRoutineReconcile?(message: { reason: "wake" }, optional?: {}): void;
 }
 
 /**
@@ -868,6 +877,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       onExit: exitSignal.onExit,
       stopIfIdle: createStopIfIdle({ agentBinding, exitSignal, stopGraceMs }),
       outputTail: (_required = {}, _optional = {}) => state.outputTail.slice(-16_384),
+      ...((input.routinesReleaseEnabled ?? ROUTINES_RELEASE_ENABLED) ? { sendRoutineReconcile: createRoutineReconcileSender({ child }) } : {}),
     };
   }).catch(async (error) => {
     await stop();

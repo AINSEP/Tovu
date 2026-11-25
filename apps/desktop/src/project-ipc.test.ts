@@ -2700,3 +2700,16 @@ test("handleImportArchive gives a second import with the same name its own displ
   const two = await handleImportArchive({ pick: true }, second as never) as { displayName: string };
   assert.notEqual(one.displayName, two.displayName);
 });
+
+test("routines: Stop records the session withdrawal before the asynchronous stop is queued", async () => {
+  const order: string[] = [];
+  const deps = baseDeps({
+    routineWithdrawals: { withdraw: ({ siteDir }: { siteDir: string }) => { order.push(`withdraw ${siteDir}`); } },
+  });
+  const queue = deps.serializer;
+  deps.serializer = { ...queue, run: (input: Parameters<typeof queue.run>[0]) => { order.push("queued"); return queue.run(input); } } as typeof queue;
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+  deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
+  await handleStop({ id: "/sites/a", deps });
+  assert.deepEqual(order, ["withdraw /sites/a", "queued", "drain"]);
+});

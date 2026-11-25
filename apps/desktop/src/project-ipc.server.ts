@@ -148,7 +148,11 @@ async function explainMissingSiteDir({ siteDir, starting }: { siteDir: string; s
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites"> }, _options = {}) {
+export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites" | "routineWithdrawals"> }, _options = {}) {
+  // Recorded BEFORE the stop is queued, not inside it: a routine background start that is already
+  // past its first check re-checks withdrawal right before it starts, and must see this Stop even
+  // while the stop itself still waits for this site's serializer key.
+  deps.routineWithdrawals?.withdraw({ siteDir: id });
   return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
