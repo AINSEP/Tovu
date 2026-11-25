@@ -71,6 +71,10 @@ const TOVU_ENV_GROUPS = {
     // standalone daemon keeps the old `JINI_WEB_PORT` input (see `daemon-origin-policy.ts`).
     TOVU_SITE_LISTENER_ORIGIN: optionalText({ description: "is the website listener origin the parent host pinned." }),
     JINI_WEB_PORT: optionalText({ description: "is the website origin port a standalone agent daemon also treats as local." }),
+    // The daemon's own trust inputs, read by its origin policy; distinct from the website's
+    // `TOVU_ALLOWED_ORIGINS`/`TOVU_HOST`, so they are declared here and never aliased to them.
+    JINI_ALLOWED_ORIGINS: optionalText({ description: "is the extra origins the agent daemon accepts." }),
+    JINI_BIND_HOST: optionalText({ description: "is the host the agent daemon binds to." }),
   } }),
 } as const;
 
