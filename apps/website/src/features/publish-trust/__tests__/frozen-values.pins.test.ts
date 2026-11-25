@@ -118,12 +118,14 @@ test("T-FROZEN: the provisioning environment variable and config file names", ()
 });
 
 test("T-FROZEN: the vault scope bound into every sealed peer credential", () => {
-  assert.deepEqual(linesMatching(/const peerScope = /), [
-    'publish-content/peers.ts: const peerScope = { kind: "publish-peer" as const, ownerKey: "tovu", principalId: null, provider: null };',
+  // The registry moved to Jini (`@jini-ai/cms/publish/content/peer-registry`), which seals AND refuses
+  // with the binding's kind/ownerKey only; the host binding is the one place both literals live, and
+  // `peers.sealed-at-rest.pin.test.ts` proves a record sealed before the move still opens with them.
+  assert.deepEqual(linesMatching(/^\s*kind: "publish-peer",$/), [
+    'publish-content/peers.ts: kind: "publish-peer",',
   ]);
-  // The read side refuses a record of any other kind or owner; it must name the same two literals.
-  assert.deepEqual(linesMatching(/const wrongKind = /), [
-    'publish-content/peers.ts: const wrongKind = record.kind !== "publish-peer" || record.ownerKey !== "tovu";',
+  assert.deepEqual(linesMatching(/^\s*ownerKey: "tovu",$/), [
+    'publish-content/peers.ts: ownerKey: "tovu",',
   ]);
 });
 
