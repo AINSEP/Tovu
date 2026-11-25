@@ -2,8 +2,10 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-w
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
 import { Media } from "../Media";
+import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -79,10 +81,18 @@ const TWO_ACTIVE_RESPONSE = { media: [ACTIVE_ITEM, { ...TRASHED_ITEM, status: "a
 /** Routes a mocked `fetch` call on method + a distinguishing URL substring — see
  *  `Dashboard.unit.test.tsx`'s identical helper for why (order/count-coupled mocks silently
  *  mis-assert the moment a call is added or reordered). */
+async function answerGrid({ url, list }: { url: string; list: { handler: () => Promise<Response> } | undefined }): Promise<Response> {
+  if (!list) throw new Error(`Media test: no list route to derive ${url} from`);
+  const { media } = (await (await list.handler()).json()) as { media: AdminMedia[] };
+  return jsonResponse(gridResponseBody({ url, media }));
+}
+
 function routeFetch(routes: Array<{ method?: string; match: string; handler: () => Promise<Response> }>) {
   return (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const method = (init?.method ?? "GET").toUpperCase();
+    // A grid page is the server's filtered, ordered, counted answer; the stub derives it from its list route.
+    if (isGridUrl({ url })) return answerGrid({ url, list: routes.find((r) => r.match === "/media" && (r.method ?? "GET") === "GET") });
     const entry = routes.find((r) => url.includes(r.match) && (r.method ?? "GET") === method);
     if (!entry) return Promise.reject(new Error(`Media test: no mocked route for ${method} ${url}`));
     return entry.handler();

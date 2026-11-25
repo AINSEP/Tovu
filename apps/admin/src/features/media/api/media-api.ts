@@ -2,7 +2,7 @@ import { BASE, WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
 import { siteUrl } from "../../../lib/site-url";
-import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { AdminMedia, MediaGridOrder, MediaGridPage, MediaGridTab } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 
@@ -24,6 +24,18 @@ export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials
 /** The admin API calls of the media feature. */
 export const mediaApi = {
   listMedia: () => request<{ media: AdminMedia[] }>({ path: `/workspaces/${WORKSPACE_ID}/media` }),
+  /** One bounded page of a tab in the server's order, or one exact asset (`itemId`, no cursor), with workspace-wide
+   *  counts. Never reads the whole library; `cursor` is the previous page's opaque `nextCursor`. */
+  listMediaGrid: (
+    view: { tab: MediaGridTab; orderBy: MediaGridOrder },
+    page: { limit?: number; cursor?: string; itemId?: string } = {},
+  ) => {
+    const query = new URLSearchParams({ tab: view.tab, orderBy: view.orderBy });
+    if (page.limit !== undefined) query.set("limit", String(page.limit));
+    if (page.cursor !== undefined) query.set("cursor", page.cursor);
+    if (page.itemId !== undefined) query.set("itemId", page.itemId);
+    return request<MediaGridPage>({ path: `/workspaces/${WORKSPACE_ID}/media/grid${querySuffix({ query: query.toString() })}` });
+  },
   /** The workspace's media-generation vendor credentials, as markers only — never key material.
    *  Bare map, not a `{ data }` envelope, matching `MediaProvidersPort.fetchMediaProviders`. */
   getMediaProviders: () =>

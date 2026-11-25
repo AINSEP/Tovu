@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { AdminMedia, MediaGridPage, MediaGridTab } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { describeApiError } from "@/lib/admin-http/request";
 import { sizeRefusalFromError } from "../upload-size-copy";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
@@ -10,6 +10,7 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
+import { useGridPages, type MediaGridPort } from "./use-grid-pages.hooks";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -62,7 +63,13 @@ import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.ho
  */
 
 export interface MediaDependencies {
-  port: MediaPort;
+  port: MediaPort & MediaGridPort;
+  /** REQUIRED, like every hook the screen composes: the server-paged grid read (`use-grid-pages.hooks.ts`). */
+  useGridPages: typeof useGridPages;
+  /** The tab whose rows the grid reads; the server filters, orders and counts, this screen never does. */
+  tab: MediaGridTab;
+  /** The `?id=` deep link, resolved by exact lookup when it is not among the loaded rows. */
+  itemId?: string | null;
   locale: string;
   t: (key: string) => string;
 }
@@ -91,6 +98,17 @@ export interface MediaController {
   /** The id of the media item whose `EditMediaPanel` is expanded, or `null` when none is. */
   editingId: string | null;
   setEditingId: (id: string | null) => void;
+  /** The loaded rows plus the deep-link asset when it came from an exact lookup (it is not a grid row). */
+  lookupMedia: AdminMedia[] | null;
+  /** Workspace-wide tab counts from the server; `null` until the first page settles. */
+  counts: MediaGridPage["counts"] | null;
+  /** Some untrashed asset has no recorded content type (server-counted over the whole workspace). */
+  hasUntypedActive: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  /** The failure of the last "Load more", kept next to the button so Retry stays in place. */
+  loadMoreError: string | null;
+  loadMore: () => Promise<void>;
   /** `findEditingItem(media, editingId)`, resolved here so the view never searches `media`
    *  itself. */
   editingItem: AdminMedia | null;
@@ -143,8 +161,11 @@ function describeUploadFailure({ failure, locale }: { failure: unknown; locale: 
 /**
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
-export function useMedia({ port, locale, t }: MediaDependencies): MediaController {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listMedia() });
+export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPagesHook }: MediaDependencies): MediaController {
+  // Newest-first, matching `SqliteMediaRepo.list()`'s own default — an operator who never touches
+  // the new control sees exactly today's order, unchanged. The SERVER orders; see `use-grid-pages.hooks.ts`.
+  const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
+  const list = useGridPagesHook({ port, tab, orderBy, useFetchQuery }, { itemId });
   const invalidate = useInvalidate();
   // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
   // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
@@ -156,9 +177,6 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  // Newest-first, matching `SqliteMediaRepo.list()`'s own default — an operator who never touches
-  // the new control sees exactly today's order, unchanged.
-  const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(false);
   const [uploading, setUploading] = useState(false);
@@ -296,7 +314,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     setEditingId(null);
   }
 
-  const media = list.data?.media ?? null;
+  const media = list.items;
+  const lookupMedia = media && list.exactItem ? [...media, list.exactItem] : media;
   // Local FileReader errors bypass the mutation; translate known copy while retaining diagnostics.
   const uploadError = describeUploadFailure({ failure: readError ?? uploadMutation.error, locale });
   const error = visibleMediaError({
@@ -328,7 +347,14 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     upload,
     editingId,
     setEditingId,
-    editingItem: findEditingItem({ media, editingId }),
+    lookupMedia,
+    counts: list.counts,
+    hasUntypedActive: list.hasUntypedActive,
+    hasMore: list.hasMore,
+    loadingMore: list.loadingMore,
+    loadMoreError: list.loadMoreError ? translate({ locale, key: "more media could not be loaded" }) : null,
+    loadMore: list.loadMore,
+    editingItem: findEditingItem({ media: lookupMedia, editingId }),
     toggleEditing,
     onMetadataSaved,
     trash,
@@ -353,8 +379,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Media.tsx` composes
  * this and a test composes {@link useMedia} with `createFakeMediaPort`.
  */
-export function useWiredMedia(): MediaController {
+export function useWiredMedia({ tab, itemId }: Pick<MediaDependencies, "tab" | "itemId">): MediaController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useMedia({ port: defaultMediaPort, locale, t });
+  return useMedia({ port: defaultMediaPort, useGridPages, tab, itemId, locale, t });
 }

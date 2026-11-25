@@ -26,6 +26,7 @@ import {
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
+import { MediaLoadMore } from "./MediaLoadMore";
 import { t as mediaTranslate } from "./media-i18n";
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
@@ -1197,6 +1198,11 @@ function MediaLibraryPanel(
     setLightboxIndex,
     orderBy,
     setOrderBy,
+    hasUntypedActive,
+    hasMore,
+    loadingMore,
+    loadMoreError,
+    loadMore,
     t,
     locale,
   } = props;
@@ -1246,7 +1252,7 @@ function MediaLibraryPanel(
           comment for why the `key` lives on `EditMediaPanel`, not on the `<dialog>` around it. */}
       <EditMediaModal item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
 
-      {showsUntypedMediaNote({ media, tab: activeTab }) ? <UntypedMediaNote t={t} /> : null}
+      {(activeTab === "images" || activeTab === "videos") && hasUntypedActive ? <UntypedMediaNote t={t} /> : null}
 
       <MediaGridOrEmpty
         activeTab={activeTab}
@@ -1263,6 +1269,7 @@ function MediaLibraryPanel(
         rowSavingId={rowSavingId}
         onRequestPurge={setPendingPurge}
       />
+      <MediaLoadMore hasMore={hasMore} loading={loadingMore} error={loadMoreError} onLoadMore={() => void loadMore()} t={t} />
 
       {/* `items` MUST be the same array the grid above maps, not the unfiltered `media`:
           `lightboxIndex` is a positional index produced by that map, so handing the lightbox a
@@ -1451,13 +1458,14 @@ export function Media(props: MediaProps) {
   // for the complexity gate; Media is small enough to resolve them directly.
   const useMediaHook = props.useMediaHook ?? useWiredMedia;
   const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
-  const controller = useMediaHook();
-  const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+  // The Providers tab has no grid; it still reads page one of All for the server's tab counts.
+  const controller = useMediaHook({ tab: activeTab === "external-providers" ? "all" : activeTab, itemId: props.itemId });
+  const { media, error, t } = controller;
   const { notFound } = useMediaItemLink({
     itemId: props.itemId,
     activeTab,
-    media,
+    media: controller.lookupMedia,
     editingId: controller.editingId,
     setEditingId: controller.setEditingId,
   });
@@ -1474,7 +1482,8 @@ export function Media(props: MediaProps) {
   // its length is already "what that tab lists" with no extra request and nothing that could ever
   // go stale relative to what renders when the tab opens.
   const tabCounts: Partial<Record<MediaTabId, number>> = {
-    ...mediaContentTabCounts({ media }),
+    // The server's counts over every matching row, not the length of the loaded page.
+    ...controller.counts,
     "external-providers": MEDIA_PROVIDER_CATALOG.length,
   };
 
@@ -1495,7 +1504,9 @@ export function Media(props: MediaProps) {
   // `MediaContentTabId`. Not memoized: a single filter over a media library is cheap next to the
   // render it feeds, and a `useMemo` here cannot be hoisted above the early returns without
   // changing hook order.
-  const visibleMedia = sortMediaByOrder({ media: filterMediaByTab({ media, tab: activeTab }), orderBy: controller.orderBy });
+  // `media` is already this tab's rows in the chosen order: the server filters and sorts, because one
+  // fetched page cannot be re-sorted or re-filtered into a globally ordered list.
+  const visibleMedia = media;
   // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
   // same reasoning as every other list on this workstream.
   const mediaExpandHandles = buildAgentListHandles({ prefix: "media-item", ids: visibleMedia.map((item) => item.id) }

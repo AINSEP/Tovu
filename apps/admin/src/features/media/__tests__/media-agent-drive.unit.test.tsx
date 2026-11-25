@@ -53,6 +53,12 @@ function item(overrides: Partial<AdminMedia> = {}): AdminMedia {
 function mediaController(overrides: Partial<MediaController> = {}): MediaController {
   return {
     media: [],
+    counts: null,
+    hasUntypedActive: false,
+    hasMore: false,
+    loadingMore: false,
+    loadMoreError: null,
+    loadMore: vi.fn(async () => {}),
     error: null,
     uploading: false,
     uploadOpen: false,
@@ -83,6 +89,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     setOrderBy: vi.fn(),
     t: (key: string) => key,
     locale: "en",
+    lookupMedia: overrides.media ?? [],
     ...overrides,
   };
 }
