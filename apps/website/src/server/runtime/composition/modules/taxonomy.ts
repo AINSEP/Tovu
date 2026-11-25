@@ -75,6 +75,9 @@ function taxonomyWriteDeps({ deps }: { deps: TaxonomyRouteDeps }, _options: Reco
     ...taxonomyPortDeps({ deps }), clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, taxonomyRepo: deps.taxonomyRepo,
     termRepo: deps.termRepo, entryTermRepo: deps.entryTermRepo, taxonomyRevisionRepo: deps.taxonomyRevisionRepo,
     stampWatermark: deps.stampWatermark, postRepo: deps.postRepo, outwardErrorMessage,
+    // Every admin taxonomy write is an authenticated owner click; an assistant acting for that same
+    // owner goes through the tool channel and is stamped `agent` there, never inferred from the id.
+    mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "admin" }),
   };
 }
 
@@ -100,9 +103,6 @@ export const registerAdminTaxonomyRenameTermRoute: TaxonomyRouteRegistrar = ({ a
 function taxonomyAssignmentDeps({ deps }: { deps: TaxonomyRouteDeps }, _options: Record<string, never> = {}): TaxonomyAssignTermsRouteDeps & AdminJsonRoutePortDeps {
   return {
     ...taxonomyWriteDeps({ deps }), entryTermRepo: deps.entryTermRepo, entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo,
-    // The admin route is an authenticated owner click; an assistant acting for that same owner
-    // goes through the tool channel and is stamped `agent` there, never inferred from the id.
-    mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "admin" }),
   };
 }
 

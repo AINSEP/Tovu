@@ -13,6 +13,7 @@ import {
   registerAdminTaxonomyAssignTermsRoute,
   registerAdminTaxonomyCreateRoute,
   registerAdminTaxonomyCreateTermRoute,
+  registerAdminTaxonomyRenameTermRoute,
 } from "../modules/taxonomy.js";
 
 /**
@@ -70,6 +71,44 @@ test("the same owner's admin taxonomy edit and assistant taxonomy edit persist d
     input: { contentType: "post", contentId: "post-home", termIds: [assistantTerm!.id] } });
   const [assistantEvent] = await assigned();
 
+  assert.deepEqual(adminEvent?.actor, { id: ownerId, kind: "user" });
+  assert.deepEqual(assistantEvent?.actor, { id: ownerId, kind: "agent" });
+});
+
+// The term delete routes move a term to the Trash (`trashTerm`), whose rows record a principal id
+// but no kind, and the assistant has no term-delete tool; so the term writers whose kind this
+// covers are the ones both channels share: create and rename.
+test("the same owner's admin term rename and assistant term rename persist different kinds", async t => {
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps });
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminTaxonomyCreateRoute({ app, deps });
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyRenameTermRoute({ app, deps });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const api = `${baseUrl}/api/admin/v1/taxonomy`;
+
+  const { taxonomy } = (await postJson(api, cookie, { name: "Renames", hierarchical: false }))!;
+  const { term } = (await postJson(`${api}/${taxonomy!.id}/terms`, cookie, { name: "Draft tag" }))!;
+  const renamed = async () => (await deps.outbox.claimPending({ batchSize: 1000, nowIso: "2999-01-01T00:00:00.000Z" }))
+    .map(record => record.event).filter(event => event.name === "taxonomy.term_renamed" || event.name === "taxonomy.term_created");
+  const [createdEvent] = await renamed();
+  const ownerId = createdEvent?.actorId;
+  assert.ok(ownerId, "the admin term create recorded its acting owner");
+
+  const res = await fetch(`${api}/terms/${term!.id}`, { method: "PUT", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ newName: "Admin name" }) });
+  assert.ok(res.ok, `rename -> ${res.status} ${await res.text()}`);
+  const [adminEvent] = await renamed();
+
+  const tool = composedTaxonomyContributor().build(deps as never, undefined as never).find(r => r.descriptor.id === "taxonomy_rename_term");
+  assert.ok(tool, "the assistant offers taxonomy_rename_term");
+  await tool.handler({ executionId: "e2", principal: { id: ownerId }, run: { id: "r2" }, signal: new AbortController().signal,
+    input: { termId: term!.id, newName: "Assistant name" } });
+  const [assistantEvent] = await renamed();
+
+  assert.deepEqual(createdEvent?.actor, { id: ownerId, kind: "user" });
   assert.deepEqual(adminEvent?.actor, { id: ownerId, kind: "user" });
   assert.deepEqual(assistantEvent?.actor, { id: ownerId, kind: "agent" });
 });
