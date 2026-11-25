@@ -4,7 +4,7 @@ Recurring AI jobs (P3). Jini owns the scheduler (`RoutineService`), the durable 
 (`@jini-ai/daemon/routines/sqlite`) and the row contracts (`@jini-ai/core/contracts/site/routines`).
 This folder is Tovu's **host**: where the data file lives, who may change it, how it opens and closes,
 and the hint the desktop app reads. The feature is dark: `ROUTINES_RELEASE_ENABLED`
-(`@tovu/contracts/routines`) is `false`, and nothing here is wired into the serving app yet.
+(`@tovu/contracts/routines`) is `false`, and `composeAssistantRoutines` is not yet called from `createServingApp`. Its routes pass through the owner command gate: the Jini factories keep parsing, copy and status mapping, while access, availability, creator stamping and post-commit reschedule/beacon stay in `routine-commands.ts`.
 
 | File | Role |
 |---|---|
@@ -12,6 +12,7 @@ and the hint the desktop app reads. The feature is dark: `ROUTINES_RELEASE_ENABL
 | `routine-commands.ts` | `createRoutineCommands(...)`: the owner command gate |
 | `routine-host.ts` | `openRoutineSidecar`, `closeRoutineHost`, `writeRoutineBeacon` |
 | `W/platform/db/sqlite/routines-db.ts` | `openRoutinesDb`: the tuned sidecar connection |
+| `W/server/runtime/composition/modules/assistant-routines.ts` | `composeAssistantRoutines(...)`: eligibility gate, sidecar, scheduler start/stop with the assistant switch, drain-before-close, admin routes at `/api/admin/assistant/routines` (`/:id`, `/:id/run`, `/:id/runs`) |
 
 ## Host contract
 
