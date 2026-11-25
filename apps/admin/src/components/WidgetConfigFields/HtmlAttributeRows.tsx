@@ -1,22 +1,21 @@
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
+import { HtmlAttributeRows as JiniHtmlAttributeRows } from "@jini-ai/cms/react/widgets/WidgetConfigFields/HtmlAttributeRows";
 
 import "../../styles/media-content-editor.css";
 import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
 import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtmlAttributes, type HtmlAttributeRow } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
+import { type Translate } from '@jini-ai/core/text';
 
 /** The host binds the content domain's embed policy into the shell's dropped-row rule. */
 const isDroppedAttributeRow = (row: HtmlAttributeRow) => isDroppedRow({ row, policy: embedPolicy });
 
-import { type Translate } from '@jini-ai/core/text';
 /**
- * @file `HtmlAttributeRows` — key = value rows that edit one `htmlAttributes` string, with a
- * "Dropped when rendered" flag per unsafe row. ONE component for the widget editor's Media tab
- * and the `widgetEmbed` node's Style dialog (owner, 2026-10-11: the dialog had a single text box
- * while the editor had rows). Markup only; state is in `HtmlAttributeRows.hooks.ts`. The host
- * renders the "HTML attributes" label. Given `agentHandle`, the add button is `<base>-attribute-add`.
+ * @file The host mount of `@jini-ai/cms`'s `HtmlAttributeRows`: binds Tovu's embed policy (the
+ * dropped-row rule), the shell's parser/serializer and state hook, the kit icon and tip, and the
+ * stylesheet. Sanitization and the allowed-attribute policy stay host-owned.
  */
 
 export interface HtmlAttributeRowsProps {
@@ -25,37 +24,12 @@ export interface HtmlAttributeRowsProps {
   /** Shared-components dictionary translator; omit for the English source strings. */
   t?: Translate;
   agentHandle?: string;
-  /** Injectable seam for the state hook. */
+  /** Injectable seam for the state hook (tests pass a fake controller). */
   useRows?: typeof useHtmlAttributeRows;
 }
 
-export function HtmlAttributeRows({ value, onChange, t = (key) => key, agentHandle: base, useRows = useHtmlAttributeRows }: HtmlAttributeRowsProps) {
-  const vm = useRows({ value, onChange, htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes });
-  return (
-    <div className="html-attribute-rows">
-      {vm.rows.map((row, index) => (
-        // Index keys: rows have no id and their names are being typed.
-        <div key={index} className="html-attribute-rows__row">
-          <input className="field-mono html-attribute-rows__name" value={row.name} placeholder="data-kui" spellCheck={false}
-            aria-label={`${t("Attribute name")} ${index + 1}`} aria-invalid={vm.dropped[index] ? true : undefined}
-            onChange={(event) => vm.setRow({ index, patch: { name: event.target.value.trim() } })} />
-          <span aria-hidden="true">=</span>
-          <input className="field-mono html-attribute-rows__value" value={row.value} spellCheck={false}
-            aria-label={`${t("Attribute value")} ${index + 1}`} onChange={(event) => vm.setRow({ index, patch: { value: event.target.value } })} />
-          <DockHeaderTip label={t("Remove")}>
-            <button type="button" className="btn-ghost media-content-editor__icon"
-              aria-label={`${t("Remove")} ${row.name || index + 1}`} onClick={() => vm.removeRow({ index })}>
-              <Icon name="close" size={14} aria-hidden="true" />
-            </button>
-          </DockHeaderTip>
-          {vm.dropped[index] ? <span className="field-error">{t("Dropped when rendered")}</span> : null}
-        </div>
-      ))}
-      <button type="button" className="btn-ghost media-content-editor__compact" onClick={vm.addRow}
-        {...(base ? agentHandle({ handle: `${base}-attribute-add` }, { role: "button", label: "Add an HTML attribute row" }) : {})}>
-        <Icon name="plus" size={14} aria-hidden="true" />
-        {t("Add attribute")}
-      </button>
-    </div>
-  );
+export function HtmlAttributeRows({ t, useRows = useHtmlAttributeRows, ...props }: HtmlAttributeRowsProps) {
+  return <JiniHtmlAttributeRows {...props} {...(t ? { t: (key: string) => t(key) } : {})} useRows={useRows}
+    htmlAttributesToRows={htmlAttributesToRows} rowsToHtmlAttributes={rowsToHtmlAttributes} isDroppedAttributeRow={isDroppedAttributeRow}
+    Icon={Icon} Tip={DockHeaderTip} agentHandleAttributes={agentHandle} />;
 }
