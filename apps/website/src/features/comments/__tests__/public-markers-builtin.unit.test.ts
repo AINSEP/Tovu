@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { CommentRepoPort, CommentsSettings } from '@jini-ai/cms/comments';
 import { createBuiltinCommentsProvider } from '@jini-ai/cms/comments/site/builtin-provider';
 import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
-import { renderCommentsMarkers } from '../public-markers.js';
+import { renderCommentsMarkers } from '@jini-ai/cms/comments/site/public-markers';
 
 const entry = { id: 'e', slug: 'post', title: 'Post', canonicalUrl: '/post', status: 'published' };
 // The built-in provider's own unit tests live with it in Jini; this composition test only needs a provider that renders a thread.

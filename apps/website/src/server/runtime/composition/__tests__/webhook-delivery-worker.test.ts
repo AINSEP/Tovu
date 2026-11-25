@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
-import { RecordingHttpClient } from "#src/features/webhooks/http.memory";
+import { RecordingHttpClient } from "@jini-ai/integrations/webhooks/site/http.memory";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createIntegrationsModule, webhookEnvelopeStoreFor } from "../modules/integrations.js";
