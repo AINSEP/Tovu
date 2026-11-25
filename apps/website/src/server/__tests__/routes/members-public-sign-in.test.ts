@@ -278,7 +278,8 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
   const { app, deps } = buildPublicApp();
   const handler = extractRouteHandler(app, "post", "/api/members/v1/workspaces/:workspaceId/sign-in");
   const { res, capture } = createCapturingResponse();
-  const req = { params: { workspaceId: deps.workspaceId }, body: undefined, get: () => undefined, is: () => "application/json" } as unknown as Parameters<typeof handler>[0];
+  const req = { params: { workspaceId: deps.workspaceId }, headers: {},
+    body: undefined, get: () => undefined, is: () => "application/json" } as unknown as Parameters<typeof handler>[0];
 
   await handler(req, res);
   assert.equal(capture.statusCode, 400);

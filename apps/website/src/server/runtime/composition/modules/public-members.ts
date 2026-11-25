@@ -146,7 +146,8 @@ export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Exp
 
 /** `POST …/sign-in/complete`: complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
 export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+  // A raw mount: the member cookie is appended after any cookie an earlier handler set, as `res.append` did.
+  mountPublicRawRoute({
     app: memberSignInApp({ app, deps, method: "challenge" }),
     spec: memberCompleteSignInRoute,
     deps: {

@@ -314,6 +314,7 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
   const { res, capture } = createCapturingResponse();
   const req = {
     params: { workspaceId: deps.workspaceId },
+    headers: {},
     body: undefined,
     get: () => undefined,
     is: () => "application/json",
