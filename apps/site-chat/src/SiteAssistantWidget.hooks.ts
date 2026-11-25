@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { createVisitorPageControl } from "./visitor-page-control";
 import { createSiteAssistantTransport } from "./site-assistant-transport";
+import type { SiteAssistantTransportOptions } from "./site-assistant-transport";
 import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
 import { readSiteChatOpen, useSiteAssistantActivation, useSiteAssistantComparison, useSiteAssistantSurface } from "./SiteAssistantActivation.hooks";
 import { useSiteToolConfirmation } from "./SiteToolConfirmation.hooks";
-import { confirmSiteAssistantTool } from "./tool-confirmation";
 
 /** Manage the visitor assistant's session, transport and conversation actions. */
 export function useSiteAssistantWidget(_required: Record<string, never>, _options = {}) {
@@ -26,10 +26,14 @@ export function useSiteAssistantWidget(_required: Record<string, never>, _option
   // it would drop any run this widget has in flight.
   const liveState = useRef(initialState);
   const frontend = useMemo(() => createVisitorPageControl({ document, beforeNavigate: ({ messages }) => saveSiteAssistantState({ ...liveState.current, messages: messages ?? liveState.current.messages }) }), []);
-  const confirm = useCallback((input: Parameters<typeof confirmSiteAssistantTool>[0]) => confirmSiteAssistantTool(input, { headers: frontend.currentHeaders }), [frontend]);
-  const toolConfirmation = useSiteToolConfirmation({}, { confirm });
+  // The card and the transport reference each other: the transport shows the card, and the card's
+  // buttons answer through that same transport's live approval. The receiver is forwarded through a
+  // ref so the transport (and any run it has in flight) is not rebuilt for it.
+  const receiveCard = useRef<NonNullable<SiteAssistantTransportOptions["onToolConfirmation"]>>(() => {});
   useEffect(() => () => frontend.close({}), [frontend]);
-  const transport = useMemo(() => createSiteAssistantTransport({}, { onToolConfirmation: toolConfirmation.receive, frontend }), [toolConfirmation.receive, frontend]);
+  const transport = useMemo(() => createSiteAssistantTransport({}, { onToolConfirmation: (required) => receiveCard.current(required), frontend }), [frontend]);
+  const toolConfirmation = useSiteToolConfirmation({ confirm: transport.answerApproval });
+  useEffect(() => { receiveCard.current = toolConfirmation.receive; }, [toolConfirmation.receive]);
 
   // `ChatPane` owns its transcript internally and only takes `initialMessages` at mount — the same
   // constraint `AssistantDock.tsx`'s conversation switcher documents (`key={chats.paneKey}`). There

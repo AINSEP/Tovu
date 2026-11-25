@@ -18,27 +18,31 @@ const frame = (event: string, data: unknown) => {
   const started = agui({ type: 'RUN_STARTED', ...wire });
   if (event === 'text') return started + agui({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: (data as { delta: string }).delta });
   if (event === 'end') return agui({ type: 'RUN_FINISHED', ...wire, result: { reason: (data as { reason?: string }).reason ?? 'stop' } });
+  if (event === 'interrupt') {
+    const { challengeId, title, summary } = data as typeof directive;
+    return agui({ type: 'RUN_FINISHED', ...wire, outcome: { type: 'interrupt', interrupts: [{ id: challengeId, reason: 'confirmation', message: `${title}: ${summary}` }] } });
+  }
   return agui({ type: 'CUSTOM', name: event, value: data });
 };
 
-for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn until visitor click allow=${allow}`, async t => {
+for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn until visitor click allow=${allow}: the live approval posts a resume to chat and keeps its nonce out of storage`, async t => {
   const { dom, restore } = installDom({ html: '<div id="tovu-site-assistant-root"></div>' }, { url: 'https://site.test/' });
   const realFetch = globalThis.fetch;
-  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const requests: Array<{ url: unknown; body: Record<string, unknown> }> = [];
   const decisions: unknown[] = [];
   const navigations: string[] = [];
   globalThis.fetch = (async (url, options) => {
     capture(options);
-    if (url === '/api/site-assistant/confirm') {
-      decisions.push(JSON.parse(options?.body as string));
-      stream.enqueue(new TextEncoder().encode(frame('text', { delta: 'Finished.' }) + frame('end', {})));
-      stream.close();
-      return new Response('{}');
+    const body = JSON.parse(options?.body as string) as Record<string, unknown>;
+    requests.push({ url, body });
+    if (body.resume) {
+      decisions.push(body.resume);
+      return new Response(frame('text', { delta: 'Finished.' }) + frame('end', {}));
     }
     return new Response(new ReadableStream<Uint8Array>({ start(controller) {
-      stream = controller;
       options?.signal?.addEventListener('abort', () => { try { controller.error(new DOMException('Aborted', 'AbortError')); } catch { /* Closed. */ } }, { once: true });
-      controller.enqueue(new TextEncoder().encode(frame('text', { delta: 'approved, click Allow' }) + frame('client_directive', directive)));
+      controller.enqueue(new TextEncoder().encode(frame('text', { delta: 'approved, click Allow' }) + frame('interrupt', directive)));
+      controller.close();
     } }));
   }) as typeof fetch;
   const element = dom.window.document.getElementById('tovu-site-assistant-root')!;
@@ -72,7 +76,11 @@ for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn
   assert.deepEqual(decisions, []);
   [...strip.querySelectorAll('button')].find(button => button.textContent === (allow ? 'Allow' : 'Cancel'))!.click();
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(decisions, [{ challengeId: directive.challengeId, allow }]);
+  assert.deepEqual(decisions, [[{ interruptId: directive.challengeId, status: 'resolved', payload: allow ? 'allow' : 'deny' }]]);
+  assert.deepEqual(requests.map(request => request.url), ['/api/site-assistant/chat', '/api/site-assistant/chat'], 'never POST to /confirm');
+  assert.equal(requests[1]!.body.parentRunId, requests[0]!.body.runId);
+  assert.equal(requests[1]!.body.threadId, requests[0]!.body.threadId);
+  assert.deepEqual(requests[1]!.body.messages, []);
   assert.deepEqual(navigations, [], 'only the explicit page-tool execution path may navigate');
   assert.equal(widget.controller.getState({}).busy, false);
   assert.equal(strip.hidden, true);

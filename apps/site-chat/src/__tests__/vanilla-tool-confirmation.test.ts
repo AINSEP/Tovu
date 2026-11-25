@@ -18,7 +18,7 @@ function fixture(confirm: (input: { challengeId: string; allow: boolean }) => Pr
   const clicks: Event[] = [];
   document.addEventListener('click', event => { clicks.push(event); }, true);
   const decisions: unknown[] = [];
-  const show = createVanillaToolConfirmation({ element, document }, { confirm: input => { decisions.push(input); return confirm(input); } });
+  const show = createVanillaToolConfirmation({ element, document, confirm: input => { decisions.push(input); return confirm(input); } });
   return { dom, document, element, strip, previous, show, decisions, clicks, navigations: () => navigations, submits: () => submits };
 }
 
@@ -87,7 +87,7 @@ test('unmounted or incomplete host markup never creates a second proposal bar', 
   for (const html of ['', '<div class="jini-chat-vanilla__tool-confirmation"></div>', '<div class="jini-chat-vanilla__tool-confirmation"><span></span></div>', '<div class="jini-chat-vanilla__proposal"><span>Go to About?</span><button type="button">Go there</button></div>']) {
     const dom = new JSDOM(`<main>${html}</main>`);
     const element = dom.window.document.querySelector('main')!;
-    const show = createVanillaToolConfirmation({ element, document: dom.window.document });
+    const show = createVanillaToolConfirmation({ element, document: dom.window.document, confirm: async () => assert.fail('incomplete markup never offers a decision') });
     show({ directive });
     assert.equal(element.innerHTML, html);
     show({ directive: null });

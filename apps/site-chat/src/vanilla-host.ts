@@ -2,12 +2,12 @@ import { createVisitorPageControl } from './visitor-page-control';
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
 import { createSiteAssistantTransport } from './site-assistant-transport';
+import type { SiteAssistantTransport } from './site-assistant-transport';
 import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from './session-store';
 import { installEmbedSendBridge } from '@jini-ai/chat/browser/embed-send-bridge';
 import { isSiteChatComparisonRoot, SITE_CHAT_COMPARISON_COPY, SITE_CHAT_COMPARISON_NAMES } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
 import { createVanillaToolConfirmation } from './vanilla-tool-confirmation';
-import { confirmSiteAssistantTool } from './tool-confirmation';
 
 /** Binds the existing product adapters; Jini owns the DOM widget and conversation state. */
 export function createSiteVanillaArgs({ element }: { element: HTMLElement }, options: {
@@ -20,11 +20,14 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
   const { t } = createSiteChatI18n({ document });
   element.setAttribute('data-agent-private', '');
   const frontend = createVisitorPageControl({ document, beforeNavigate: ({ messages }) => { const state = loadSiteAssistantState(); saveSiteAssistantState({ ...state, messages: messages ?? state.messages }); } }, { assign });
-  const showConfirmation = createVanillaToolConfirmation({ element, document }, {
-    confirm: input => confirmSiteAssistantTool(input, { headers: frontend.currentHeaders }),
+  // The card and the transport reference each other: the transport shows the card, and the card's
+  // buttons answer through that same transport's live approval (never the retired confirm route).
+  let transport!: SiteAssistantTransport;
+  const showConfirmation = createVanillaToolConfirmation({ element, document, confirm: input => transport.answerApproval(input) }, {
     sendFailureText: t("Couldn't send your decision. Try again."),
   });
-  return { element, document, transport: createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation, frontend }), agentId: 'site-assistant',
+  transport = createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation, frontend });
+  return { element, document, transport, agentId: 'site-assistant',
     suggestions: [t('What can I find on this site?'), t('Show me the latest posts')],
     directiveEventName: 'client_directive', ids: () => crypto.randomUUID(), createAbortController: () => new AbortController(),
     session: {
