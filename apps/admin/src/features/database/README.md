@@ -5,7 +5,7 @@ entry.
 
 | file | what it is |
 |---|---|
-| `Database.tsx` | Raw ledger row browser plus the restore-point list. |
+| `Database.tsx` | Host binding: passes the wired section hooks, admin locale hook and `ServerLabel` to Jini's `Database` (`@jini-ai/admin/screens/database/Database`). |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
 ## What this feature does not own
@@ -15,5 +15,5 @@ entry.
 
 ## Notes for anyone editing here
 
-`Database.tsx` has **no unit test**. Treat a change here as unverified until you have driven it in a
-browser.
+The screen's render tests live in `@jini-ai/admin` (`screens/database/__tests__/Database.unit.test.tsx`);
+`__tests__/Database.binding.unit.test.tsx` pins the host wiring over the real HTTP adapter.
