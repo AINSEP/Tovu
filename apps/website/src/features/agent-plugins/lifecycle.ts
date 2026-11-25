@@ -25,6 +25,7 @@ import { seedWithTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "@jini-ai/agent-plugins/site/soon-lock";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
+import { TOVU_LEGACY_MCP_ALIASES } from "./mcp-host-bindings.js";
 import { agentPluginOverlaysDir } from "./host-overlays-dir.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, HOST_SOON_AGENT_PLUGINS, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
@@ -271,7 +272,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,
     fetch: unbound, outboundGuard: { assertAllowed: unbound },
     mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
-  }, policy);
+  }, { ...policy, legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
     readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
     readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),

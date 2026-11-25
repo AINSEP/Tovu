@@ -31,12 +31,41 @@ it.each(["shadcn", "native"])("renders the real %s table with its styling frame 
         },
       }]}
     />);
-    await waitFor(() => expect(target.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
-    expect(target.querySelector(".jini-data-table-frame")).toHaveAttribute("data-table-provider", provider);
-    expect(container.querySelector(".jini-data-table")).toBeNull();
+    await waitFor(() => expect(target.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada"));
+    expect(target.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider);
+    expect(container.querySelector(".jini-ui-data-table")).toBeNull();
     act(() => setPlaygroundRenderTarget({ node: null }));
-    await waitFor(() => expect(container.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
-    expect(target.querySelector(".jini-data-table")).toBeNull();
+    await waitFor(() => expect(container.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada"));
+    expect(target.querySelector(".jini-ui-data-table")).toBeNull();
+  } finally {
+    target.remove();
+  }
+});
+
+it.each(["shadcn", "native"])("the table keeps its provider marker when moved into and out of the target (%s)", async (provider) => {
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+  try {
+    const { container } = render(<RoutedA2uiSurfaceCard
+      name="a2ui" clock={testClock} runId="run-table-transition" runStreaming={false} runSucceeded={true}
+      events={[{
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "surface-table-transition", catalogId: createLabCatalog({}).catalogId,
+          components: [{ id: "root", component: `${provider}.data-table`,
+            columns: [{ key: "name", label: "Name" }], rows: [{ name: "Ada" }] }],
+        },
+      }]}
+    />);
+    await waitFor(() => expect(container.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider));
+    act(() => setPlaygroundRenderTarget({ node: target }));
+    await waitFor(() => expect(target.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider));
+    expect(target.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada");
+    expect(container.querySelector(".jini-ui-data-table-frame")).toBeNull();
+    act(() => setPlaygroundRenderTarget({ node: null }));
+    await waitFor(() => expect(container.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider));
+    expect(container.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada");
+    expect(target.querySelector(".jini-ui-data-table-frame")).toBeNull();
   } finally {
     target.remove();
   }

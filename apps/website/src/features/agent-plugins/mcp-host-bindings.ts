@@ -2,9 +2,15 @@
 import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, ExternalMcpValidationError } from '@jini-ai/mcp/federation/hosted';
 import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '@jini-ai/mcp/federation/hosted';
 import { ExternalMcpSecretStoreUnconfiguredError } from '@jini-ai/mcp/federation/hosted';
+import type { AgentPluginLifecycleOptional } from '@jini-ai/agent-plugins/lifecycle';
 import type { AgentPluginMcpContext } from '@jini-ai/agent-plugins/site/service-ports';
 import { OAuthError } from '@jini-ai/oauth';
 import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
+
+export const TOVU_LEGACY_MCP_ALIASES = {
+  names: { authMode: 'tovuAuthMode', defaultTools: 'tovuDefaultTools', tokenAuth: 'tovuTokenAuth', renamedTools: 'tovuRenamedTools' },
+  warning: 'Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.',
+} satisfies NonNullable<AgentPluginLifecycleOptional['legacyMcpAliases']>;
 
 export const agentPluginMcpProjections: AgentPluginMcpProjections = {
   accessSnapshot: externalMcpAccessSnapshot, admissionRevision: externalMcpAdmissionRevision,
