@@ -92,6 +92,7 @@ export function DockHeader({
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
         <DockHeaderTip label={t({ key: "Chats" })}>
+          {/* The chat package's list hooks are a required prop since the P11 major; the host binds the real ones here (ST-10 adds pin and cleanup). */}
           {/* The list hooks, pins and ticked chats all come from the injected cleanup hook. */}
           <ConversationList
             hooks={chatCleanup.listHooks}
