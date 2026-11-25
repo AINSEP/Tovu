@@ -4,7 +4,7 @@ import type { HostBlobGcJournalEntry, BlobPurgeReason } from "#src/platform/db/r
  * @file The `media-bytes` storage policy: a measure/report-only pass over files whose media rows are
  * gone (P11 ST-11b.T). It reads the blob GC journal and the pre-journal orphans, asks every owner of a
  * byte whether it still needs the file, and reports what could be freed. It has no sweep and no
- * unlink dependency at all: enabling removal is a separate owner-gated change (STOP 6), including the
+ * file-removal dependency at all: enabling removal is a separate owner-gated change (STOP 6), including the
  * OQ-11a decision on Trash TTL provenance.
  *
  * A file is "eligible" only when every probe is bound, every probe answered "not needed", and the
