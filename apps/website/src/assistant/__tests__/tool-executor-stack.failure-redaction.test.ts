@@ -22,7 +22,7 @@ import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type Too
 import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 

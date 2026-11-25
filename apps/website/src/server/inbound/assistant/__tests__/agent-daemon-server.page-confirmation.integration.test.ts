@@ -19,7 +19,7 @@ import { pageApprovalOptions } from "@jini-ai/daemon";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 
 /** Execute the production registration loop with a harmless, observable frontend effect. */
 async function fixture({ missingRevision = false } = {}) {

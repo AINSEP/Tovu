@@ -16,7 +16,7 @@ import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
 import { registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
-import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../runtime/composition/jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../../platform/express/jini-routes.js";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
 import { registerToolAccessLoweringRoute } from "./tool-access-lowering-route.js";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";

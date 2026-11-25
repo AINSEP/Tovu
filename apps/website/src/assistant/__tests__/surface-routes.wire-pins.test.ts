@@ -10,7 +10,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import type { ToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";

@@ -11,7 +11,7 @@ import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes, nodeRequestHeaders, sendWebResponse } from "@jini-ai/http-kit/node-bridge";
 import type { Express, Request as ExpressRequest, RequestHandler, Response as ExpressResponse } from "express";
-import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
+import { requestFactsLocals } from "#src/platform/express/request-facts";
 import { asyncRoute } from "#src/platform/express/async-route";
 
 /**

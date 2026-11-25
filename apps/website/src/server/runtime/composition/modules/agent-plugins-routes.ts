@@ -24,7 +24,7 @@ import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { API_CONNECTION_SIGN_IN_PATH, browserBindingCookie } from "#src/features/api-connections/browser-binding";
 import { getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
-import { expressSendResponse, mountJiniRouteInPlace, type InPlaceResponseWriter } from "../jini-routes.js";
+import { expressSendResponse, mountJiniRouteInPlace, type InPlaceResponseWriter } from "../../../../platform/express/jini-routes.js";
 
 /**
  * @file K1 (RT-K1-adm-agent-plugins): registrars for the `agent-plugins` admin routes that are Jini

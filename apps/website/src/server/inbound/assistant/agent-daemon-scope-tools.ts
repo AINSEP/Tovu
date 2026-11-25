@@ -6,7 +6,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createRoutingToolExecutor } from "@jini-ai/daemon";
 import { createFrontendControl, createLostFrontendBindings } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
-import { nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
+import { nodeSessionTimer } from "../../../platform/express/jini-routes.js";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "@jini-ai/daemon";
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";

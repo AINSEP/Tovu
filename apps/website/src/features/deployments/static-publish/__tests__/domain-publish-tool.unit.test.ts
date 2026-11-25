@@ -26,7 +26,7 @@ import type { PublishCredentialSource } from '@jini-ai/devops/deploy/site/static
 import type { StaticPublishInput } from '../adapter.js';
 import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '@jini-ai/devops/deploy/site/deploy-targets/types';
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';

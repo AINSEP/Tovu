@@ -25,7 +25,7 @@ import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceCon
 import type { SourceControlProviderModule } from '@jini-ai/devops/source-control/site/provider-module';
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 
 
 const ID = 'credential_save';

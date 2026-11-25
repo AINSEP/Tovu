@@ -24,7 +24,7 @@ import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MAX_BODY_BYTES, type AttachmentLookup, type AuthorizeToolRun } from "@jini-ai/daemon/http";
 import { jsonResponse } from "@jini-ai/core/contracts/server";
 import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
-import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes } from "../../../../platform/express/jini-routes.js";
 import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { RouteRequestFacts } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
-import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
+import { captureRequestFacts } from "#src/platform/express/request-facts";
 import { servingOriginFor } from "#src/server/inbound/shared/serving-origin";
 
 import { getAuthedCredentialKind, type AuthCredentialKind, type CredentialKindForbiddenBody, type OperatorPrincipalRecord } from "./dev-auth.js";

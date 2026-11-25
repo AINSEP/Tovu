@@ -4,7 +4,7 @@ import test, { mock } from "node:test";
 import express from "express";
 import { EventEmitter, once } from "node:events";
 import * as http from "@jini-ai/daemon/http";
-import * as mounting from "../../../runtime/composition/jini-routes.js";
+import * as mounting from "../../../../platform/express/jini-routes.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,7 +55,7 @@ async function until(predicate: () => boolean) {
 mock.module("@jini-ai/daemon/http", { namedExports: { ...http,
   delegatedToolRoutes: () => delegatedRoutes,
 } });
-mock.module("../../../runtime/composition/jini-routes.js", { namedExports: { ...mounting,
+mock.module("../../../../platform/express/jini-routes.js", { namedExports: { ...mounting,
   mountJiniRoutes: (required: Parameters<typeof mounting.mountJiniRoutes>[0], optional: Parameters<typeof mounting.mountJiniRoutes>[1]) => {
     if (required.routes !== delegatedRoutes) return mounting.mountJiniRoutes(required, optional);
     const app = required.app as express.Express;

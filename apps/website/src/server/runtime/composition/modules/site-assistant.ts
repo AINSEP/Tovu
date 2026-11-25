@@ -1,8 +1,8 @@
 import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { createVisitorPageTargets } from "../visitor-page-targets.js";
 import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
-import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../jini-routes.js";
-import { requestHookInput } from "#src/server/inbound/shared/request-facts";
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../../../../platform/express/jini-routes.js";
+import { requestHookInput } from "#src/platform/express/request-facts";
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";

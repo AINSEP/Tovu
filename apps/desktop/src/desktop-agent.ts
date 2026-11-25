@@ -43,7 +43,7 @@ import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapte
 import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
 import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
-import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
+import { daemonRouteHost, mountJiniRoutes } from "../../website/src/platform/express/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";

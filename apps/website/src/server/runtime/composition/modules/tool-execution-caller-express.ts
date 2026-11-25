@@ -7,7 +7,7 @@
  */
 import { toolExecutionCallerRefusal } from "@jini-ai/daemon/http";
 import type { RequestHandler, Router } from "express";
-import { nodeTimingSafeEqual } from "../jini-routes.js";
+import { nodeTimingSafeEqual } from "../../../../platform/express/jini-routes.js";
 
 /** An Express app or `Router`, as far as the internal routes need it. */
 export type InternalRouteTarget = Pick<Router, "get" | "post" | "use">;
