@@ -412,3 +412,33 @@ test("a request with no JSON body is a 400 validation error, and the executor is
   assert.deepEqual(await res.json(), { error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
   assert.equal(calls.length, 0);
 });
+
+// 064d6145f (P3-T4.T) put the three routine writers on the static allowlist. Routines stay dark
+// (`ROUTINES_RELEASE_ENABLED=false`): no routine tool is registered then
+// (`create-app-routine-wiring.test.ts`), so no routine card can ever be parked. These prove the
+// browser callback cannot reach a routine writer on its own: a fresh call is refused before the
+// executor (the writers are exchange-only), and a forged exchange id finds nothing to answer.
+test("SECURITY: routine writers on the dark surface — a fresh MCP-UI callback never executes and a forged exchange is 409", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: { ok: true } }));
+  const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
+  const principal = { [RUN_PRINCIPAL_HEADER]: "principal-1" };
+
+  for (const toolName of ["routine_create", "routine_set_enabled", "routine_delete"]) {
+    const fresh = await postToolCall(baseUrl, { toolName, params: { name: "r", schedule: "daily" } }, principal);
+    assert.equal(fresh.status, 403, `${toolName}: a fresh callback is refused`);
+    assert.deepEqual(await fresh.json(), { error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    const forged = await postToolCall(baseUrl, { toolName, params: { [SURFACE_EXCHANGE_ID_PARAM]: "never-minted" } }, principal);
+    assert.equal(forged.status, 409, `${toolName}: no parked routine card exists to answer`);
+  }
+  assert.equal(calls.length, 0, "no routine writer ever reached the executor");
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("routine_list is not reachable from an MCP-UI callback at all", async (t) => {
+  const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
+  const baseUrl = await startTestServer(buildApp(executor), t);
+  const res = await postToolCall(baseUrl, { toolName: "routine_list", params: {} }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+  assert.equal(res.status, 403);
+  assert.equal(calls.length, 0);
+});

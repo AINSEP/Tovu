@@ -249,6 +249,13 @@ const EXPECTED_ALLOWLIST = [
   "image_transform",
   // ae1691994: a plan card records a verified payment outcome. Exchange-only: a click answers the parked call.
   "commerce_resolve_unknown",
+  // 064d6145f (P3-T4.T): the three routine writers open their own card inside the handler.
+  // Exchange-only, and while ROUTINES_RELEASE_ENABLED=false no routine tool is registered, so no
+  // routine card can be parked — proven at the route by mcp-ui-tool-calls-route.test.ts
+  // ("routine writers on the dark surface") and at composition by create-app-routine-wiring.test.ts.
+  "routine_create",
+  "routine_set_enabled",
+  "routine_delete",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {
