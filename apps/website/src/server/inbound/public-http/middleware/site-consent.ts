@@ -4,6 +4,7 @@ import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent'
 import type { RateLimitProfile } from '@jini-ai/core/contracts/site/http-kit-rate-limit';
 import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
 import { withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
+import { TOVU_CONSENT_BANNER_MODE_REFUSAL } from '#src/features/consent/host-bindings';
 import { createSiteConsentConfig } from '@jini-ai/cookie-consent/site/settings';
 import { findPublishedPostBySlug } from '@jini-ai/cms/posts/post-read';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -54,7 +55,7 @@ export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, _opti
     const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
     return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
   }
-  const published = parseConsentConfig({ value: revision.config });
+  const published = parseConsentConfig({ value: revision.config, bannerModeRefusal: TOVU_CONSENT_BANNER_MODE_REFUSAL });
   // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
   const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
   if (consentConfigProblems({ config, trustedRegion: false }, { cssBlocks: false }).length) throw new Error('Published consent policy is invalid.');

@@ -5,6 +5,10 @@ import { existsSync, realpathSync } from "node:fs";
 import { mkdtemp, mkdir, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
+import { configureSiteSharing } from "../site-deps/site-sharing.js";
+import type { ArtifactStoreCapable } from "#src/features/object-storage/artifact-provider";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "../deps.js";
 import { defaultContentDbPath } from "../site-paths.js";
@@ -173,4 +177,70 @@ test("two sites with different databases but the same workspace id and copied me
     assert.deepEqual((await backend.list({})).map(row => row.shareId), [shareIds[mine]], `site ${mine} lists only its own share`);
     await assert.rejects(backend.revoke({ shareId: shareIds[theirs] }), { code: "NOT_FOUND" });
   }
+});
+
+test("the provider can verify and revoke the exact old share object without accepting adjacent keys", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "share-key-wiring-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const envKey = "TOVU_TEST_SHARE_BLOB_TOKEN";
+  const previous = process.env[envKey];
+  process.env[envKey] = "vercel_blob_rw_store123_fixture";
+  t.after(() => { if (previous === undefined) delete process.env[envKey]; else process.env[envKey] = previous; });
+  const origin = "https://store123.public.blob.vercel-storage.com";
+  const key = `_share/${"A".repeat(16)}/site.tovu.zip`;
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(url, "https://vercel.com/api/blob/delete");
+    assert.equal(init.method, "POST");
+    assert.deepEqual(JSON.parse(String(init.body)), { urls: [`${origin}/${key}`] });
+    calls.push("delete");
+    return new Response(null, { status: 200 });
+  });
+  const module = await import(pathToFileURL(path.join(agentPluginSourceDir({ pluginId: "vercel" }), "object-stores/vercel-blob.mjs")).href);
+  const provider = module.default as ArtifactStoreCapable;
+  let store: ReturnType<ArtifactStoreCapable["createArtifactStore"]> | undefined;
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(directory, "content.db"), overrides: {
+    themesDir: path.join(directory, "themes"), uploadsDir: path.join(directory, "uploads"),
+    siteBinding: { dir: directory, name: "site", dirOverridden: true, switcherCompatible: false },
+    onStoreOpened: ({ store }) => { t.after(() => store.close()); },
+  } });
+  await deps.identityReady;
+  deps.loadDeployTargets = async () => ({ get: () => ({ descriptor: { env: { tokenVars: [envKey], fields: { blobToken: envKey } } } }) }) as unknown as Awaited<ReturnType<typeof deps.loadDeployTargets>>;
+  const required = {
+    dbPath: path.join(directory, "content.db"), resolvedSiteBinding: { dir: directory },
+    agentPluginLayout: { root: path.join(directory, "agent-plugins") }, skillLayout: { root: path.join(directory, "skills") },
+    resolvedThemesDir: path.join(directory, "themes"), resolvedUploadsDir: path.join(directory, "uploads"),
+    workspaceId: deps.workspaceId, identity: { ownerPrincipalId: "owner" }, settingsRepo: deps.settingsRepo,
+    routeDeps: deps,
+    mediaStorePorts: () => ({ loadSiteRegistry: async () => ({ registry: { list: () => [{ id: "vercel", provider: {
+      createArtifactStore: (input: Parameters<ArtifactStoreCapable["createArtifactStore"]>[0]) => {
+        store = provider.createArtifactStore(input);
+        return store;
+      },
+    } }] }, refusals: [] }) }),
+    guardedOutboundHttpClient: { send: async ({ request }: { request: { method: string; url: string; headers: object } }, options: { redirect: string }) => {
+      assert.equal(request.method, "HEAD");
+      assert.equal(request.url, `${origin}/${key}?download=1`);
+      assert.deepEqual(request.headers, {});
+      assert.equal(options.redirect, "error");
+      calls.push("verify");
+      return { status: 404, headers: {} };
+    } },
+  } as unknown as Parameters<typeof configureSiteSharing>[0];
+  configureSiteSharing(required);
+  const backend = deps.siteShareBackend!;
+  await backend.registry.put({ record: {
+    shareId: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5a", token: "A".repeat(16), site: deps.workspaceId,
+    file: "site.tovu.zip", bytes: 1, sha256: "0".repeat(64), url: `${origin}/${key}?download=1`, status: "active",
+    createdAt: "2026-11-25T00:00:00.000Z", revokedAt: null, storage: { provider: "vercel", binding: origin, key },
+  } });
+  await backend.revoke({ shareId: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5a" });
+  assert.deepEqual(calls, ["delete", "verify"]);
+  assert.ok(store);
+  for (const adjacent of [key.replace(".tovu.zip", ".alpha.zip"), key.replace("A".repeat(16), "A".repeat(15) + "0"),
+    key.replace("site.tovu.zip", "s".repeat(81) + ".tovu.zip"), key.replace("site.tovu.zip", "site-static-2026-11-25-1200.zip")]) {
+    await assert.rejects(store.delete({ key: adjacent }), { message: "Invalid share artifact key." });
+    await assert.rejects(store.verify({ key: adjacent, url: `${origin}/${adjacent}?download=1`, present: false, bytes: 1 }), { message: "Invalid share artifact key." });
+  }
+  assert.deepEqual(calls, ["delete", "verify"]);
 });

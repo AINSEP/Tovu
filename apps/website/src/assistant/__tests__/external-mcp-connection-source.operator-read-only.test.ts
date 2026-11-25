@@ -1,3 +1,4 @@
+import { TOVU_LEGACY_MCP_ALIASES } from "#src/features/agent-plugins/mcp-host-bindings";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
@@ -36,7 +37,7 @@ async function harness() {
 function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
   const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
     mcpServers: { remote: { type: "streamable-http", url } } } },
-    { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read } } } } } } });
+    { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES, pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   const remote = parsed.config.servers.remote;

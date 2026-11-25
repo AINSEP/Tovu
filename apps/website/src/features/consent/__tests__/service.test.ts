@@ -397,3 +397,11 @@ test('a public refresh failure does not undo a successful publication', async t 
   assert.equal((await f.store.readPublished({}))!.id, saved.revision.id);
   assert.match(String(warnings.mock.calls[0]?.arguments[0]), /published.*refresh/i);
 });
+
+test("a rejected banner mode uses Tovu’s copy without saving a draft", async t => {
+  const f = consentFixture({ t });
+  await assert.rejects(f.service.saveDraft({ principalId: 'owner', config: { ...f.config, bannerMode: 'invalid' }, expectedDraftId: null }), {
+    name: 'ToolInputError', message: 'Choose the Tovu banner, your own banner, or none.',
+  });
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});

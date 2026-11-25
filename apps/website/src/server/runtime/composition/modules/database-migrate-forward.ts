@@ -13,6 +13,7 @@ import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/compo
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
+import { actorForMutation } from "../mutation-actor.js";
 
 /**
  * @file ADR-041 §4 / ADR-043 — host side of `POST /api/admin/v1/database/migrate-forward/{plan,confirm,execute}`.
@@ -33,7 +34,7 @@ const MIGRATE_FORWARD_ERRORS = { restorePointUnavailable: RestorePointUnavailabl
 /** The migrate hooks every plan/execute call builds the same way. */
 function migrateHooksFor({ deps, actorId }: { deps: RouteDeps; actorId: string }, _optional: Record<string, never> = {}) {
   return buildMigrateForwardHooks({
-    workspaceId: deps.workspaceId, actorId, clock: deps.clock, idGen: deps.idGen,
+    workspaceId: deps.workspaceId, actor: actorForMutation({ principalId: actorId, origin: "admin" }), clock: deps.clock, idGen: deps.idGen,
     dbOps: deps.dbOps, restorePointsRepo: deps.restorePointsRepo, databaseLedgerRepo: deps.databaseLedgerRepo,
   });
 }

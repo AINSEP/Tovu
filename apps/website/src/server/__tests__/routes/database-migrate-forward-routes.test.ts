@@ -114,7 +114,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-test("database migrate-forward: plan -> confirm -> execute succeeds end-to-end and records a restore point + ledger row", async (t) => {
+test("admin migrate-forward records the authenticated user in the ledger detail", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -148,6 +148,12 @@ test("database migrate-forward: plan -> confirm -> execute succeeds end-to-end a
   assert.equal(ledger.items.length, 1);
   assert.equal(ledger.items[0].kind, "core.migration");
   assert.equal(ledger.items[0].outcome, "success");
+  const principal = await seededOwner(deps);
+  assert.equal(ledger.items[0].actorId, principal.id);
+  assert.deepEqual(JSON.parse(ledger.items[0].detailJson!), {
+    artifactRef: restorePoints[0].artifactRef,
+    actor: { id: principal.id, kind: "user" },
+  });
 });
 
 test("database migrate-forward: a forged hash is rejected at execute without effects and releases the operation lock", async (t) => {

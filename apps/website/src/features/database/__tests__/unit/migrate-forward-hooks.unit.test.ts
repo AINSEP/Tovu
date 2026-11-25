@@ -39,7 +39,7 @@ test("row 2: executeMutation() persists the restore point with the REAL artifact
   const ledgerRows: Array<Record<string, unknown>> = [];
   const hooks = buildMigrateForwardHooks({
     workspaceId: "ws-1",
-    actorId: "actor-1",
+    actor: { id: "actor-1", kind: "agent" },
     clock: CLOCK,
     idGen: fakeIdGen(["rp-1", "ledger-1"]),
     dbOps: fakeDbOps(),
@@ -68,7 +68,7 @@ test("row 2: executeMutation() persists the restore point with the REAL artifact
   });
   assert.deepEqual(ledgerRows, [{
     id: "ledger-1", kind: "core.migration", restorePointId: "rp-1", outcome: "success",
-    detailJson: JSON.stringify({ artifactRef: "/snap/rp-1.db" }), actorWorkspaceId: "ws-1",
+    detailJson: JSON.stringify({ artifactRef: "/snap/rp-1.db", actor: { id: "actor-1", kind: "agent" } }), actorWorkspaceId: "ws-1",
     actorId: "actor-1", createdAt: "2026-09-24T00:00:00.000Z",
   }]);
 });
@@ -93,7 +93,7 @@ test("row 2: getCapabilities() is read fresh inside executeMutation(), not reuse
 
   const hooks = buildMigrateForwardHooks({
     workspaceId: "ws-1",
-    actorId: "actor-1",
+    actor: { id: "actor-1", kind: "agent" },
     clock: CLOCK,
     idGen: fakeIdGen(["rp-2", "ledger-2"]),
     dbOps,
