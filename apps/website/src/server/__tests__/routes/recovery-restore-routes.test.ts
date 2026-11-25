@@ -11,7 +11,7 @@ import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminRecoveryRestoreRoutes } from "../../runtime/composition/modules/recovery-restore.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
+import { InMemoryMigrationRunsRepo } from "@jini-ai/db/site/repo.memory";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

@@ -21,7 +21,7 @@ import type { ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hos
 import { createExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";
 import { readEnabledExternalMcpConfigs } from "./external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
-import type { ExternalMcpToolDeps } from "./deps.js";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 
 export const EXTERNAL_MCP_HOST_COPY: ExternalMcpHostCopy = {
   settingsLocation: "Settings → External MCP",

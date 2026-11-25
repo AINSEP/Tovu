@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 
-import { describeTransferApproval, formatSnapshotTime } from "../confirmation-ui.js";
+import { describeTransferApproval, formatSnapshotTime } from "@jini-ai/db/transfer/confirmation-ui";
 import type { DatabaseTransferPlan } from "@jini-ai/db/tools";
 
 function plan(overrides: Partial<DatabaseTransferPlan> = {}): DatabaseTransferPlan {

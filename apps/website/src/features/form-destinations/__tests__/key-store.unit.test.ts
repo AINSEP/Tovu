@@ -7,10 +7,11 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "../key-store.js";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 /** @file The form receiver key lifecycle over the real credential store (in-memory repo, real sealer). */
 
@@ -64,7 +65,7 @@ test("a republish reuses the saved key and moves its address only when the publi
 test("a receiver key stays site-owned with a project store and republishing reuses the installed secret", async () => {
   const base = credentials(), projectVault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
   const project = { workspaceId: "project", sealer: base.sealer, keyring: base.keyring,
-    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: projectVault, attachments, siteId: W }) }) };
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: projectVault, attachments, siteId: W, policy: attachedVaultPolicy }) }) };
   const creds = { ...base, repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }) };
   const first = await formReceiverKey({ credentials: creds, workspaceId: W, scope: "host-a" }, { newSecret: () => KEY_A });
   await first.save({ url: "https://a.example" });

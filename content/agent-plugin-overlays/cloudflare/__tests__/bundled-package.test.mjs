@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadDeployTargetRegistryFromSource } from '../../../../apps/website/src/features/deployments/deploy-targets/registry.ts';
-import { createDeployHostKit } from '../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts';
+import { createDeployHostKit } from '../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 /** Package-level compatibility. Protocol/limits/domain lifecycle cases now live next to their

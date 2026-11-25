@@ -10,7 +10,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildExternalMcpRegistrations } from "#src/features/external-mcp/tool-registrations";
 import { readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
-import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";

@@ -1,7 +1,7 @@
 import { type MediaObjectStorePorts, type TovuObjectStoreProvider } from "#src/features/object-storage/media-store";
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import { createMediaBlobStore } from "#src/features/object-storage/media-store";
 import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readBundledObjectStoreEnvDeclarations } from "@jini-ai/platform/object-store/site/registry";
 import { contributeProviders, defineProviderContribution } from "@jini-ai/agent-plugins/lifecycle";

@@ -472,7 +472,7 @@
     "TOVU_PUBLIC_URL::apps/website/src/features/origin/configured-origin.ts": {
       "count": 2
     },
-    "TOVU_PUBLIC_URL::apps/website/src/features/publish-trust/connect.ts": {
+    "TOVU_PUBLIC_URL::apps/website/src/features/publish-trust/candidate-policy.ts": {
       "count": 1
     },
     "TOVU_PUBLIC_URL::apps/website/src/platform/express/public-origin.ts": {

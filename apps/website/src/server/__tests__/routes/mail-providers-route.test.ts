@@ -8,13 +8,14 @@ import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-se
 import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 /**
  * @file `…/system/mail-providers` (email phase 2): the safe provider DTO, the credential plan, the
@@ -128,10 +129,10 @@ test("mail card saves attach the project key immediately and re-saving rotates t
   const base = createRouteDeps(), vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
   const siteId = base.workspaceId;
   // Production keeps reads behind site grants and gives owner secret forms separate write ports.
-  const view = attachedOnlyVault({ vault, attachments, siteId });
+  const view = attachedOnlyVault({ vault, attachments, siteId, policy: attachedVaultPolicy });
   const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: view }),
-    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }) }),
-    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }) }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy }) }),
+    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy }, { allowReplacement: true }) }),
     sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
@@ -160,6 +161,27 @@ test("mail card saves attach the project key immediately and re-saving rotates t
   assert.equal(refused.status, 400, "a non-owner session cannot replace the shared owner key");
   assert.match((await refused.json() as { error: string }).error, /VALIDATION/);
   assert.equal((await read())?.connection.token, "second-mail-token");
+});
+
+test("mail provider primary save never receives a replacement writer", async t => {
+  const base = createRouteDeps(), vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
+  const siteId = base.workspaceId;
+  const owners = { create: [] as (number | null)[], replace: [] as (number | null)[] };
+  const recorded = (log: (number | null)[]) => Object.create(vault, { put: { value: (input: Parameters<typeof vault.put>[0], options?: Parameters<typeof vault.put>[1]) => {
+    log.push(input.expectedRevision); return vault.put(input, options);
+  } } }) as typeof vault;
+  const view = attachedOnlyVault({ vault, attachments, siteId, policy: attachedVaultPolicy });
+  const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: view }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: recorded(owners.create), view, ...createVaultPolicy }) }),
+    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: recorded(owners.replace), view, ...createVaultPolicy }, { allowReplacement: true }) }),
+    sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
+  const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
+  const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
+    providerUsage: async () => { throw new Error("mail keys are custom credentials"); }, reapply: async () => "now" });
+  const r = await rig(t, { deps: { ...base, customCredentialSetRepo: repo, projectKeys }, grants: ["custom-credentials.write"] });
+  const first = await r.send("PUT", "mail-providers/fakemail/credential", { token: "first-mail-token", username: "sender" });
+  assert.equal(first.status, 200);
+  assert.deepEqual(owners, { create: [null], replace: [] }, "the primary save is create-only and never touches the replacement writer");
 });
 
 test("a non-object body reads as empty; an unexpected fault is a 500 without detail", async (t) => {

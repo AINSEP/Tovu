@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { sql } from 'kysely';
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { createSiteConsentStore } from '../revisions.repo.js';
+import { createSiteConsentStore } from '@jini-ai/cookie-consent/site/revisions.repo';
 import { SiteConsentConflict } from '@jini-ai/cookie-consent/site/revisions';
 import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
 import { consentFixture } from './fixture.js';
@@ -43,11 +43,11 @@ test('draft saves preserve published enforcement; stale editors and stale public
   await assert.rejects(f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: first.revision.id }), SiteConsentConflict);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: first.revision.id, expectedPublishedId: null }), SiteConsentConflict);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: next.revision.id, expectedPublishedId: null }), SiteConsentConflict);
-  const reopened = createSiteConsentStore({ kernel: contentKernel({ store: f.db }), workspaceId: 'ws' });
+  const reopened = createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel: contentKernel({ store: f.db }), workspaceId: 'ws' });
   assert.equal((await reopened.read({})).published?.id, first.revision.id);
   const rows = await contentKernel({ store: f.db }).query<{ n: number }>(sql`SELECT count(*) AS n FROM site_consent_revisions`);
   assert.equal(rows[0]?.n, 2);
-  assert.deepEqual(await createSiteConsentStore({ kernel: contentKernel({ store: f.db }), workspaceId: 'other' }).read({}), { draft: null, published: null });
+  assert.deepEqual(await createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel: contentKernel({ store: f.db }), workspaceId: 'other' }).read({}), { draft: null, published: null });
 });
 
 test('readiness validates declarations and reports unmanaged warnings without changing receipts or settings', async t => {
@@ -310,7 +310,7 @@ test('the store refuses a head that points at a missing or oversized revision, a
   await assert.rejects(f.store.read({}), { message: 'Stored consent revision is unavailable.' });
   await kernel.execute(sql`INSERT INTO site_consent_revisions (workspace_id, id, config_json, actor_id, created_at) VALUES (${'ws'}, ${'ghost'}, ${JSON.stringify({ title: 'x'.repeat(32_768) })}, ${'owner'}, ${'2026-10-20T12:00:00.000Z'})`);
   await assert.rejects(f.store.read({}), { message: 'Stored consent revision is unavailable.' });
-  const other = createSiteConsentStore({ kernel, workspaceId: 'other' });
+  const other = createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel, workspaceId: 'other' });
   await assert.rejects(other.saveDraft({ revision: { id: 'big', config: { ...f.config, message: 'x'.repeat(32_768) }, actorId: 'owner', createdAt: '2026-10-20T12:00:00.000Z' }, expectedDraftId: null }), { message: 'Consent configuration exceeds 32 KiB.' });
   assert.deepEqual(await other.read({}), { draft: null, published: null });
 });

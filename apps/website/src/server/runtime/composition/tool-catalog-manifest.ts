@@ -1,3 +1,11 @@
+import { createSystemClock } from "@jini-ai/platform/system";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { WEB_FETCH_PER_HOST } from "#src/features/web/policy";
+import { WEB_READ_PERMISSION, webAgentToolCatalog } from "#src/features/web/agent-tools";
+import { fetchWebPage } from "#src/features/web/web-page";
+import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { webScreenshotAgentToolCatalog, WEB_SCREENSHOT_PERMISSION } from "#src/features/web-screenshot/catalog-host";
+import { createWebScreenshotService, readWebScreenshotInput } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { bundledAgentPluginsDir } from "./site-paths.js";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { composeAgentPluginConnectServices } from "./agent-plugin-service-ports.js";
@@ -8,7 +16,8 @@ import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { deployConfigGenerators } from "#src/features/deployments/index";
-import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, PUBLISH_TRUST_CONFIG_PATH, type PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
@@ -82,10 +91,10 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
 import { createSiteWebFetchEgressPolicy } from "#src/platform/http/egress-policies";
 import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
-import { contributeWebTools } from "#src/features/web/tool-registrations";
+import { contributeWebTools } from "@jini-ai/platform/web/tool-registrations";
 import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
-import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
+import { contributeWebScreenshotTools } from "@jini-ai/diagnostics/web-evidence/web-screenshot/tool-registrations";
 import { importPlaywrightChromium, playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
@@ -147,7 +156,8 @@ import { contributeImageTransformTools } from "#src/features/image-transform/too
 import { createMediaConversionPorts, createMediaVideoToolPorts } from "./media-video-ports.js";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
-import { saveMediaCredential, contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
+import { mediaProviderHost } from "#src/features/media-generation/provider-card-host";
+import { saveMediaCredential, contributeMediaProviderTools } from "@jini-ai/cms/media/site-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
 import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
@@ -409,7 +419,7 @@ export function installFirstPartyToolContributors(
     createHttpClient?: typeof createDefaultHttpClient;
     /** Server-owned reader; omitted until composition binds the surface, diagnostics fail closed. */
     readAdmissions?: ExternalMcpOperations["admissions"];
-    readExternalMcpToolNames?: import("#src/features/external-mcp/deps").ExternalMcpToolDeps["externalMcpKnownToolNames"];
+    readExternalMcpToolNames?: import("@jini-ai/core/contracts/site/external-mcp-tool-ports").ExternalMcpToolDeps["externalMcpKnownToolNames"];
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
@@ -441,7 +451,7 @@ export function installFirstPartyToolContributors(
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative), publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY }, { candidatePaths });
   // The assembled committed-config port, resolved against the same root as `findPublishCandidate`
   // and the HTTP route's own provisioning (`modules/publish-content.ts`), so an assistant-tool
   // connect and a dialog connect never disagree about which file they wrote.
@@ -553,7 +563,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
-  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("@jini-ai/core/contracts/site/external-mcp-tool-ports").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
@@ -564,7 +574,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
-  contributions.contributors.register({ contribution: contributeMediaProviderTools() });
+  contributions.contributors.register({ contribution: contributeMediaProviderTools({ host: mediaProviderHost }) });
   contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
@@ -670,7 +680,13 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
       }),
     };
   };
-  contributions.contributors.register({ contribution: contributeWebTools(webPortsForPolicy({ policy: WEB_FETCH_EGRESS_POLICY }), {
+  const clock = createSystemClock();
+  contributions.contributors.register({ contribution: contributeWebTools<WebFetchPorts>({ ports: {
+    ...webPortsForPolicy({ policy: WEB_FETCH_EGRESS_POLICY }),
+    nowMs: () => clock.nowMs(),
+    rateLimiter: createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }),
+    observeFetch: event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event })),
+  }, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody, catalogModule: "features/web/agent-tools.ts" } }, {
     portsForSite: ({ deps }) => {
       // Resolve after site selection: one contributor serves multiple sites and must never
       // accumulate their origins into a process-wide localhost/port allowlist.
@@ -681,7 +697,7 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
   // loopback server `fetch_published_page` uses) for visual parity. Every request the headless page
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
-    { ports: {
+    { service: createWebScreenshotService({ ports: {
       capture: createPageCaptureForHost({
         playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }), limits: CAPTURE_LIMITS, importPlaywrightChromium,
           createCaptureError: fields => new PageCaptureError(fields), isCaptureTimeout: ({ error }) => error instanceof PageCaptureError && error.kind === "timeout" }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
@@ -691,7 +707,7 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
-    } },
+    } }), catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput },
     {
       // `themeId` renders an unactivated theme copy through a `createSiteApp({ themeId })` app.
       openOwnSiteFor: (routeDeps) => createOwnSiteOpener({ themes: routeDeps.themes, openLoopback: (_required, optional) => openLoopbackSiteServer({ deps: routeDeps }, optional) }),
@@ -715,7 +731,7 @@ function installCredentialSaveTools(contributions: AssistantToolContributions) {
         const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
         return {
           apiCreate: api.create, apiRotate: api.rotate,
-          mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
+          mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces, host: mediaProviderHost }, optional),
           sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
           publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
           agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: tokenDeps, surfaces }, optional),

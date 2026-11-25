@@ -4,7 +4,8 @@ import test from "node:test";
 import { backstopGrantAllows, DEFAULT_PUBLISHING_CAPABILITIES, parsePublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { connectDestination, disconnectDestination, type ConnectDeps } from "@jini-ai/cms/publish/trust/connect";
 import { nowIso } from "@jini-ai/core/primitives";
-import { findCandidateDestination } from "../connect.js";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "../candidate-policy.js";
 import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, type ProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning";
 
@@ -73,7 +74,7 @@ test("candidate discovery skips an existing config without a public URL", async 
   const { io, files } = connectionFixture();
   files.set("/fixture/example-one.toml", 'app = "demo"');
   files.set("/fixture/example-two.yaml", "TOVU_PUBLIC_URL: https://destination.example\n");
-  assert.equal(await findCandidateDestination({ io, resolvePath: ({ relative: file }) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
+  assert.equal(await findCandidateDestination({ io, resolvePath: ({ relative: file }) => `/fixture/${file}`, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
 });
 
 test("reconnecting an unchanged grant says that nothing needs deploying", async () => {

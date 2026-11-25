@@ -4,7 +4,7 @@ import type { SurfaceEmission } from '@jini-ai/core';
 import type { SurfaceExchangeConversation } from '@jini-ai/daemon/surface-exchanges';
 import { createDestinationExchangeReporter } from '../destination-exchange.js';
 import { buildDestinationForm, buildDestinationOutcome } from '../destination-ui.js';
-import type { SavedDatabaseDestination } from '../destination-store.js';
+import type { SavedDatabaseDestination } from "@jini-ai/db/transfer/destination-store";
 
 async function report({ result, payload = { resource: buildDestinationForm({ exchangeId: 'pin' }) }, get = async () => null,
   locale = 'en', localeError, handlerError, outcome }: {

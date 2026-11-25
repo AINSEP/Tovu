@@ -6,8 +6,8 @@ import test from "node:test";
 import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { DatabaseIntrospectionPort, SchemaStateSummary } from "#src/features/database/adapter.sqlite";
-import { InMemoryDatabaseIntrospectionAdapter } from "#src/features/database/repo.memory";
+import type { DatabaseIntrospectionPort, SchemaStateSummary } from "@jini-ai/core/contracts/site/database-introspection";
+import { InMemoryDatabaseIntrospectionAdapter } from "@jini-ai/db/site/repo.memory";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseSchemaStateRoute } from "../../runtime/composition/modules/database-recovery.js";
@@ -135,7 +135,7 @@ test("database schema-state route: passes through 'ahead' and 'behind' rather th
   }
 });
 
-test("database schema-state route: reports 'unknown' with the null snapshot intact — never upgrades a partial pair into 'in-sync'", async (t) => {
+test("unavailable lineage reports unknown", async (t) => {
   const { app } = buildTestApp(stubIntrospection({ status: "unknown", siteMeta: null, runtime: { version: 3, tag: "0003_x" } }));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

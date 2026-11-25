@@ -1,5 +1,5 @@
-import type { CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
-import { createCustomCredentialConnectionPort } from "#src/features/form-destinations/connection-port";
+import { resolveCustomCredentialByLabel, type CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
+import { createCustomCredentialConnectionPort } from "@jini-ai/cms/forms/destinations/connection-port";
 import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { FormDeliveryError, type FormDestinationKit, type FormDestinationRegistry } from "@jini-ai/cms/forms";
@@ -54,7 +54,7 @@ export function composeFormDeliveryDeliverer(
     adapterPluginId: async ({ workspaceId, adapterId }) => (await loadRegistry({ workspaceId })).get(adapterId)?.pluginId ?? null,
     deliveryError: (init) => new FormDeliveryError(init),
   });
-  const custom = createCustomCredentialConnectionPort({ credentials: required.credentials });
+  const custom = createCustomCredentialConnectionPort({ findById: input => required.credentials.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(required.credentials, input) });
   // OAuth first: it answers null for every ref the adapter's plugin does not declare, so a saved
   // custom credential's id still reaches its own port (which re-checks `worksFor`).
   const connections: FormDeliveryConnectionPort = async (input, optional) => (await oauth(input, optional)) ?? custom(input, optional);

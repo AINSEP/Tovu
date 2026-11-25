@@ -9,7 +9,7 @@ import { getMediaProviderCredentials, saveMediaProviderCredentials } from "../..
 import { mediaVaultScope } from "../../media/provider-credential-vault.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { saveMediaProviderKey } from "../provider-credential-save.js";
+import { saveMediaProviderKey } from "@jini-ai/cms/media/site-generation/provider-credential-save";
 
 /**
  * @file `saveMediaProviderKey`: the agent tool's single-provider key save over the admin PUT's
@@ -29,7 +29,7 @@ function makeDeps() {
 
 test("a first key for a provider is saved and reported configured, with no model or baseUrl", async () => {
   const { repo, deps } = makeDeps();
-  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-first-abcd1234" }), { configured: true, tokenHint: { length: 17, last4: "1234" } });
+  assert.deepEqual(await saveMediaProviderKey({ saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials(deps, { workspaceId, providers }), deps, workspaceId: WS, provider: "openai", apiKey: "sk-first-abcd1234" }), { configured: true, tokenHint: { length: 17, last4: "1234" } });
   const [row] = await repo.listByWorkspaceId({ workspaceId: WS });
   assert.equal(row!.providerId, "openai");
   assert.equal(row!.baseUrl, null);
@@ -43,7 +43,7 @@ test("saving one provider's key keeps its model/baseUrl and leaves every other p
     fal: { apiKey: "fal-key-wxyz9876" },
   } });
   const before = await getMediaProviderCredentials(deps, { workspaceId: WS });
-  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-new-efgh5678" }), { configured: true, tokenHint: { length: 15, last4: "5678" } });
+  assert.deepEqual(await saveMediaProviderKey({ saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials(deps, { workspaceId, providers }), deps, workspaceId: WS, provider: "openai", apiKey: "sk-new-efgh5678" }), { configured: true, tokenHint: { length: 15, last4: "5678" } });
   const after = await getMediaProviderCredentials(deps, { workspaceId: WS });
   assert.equal(after.openai!.baseUrl, "https://proxy.example.test/v1");
   assert.equal(after.openai!.model, "gpt-image-1");
@@ -53,7 +53,7 @@ test("saving one provider's key keeps its model/baseUrl and leaves every other p
 
 test("store validation errors propagate and nothing is written", async () => {
   const { repo, deps } = makeDeps();
-  await assert.rejects(saveMediaProviderKey({ deps, workspaceId: WS, provider: "not-a-provider", apiKey: "sk-abcd1234" }));
+  await assert.rejects(saveMediaProviderKey({ saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials(deps, { workspaceId, providers }), deps, workspaceId: WS, provider: "not-a-provider", apiKey: "sk-abcd1234" }));
   assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WS }), []);
 });
 
@@ -68,7 +68,7 @@ test("a blank key preserves a migrated provider whose token length is unknown an
   // Boot migration can retain an envelope without an authoritative token-length hint.
   await repo.vault.put({ record: { ...before, tokenLength: null, last4: null, revision: before.revision + 1 }, expectedRevision: before.revision });
 
-  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "" }, {}), { configured: true, tokenHint: null });
+  assert.deepEqual(await saveMediaProviderKey({ saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials(deps, { workspaceId, providers }), deps, workspaceId: WS, provider: "openai", apiKey: "" }, {}), { configured: true, tokenHint: null });
   assert.deepEqual((await getMediaProviderCredentials(deps, { workspaceId: WS })).openai, {
     apiKeyConfigured: true, baseUrl: "https://proxy.example.test/v1", model: "gpt-image-1",
   });

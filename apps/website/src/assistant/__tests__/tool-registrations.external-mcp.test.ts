@@ -22,7 +22,7 @@ import { type AgentToolDefinition as ExternalMcpAgentToolDefinition } from "@jin
 import { EXTERNAL_MCP_MANAGE_PERMISSION } from "@jini-ai/mcp/external/agent-tools";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/external-mcp-host-copy.js";
 import { buildExternalMcpRegistrations } from "../../features/external-mcp/tool-registrations.js";
-import type { ExternalMcpToolDeps } from "../../features/external-mcp/deps.js";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";

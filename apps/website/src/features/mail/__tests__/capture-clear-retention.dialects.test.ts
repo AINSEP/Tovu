@@ -7,7 +7,8 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
 import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/core/contracts/mail";
-import { planMailCaptureClear } from "../capture-clear";
+import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
+import { MailActivityForbiddenError } from "@jini-ai/platform/mail";
 
 /**
  * Owner decision 2026-11-23 (bt2-todos G7-6/847, G7-7/848): sent-email records are kept 30 days,
@@ -141,6 +142,31 @@ describeEachDialect("mail retention windows and clear-all captured test emails",
     assert.deepEqual(await keys(db, "mail_capture"), ["w:late"], "only the reviewed captures are deleted");
   });
 
+  test("a capture arriving after preview survives the confirmed clear", async () => {
+    const db = make(); await workspaces(db);
+    await seed(db, { workspaceId: "w", at: NOW - DAY, key: "one" });
+    let seen = 0; let arriveAt = Infinity; let arrived = false;
+    const counting = new Proxy(db, { get: (target, key) => {
+      const value = Reflect.get(target, key) as unknown;
+      if (key !== "query") return typeof value === "function" ? (value as () => unknown).bind(target) : value;
+      return async (q: Parameters<Db["query"]>[0]) => {
+        seen++;
+        if (seen === arriveAt && !arrived) { arrived = true; await seed(db, { workspaceId: "w", at: NOW - DAY, key: "late" }); }
+        return target.query(q);
+      };
+    } });
+    const { revision } = (await clearCall(counting, {})).jsonBody as { revision: string };
+    // The confirm reviews the set exactly as the preview did; the capture lands right after that review and before anything is deleted.
+    seen = 0; arriveAt = Number.MAX_SAFE_INTEGER;
+    const reviewQueries = await (async () => { const before = seen; await clearCall(counting, {}); return seen - before; })();
+    seen = 0; arriveAt = reviewQueries + 1;
+    const done = await clearCall(counting, { confirmed: true, revision });
+    assert.ok(arrived, "the arrival ran after the reviewed set was fixed and before the delete");
+    assert.deepEqual([done.statusCode, done.jsonBody], [200, { cleared: true, deleted: 1 }]);
+    assert.deepEqual(await keys(db, "mail_capture"), ["w:late"], "the capture that arrived after the preview is not deleted");
+    assert.deepEqual(await keys(db, "mail_activity_attempts"), ["w:late", "w:one"], "its attempt row is not retired either");
+  });
+
   test("clear all: a same-count, same-newest replacement set is a changed set and is not deleted", async () => {
     const db = make(); await workspaces(db);
     await seed(db, { workspaceId: "w", at: NOW - DAY, key: "one" }); await seed(db, { workspaceId: "w", at: NOW, key: "two" });
@@ -158,7 +184,8 @@ describeEachDialect("mail retention windows and clear-all captured test emails",
     assert.equal(refused.statusCode, 403);
     assert.deepEqual(asked, [MAIL_CAPTURE_CLEAR_PERMISSION]);
     assert.deepEqual(await keys(db, "mail_capture"), ["w:one"]);
-    await assert.rejects(planMailCaptureClear({ principalId: "editor", workspaceId: "w" }, { capture: createMailCaptureRepo({ db }),
-      checkPermission: async () => ({ allowed: false, reason: "no_grant" }) }), { name: "MailActivityForbiddenError" });
+    await assert.rejects(planMailCaptureClear({ principalId: "editor", workspaceId: "w", deps: { capture: createMailCaptureRepo({ db }),
+      checkPermission: async () => ({ allowed: false, reason: "no_grant" }),
+      forbidden: ({ permission }) => new MailActivityForbiddenError({ permission, message: "Only the site owner can clear captured test emails." }) } }), { name: "MailActivityForbiddenError" });
   });
 });

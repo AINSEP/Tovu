@@ -5,13 +5,14 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminCustomCredentialsRoutes, type AdminCustomCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 /** Real vault adapters and an injected reference store exercise metadata visibility separately
  * from runtime credential access. Fake secrets are constructed at runtime and never logged.
@@ -24,7 +25,7 @@ function inventoryFixture(_required = {}, _optional = {}) {
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   const project = { workspaceId: "project", keyring, sealer,
-    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id" }) }),
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id", policy: attachedVaultPolicy }) }),
     inventoryRepo: new CustomCredentialVaultRepo({ vault: guarded }), createRepo: new CustomCredentialVaultRepo({ vault: guarded }) };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const keys = createProjectKeys({ vault, attachments, siteId: "shop-id", siteName: "Shop", transaction, providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => "now" });

@@ -610,11 +610,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/member-login/credentials.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/member-login/oidc-login.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -675,11 +670,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/project-keys/attached-vault.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/publish-content/apply-retire.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -731,16 +721,6 @@
   },
   {
     "file": "apps/website/src/features/site-backup/static-export-selection.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-export/export-html-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-export/media-original-urls.ts",
     "rule": "catch-reads-error",
     "value": 1
   },

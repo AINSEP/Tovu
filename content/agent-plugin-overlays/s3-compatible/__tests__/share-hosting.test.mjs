@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
+import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts";
 import { SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

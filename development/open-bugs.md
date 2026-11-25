@@ -3,6 +3,35 @@
 Known behaviours that are kept on purpose for now. Each one has a name; reports refer to it by that name.
 Fixing one is its own piece of work: write the failing test first, then change the code.
 
+## Found in the w3-ext-w1w2 review run (2026-11-25, `integ/w3-ext-w1w2-2026-11-25`)
+
+Fixed on this branch (Sol round-1 builds were untested; each was red before the fix):
+
+- `W3X-identity-repo-missing-barrel` (Jini J08): `user-management/src/identity/{repo,repo.authentication,repo.authorization,permission-list-tool}.ts` imported a non-existent `../index.js`; Jini did not build. Now `../core/index.js`.
+- `W3X-identity-repo-explicit-undefined` (Jini J08): `toSessionRecord`/`toApiKeyRecord` wrote `revokedAt: undefined` etc., refused under `exactOptionalPropertyTypes`. Absent columns are now omitted. **When ext-w1 T07 cuts Tovu over**, any `deepStrictEqual` fixture expecting the key with `undefined` must expect it absent.
+- `W3X-boolean-authorize-fixtures` (Jini J11/J14/J17/J18/J08 tests): five fixtures returned `true`/`false` from `authorize` (retired shape); the build failed, and `permission-list-tool` "denial occurs before any lookup" passed only because the boolean was misread. Now `{ allowed, reason }`.
+- `W3X-host-kit-optional-members` (Jini J15 test): invoked optional `fetch`/`probeContent` without narrowing.
+- `W3X-lockfile-optional-peers` (Jini J06/J07/J09): `kysely`/`typescript` optional peers added without a lockfile update; `pnpm install --frozen-lockfile` failed.
+- `W3X-guard-33` (Jini, Sol builds): 33 `pnpm guard` violations: partial `db` `jini.entries` (R8, 24 rows), host app paths in moved comments (N2: db `repo.memory`, mcp `external-mcp-repo`), `./html/site/export-html-policy` declared universal while reaching `parse5` (now `node`), mcp `external/*` reaching `federation/hosted` (SI-domain; the SQL repo now lives in `mcp/src/federation/hosted/`, subpath **`@jini-ai/mcp/federation/hosted/external-mcp-repo`** — ext-w1 T06 must import that), risk tables not `ReadonlyMap` (HW3).
+- `W3X-mcp-sql-fixture-case` (Jini J07 test): the DummyDriver fixture answered only lowercase `select`, so "access update writes no credential columns" and "hydration never crosses workspaces" failed on an empty read. Mutation `join-without-workspace` now turns 1 pin red.
+- `W3X-media-host-port-optional` (Jini J14 / Tovu T13): the CMS media host port required `apiKeyConfigured: boolean`; the Tovu store answers `apiKeyConfigured?: boolean`; Tovu `tsc` had 4 errors (`provider-card-host.ts`, `tool-catalog-manifest.ts:577,734`).
+- `W3X-media-reason-witness-class` (Tovu T13 test): Sol's new "invalid secret-looking reason fails before a card opens" expected `ToolInputError`; the field rule throws `CredentialInputError` (unchanged from merge-23).
+- `W3X-export-media-kind` (Jini ext-w2 J06): `media-original-urls` required `kind: string`, rejecting `MediaRecord` (optional kind).
+- Tovu `typecheck:tests` new reds: `delivery.security.test.ts` implicit any (Sol T10), new newsletter cutover test `#src/...deps.js` specifier.
+
+Pre-existing (red on `integ/merge-23-2026-11-25` too; not fixed here):
+
+- `W3X-oidc-bundled-namespace` (**HIGH, owner decision**): `features/member-login/providers.ts` `loadBundledLoginProviders` admits a bundled login provider only when its manifest id is `tovu/<pluginId>`, but Jini's `agent-plugins/google-login/plugin.json` now says `jini/google-login`. No bundled OIDC provider loads, so member login offers none. Red pins: `providers.test.ts` "bundled preset admits the active, unchanged installed contribution" and four `ready-providers.test.ts` tests. Left alone: the namespace check is the trust boundary; the owner picks the trusted namespace.
+- `W3X-site-sharing-h3`: `site-deps/__tests__/site-sharing.characterization.unit.test.ts` "H3: the calls keep their place…" fails (`configureSiteSharing call missing`; the call moved to `assembly-phases.ts`).
+- `W3X-hosted-forms-static-determinism`: `site-export/__tests__/hosted-forms-static.unit.test.ts` "two static form exports agree when time and occurrence identifiers are controlled".
+- `W3X-db-transfer-postgres-suite`: `database-transfer/__tests__/tool-registrations.postgres.test.ts` (6 tests) red at base.
+- `W3X-s3-overlay-suites`: `content/agent-plugin-overlays/s3-compatible/__tests__/{media-store.integration,share-hosting}.test.mjs` red at base.
+- `W3X-blob-share-stale-import` (fixed in passing, T05): `vercel/__tests__/blob-share.test.mjs` imported `SHARE_DOWNLOAD_HEADERS` from Tovu `share-service.ts`, which no longer exports it; now from `@jini-ai/devops/backup/site/share-service`.
+- `W3X-fly-candidates-stale-shape` (fixed in passing, T04): `fly/__tests__/publish-candidates.test.mjs` passed positional `resolvePath`/`read` callbacks to an object ABI, so it could never match; it now needs the tsx loader (the `npm test` glob has it).
+- `W3X-mail-kernel-test-types`: `features/mail/__tests__/capture-clear-retention.dialects.test.ts` passes `ContentKernel` where `MailSqlKernel` is expected (dozens of `typecheck:tests` errors at base; the new T03 witness repeats the pattern, +8).
+- `W3X-check-architecture-crash`: `npx tsx development/scripts/check-architecture.ts` crashes in `cruise` in the cloud container; the T02/T06 baseline edits were made by hand and are unverified by the gate.
+- Known: `B199` (`external-mcp/__tests__/probe-card-binding.unit.test.ts`, `todo`), merge-23 duplicate export keys (core cms-trash, plugins runtime/lower-tool-access, ui resource-monitor) — those files were not touched.
+
 ## Preserved (pinned by tests, not fixed)
 
 Logged in extract session 1, batch V1, when `cloud/more-jini-1` was merged. The revert code now lives in

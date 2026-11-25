@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { DeployError, safeDnsLabel } from "@jini-ai/devops/deploy";
 
-import { DEPLOY_FETCH_TIMEOUTS, createDeployHostKit } from "../host-kit.js";
+import { DEPLOY_FETCH_TIMEOUTS } from "@jini-ai/devops/deploy/site/deploy-targets/host-kit";
+import { createDeployHostKit } from "../host-kit-binding.js";
 import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 test("probe operations close owned dispatchers while sharing one during a candidate sweep", async () => {

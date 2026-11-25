@@ -15,7 +15,7 @@ import type { composeOutboundConnections } from "./outbound-connections.js";
 import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
 import { INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
-import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
+import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store-host";
 import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
 import { SqlMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo";
@@ -26,7 +26,7 @@ import { composeVisitorToolsManagement } from "../visitor-tools-management.js";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createExternalMcpOAuthService } from "../../../../features/external-mcp/external-mcp-oauth.js";
 import { hostedMcpSignInLink } from "../../../../features/api-connections/browser-binding.js";
-import { createSiteConsentStore } from "#src/features/consent/revisions.repo";
+import { createSiteConsentStore } from "@jini-ai/cookie-consent/site/revisions.repo";
 import { getEffective } from "#src/features/settings/index";
 import { isAdminAssistantEnabled } from "../admin-assistant-enabled.js";
 import { captureSqliteBackupBytes } from "@jini-ai/db/transfer";
@@ -190,7 +190,7 @@ export function routeDepsExecutionPlugins(required: RouteDepsExecutionPluginsReq
     analyticsSettingsReady,
     siteTitleReady,
     siteConsentReady,
-    consentStore: createSiteConsentStore({ kernel, workspaceId }),
+    consentStore: createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel, workspaceId }),
     publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
     pluginExportHosts: () => pluginExports.declaredHosts({ workspaceId }),
   };

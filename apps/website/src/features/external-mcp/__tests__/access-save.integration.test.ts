@@ -10,7 +10,7 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '@jini-ai/
 import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
 import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
 import type { ExternalMcpServerView } from '../contracts.js';
-import type { ExternalMcpToolDeps } from '../deps.js';
+import type { ExternalMcpToolDeps } from '@jini-ai/core/contracts/site/external-mcp-tool-ports';
 
 const now = '2026-11-06T04:00:00.000Z';
 const key = { workspaceId: 'access-save-site', serverId: 'source' };

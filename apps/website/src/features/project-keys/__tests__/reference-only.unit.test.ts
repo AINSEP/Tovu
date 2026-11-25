@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
-import { attachedOnlyVault } from '../attached-vault.js';
+import { attachedOnlyVault } from '@jini-ai/user-management/project-keys/attached-vault';
 import { createProjectKeys } from '../service.js';
 import { buildProjectKeyRegistrations } from '../tools.js';
 import { fakeAttachments, vaultRow } from './helpers.js';
+import { ProjectKeyCreateConflictError } from '../../../contracts/core/credential-store.js';
+import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 async function fixture() {
   const vault = new InMemoryVaultRepo({});
@@ -19,8 +21,8 @@ async function fixture() {
 
 test('consumer cannot enumerate, guess, or mutate an ungranted owner entry', async () => {
   const { vault, attachments } = await fixture();
-  const a = attachedOnlyVault({ vault, attachments, siteId: 'site-a' });
-  const b = attachedOnlyVault({ vault, attachments, siteId: 'site-b' });
+  const a = attachedOnlyVault({ vault, attachments, siteId: 'site-a', policy: attachedVaultPolicy });
+  const b = attachedOnlyVault({ vault, attachments, siteId: 'site-b', policy: attachedVaultPolicy });
   await attachments.attach({ siteId: 'site-a', keyId: 'key-a', siteName: 'A' });
   assert.equal((await a.find({ workspaceId: 'project', id: 'key-a' }))?.id, 'key-a');
   assert.equal(await b.find({ workspaceId: 'project', id: 'key-a' }), null);
@@ -73,16 +75,16 @@ test('lookup does not read the owner vault for a guessed ungranted identity', as
   let reads = 0;
   const find = vault.find.bind(vault);
   vault.find = async input => { reads++; return find(input); };
-  const consumer = attachedOnlyVault({ vault, attachments, siteId: 'site-b' });
+  const consumer = attachedOnlyVault({ vault, attachments, siteId: 'site-b', policy: attachedVaultPolicy });
   assert.equal(await consumer.find({ workspaceId: 'project', id: 'key-a' }), null);
   assert.equal(reads, 0);
 });
 
 test('human-create port cannot replace, delete, or enumerate existing owner entries', async () => {
   const { vault, attachments } = await fixture();
-  const { projectKeyCreateVault } = await import('../create-vault.js');
-  const view = attachedOnlyVault({ vault, attachments, siteId: 'site-a' });
-  const create = projectKeyCreateVault({ owner: vault, view });
+  const { projectKeyCreateVault } = await import('@jini-ai/user-management/project-keys/create-vault');
+  const view = attachedOnlyVault({ vault, attachments, siteId: 'site-a', policy: attachedVaultPolicy });
+  const create = projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy });
   assert.equal(await create.find({ workspaceId: 'project', id: 'key-a' }), null);
   await assert.rejects(create.put({ record: { ...vaultRow(), revision: 2 }, expectedRevision: 1 }));
   await assert.rejects(create.delete({ workspaceId: 'project', id: 'key-a', expectedRevision: 1 }));
@@ -93,13 +95,13 @@ test('human-create port cannot replace, delete, or enumerate existing owner entr
 
 test('trusted replacement rechecks the grant inside the owner transaction', async () => {
   const { vault, attachments } = await fixture();
-  const { projectKeyCreateVault } = await import('../create-vault.js');
+  const { projectKeyCreateVault } = await import('@jini-ai/user-management/project-keys/create-vault');
   await attachments.attach({ siteId: 'site-a', siteName: 'A', keyId: 'key-a' });
   let transaction = false;
-  const view = attachedOnlyVault({ vault, attachments, siteId: 'site-a' });
+  const view = attachedOnlyVault({ vault, attachments, siteId: 'site-a', policy: attachedVaultPolicy });
   const find = view.find;
   view.find = async input => { assert.equal(transaction, true); return find(input); };
-  const replace = projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true,
+  const replace = projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy }, { allowReplacement: true,
     transaction: async ({ run }) => { transaction = true; try { return await run(); } finally { transaction = false; } } });
   await replace.put({ record: { ...vaultRow(), revision: 2 }, expectedRevision: 1 });
   await attachments.detach({ siteId: 'site-a', keyId: 'key-a' });
@@ -129,4 +131,16 @@ test('shared OAuth attach validates its consumer before grant; stop here leaves 
   assert.deepEqual(validated, ['oauth-owner:true']);
   assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId: row.id }), false);
   assert.equal(await attachments.isAttached({ siteId: 'site-b', keyId: row.id }), true);
+});
+
+test('host create conflict retains the host typed error', async () => {
+  const { vault, attachments } = await fixture();
+  const { projectKeyCreateVault } = await import('@jini-ai/user-management/project-keys/create-vault');
+  const view = attachedOnlyVault({ vault, attachments, siteId: 'site-a', policy: attachedVaultPolicy });
+  const create = projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy });
+  await assert.rejects(create.put({ record: vaultRow(), expectedRevision: null }), error => {
+    assert.ok(error instanceof ProjectKeyCreateConflictError, 'the host conflict class, not a generic or vault error');
+    assert.match(error.message, /P25_KEY_CREATE_CONFLICT/);
+    return true;
+  });
 });

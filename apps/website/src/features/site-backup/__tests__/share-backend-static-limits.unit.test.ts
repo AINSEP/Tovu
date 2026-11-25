@@ -16,10 +16,10 @@ mock.module("@tovu/contracts/site-share-limits", { namedExports: { SHARE_LIMITS:
   maxArchiveBytes: 3000, maxExpandedBytes: 3000, maxFiles: 2000,
   maxFileBytes: 2000, maxManifestBytes: 2000, maxPathSegments: 32,
 } } });
-const landing = await import("../static-download-landing.js");
+const landing = await import("@jini-ai/devops/backup/site/static-download-landing");
 const landingHtml = Buffer.from("<!doctype html><title>Fixture landing</title>");
 // Isolate the retained-buffer budget from incidental landing CSS; keep real layout and ZIP limits.
-mock.module("../static-download-landing.js", { namedExports: { ...landing,
+mock.module("@jini-ai/devops/backup/site/static-download-landing", { namedExports: { ...landing,
   staticLandingPage: () => landingHtml,
 } });
 // The host binding loads the layout (and so the landing module): import it only after the landing mock is installed.

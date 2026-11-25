@@ -18,5 +18,5 @@ There is no feature barrel; composition imports each owner directly.
   (`defineProviderContribution` / `contributeProviders`, pinned to `TovuObjectStoreProvider`).
 - `media-store.ts` also owns Tovu's provider host type `ObjectStoreHost` (SigV4 signing + optional
   request tracing) and `TovuObjectStoreProvider`.
-- `artifact-provider.ts` is bound in `site-deps/site-sharing.ts`.
+- Artifact provider selection comes from `@jini-ai/platform/object-store/site/artifact-provider` and is bound in `site-deps/site-sharing.ts`.
 - The setting keys come from `@jini-ai/platform/object-store/site/setting`.

@@ -83,7 +83,7 @@ import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from 
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "@jini-ai/db/tools";
 import type { RestorePointListPort, RestorePointSavePort, RestorePointIdempotencyLookupPort } from "@jini-ai/db/tools";
-import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
+import type { DatabaseIntrospectionPort } from "@jini-ai/core/contracts/site/database-introspection";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";

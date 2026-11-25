@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { PARITY_DIALECTS, migratedParityFixture } from "#src/platform/db/__tests__/parity/parity-harness";
 import { stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { DatabaseDestinationRepo } from "../destination-repo.js";
-import { SealedDatabaseDestinationStore } from "../destination-store.js";
+import { SealedDatabaseDestinationStore } from "../destination-store-host.js";
 
 /**
  * @file R1 (2026-10-11 query parity): 0012 maps the legacy `database_transfer_destinations` row with
@@ -15,7 +15,7 @@ import { SealedDatabaseDestinationStore } from "../destination-store.js";
 
 for (const dialect of PARITY_DIALECTS) {
   describe(`database destination after 0012 [${dialect}]`, () => {
-    test("the migrated destination is read, recorded and replaced", async () => {
+    test("legacy non-default destination opens with unchanged scope", async () => {
       const fixture = await migratedParityFixture(dialect);
       try {
         const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(fixture.kernel as never), sealer: fixture.sealer, keyring: fixture.keyring as never });

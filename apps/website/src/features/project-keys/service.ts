@@ -1,7 +1,8 @@
 import { ToolInputError } from "@jini-ai/core";
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteKeyReferences } from "./site-references.js";
-import { attachedOnlyVault } from "./attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { attachedVaultPolicy } from "./vault-policy.js";
 import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
@@ -142,7 +143,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   }
   const use = createProjectKeyUse({ siteId, siteName, siteKeys, transaction, bindOAuth, references, attachments, reapply, vault, providerUsage }, { find, usage, isSiteKey: input => isSiteKey(input) });
   const isSiteKey = ({ keyId }: { keyId: string }) => Boolean(siteKeys) && keyId.startsWith(SITE_KEY_ID_PREFIX);
-  const granted = attachedOnlyVault({ vault, attachments, siteId });
+  const granted = attachedOnlyVault({ vault, attachments, siteId, policy: attachedVaultPolicy });
   const listRows = createProjectKeyListing({ vault, inventory, describeOAuth }, { granted, usage });
   return {
     site: { id: siteId, name: siteName },

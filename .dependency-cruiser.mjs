@@ -713,12 +713,11 @@ const PUBLIC_ENTRIES = {
 const REVIEWED_IMPORT_PAIRS = [
   ["features/asset-transfer/copy-tool.ts", "features/media/document-archive.ts"],
   ["features/site-backup/import-verifier-projection.ts", "features/media/document-archive.ts"],
-  ["features/site-export/media-original-urls.ts", "features/media/public-path.ts"],
   ["server/inbound/admin-http/routes/media/upload.ts", "features/media/document-archive.ts"],
   ["server/inbound/assistant/agent-daemon-server.ts", "features/media/document-archive.ts"],
   ["server/inbound/public-http/http/site/render/template-render-data.ts", "features/media/public-path.ts"],
   ["features/deployments/static-publish/adapter.ts", "features/theme/public-page-security-headers.ts"],
-  ["features/site-export/static-security-headers.ts", "features/theme/public-page-security-headers.ts"],
+  ["features/site-export/site-exporter.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher-html.ts"],
   ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher.ts"],
   ["server/inbound/admin-http/routes/presentation/get.ts", "features/theme/theme-preview-image.ts"],

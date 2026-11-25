@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
-import { loadBundledLoginProviders, loadLoginProviders, parseLoginProviders } from "../providers.js";
+import { parseLoginProviders } from "@jini-ai/user-management/server";
+import { loadBundledLoginProviders, loadLoginProviders } from "../providers.js";
 import { provider } from "./fixtures.js";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 

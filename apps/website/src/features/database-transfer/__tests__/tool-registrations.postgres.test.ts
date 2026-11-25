@@ -13,7 +13,7 @@ import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
-import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
+import { InMemoryDatabaseDestinationStore } from "../destination-store-host.js";
 import { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";

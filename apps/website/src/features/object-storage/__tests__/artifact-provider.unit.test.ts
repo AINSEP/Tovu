@@ -4,7 +4,7 @@ import test from "node:test";
 import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
 import { providerOk } from "@jini-ai/core/provider-registry";
 
-import { artifactStoreBinding, selectArtifactStoreProvider } from "../artifact-provider.js";
+import { artifactStoreBinding, artifactStoreTarget, selectArtifactStoreProvider } from "@jini-ai/platform/object-store/site/artifact-provider";
 import type { LoadedObjectStoreRegistry } from "@jini-ai/platform/object-store/site/registry";
 import type { ObjectStoreHost, TovuObjectStoreProvider } from "../media-store.js";
 
@@ -81,4 +81,20 @@ test("a provider's artifact credential refusal skips it and still honors the sav
   assert.equal((await selectArtifactStoreProvider(required))?.id, "fallback");
   assert.equal(await selectArtifactStoreProvider(required, { savedProvider: "preferred" }), undefined);
   assert.equal((await selectArtifactStoreProvider({ ...required, resolveCredential: async () => "ready" }))?.id, "preferred");
+});
+
+test("a newly configured store cannot revoke a share saved on another binding", async () => {
+  // The share was saved on the Blob store; an S3-compatible store was configured afterwards and is now
+  // the media choice. Revoke names the saved provider, so the new store is never even asked for a
+  // credential, and a share whose own store is gone selects nothing rather than falling through.
+  const entries: Array<[string, TovuObjectStoreProvider]> = [["s3_compatible", capable("s3")], ["vercel", capable("blob")]];
+  const newlyConfigured = credentials(["s3_compatible"]);
+  const revoked = await selectArtifactStoreProvider({ loaded: loaded(entries), preferredId: "s3_compatible", resolveCredential: newlyConfigured.resolveCredential }, { savedProvider: artifactStoreTarget({ id: "vercel" }) });
+  assert.equal(revoked, undefined);
+  assert.deepEqual(newlyConfigured.asked, ["vercel"], "only the recorded provider's connection is looked up");
+  // Same provider id but another bucket is another binding, so a rotated credential keeps its store
+  // while a different default connection can never turn revoke into deletion elsewhere.
+  const saved = { bucket: "b1", region: "r", publicUrl: "https://cdn.example" };
+  assert.equal(artifactStoreBinding({ store: {}, credential: { ...saved, accessKey: "rotated" } }), artifactStoreBinding({ store: {}, credential: saved }));
+  assert.notEqual(artifactStoreBinding({ store: {}, credential: { ...saved, bucket: "b2" } }), artifactStoreBinding({ store: {}, credential: saved }));
 });

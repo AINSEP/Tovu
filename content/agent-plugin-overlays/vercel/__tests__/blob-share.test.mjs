@@ -12,11 +12,12 @@ import test from "node:test";
 import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
 import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
 
-import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
-import { selectArtifactStoreProvider } from "../../../../apps/website/src/features/object-storage/artifact-provider.ts";
+import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts";
+import { selectArtifactStoreProvider } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { resolveShareDelivery } from "../../../../apps/website/src/features/site-backup/share-hosting.ts";
 import { SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";
-import { createSiteShare, revokeSiteShare, SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
+import { createSiteShare, revokeSiteShare } from "../../../../apps/website/src/features/site-backup/share-service.ts";
+import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
 import { pathToFileURL } from 'node:url';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 

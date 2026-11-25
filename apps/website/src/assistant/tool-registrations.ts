@@ -51,7 +51,7 @@ import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps } from "../features/deployments/publish-agent-tools.js";
 import type { EntriesToolDeps } from "@jini-ai/cms/entries/site/tool-registrations";
-import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
 import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";

@@ -16,10 +16,12 @@ import { secretsVaultStatements } from "#src/platform/db/migrations/0012_secrets
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { openProjectStore } from "../project-store.js";
 import { createOtherSiteKeys } from "../other-site-keys.js";
+import { composeProviderConfig } from "../site-deps/provider-identity.js";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 const stamp = "2026-11-08T12:00:00.000Z";
 const FAKE_TOKEN = "fake-vercel-token-not-real-1234";
@@ -91,9 +93,9 @@ test("a key saved only on site A is listed on site B and usable there after appr
     assert.doesNotMatch(JSON.stringify(used), new RegExp(FAKE_TOKEN), "use result never carries a token");
     assert.equal(used.usedByThisSite, true);
     assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the owner store holds the key, re-sealed");
-    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id, policy: attachedVaultPolicy });
     assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read it through its grant");
-    const grantedOnA = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.a.id });
+    const grantedOnA = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.a.id, policy: attachedVaultPolicy });
     assert.equal(await grantedOnA.find({ workspaceId: "project", id: used.keyId }), null, "only the approving site gets a grant");
     assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "the source vault is never written");
   } finally { await f.close(); }
@@ -126,7 +128,7 @@ test("an approved saved key remains usable after fifty earlier keys are inserted
     assert.equal(used.keyId, "vercel-a", "the captured saved-key ID adopts the original row beyond the picker limit");
     assert.equal(used.usedByThisSite, true, "the approving site receives the saved key");
     assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the original key is re-sealed into the owner store");
-    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id, policy: attachedVaultPolicy });
     assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read the adopted key through its grant");
     assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "adopting the captured key leaves the source vault unchanged");
   } finally { await f.close(); }
@@ -223,5 +225,25 @@ test("a key id that no longer resolves is refused without touching the owner sto
     fs.rmSync(path.dirname(f.a.keyPath), { recursive: true });
     await assert.rejects(f.keysOnB.use({ keyId: `${row.keyId}x`, use: true }));
     assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("composed owner keyring cannot derive for the site", async () => {
+  const f = await fixture();
+  try {
+    let derivations = 0;
+    const owner = f.store.vault.keyring;
+    const keyring = { activeKey: owner.activeKey.bind(owner),
+      derive: async () => { derivations++; return new Uint8Array(32); },
+      deriveSigningSecret: async () => { derivations++; return new Uint8Array(32); } };
+    const store = { ...f.store, vault: { ...f.store.vault, keyring } };
+    const composed = await composeProviderConfig({ overrides: { openProjectStore: async () => store }, runtimeMode: "local",
+      onStoreClose: () => {}, site: store.config, binding: { dir: f.b.dir, name: f.b.id }, references: { set: async () => {}, has: async () => false, remove: async () => {} } });
+    const vault = composed.projectVault;
+    assert.ok(vault, "the composed project vault is present");
+    assert.deepEqual(await vault.keyring.activeKey({}), await owner.activeKey({}), "the active handle is forwarded");
+    await assert.rejects(vault.keyring.derive({ workspaceId: "project", purpose: "secrets", info: "anything" }), /private to Shared Keys/);
+    await assert.rejects(vault.keyring.deriveSigningSecret({ workspaceId: "project", subscriptionId: "sub", version: 1 }), /private to Shared Keys/);
+    assert.equal(derivations, 0, "no derivation reaches the owner keyring");
   } finally { await f.close(); }
 });

@@ -10,7 +10,7 @@ import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
+import { InMemoryDatabaseDestinationStore } from "../destination-store-host.js";
 import { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
 import { buildDatabaseTransferRegistrations, contributeDatabaseTransferTools, databaseTransferDerivedRisk, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";

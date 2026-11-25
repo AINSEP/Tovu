@@ -1,7 +1,7 @@
 import { createLazyProxy } from "@jini-ai/core/primitives";
 import { InMemoryRedirectRepo, RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
 import { InMemoryOutbox, InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
-import { InMemoryRestorePointsRepo } from "#src/features/database/repo.memory";
+import { InMemoryRestorePointsRepo } from "@jini-ai/db/site/repo.memory";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetRenditionRepo } from "#src/features/media/index";

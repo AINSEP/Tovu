@@ -16,7 +16,7 @@ import { HKDF_EXTRACTION_SALT } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";
 import { CustomCredentialVaultRepo, customVaultRecord, customVaultScope } from "../vault-repo.js";
@@ -34,6 +34,7 @@ import {
   type CustomCredentialWriteDeps,
 } from "../store.js";
 import type { CustomCredentialProjectScope, CustomCredentialSetRepoPort } from "../types.js";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 /**
  * @file EXTRACT-S8 C0 (G-cred): frozen old-data characterization of the custom-credential vault
@@ -156,7 +157,7 @@ function projectStore(siteId: string) {
   const sealer = countedSealer(keyring, counts);
   const attachments = fakeAttachments();
   const owner = new CustomCredentialVaultRepo({ vault: raw });
-  const view = new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments }) });
+  const view = new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments, policy: attachedVaultPolicy }) });
   const scope = (extra: Partial<CustomCredentialProjectScope> = {}): CustomCredentialProjectScope =>
     ({ workspaceId: PROJECT_WS, repo: view, sealer, keyring, ...extra });
   let next = 0;

@@ -12,7 +12,7 @@ import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-co
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createLazyProxy } from "@jini-ai/core/primitives";
-import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
+import { createSiteConsentStore } from '@jini-ai/cookie-consent/site/revisions.repo';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createPostRevertRegistry } from "#src/features/post/index";
@@ -141,7 +141,7 @@ export function memoryReadinessRevertDeps(required: MemoryRootContext, _optional
     analyticsSettingsReady,
     siteTitleReady,
     siteConsentReady,
-    consentStore: createLazyProxy({ factory: () => createSiteConsentStore({ kernel: contentKernel({ store: taxonomyDb }), workspaceId }) }),
+    consentStore: createLazyProxy({ factory: () => createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel: contentKernel({ store: taxonomyDb }), workspaceId }) }),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
     siteDisplayName: { read: () => undefined },

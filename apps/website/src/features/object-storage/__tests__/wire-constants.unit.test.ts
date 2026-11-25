@@ -8,7 +8,7 @@ import * as setting from "@jini-ai/platform/object-store/site/setting";
 /**
  * @file The wire names operators and plugins already depend on. The feature barrel that used to
  * carry these assertions was removed (no re-export shells): composition imports `media-store.ts`,
- * `artifact-provider.ts` directly, and the registry/setting modules from Jini.
+ * the artifact provider, registry and setting modules directly from Jini.
  */
 
 test("object-storage keeps its operator env name, plugin manifest filename and setting keys", () => {

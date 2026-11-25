@@ -9,7 +9,8 @@ import { buildProjectKeyRegistrations } from "../tools.js";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 import { saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
-import { attachedOnlyVault } from "../attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 async function fixture() {
   const vault = new InMemoryVaultRepo({}); const attachments = fakeAttachments();
@@ -170,7 +171,7 @@ for (const kind of ["publish-host", "source-control", "provider-settings", "plug
     assert.equal(result.ask, undefined);
     assert.equal(await attachments.isAttached({ siteId: inputs.siteId, keyId }), true);
     assert.equal(await attachments.isAttached({ siteId: "uuid-b", keyId }), false);
-    assert.equal((await attachedOnlyVault({ vault, attachments, siteId: inputs.siteId }).find({ workspaceId: "project", id: keyId }))?.id, keyId);
+    assert.equal((await attachedOnlyVault({ vault, attachments, siteId: inputs.siteId, policy: attachedVaultPolicy }).find({ workspaceId: "project", id: keyId }))?.id, keyId);
   });
 }
 

@@ -5,13 +5,14 @@ import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode
 import { bootProviderPlugins, type SiteIdentity } from "../provider-plugins.js";
 import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { formatErrorForLog } from "@jini-ai/core";
 import { homedir } from "node:os";
 import { isSiteIdToken, readSiteMetaId } from "#src/features/webhooks/site-key-sources";
-import { ownerKeyHandleOnly, siteGrantedSealer } from "#src/features/project-keys/site-sealer";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { ownerKeyHandleOnly, siteGrantedSealer } from "@jini-ai/user-management/project-keys/site-sealer";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
+import { attachedVaultPolicy, createVaultPolicy, keyringPolicy, sealerPolicy } from "#src/features/project-keys/vault-policy";
 import { telemetryEnvironment } from '../build-release.js';
 import type { CreateSiteRouteDepsOverrides } from "./overrides.js";
 
@@ -38,9 +39,9 @@ export async function composeProviderConfig({ overrides, runtimeMode, onStoreClo
     console.warn(`[project-store] Site name could not be refreshed; local keys remain available. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
   });
   const owner = projectStore.vault.repo;
-  const repo = attachedOnlyVault({ vault: owner, siteId, attachments: projectStore.attachments });
+  const repo = attachedOnlyVault({ vault: owner, siteId, attachments: projectStore.attachments, policy: attachedVaultPolicy });
   return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, siteName: binding.name, references, transaction: input => projectStore.transaction(input) }),
-    projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, createRepo: projectKeyCreateVault({ owner, view: repo }), replaceRepo: projectKeyCreateVault({ owner, view: repo }, { allowReplacement: true, transaction: input => projectStore.transaction(input) }), keyring: ownerKeyHandleOnly({ keyring: projectStore.vault.keyring }), sealer: siteGrantedSealer({ allowed: async ({ credentialId }) => projectStore.attachments.isAttached({ siteId, keyId: credentialId }), sealer: projectStore.vault.sealer }) } };
+    projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, createRepo: projectKeyCreateVault({ owner, view: repo, ...createVaultPolicy }), replaceRepo: projectKeyCreateVault({ owner, view: repo, ...createVaultPolicy }, { allowReplacement: true, transaction: input => projectStore.transaction(input) }), keyring: ownerKeyHandleOnly({ keyring: projectStore.vault.keyring, ...keyringPolicy }), sealer: siteGrantedSealer({ allowed: async ({ credentialId }) => projectStore.attachments.isAttached({ siteId, keyId: credentialId }), sealer: projectStore.vault.sealer, ...sealerPolicy }) } };
 }
 
 /**

@@ -5,9 +5,9 @@ import { FormDeliveryError, type FormDeliveryJob } from "@jini-ai/cms/forms";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createCustomCredential, InMemoryCustomCredentialSetRepo, updateCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { resolveCustomCredentialByLabel, createCustomCredential, InMemoryCustomCredentialSetRepo, updateCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
-import { createCustomCredentialConnectionPort } from "../connection-port.js";
+import { createCustomCredentialConnectionPort } from "@jini-ai/cms/forms/destinations/connection-port";
 import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
@@ -54,7 +54,7 @@ function registryWith(module: FormDestinationModule) {
 test("the connection port opens the vault entry whose stable id the binding names", async () => {
   const deps = credentialDeps();
   const saved = await save(deps, { label: "Rows", secret: token("first") });
-  const port = createCustomCredentialConnectionPort({ credentials: deps });
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   assert.deepEqual(await port({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }),
     { token: token("first"), baseUrl: "https://rows.example.com", additionalHosts: ["https://upload.rows.example.com"] });
 });
@@ -62,7 +62,7 @@ test("the connection port opens the vault entry whose stable id the binding name
 test("a credential whose worksFor does not name the binding's adapter is refused: authorization-required, adapter never called", async () => {
   const deps = credentialDeps();
   const saved = await save(deps, { label: "Rows", secret: token("scoped"), worksFor: ["other-destination"] });
-  const connections = createCustomCredentialConnectionPort({ credentials: deps });
+  const connections = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   assert.equal(await connections({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);
   let calls = 0;
   const deliver = createFormDestinationDeliverer({ resolveRequestTarget, connections, kit, loadRegistry: async () => registryWith({ deliver: async () => { calls += 1; } }) });
@@ -140,14 +140,14 @@ test("a label swapped to another entry between the id read and the open yields n
     await updateCustomCredential(deps, { workspaceId: W, id: named.id, label: "Rows (old)" });
     await updateCustomCredential(deps, { workspaceId: W, id: other.id, label: "Rows" });
   };
-  const port = createCustomCredentialConnectionPort({ credentials: deps });
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   assert.equal(await port({ workspaceId: W, connectionRef: named.id, adapterId: "rows" }), null);
 });
 
 test("a connectionRef saved in another workspace yields no credential", async () => {
   const deps = credentialDeps();
   const foreign = await save(deps, { workspaceId: "ws-other", label: "Rows", secret: token("foreign") });
-  const port = createCustomCredentialConnectionPort({ credentials: deps });
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   assert.equal(await port({ workspaceId: W, connectionRef: foreign.id, adapterId: "rows" }), null);
 });
 
@@ -199,4 +199,20 @@ test("an adapter id no loaded destination has refuses as adapter-unavailable", a
     loadRegistry: async () => buildFormDestinationRegistry({ refusals: [], loaded: [] }) });
   await assert.rejects(deliver({ workspaceId: W, job: job("conn-1") }), (error: unknown) =>
     error instanceof FormDeliveryError && error.message === "adapter-unavailable" && error.retryable === true);
+});
+
+test("wrong adapter cannot open a shared credential and current label must still resolve the original ID", async t => {
+  const deps = credentialDeps();
+  const named = await save(deps, { label: "Rows", secret: token("named") });
+  await save(deps, { label: "Other", secret: token("other") });
+  const open = t.mock.method(deps.sealer, "open");
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
+  assert.equal(await port({ workspaceId: W, connectionRef: named.id, adapterId: "other" }), null);
+  assert.equal(open.mock.callCount(), 0);
+  const findById = deps.repo.findById.bind(deps.repo);
+  t.mock.method(deps.repo, "findById", async (input: Parameters<typeof findById>[0]) => {
+    const found = await findById(input);
+    return found ? { ...found, label: "Other" } : null;
+  });
+  assert.equal(await port({ workspaceId: W, connectionRef: named.id, adapterId: "rows" }), null);
 });
