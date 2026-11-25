@@ -140,12 +140,9 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
     await openEntry.server.stop();
     closeStoppedProject({ id, openEntry, deps });
   }
-  // Erase arm only: the untrack arm keeps the folder, so it must never produce removal proof.
-  const candidate = erasesFiles ? captureRetirement({ siteDir: id, siteId: row.siteId, retirement: deps.retirement }) : null;
-  // The row is the recovery handle for a partial erase: keep it until removal succeeds.
-  if (erasesFiles) await eraseProjectDirectory({ id, deps });
-  // Before untrack: a crash between the two leaves a pending record AND a tracked row, which keeps it.
-  if (candidate !== null) recordRetirement({ candidate, absence: deps.retirement.absence({ candidate }), retirement: deps.retirement, log: warnRetirement });
+  // The row is the recovery handle for a partial erase: keep it until removal succeeds. Erase arm
+  // only: the untrack arm keeps the folder, so it must never produce sign-in removal proof.
+  if (erasesFiles) await eraseWithRetirementProof({ id, siteId: row.siteId, deps });
   untrackSite({ projectsPath: deps.projectsPath, siteDir: id });
   if (erasesFiles) removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
@@ -215,6 +212,19 @@ async function eraseProjectDirectory(
       ? 'Permission was denied.' : 'The folder could not be removed.';
     throw new Error(`Could not delete this website. ${reason} Its card has been kept so you can try again.`);
   }
+}
+
+/** Capture identity, erase, then record proof — all before the caller untracks, so a crash between
+ * the record and untrack leaves a pending record AND a tracked row, which keeps the partition.
+ * @throws {Error} {@link eraseProjectDirectory}'s message; nothing is recorded then.
+ * @complexity O(n) in filesystem entries, plus O(records) for the ledger append.
+ */
+async function eraseWithRetirementProof(
+  { id, siteId, deps }: { id: string; siteId: string | undefined; deps: Pick<ProjectIpcDeps, "removeSiteTree" | "retirement"> }, _options = {},
+): Promise<void> {
+  const candidate = captureRetirement({ siteDir: id, siteId, retirement: deps.retirement });
+  await eraseProjectDirectory({ id, deps });
+  if (candidate !== null) recordRetirement({ candidate, absence: deps.retirement.absence({ candidate }), retirement: deps.retirement, log: warnRetirement });
 }
 
 /** The website's identity before its folder is erased; `null` (no proof, logins kept) when unknown.
