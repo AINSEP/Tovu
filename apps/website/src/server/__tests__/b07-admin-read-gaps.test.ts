@@ -194,8 +194,9 @@ test("widget region get resolves healthy widget types and retains disabled, miss
 
 // F1.2/F4.1: empty lists or a mapper dropping names/flags cannot pass these literal envelopes.
 test("policy and role lists preserve picker metadata and scope repository reads to the bound workspace", async () => {
-  const policies = [{ id: "policy-b07", workspaceId: WS, name: "Publish only", description: "Limited publication", isBuiltin: false, isFrozen: true }];
-  const roles = [{ id: "role-b07", workspaceId: WS, name: "Curator", isBuiltin: true }];
+  // P10-S2.J (Jini 0e45d7429): every policy/role row carries its edit basis `version`, and the picker DTO forwards it.
+  const policies = [{ id: "policy-b07", workspaceId: WS, name: "Publish only", description: "Limited publication", isBuiltin: false, isFrozen: true, version: 3 }];
+  const roles = [{ id: "role-b07", workspaceId: WS, name: "Curator", isBuiltin: true, version: 2 }];
   for (const [register, suffix, repoName, rows, expected] of [
     [registerAdminPolicyListRoute, "policies", "policyRepo", policies, { policies }],
     [registerAdminRoleListRoute, "roles", "roleRepo", roles, { roles }],
