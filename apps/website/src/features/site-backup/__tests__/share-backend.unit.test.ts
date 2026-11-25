@@ -14,6 +14,11 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 for (const step of ["prepare", "archive", "delivery"] as const) {
   test(`a ${step} exception keeps its actual step when collected by a later job poll`, async t => {
@@ -25,7 +30,7 @@ for (const step of ["prepare", "archive", "delivery"] as const) {
     const cause = new Error(`ERR-1234-5678-9ABC-DEF0 ${step} failed password=CANARY_EXPORT`);
     const fail = async (): Promise<never> => { entered(); await gate; throw cause; };
     const registry = {} as SiteShareRegistry;
-    const backend = createSiteShareBackend({ registry, site: "ws",
+    const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws",
       prepare: step === "prepare" ? fail : async () => content(),
       zip: step === "archive" ? fail : async () => new File(["zip"], "test.zip"),
       delivery: step === "delivery" ? fail : async () => undefined,
@@ -64,7 +69,7 @@ function content(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanCo
 
 test("a create without a wait budget waits for a quick export and returns the ZIP-only share", async t => {
   const registry = await registryIn(t);
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }) as { status: string; url: string | null; message: string; credentialWarnings: unknown[]; needsAcknowledgement: boolean };
   assert.deepEqual({ status: result.status, url: result.url, message: result.message },
     { status: "active", url: null, message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." });
@@ -76,7 +81,7 @@ test("a full share with prepared credential warnings refuses before delivery or 
   const registry = await registryIn(t);
   const upload = t.mock.fn(async () => ({ url: "https://example.test/shared.zip" }));
   const delivery = t.mock.fn(async () => ({ provider: "fixture", store: { upload, verify: async () => true, delete: async () => {} } }));
-  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, delivery,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", zip: zipFolderFiles, delivery,
     prepare: async () => content({ credentialWarnings: [{ path: "themes/site/config.js", kind: "provider key shape" }] }),
   });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 60_000 }), error => {
@@ -95,7 +100,7 @@ async function progressAtDelivery(t: TestContext, plan: SiteSharePlanContent): P
   const registry = await registryIn(t);
   let entered!: () => void, release!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => { entered(); await gate; return undefined; } });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => { entered(); await gate; return undefined; } });
   assert.equal(backend.hasWork?.({}), false);
   const signal = new AbortController().signal;
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string };
@@ -133,7 +138,7 @@ test("static selection snapshots roster, active identity and time, captures sequ
   const gate = new Promise<void>(resolve => { release = resolve; });
   const entered = new Promise<void>(resolve => { started = resolve; });
   let contexts = 0, clocks = 0, rosters = 0, zips = 0;
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { throw new Error("must not back up DB"); }, delivery: async () => { throw new Error("must not upload"); },
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => { throw new Error("must not back up DB"); }, delivery: async () => { throw new Error("must not upload"); },
     zip: async input => { zips++; return zipFolderFiles(input); },
     staticSite: { now: () => { clocks++; return new Date("2026-10-30T17:15:00Z"); },
       context: async () => { contexts++; return { name: "Site", slug: "zoran-site", theme: "Poster", themeId: "zoran-poster" }; },
@@ -166,7 +171,7 @@ test("static selection snapshots roster, active identity and time, captures sequ
 
 test("a static export with captured credential content saves a private ZIP requiring acknowledgement", async t => {
   const registry = await registryIn(t);
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
     staticSite: { now: () => new Date("2026-10-30T17:15:00Z"), context: async () => ({ name: "Site", slug: "site", theme: "A", themeId: "a" }),
       render: async ({ outputDir }) => ({ outputDir,
         routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>" + "gh" + "p_" + "x".repeat(36) + "</main>" }], failed: [] },
@@ -184,7 +189,7 @@ test("a static export with captured credential content saves a private ZIP requi
 
 test("static backend refuses unknown selections before rendering and unusable captures without creating a ZIP", async t => {
   let renders = 0, zips = 0;
-  const backend = createSiteShareBackend({ registry: await registryIn(t), site: "ws", prepare: async () => content(), delivery: async () => undefined,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: await registryIn(t), site: "ws", prepare: async () => content(), delivery: async () => undefined,
     zip: async input => { zips++; return zipFolderFiles(input); },
     staticSite: { now: () => new Date(), context: async () => ({ name: "Site", slug: "site", theme: "A", themeId: "a" }), themes: () => [{ themeId: "a", title: "A" }, { themeId: "b", title: "B" }],
       render: async ({ outputDir, themeId }) => { renders++; return { outputDir, routes: { succeeded: themeId === "b" ? [] : [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>A</main>" }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; } },
@@ -199,7 +204,7 @@ test("static backend refuses unknown selections before rendering and unusable ca
 test('theme none offers only Current site and preserves both legacy and picked unstyled exports', async t => {
   const renders: (string | undefined)[] = [];
   const entries = new Map<string, string>();
-  const backend = createSiteShareBackend({ registry: await registryIn(t), site: 'ws',
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: await registryIn(t), site: 'ws',
     prepare: async () => content(), delivery: async () => undefined,
     zip: async input => {
       for (const file of input.files) entries.set(file.webkitRelativePath, await file.text());
@@ -228,7 +233,7 @@ for (const publicUrl of [undefined, "https://download.example"]) {
   test(`static completion discloses omitted discovery only without a request domain (${publicUrl ?? "none"})`, async t => {
     const registry = await registryIn(t);
     const seen: (string | undefined)[] = [];
-    const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { throw new Error("static only"); }, delivery: async () => undefined, zip: zipFolderFiles,
+    const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => { throw new Error("static only"); }, delivery: async () => undefined, zip: zipFolderFiles,
       staticSite: { now: () => new Date("2026-10-31T00:00:00Z"), context: async () => ({ name: "Site", slug: "site", theme: "none" }),
         render: async input => { seen.push(input.publicUrl); return { outputDir: input.outputDir, publicOrigin: input.publicUrl,
           routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>Site</main>" }], failed: [] },
@@ -245,7 +250,7 @@ for (const publicUrl of [undefined, "https://download.example"]) {
 
 
 test("static options show installed display titles while keeping theme IDs", async () => {
-  const backend = createSiteShareBackend({ registry: {} as SiteShareRegistry, site: "site",
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: {} as SiteShareRegistry, site: "site",
     prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
     staticSite: { now: () => new Date(), context: async () => ({ name: "Site", slug: "studio", theme: "Poster Display", themeId: "studio-poster" }),
       themes: () => [{ themeId: "studio-poster", title: "Poster Display" }, { themeId: "poster", title: "Another Poster" }] },

@@ -15,6 +15,8 @@ import { createDeployHostKit } from "#src/features/deployments/deploy-targets/ho
 import { createRuntimeShareDelivery } from "#src/features/site-backup/share-hosting";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { join } from "node:path";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
 import { getEffective } from "@jini-ai/core/settings";
@@ -75,7 +77,7 @@ export function configureSiteSharing(required: ConfigureSiteSharingRequired, _op
       const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }) });
       const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
         dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
-      routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles, savedKeys, ownerPrincipalId: identity.ownerPrincipalId,
+      routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, createBundledFilePolicy: () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES }), zip: zipFolderFiles, savedKeys, ownerPrincipalId: identity.ownerPrincipalId,
         prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
         staticSite: {
           render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),

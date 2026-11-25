@@ -19,6 +19,11 @@ import type { SiteSharePlanContent } from "../plan-content.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { renderRedirectStub } from "@jini-ai/devops/static-export";
 import { rewriteExportOriginResponse } from "@jini-ai/devops/static-export/site/public-origin-policy";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 const now = () => new Date("2026-10-30T17:15:00.000Z");
 const context = async () => ({ name: "My Site", slug: "my-site", theme: "Active Theme", timeZone: "America/Los_Angeles" });
@@ -144,7 +149,7 @@ test("a thrown render retains partial files and deletes its temporary render fol
 
 test("static-only ZIP and top folder use the display name with a dated README and no backup content", async t => {
   const registry = new SiteShareRegistry({ directory: await rootFor(t) });
-  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", zip: zipFolderFiles,
     prepare: async () => { throw new Error("Static export must not snapshot the database"); }, delivery: async () => { throw new Error("Static download must stay local"); },
     staticSite: { context: async () => ({ ...await context(), slug: "internal-old-slug", theme: "my-theme" }), now,
       render: async ({ outputDir }) => ({ ...report(outputDir), assets: { succeeded: [
@@ -496,7 +501,7 @@ test("download README describes final entries and file-relative links", async ()
 test("static completion after polling includes opening instructions while pending stays progress-only", async t => {
   let release!: () => void;
   const hold = new Promise<void>(resolve => { release = resolve; });
-  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory: await rootFor(t) }), site: "ws", zip: zipFolderFiles,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: new SiteShareRegistry({ directory: await rootFor(t) }), site: "ws", zip: zipFolderFiles,
     prepare: async () => { throw new Error("no backup"); }, delivery: async () => undefined,
     staticSite: { context, now, render: async ({ outputDir }) => { await hold; return report(outputDir); } } });
   const input = { principalId: "owner", signal: new AbortController().signal, format: "static" as const };

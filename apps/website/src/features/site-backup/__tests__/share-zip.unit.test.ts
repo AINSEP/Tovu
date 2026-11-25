@@ -57,8 +57,7 @@ test("export retains every file, skips identical bundled bytes, and scans change
   const key = ["sk", "proj", ""].join("-") + "Ab3".repeat(12);
   const bundled = Buffer.from(`token=${key}`);
   const installed = new Map([['SKILL.md', bundled], ['__tests__/example.ts', bundled], ['fixtures/example.json', bundled], ['fixtures/modified.json', bundled], ['src/example.test.ts', bundled]]);
-  const bundledFilePolicy = createBundledExportFilePolicy({}, {
-    selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]),
+  const bundledFilePolicy = createBundledExportFilePolicy({ selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]) }, {
     resolve: () => '/installed/sample/plugin.json',
     readFile: async filename => installed.get(filename.slice('/installed/sample/'.length)) ?? Buffer.from('{}'),
   });

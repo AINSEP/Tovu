@@ -25,6 +25,11 @@ import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS, checkShareLimits } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 
 async function shareRegistry(t: import("node:test").TestContext) {
@@ -309,7 +314,7 @@ test("backend refuses unknown jobs and concurrent exports, resumes only for the 
   const r = await shareRegistry(t);
   let release!: (value: SiteSharePlanContent) => void;
   const ready = new Promise<SiteSharePlanContent>(resolve => { release = resolve; });
-  const backend = createSiteShareBackend({ registry: r, site: "space /site", prepare: async () => ready, zip: zipFolderFiles, delivery: async () => undefined });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: r, site: "space /site", prepare: async () => ready, zip: zipFolderFiles, delivery: async () => undefined });
   const signal = new AbortController().signal;
   await assert.rejects(backend.create({ principalId: "owner", jobId: newShareIdentity({}).shareId, signal }), { code: "JOB_NOT_FOUND" });
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string; phase: string };
@@ -336,7 +341,7 @@ test("backend resolves a saved remote locator and leaves a revoked row when reso
   const r = await shareRegistry(t), row = await createSiteShare({ registry: r, ...input });
   await r.put({ record: { ...row, storage: { provider: "example-store", binding: "original", key: "k" } } });
   const resolutions: unknown[] = [];
-  const backend = createSiteShareBackend({ registry: r, site: "ws", zip: zipFolderFiles, prepare: async () => assert.fail("not exporting"), delivery: async request => { resolutions.push(request); throw new Error("credentials removed"); } });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: r, site: "ws", zip: zipFolderFiles, prepare: async () => assert.fail("not exporting"), delivery: async request => { resolutions.push(request); throw new Error("credentials removed"); } });
   await assert.rejects(backend.revoke({ shareId: row.shareId }), { code: "DELETE_FAILED" });
   assert.deepEqual(resolutions, [{ provider: "example-store", binding: "original" }]);
   assert.equal((await r.get(row))?.status, "revoked");
@@ -433,7 +438,7 @@ test("backend reports archive progress without starting a second ZIP and keeps v
   const r = await shareRegistry(t); let entered!: () => void, release!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
   let encodes = 0;
-  const backend = createSiteShareBackend({ registry: r, site: "ws", prepare: async () => plan(), zip: async args => { encodes++; entered(); await gate; return zipFolderFiles(args); }, delivery: async () => delivery() });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: r, site: "ws", prepare: async () => plan(), zip: async args => { encodes++; entered(); await gate; return zipFolderFiles(args); }, delivery: async () => delivery() });
   const signal = new AbortController().signal;
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string };
   await started;
@@ -448,7 +453,7 @@ test("backend cancels a waiting caller and releases its active lane after prepar
   const r = await shareRegistry(t); let entered!: () => void, release!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
   let preparations = 0;
-  const backend = createSiteShareBackend({ registry: r, site: "ws", prepare: async ({ signal }) => { preparations++; if (preparations === 1) { entered(); await gate; signal.throwIfAborted(); } return plan(); }, zip: zipFolderFiles, delivery: async () => undefined });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: r, site: "ws", prepare: async ({ signal }) => { preparations++; if (preparations === 1) { entered(); await gate; signal.throwIfAborted(); } return plan(); }, zip: zipFolderFiles, delivery: async () => undefined });
   const controller = new AbortController();
   const result = assert.rejects(backend.create({ principalId: "owner", signal: controller.signal }, { waitMs: 1000 }), { code: "CANCELLED" });
   await started; controller.abort(); await result;

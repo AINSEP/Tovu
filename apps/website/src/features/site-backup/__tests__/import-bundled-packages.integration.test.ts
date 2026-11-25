@@ -9,6 +9,7 @@ import { buildArchiveManifest } from "../archive-manifest.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { verifySiteImport } from "../import-verifier.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, scanArchiveMetadata } from "../import-verifier-inventory.js";
+import { listBundledAgentPluginServers } from "../../agent-plugins/new-site-agent-plugin-tokens.js";
 import { readBundledImportPluginIds } from "../package-file-inventory.js";
 import { requireShareSecretFree } from "../share-file-policy.js";
 
@@ -131,6 +132,6 @@ test("a supplied local repro ZIP passes inventory and secret scanning", { timeou
   const manifest = parseShareManifest({ manifestBytes: scan.manifestBytes, schema: JSON.parse(scan.manifestBytes.toString()).schema });
   const inventory = buildManifestInventory({ files: manifest.files });
   checkArchiveMatchesInventory({ inventory, fileAliases: scan.fileAliases, directories: scan.directories });
-  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified: new Set() }, { packageFiles: new Map(), bundledImportPluginIds: await readBundledImportPluginIds() });
+  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified: new Set() }, { packageFiles: new Map(), bundledImportPluginIds: await readBundledImportPluginIds({ listBundledAgentPluginServers }) });
   assert.equal(files.size, inventory.size);
 });

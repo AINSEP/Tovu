@@ -2,23 +2,20 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { classifyBundledPluginFile, type BundledPluginFileDisposition, type ReadBundledPluginFile } from '@jini-ai/agent-plugins/lifecycle';
-import { SELECTED_AGENT_PLUGIN_PACKAGES } from '../agent-plugins/bundled-catalog.js';
 
 /** Per-entry export decision, independent of archive claims and execution trust. */
 export type BundledExportFilePolicy = (required: { path: string; bytes: Uint8Array }) => Promise<BundledPluginFileDisposition>;
 
 /**
- * Wire Jini's byte comparison to Tovu's selected npm subpaths. Resolve each selected root once per
+ * Wire Jini's byte comparison to the host's selected npm subpaths (`selection`, plugin id -> package). Resolve each selected root once per
  * export; read only the corresponding installed file. Custom paths and unavailable copies scan.
  * @returns An export-local policy; no inventory, persistent cache, network or content mutation.
  * @complexity One resolution per encountered plugin, one file read per selected package entry.
- * @example const policy = createBundledExportFilePolicy({}); await policy({ path, bytes });
+ * @example const policy = createBundledExportFilePolicy({ selection }); await policy({ path, bytes });
  */
-export function createBundledExportFilePolicy(_required: Record<string, never>, optional: {
-  selection?: ReadonlyMap<string, string>; resolve?: (specifier: string) => string;
-  readFile?: (filename: string) => Promise<Uint8Array>;
+export function createBundledExportFilePolicy({ selection }: { selection: ReadonlyMap<string, string> }, optional: {
+  resolve?: (specifier: string) => string; readFile?: (filename: string) => Promise<Uint8Array>;
 } = {}): BundledExportFilePolicy {
-  const selection = optional.selection ?? SELECTED_AGENT_PLUGIN_PACKAGES;
   const resolve = optional.resolve ?? createRequire(import.meta.url).resolve;
   const read = optional.readFile ?? readFile;
   const roots = new Map<string, string | null>();
