@@ -4,7 +4,11 @@ import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/se
 import { ok } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
-import type { RevisionThinningBinding } from "#src/features/post/revision-thinning";
+import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
+
+import { postRevisionRefProbes } from "#src/features/post/revision-refs";
+import { bindRevisionThinning, type RevisionThinningBinding } from "#src/features/post/revision-thinning";
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import type { AdminJsonRoutePortDeps, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
@@ -83,4 +87,35 @@ function applySpec({ binding, ownerCheck }: Omit<MountRevisionThinningRequired, 
 export function mountRevisionThinning({ app, binding, ownerCheck, adminPorts }: MountRevisionThinningRequired, _optional: Record<string, never> = {}): void {
   adminPorts.mount({ app, spec: previewSpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
   adminPorts.mount({ app, spec: applySpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
+}
+
+const OWNER_ONLY = "Only the site owner can thin revisions.";
+
+/**
+ * Builds what {@link mountRevisionThinning} needs: the binding over the production reference probes
+ * (`features/post/revision-refs.ts`, read inside the apply's fence) and the strict installation-owner
+ * check — the session principal must BE `ownerPrincipalId`, as `screenshotOwnerFrom`; an admin
+ * session alone or a builtin admin is not the owner.
+ *
+ * Why nothing calls this yet: revision thinning stays DISABLED until the owner signs off STOP 6.
+ * Deleting history is irreversible, so no server module mounts these routes and the
+ * `post_thin_revisions` tool is not registered in the agent catalog; turning it on is a deliberate,
+ * reviewed change at the composition root, never a side effect of this helper existing.
+ * @complexity O(1) setup; per request as the binding plus one owner lookup.
+ */
+export function composeRevisionThinning(
+  required: { kernel: ContentKernel; ownerPrincipalId: () => Promise<string>; previewStore: CleanupPreviewStore; clock: () => number },
+  _optional: Record<string, never> = {},
+): Pick<MountRevisionThinningRequired, "binding" | "ownerCheck"> {
+  const { kernel, ownerPrincipalId, previewStore, clock } = required;
+  const isOwner = async (principal: string | undefined) => Boolean(principal) && principal === await ownerPrincipalId();
+  const binding = bindRevisionThinning({
+    kernel, ...postRevisionRefProbes({ kernel }, {}), previewStore, clock,
+    authorize: async ({ principal }) => { if (!await isOwner(principal)) throw new Error(OWNER_ONLY); },
+  }, {});
+  const ownerCheck: MountRevisionThinningRequired["ownerCheck"] = async ({ context }) => {
+    if (!context?.id || !await isOwner(context.id)) rejectRoute({ status: 403, code: "OWNER_ONLY", error: OWNER_ONLY });
+    return { principal: context.id };
+  };
+  return { binding, ownerCheck };
 }
