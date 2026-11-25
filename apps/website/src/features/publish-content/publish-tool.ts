@@ -5,8 +5,7 @@ import { confirmPeerImport, executePeerImport } from "./peer-transport-binding.j
 import { planPublishToPeer } from "./push-plan.js";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
-import { PUBLISH_CONTENT_CAPABILITY } from "./ui/index.js";
-import { applyPublishCriteria, parsePublishContentToolInput, preparePublishConfirmation, toPublishReportRows } from "./ui/index.js";
+import { applyPublishCriteria, parsePublishContentToolInput, preparePublishConfirmation, PUBLISH_CONTENT_CAPABILITY, toPublishReportRows } from "./ui/index.js";
 
 /**
  * @file Host binding for `@jini-ai/cms`'s autonomous `publishContentFromTool`: supplies this app's
