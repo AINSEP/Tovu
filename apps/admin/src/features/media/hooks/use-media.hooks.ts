@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { MediaConversionNotice } from "@jini-ai/core/contracts/site/cms-media";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "@jini-ai/admin/screens/media/rules";
@@ -79,6 +80,9 @@ export interface MediaController {
   openUpload: (event: Pick<React.MouseEvent<HTMLButtonElement>, "currentTarget">) => void;
   closeUpload: () => void;
   uploadError: string | null;
+  /** The fixed code the last accepted upload answered with when its playable copy could not be made, or
+   *  `null`. The upload itself succeeded, so this is a status beside the grid, never an error. */
+  conversionNotice: MediaConversionNotice | null;
   /** A file is chosen and no upload is running; alt text is optional and never blocks. */
   canUpload: boolean;
   altDraft: string;
@@ -155,6 +159,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const [uploadOpen, setUploadOpen] = useState(false);
   // FileReader runs before the mutation, so its failure never reaches `uploadMutation.error`.
   const [readError, setReadError] = useState<unknown>(null);
+  // Per-request outcome of the upload that stored the original; a new accepted upload replaces it.
+  const [conversionNotice, setConversionNotice] = useState<MediaConversionNotice | null>(null);
   const onFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
   }, []);
@@ -195,13 +201,15 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     uploadInFlight.current = true;
     setUploading(true);
     setReadError(null);
+    setConversionNotice(null);
     clearOtherWriteErrors(uploadMutation);
     try {
       const dataBase64 = await readFileAsBase64({ file }).catch((readFailure: unknown) => {
         setReadError(readFailure);
         throw readFailure;
       });
-      await uploadMutation.mutate({ input: { filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined } });
+      const result = await uploadMutation.mutate({ input: { filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined } });
+      setConversionNotice(result.conversionNotice ?? null);
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFileName("");
@@ -309,6 +317,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     openUpload,
     closeUpload: () => setUploadOpen(false),
     uploadError,
+    conversionNotice,
     canUpload: selectedFileName !== "" && !uploading,
     altDraft,
     setAltDraft,

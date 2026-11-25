@@ -35,6 +35,7 @@ it("Media shows the owner's calendar date and preserves the upload instant", () 
     openUpload: vi.fn(),
     closeUpload: vi.fn(),
     uploadError: null,
+    conversionNotice: null,
     canUpload: false,
     altDraft: "",
     setAltDraft: vi.fn(),
