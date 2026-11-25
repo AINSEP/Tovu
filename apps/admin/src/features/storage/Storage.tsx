@@ -53,8 +53,8 @@ function storageCopy({ locale }: { locale: string }) {
 function ScreenshotCleanupSection({ client, reportErrors, now, locale, useScreenshotCleanupHook }: { useScreenshotCleanupHook: typeof useScreenshotCleanup; client: ScreenshotCleanupClient; reportErrors: (required: { error: unknown }) => string; now: () => number; locale: string }) {
   const screenshots = useScreenshotCleanupHook({ client, describeError: reportErrors }, {});
   const { state } = screenshots;
-  return <section id={SCREENSHOTS_ANCHOR}>
-    <h2>{t({ locale, key: "Delete screenshots older than 90 days" })}</h2>
+  return <section id={SCREENSHOTS_ANCHOR} className="jini-card">
+    <h2 className="jini-card-title">{t({ locale, key: "Delete screenshots older than 90 days" })}</h2>
     {state.status === "idle" || state.status === "error" || state.status === "done"
       ? <KitButton type="button" onClick={() => { void screenshots.preview({ before: now() - SCREENSHOT_AGE_DAYS * DAY_MS }); }}>{t({ locale, key: "Show what would be deleted" })}</KitButton> : null}
     {state.status === "shown" ? <>
@@ -83,10 +83,17 @@ export interface StorageScreenProps {
 export function StorageScreen({ client, screenshotClient, reportErrors, now, locale, useWiredStorageHook, useScreenshotCleanupHook }: StorageScreenProps, _optional: Record<string, never> = {}) {
   const links = storageLinks({ locale });
   const useStorage = () => useWiredStorageHook({ client, reportErrors, locale, links }, {});
-  return <>
+  // The same `.jini-page` / `.jini-page-header` / `.jini-page-title` frame as Trash and Media: without it the
+  // page opened on bare section headings with no title (live-found 2026-11-25).
+  return <div className="jini-page">
+    <div className="jini-page-header">
+      <div className="jini-page-header-text">
+        <h1 className="jini-page-title">{t({ locale, key: "Storage" })}</h1>
+      </div>
+    </div>
     <StoragePanel useStorage={useStorage} kit={{ Button: KitButton }} copy={storageCopy({ locale })} links={links} />
     <ScreenshotCleanupSection client={screenshotClient} reportErrors={reportErrors} now={now} locale={locale} useScreenshotCleanupHook={useScreenshotCleanupHook} />
-  </>;
+  </div>;
 }
 
 function reportStorageError({ error }: { error: unknown }): string {

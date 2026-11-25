@@ -1,5 +1,5 @@
 import type { RetentionPassResult, RetentionPolicyKind } from "@jini-ai/platform/retention";
-import { request, type AuthenticatedAdminRequestOptions } from "@/lib/admin-http/request";
+import { request } from "@/lib/admin-http/request";
 
 /**
  * @file The admin's client for the owner-only storage routes the website mounts from
@@ -31,9 +31,10 @@ export interface StorageClient {
   cleanup(required: { dryRun: boolean; classes?: readonly RetentionPolicyKind[]; previewToken?: string }, optional?: Record<string, never>): Promise<StoragePass>;
 }
 
-/** The real `request` signature: `basePath` rides in `optional.options`. A narrower hand-written type once put it
- *  beside `init`, where `request` never reads it, and the cast hid that the page was calling `/api/admin/v1/report`. */
-type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestInit; options?: Pick<AuthenticatedAdminRequestOptions, "basePath"> }) => Promise<T>;
+/** The real `request` type, never a hand-written copy: `basePath` rides in `optional.options`. A narrower
+ *  hand-written type once put it beside `init`, where `request` never reads it, and the cast that type needed
+ *  hid that the page was calling `/api/admin/v1/report`. With the real type, tsc refuses that call. */
+type AdminRequest = typeof request;
 
 /**
  * Builds the client over a host `request`.

@@ -44,6 +44,16 @@ function harness() {
 afterEach(() => { cleanup(); });
 
 describe("StorageScreen", () => {
+  it("shows the page title and styles every section heading like its sibling screens (live-found bare headings, 2026-11-25)", async () => {
+    harness();
+    const title = screen.getByRole("heading", { level: 1, name: "Storage" });
+    expect(title).toHaveClass("jini-page-title");
+    expect(title.closest(".jini-page-header")).not.toBeNull();
+    for (const name of ["Cleaned automatically", "Yours", "Shown only", "Delete screenshots older than 90 days"]) {
+      expect(await screen.findByRole("heading", { level: 2, name })).toHaveClass("jini-card-title");
+    }
+  });
+
   it("three class labels", async () => {
     harness();
     const automatic = (await screen.findByRole("heading", { name: "Cleaned automatically" })).parentElement!;
