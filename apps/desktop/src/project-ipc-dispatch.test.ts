@@ -15,6 +15,7 @@ import { sitesFilePath, trackSite, readTrackedSites, readProjectsFile } from "./
 import { classifySiteDirSafely, SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
+import { NO_RETIREMENT } from "./site-retirement.ts";
 import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 
 function fixture({ t }: { t: TestContext }) {
@@ -48,6 +49,8 @@ function fixture({ t }: { t: TestContext }) {
     shell: { openExternal: async (url) => { opened.push(url); } },
     openSites,
     serializer: createKeyedSerializer({}),
+    // Dispatch routing, not the sign-in removal proof (`site-retirement.test.ts`).
+    retirement: NO_RETIREMENT,
     projectsPath: sitesFilePath({ userDataDir: path.join(root, "state") }),
     registryPath: path.join(root, "processes"),
     repoRoot: path.join(root, "repo"),

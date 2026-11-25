@@ -104,6 +104,9 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  *   real launch — see the constant's own doc for why this exists instead of scoping `HOME`.
  */
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { bindDesktopRetirement } from "../site-retirement.ts";
+import { desktopJsonFile } from "../durable-json-file.ts";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, type MenuItemConstructorOptions, type WebContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -973,6 +976,10 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
       siteThemePreviews.stop({ siteDir }, {});
     },
     sharedSites,
+    // The erase arm's sign-in removal proof (ST-2b), bound to this profile. Built per deps bag,
+    // which `runSitesHomeBoot` builds once.
+    retirement: bindDesktopRetirement({ userDataDir: app.getPath("userData"), sessionDataDir: app.getPath("sessionData"),
+      eraseVersion: app.getVersion(), partitionFor: sitePartition, fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile }).port,
     // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
     // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
     externalSites: createExternalSiteStopper({}),
