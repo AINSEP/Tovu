@@ -89,19 +89,19 @@ test("publish update invalidates cached compatibility only when worksFor changes
 });
 
 
-test("account-label healing failure returns 500 after saving and logs a redacted diagnostic", async t => {
+test("account-label healing failure after the row committed still reports the key as saved and logs the error class only (B231, 12fa4b0ea)", async t => {
   const f = await fixture({ accountLabel: "fixture-account" });
   const failure = new Error("provider token=private-token; email=private@example.test");
   t.mock.method(f.repo, "updateAccountLabel", async () => { throw failure; });
-  const logs: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const warned = t.mock.method(console, "warn", () => {});
+  const errored = t.mock.method(console, "error", () => {});
   const token = ["fixture", "saved-before-heal"].join("-");
-  assertAdminResponse({ actual: await f.put({ body: { connection: { providerId: "fixture", token } } }), expected: {
-    statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  const response = await f.put({ body: { connection: { providerId: "fixture", token } } });
+  assert.ok(response.statusCode >= 200 && response.statusCode < 300, `committed key reported as ${response.statusCode}`);
   assert.equal((await f.resolve())?.connection.token, token);
-  assertAdminDiagnostics({ calls: logs, operation: "[routes/system/publish-credentials]", diagnostics: [/provider token=/] });
-  assert.equal(JSON.stringify(logs).includes("private-token"), false);
+  assert.deepEqual(warned.mock.calls.map(c => c.arguments), [["[publish-credentials] account-label heal skipped for 'credential-1': Error"]]);
+  assert.equal(errored.mock.callCount(), 0);
+  assert.equal(JSON.stringify([...warned.mock.calls, ...errored.mock.calls].map(c => c.arguments)).includes("private-token"), false);
 });
 
 const collection = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
@@ -132,9 +132,9 @@ test("publish list still answers when the after-response account-label heal cann
   assert.deepEqual(logged.mock.calls.map(c => c.arguments), [["[publish-credentials] account-label heal skipped: deploy targets could not be loaded", loadFailure]]);
 });
 
-test("publish list logs a failed after-response account-label heal through the route's bound reporter", async t => {
+test("publish list logs a failed after-response account-label heal through the route's bound reporter — the heal is verifyAfterSave verbatim, so a failed label write is logged by class only (B231, 12fa4b0ea)", async t => {
   const f = await fixture({ accountLabel: "fixture-account" });
-  const logged = t.mock.method(console, "error", () => {});
+  const logged = t.mock.method(console, "warn", () => {});
   // The fixture target does not declare `yieldsAccountLabel`; re-serve it with the flag so the
   // saved row (label still null) becomes a heal candidate, then make persisting the label fail.
   const base = await f.ports.loadDeployTargets();
@@ -146,7 +146,7 @@ test("publish list logs a failed after-response account-label heal through the r
   const listed = await f.call("get", collection);
   assert.equal(listed.statusCode, 200);
   for (let i = 0; i < 20 && logged.mock.callCount() === 0; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [[`[publish-credentials] background account-label heal failed for '${f.saved.id}'`, failure]]);
+  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [[`[publish-credentials] account-label heal skipped for '${f.saved.id}': Error`]]);
 });
 
 test("publish create reports no verification when the new row vanished before it could be verified", async t => {
