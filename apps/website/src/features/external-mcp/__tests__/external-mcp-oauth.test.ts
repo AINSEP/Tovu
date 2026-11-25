@@ -9,7 +9,8 @@ import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";

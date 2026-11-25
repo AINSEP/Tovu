@@ -8,7 +8,8 @@ import {
 } from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
 import type { VendorCredentialProjectScope, VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -134,9 +135,9 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
     authorize: async ({ context }) => {
       if (!["vendor", "custom", "source-control"].includes(context.kind) || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
     },
-    keyring: { activeKey: () => protect({ operation: () => {
+    keyring: { activeKey: (options: Parameters<KeyringPort["activeKey"]>[0]) => protect({ operation: () => {
       if (!required.keyring) throw required.storageError();
-      return required.keyring.activeKey();
+      return required.keyring.activeKey(options);
     } }) } as KeyringPort,
     sealer: { seal: input => protect({ operation: () => {
       if (!required.sealer) throw required.storageError();

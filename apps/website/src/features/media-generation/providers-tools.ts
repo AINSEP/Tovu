@@ -19,7 +19,8 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import type { ToolContributor } from '@jini-ai/core';
 import { getMediaProviderCredentials } from '../media/provider-credential-store.js';
 import type { MediaProviderCredentialRepoPort } from '@jini-ai/cms/media/site/provider-credential-contracts';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/secrets';
+import type { KeyringPort } from '@jini-ai/core/contracts/vault';
+import type { SecretSealerPort } from '@jini-ai/integrations/secrets';
 import type { AgentToolDefinition } from "@jini-ai/core";
 import { saveMediaProviderKey } from './provider-credential-save.js';
 

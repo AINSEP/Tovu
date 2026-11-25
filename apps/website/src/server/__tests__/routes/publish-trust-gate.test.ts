@@ -16,7 +16,7 @@ import { parseGrantDocument, type PublishTrustResolution } from "@jini-ai/cms/pu
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
 import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { loginAsOwner } from "../helpers/http-test-server.js";
 
 /**

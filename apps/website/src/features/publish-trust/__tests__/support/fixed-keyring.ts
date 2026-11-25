@@ -1,6 +1,6 @@
 import { hkdfSync } from "node:crypto";
 
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 
 /** One recorded `derive` request. */
 export interface RecordedDerive {

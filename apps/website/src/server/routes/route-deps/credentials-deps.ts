@@ -3,7 +3,8 @@ import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials
 import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "#src/assistant/host-ports";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { DatabaseDestinationStorePort } from "../../../features/database-transfer/destination-store.js";
 import type { CustomCredentialSetRepoPort } from "../../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../../platform/http/index.js";

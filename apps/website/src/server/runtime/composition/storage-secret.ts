@@ -5,7 +5,8 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
@@ -73,7 +74,7 @@ export async function writeSealedConnectionString(
   optional: Partial<SiteSecretSealer> = {}
 ): Promise<void> {
   const { sealer, keyring } = { ...siteSecretSealer({ siteDir: required.siteDir }), ...optional };
-  const sealed = await sealer.seal({ plaintext: required.connectionString, key: await keyring.activeKey(), aad: STORAGE_SECRET_AAD });
+  const sealed = await sealer.seal({ plaintext: required.connectionString, key: await keyring.activeKey({}), aad: STORAGE_SECRET_AAD });
   const file: StorageSecretFile = { version: 1, sealed };
   writeJsonFileAtomic({ filePath: path.join(required.siteDir, STORAGE_SECRET_FILENAME), data: file, fs: createNodeAtomicFilesystem({}, {}) }, { mode: 0o600 });
 }

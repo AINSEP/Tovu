@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import {
   ExecutionCredentialSecretStoreUnconfiguredError,

@@ -30,7 +30,8 @@ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {

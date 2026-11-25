@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";

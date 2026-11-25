@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
 import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import {

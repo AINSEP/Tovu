@@ -3,7 +3,7 @@ import { hkdfSync } from "node:crypto";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { ProvisioningWrite, PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { derivedRisk } from "@jini-ai/cms/publish/content/disconnect-tool";
 import { buildRegistrations, contributePublishContentDisconnectTools, type Deps } from "../disconnect-tool.js";
