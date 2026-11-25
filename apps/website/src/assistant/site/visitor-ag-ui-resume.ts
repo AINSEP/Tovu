@@ -101,6 +101,22 @@ export function createVisitorAgUiResume<Segment>(
     if (entry) denyAndEnd({ interruptId, entry, reason });
   };
 
+  /**
+   * Every pre-claim check of a resume, in order, with no side effects and no await: the addressed
+   * pause, its parked entry and the readable answer, or undefined when any check refuses.
+   * @complexity O(1).
+   */
+  const validateResume = ({ input, owner }: { input: unknown; owner: FrontendSessionOwner | null }, _optional = {}) => {
+    // No authenticated owner means no claim attempt at all — not an ownerless confirmation.
+    if (!owner) return undefined;
+    const addressed = addressedResume({ input });
+    const entry = addressed ? parked.get(addressed.interruptId) : undefined;
+    if (!addressed || !entry || addressed.runId === entry.runId) return undefined;
+    const answer = readConfirmationResume({ input, threadId: entry.threadId, runId: entry.runId, interruptId: addressed.interruptId });
+    // `owner` is returned narrowed, so the claim below keys on the same authenticated owner.
+    return answer ? { owner, addressed, entry, answer } : undefined;
+  };
+
   return {
     /** Park BEFORE the interrupt is written, so an answer can never arrive for an unknown pause. */
     parkVisitorApproval(
@@ -129,14 +145,12 @@ export function createVisitorAgUiResume<Segment>(
       },
       _optional = {},
     ): Promise<"resumed" | "stopped" | "expired"> {
-      // No authenticated owner means no claim attempt at all — not an ownerless confirmation.
-      if (!owner) return "expired";
-      const addressed = addressedResume({ input });
-      const entry = addressed ? parked.get(addressed.interruptId) : undefined;
-      if (!addressed || !entry || addressed.runId === entry.runId) return "expired";
-      const answer = readConfirmationResume({ input, threadId: entry.threadId, runId: entry.runId, interruptId: addressed.interruptId });
-      if (!answer) return "expired";
-      const claimed = store.claim({ owner: ownerKey({ owner }), threadId: entry.threadId, runId: entry.runId, interruptId: addressed.interruptId });
+      const valid = validateResume({ input, owner });
+      if (!valid) return "expired";
+      const { owner: claimant, addressed, entry, answer } = valid;
+      // Claimed synchronously right after validation, before any await, so no second answer can
+      // interleave between the checks and the claim.
+      const claimed = store.claim({ owner: ownerKey({ owner: claimant }), threadId: entry.threadId, runId: entry.runId, interruptId: addressed.interruptId });
       if (!claimed) return "expired";
       release({ interruptId: addressed.interruptId });
       // Stop is the owner's answer: deny, never a silent leak until expiry. It is claimed like any

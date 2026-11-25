@@ -36,11 +36,23 @@ export function readAdminApprovalCard({ event, extensionPrefix }: { event: AgUiE
   if (event.type !== EventType.CUSTOM || event.name !== `${extensionPrefix}mcp-ui`) return undefined;
   const card = readCardMeta({ value: event.value });
   if (!card || !text(card.exchange.exchangeId) || !text(card.exchange.toolId)) return undefined;
-  const actions = Array.isArray(card.plan.actions) ? card.plan.actions.map((action: unknown) => (record(action) ? action.id : undefined)) : [];
-  if (!actions.includes("confirm") || !actions.includes("cancel")) return undefined;
-  const expiresAtMs = card.meta[MCP_UI_EXPIRES_AT_META_KEY];
+  if (!hasConfirmationPair({ plan: card.plan })) return undefined;
   return { exchangeId: card.exchange.exchangeId, toolId: card.exchange.toolId, message: text(card.plan.title) ? card.plan.title : "Approve this action?",
-    ...(typeof expiresAtMs === "number" && Number.isFinite(expiresAtMs) ? { expiresAtMs } : {}) };
+    ...expiryField({ meta: card.meta }) };
+}
+
+/** True when the card's action plan offers both `confirm` and `cancel`.
+ * @complexity O(a) in the card's action count. */
+function hasConfirmationPair({ plan }: { plan: Record<string, unknown> }, _optional = {}): boolean {
+  const actions = Array.isArray(plan.actions) ? plan.actions.map((action: unknown) => (record(action) ? action.id : undefined)) : [];
+  return actions.includes("confirm") && actions.includes("cancel");
+}
+
+/** The card's finite expiry as an optional field, so a missing or malformed one is simply absent.
+ * @complexity O(1). */
+function expiryField({ meta }: { meta: Record<string, unknown> }, _optional = {}): { expiresAtMs?: number } {
+  const expiresAtMs = meta[MCP_UI_EXPIRES_AT_META_KEY];
+  return typeof expiresAtMs === "number" && Number.isFinite(expiresAtMs) ? { expiresAtMs } : {};
 }
 
 const ID_LINE = /(?:^|\n)id:[ ]?([^\n\r]*)\r?\n/g;
