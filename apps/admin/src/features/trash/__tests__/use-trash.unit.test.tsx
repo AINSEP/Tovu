@@ -559,7 +559,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
       port,
       cursorCalls,
       setFirstPage(items, nextCursor) {
-        firstPageResult = { items, nextCursor };
+        firstPageResult = { items, nextCursor, retentionDays: 30 };
       },
     };
   }

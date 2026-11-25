@@ -33,6 +33,9 @@ export interface FakeTrashPortOptions {
    *  `TrashPort` literal without `listUsers` at all (see that field's own doc). */
   users?: AdminIdentityUser[];
   listUsersError?: Error;
+  /** The retention window every page echoes. Defaults to 30 — the real `TRASH_RETENTION_DAYS` the
+   *  website composes in — so a test only states it when the header copy is what it checks. */
+  retentionDays?: number;
 }
 
 /**
@@ -65,7 +68,7 @@ export function createFakeTrashPort(options: FakeTrashPortOptions = {}): TrashPo
     async listTrash(queryOptions) {
       listCalls.push(queryOptions);
       if (options.listError) throw options.listError;
-      return { items: options.items ?? [], nextCursor: options.nextCursor ?? null };
+      return { items: options.items ?? [], nextCursor: options.nextCursor ?? null, retentionDays: options.retentionDays ?? 30 };
     },
     async restoreTrashItems(input) {
       restoreCalls.push(input);

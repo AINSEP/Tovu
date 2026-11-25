@@ -54,8 +54,14 @@ it("the fake rejects configured user-roster failures and counts the failed read"
   expect(port.listUsersCalls).toBe(1);
 });
 
-it("an unseeded fake lists an empty trash page with no next cursor and records the query", async () => {
+it("an unseeded fake lists an empty trash page with no next cursor and the real 30-day window, and records the query", async () => {
   const port = createFakeTrashPort();
-  await expect(port.listTrash({ cursor: "page-2" })).resolves.toEqual({ items: [], nextCursor: null });
+  await expect(port.listTrash({ cursor: "page-2" })).resolves.toEqual({ items: [], nextCursor: null, retentionDays: 30 });
   expect(port.listCalls).toEqual([{ cursor: "page-2" }]);
+});
+
+it("the fake echoes a seeded retention window on every page", async () => {
+  const port = createFakeTrashPort({ retentionDays: 7 });
+  await expect(port.listTrash({})).resolves.toMatchObject({ retentionDays: 7 });
+  await expect(port.listTrash({ cursor: "page-2" })).resolves.toMatchObject({ retentionDays: 7 });
 });
