@@ -40,6 +40,14 @@ test("kuinetic is a bundled plugin with a valid manifest on the seeded-enabled l
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
+test("shipped kuinetic 0.1.1 declares ui-ux-design as a companion", async () => {
+  const manifest = JSON.parse(await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8"));
+  const parsed = parseAgentPluginManifest({ value: manifest });
+  assert.equal(parsed.ok, true);
+  assert.equal(manifest.version, "0.1.1");
+  assert.deepEqual(manifest.extensions.jini.companions, ["ui-ux-design"]);
+});
+
 test("kuinetic seeds on, registers agent_plugin_kuinetic, and its guidance fits the 8 KiB automatic limit", async (t) => {
   const siteDir = await mkdtemp(path.join(tmpdir(), "tovu-kuinetic-seed-"));
   t.after(() => forceRemove(siteDir));
