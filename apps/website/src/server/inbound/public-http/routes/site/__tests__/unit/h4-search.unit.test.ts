@@ -29,6 +29,8 @@ for (const [count, elapsedMs, resultCountBucket, durationBucket] of [
     });
     const { res, capture } = createCapturingResponse();
     res.set = (() => res) as typeof res.set;
+    // The mounted spec writes its static `Cache-Control` through `setHeader` (http-kit `applyResponseHeaders`).
+    res.setHeader = (() => res) as typeof res.setHeader;
     await extractRouteHandler(app, 'get', '/api/search')({ query: { q: 'private search terms' }, headers: {} }, res);
     await delivery;
     assert.equal(capture.statusCode, 200);

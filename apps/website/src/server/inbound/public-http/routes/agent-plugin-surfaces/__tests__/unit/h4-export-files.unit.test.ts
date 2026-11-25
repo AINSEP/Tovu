@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
+import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { harness, owner } from '#src/features/agent-plugins/__tests__/fixtures/plugin-exports';
 import type { TovuAgentPluginLifecycle } from '#src/features/agent-plugins/lifecycle';
@@ -22,16 +22,10 @@ for (const scenario of ['catalog-error', 'read-error', 'duplicate-owner', 'missi
         readAsset: async () => { reads++; throw new Error('/private/asset/path'); },
       }, limiter: { check: async () => ({ allowed: true }) },
     });
-    const { res, capture } = createCapturingResponse();
-    const headers: Record<string, string> = {};
-    Object.assign(res, { set: (value: Record<string, string>) => { Object.assign(headers, value); return res; },
-      type: () => res, send: (body: unknown) => { capture.jsonBody = body; return res; } });
-    await extractRouteHandler(app, 'get', '/api/agent-plugin-exports/v1/:pluginId/:component/*')({
-      params: { pluginId: 'demo', component: scenario === 'missing-component' ? 'absent' : 'button', 0: 'components/mark.png' },
-      headers: {}, socket: { remoteAddress: '203.0.113.1' },
-    }, res);
-    assert.deepEqual(capture, { statusCode: 404, jsonBody: 'Not found' });
-    assert.deepEqual(headers, { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    const response = await dispatchHttpRequest({ app, method: 'get', url: `/api/agent-plugin-exports/v1/demo/${scenario === 'missing-component' ? 'absent' : 'button'}/components/mark.png` });
+    assert.deepEqual({ statusCode: response.status, jsonBody: response.body }, { statusCode: 404, jsonBody: 'Not found' });
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
     assert.equal(reads, scenario === 'read-error' ? 1 : 0);
   });
 }
@@ -44,11 +38,8 @@ test('a declared script is served as JavaScript; an undeclared or remote one is 
     source: { ...source, list: async () => [{ ...owner, exports: { button: entry } }], readAsset: async () => 'console.log(1)' }, limiter: { check: async () => ({ allowed: true }) },
   });
   const request = async (path: string) => {
-    const { res, capture } = createCapturingResponse();
-    const headers: Record<string, string> = {};
-    Object.assign(res, { set: (value: Record<string, string>) => { Object.assign(headers, value); return res; }, type: () => res, send: (body: unknown) => { capture.jsonBody = body; return res; } });
-    await extractRouteHandler(app, 'get', '/api/agent-plugin-exports/v1/:pluginId/:component/*')({ params: { pluginId: 'demo', component: 'button', 0: path }, headers: {}, socket: { remoteAddress: '127.0.0.1' }, ip: '127.0.0.1' } as never, res, () => undefined);
-    return { status: capture.statusCode, type: headers['Content-Type'], body: capture.jsonBody };
+    const response = await dispatchHttpRequest({ app, method: 'get', url: `/api/agent-plugin-exports/v1/demo/button/${path}` });
+    return { status: response.status, type: response.headers['content-type'], body: response.body };
   };
   assert.deepEqual(await request('components/widget.js'), { status: 200, type: 'text/javascript; charset=utf-8', body: 'console.log(1)' });
   assert.equal((await request('components/other.js')).status, 404);
