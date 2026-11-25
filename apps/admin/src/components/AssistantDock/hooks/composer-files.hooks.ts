@@ -28,7 +28,23 @@ const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
 /** The legacy plugin manifest name the skill-package detector still recognises. */
 export const TOVU_LEGACY_MANIFEST_NAMES: readonly string[] = ["tovu.plugin.json"]; // the host's legacy plugin manifest alias
 
-/** The shared uploader hook bound to this host's `fetch` and the website daemon's caps above. */
+/**
+ * Builds the `uploadAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>`. Injectable
+ * per `INFO.md`'s Components rule 3 (real I/O: every upload is a `fetch` to the daemon's own
+ * `/api/attachments` route) — defaulted to the real hook on `AssistantDockProps`.
+ *
+ * `''` baseUrl: `createDaemonAttachmentUploader` builds `${baseUrl}/api/attachments`, so an empty
+ * string resolves to the same bare `/api/attachments` relative path `AGENTS_URL`/the rescan route
+ * below already use — same-origin, proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts` to the agent
+ * daemon, matching every other request this dock makes. Memoized for the same reason the transport
+ * is: it owns internal per-uploader batch-quota state (`create-daemon-attachment-uploader.ts`'s
+ * `batchUsage` map), so rebuilding it on every render would silently reset a turn's running quota
+ * mid-upload.
+ *
+ * @returns The memoized uploader instance.
+ * @example
+ * const uploadAttachments = useAttachmentUploader();
+ */
 export function useAttachmentUploader(): ReturnType<typeof useAdminAttachmentUploader> {
   return useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
 }
@@ -36,7 +52,24 @@ export function useAttachmentUploader(): ReturnType<typeof useAdminAttachmentUpl
 /** Stable across renders (the shared hook memoizes on it); `fetch` resolves at probe time, as the pre-move `bind` at mount did for a stubbed global. */
 const CHAT_ATTACHMENT_VALIDATOR_INPUT = { fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args), ...CHAT_ATTACHMENT_ROUTE_RULES };
 
-/** The shared validator hook bound to this host's read-back route — see `lib/chat-attachment-liveness.ts` for the full rule and why a HEAD answers it. */
+/**
+ * Builds the `validateAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>` — the host
+ * half of restoring a persisted composer draft's ATTACHMENTS. Injectable per `INFO.md`'s Components
+ * rule 3 for the same reason {@link useAttachmentUploader} above is: every probe is a real `fetch`
+ * to `/api/attachments/:ref`, which a fake bypasses entirely.
+ *
+ * Without this prop `@jini-ai/chat` restores such a draft's TEXT only: it persists the attachment
+ * references, but hands back none that no host has vouched for, because the staged bytes sit under
+ * the daemon's one-hour `retentionMs` and a chip for a pruned file looks intact and dies at send.
+ * See `lib/chat-attachment-liveness.ts` for the full rule and why a HEAD answers it.
+ *
+ * Memoized for the same reason the uploader is: `ChatPane` reads this on a draft restore at mount,
+ * and a new identity each render would make that a moving dependency.
+ *
+ * @returns The memoized validator instance.
+ * @example
+ * const validateAttachments = useAttachmentValidator();
+ */
 export function useAttachmentValidator(): ReturnType<typeof useAdminAttachmentValidator> {
   return useAdminAttachmentValidator({ input: CHAT_ATTACHMENT_VALIDATOR_INPUT });
 }
@@ -44,7 +77,23 @@ export function useAttachmentValidator(): ReturnType<typeof useAdminAttachmentVa
 /** Where the recent-folder names already live; host-owned and unchanged so existing lists survive. */
 const RECENT_DIRECTORY_NAMES_STORAGE_KEY = "tovu.assistant.recentWorkingDirectoryNames";
 
-/** The shared native working-directory hook bound to this host's recent-folder storage key. */
+/**
+ * Builds the composer's native working-directory access — see
+ * `@jini-ai/admin/shell/lib/browser-working-directory-access`'s module doc for the File System Access API details
+ * and its known folder-NAME-not-path limitation. Injectable per `INFO.md`'s Components rule 3
+ * (this is a browser API, `window.showDirectoryPicker`) — defaulted to the real hook on
+ * `AssistantDockProps`.
+ *
+ * Memoized for the same reason `useAttachmentUploader` above is: the returned object's identity
+ * feeds `ChatPane`'s own `workingDirectoryAccess`-changed effect
+ * (`useChatPaneWorkingDirectory.hooks.ts`), so a new object on every render would re-run that
+ * effect's directory validation on every render too.
+ *
+ * @returns The memoized access object, or `undefined` on a browser with no native picker (Safari,
+ * Firefox) — `ChatPane` falls back to its own text-input popover when this is `undefined`.
+ * @example
+ * const workingDirectoryAccess = useWorkingDirectoryAccess();
+ */
 export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
   return useAdminWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync });
 }
@@ -64,7 +113,26 @@ export function useWorkingDirectoryAccessSeam({ override }: { override: typeof u
   return (override ?? useWorkingDirectoryAccess)();
 }
 
-/** The shared folder-drop bridge bound to this host's file-system ports. */
+/**
+ * Bridges `useFolderDrop`'s imperative `handleDropCapture` out of `AssistantDock` to the wrapping
+ * `<aside onDropCapture={...}>` in `App.tsx` (SPEC-053) — `AssistantDock.tsx` itself holds "props
+ * interface + JSX, and nothing else" per this file's own header, so the `useEffect` that publishes
+ * the handler through a caller-supplied ref lives here, not there. Not a `use*Seam` wrapper like its
+ * neighbors above: `useFolderDrop` is this feature's own new hook, not an existing DOM/IO hook this
+ * component previously called bare, so there is no "real hook to default to when no override is
+ * given" to resolve — `useComposerVoiceInput` (a bare call in `AssistantDock.tsx`, no seam) is the
+ * closer precedent, not the eight/nine `use*Seam` hooks.
+ *
+ * @param input.input - {@link UseFolderDropInput} — passed straight through to `useFolderDrop`.
+ * @param input.onReady - `AssistantDockProps.onFolderDropCaptureReady`. Invoked once per identity change
+ *   of `handleDropCapture` (which itself only changes if `input.composerHandle` or `useFolderDrop`'s
+ *   internal callbacks change — effectively once per mount). `undefined` when the caller (e.g. a
+ *   test rendering `AssistantDock` directly) does not care to receive it.
+ * @returns {@link UseFolderDrop} — `AssistantDock.tsx` renders `notice`/`dismiss`/`retry` from this
+ *   directly; `handleDropCapture` is consumed only via `onReady` above, never by `AssistantDock.tsx`
+ *   itself (nothing there needs to call it directly).
+ * @complexity Time/space: O(1) beyond what `useFolderDrop` itself costs.
+ */
 export function useFolderDropBridge(
   { input, onReady }: Omit<Parameters<typeof useAdminFolderDropBridge>[0], "folderDropDeps">,
   options: Parameters<typeof useAdminFolderDropBridge>[1] = {},
