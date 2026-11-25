@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import type { AdminCredentialCopySource } from "@jini-ai/admin/security/api/security-api.types";
-import type { CopyKeysPort } from "../hooks/use-copy-keys.hooks";
+import type { AdminCredentialCopySource } from "@jini-ai/core/contracts/site/api-security-api-types";
+import type { CopyKeysPort } from "@jini-ai/admin/security/host/hooks/use-copy-keys.hooks";
 
 /**
  * @file Shared copy-keys fixtures for the dialog and hook suites: an identity translator, two
