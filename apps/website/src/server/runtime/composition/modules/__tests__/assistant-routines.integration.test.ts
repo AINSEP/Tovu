@@ -230,3 +230,43 @@ test("every route is session-credential only and the four writes are same-origin
   for (const { options } of h.routes.values()) assert.ok((options as { sessionCredentialOnly?: unknown }).sessionCredentialOnly);
   await h.close();
 });
+
+test("store-open failure answers the plain unavailable refusal with the admin ERR- id it logged the open error under", async (t) => {
+  const reported: Array<{ error: unknown; operation: string }> = [];
+  const h = harness(t, { openSqlite: () => { throw new Error("SQLITE_CANTOPEN"); } });
+  const reportFailure = (args: { error: unknown; operation: string }) => { reported.push(args); return { errorId: "ERR-AAAA-BBBB-CCCC-DDDD" }; };
+  const host = await composeAssistantRoutines(h.required, { monotonicNow: h.clock.now, reportFailure });
+  assert.equal(host.availability(), "error");
+  assert.equal(reported.length, 1, "the open failure is reported once, at boot");
+  assert.equal(reported[0]!.operation, "routines:store-open");
+  assert.match(String((reported[0]!.error as Error).message), /SQLITE_CANTOPEN/);
+  for (const [key, body] of [[`get ${ROUTINE_ROUTE_BASE}`, undefined], [`post ${ROUTINE_ROUTE_BASE}`, { name: "Daily", prompt: "Sum", schedule: { kind: "hourly", minute: 5 } }]] as const) {
+    const refused = await h.call(key, { body });
+    assert.equal(refused.ok, false, key);
+    if (refused.ok) continue;
+    assert.equal(refused.error.message, "Routines are unavailable because their data file could not be opened.");
+    assert.deepEqual(refused.error.details, { reason: "ROUTINES_STORE_OPEN_FAILED", availability: "error", errorId: "ERR-AAAA-BBBB-CCCC-DDDD" }, key);
+  }
+  const stranger = await h.call(`get ${ROUTINE_ROUTE_BASE}`, { context: { id: "attacker", workspaceId: "ws-1" } });
+  assert.equal(stranger.ok, false);
+  if (!stranger.ok) assert.equal((stranger.error.details as { errorId?: string } | undefined)?.errorId, undefined, "a non-owner never sees the incident id");
+});
+
+test("store-open failure mints the admin ERR- id by default", async (t) => {
+  const h = harness(t, { openSqlite: () => { throw new Error("SQLITE_CANTOPEN"); } });
+  await h.compose();
+  const listed = await h.call(`get ${ROUTINE_ROUTE_BASE}`);
+  assert.equal(listed.ok, false);
+  if (!listed.ok) assert.match((listed.error.details as { errorId: string }).errorId, /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+});
+
+test("create needs no body target: the admin form sends none and composition supplies it", async (t) => {
+  const h = harness(t);
+  await h.compose();
+  const created = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 } } });
+  assert.equal(created.ok, true, created.ok ? "" : JSON.stringify(created.error));
+  if (created.ok) assert.deepEqual((created.value as { routine: { target: unknown } }).routine.target, { mode: "create_each_run" });
+  const malformed = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 }, target: "garbage" } });
+  assert.equal(malformed.ok, true, "a body target is never read, so it cannot fail the create either");
+  await h.close();
+});

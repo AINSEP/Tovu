@@ -5,7 +5,7 @@ import {
   createRoutineRunNowRoute, createRoutineRunsRoute, createRoutineUpdateRoute,
 } from "@jini-ai/daemon/http";
 import { runMigrations as defaultRunMigrations } from "@jini-ai/db/migrate";
-import { ClientFacingError, err, type JsonRouteSpec } from "@jini-ai/core/contracts/server";
+import { ClientFacingError, err, type JsonRouteSpec, type RouteInputContext } from "@jini-ai/core/contracts/server";
 import type { RoutineActor, RoutineAvailability, RoutineTarget } from "@tovu/contracts/routines";
 import {
   ROUTINE_AVAILABILITY_REFUSALS, createRoutineCommands, toRunSummary,
@@ -13,6 +13,7 @@ import {
 } from "#src/features/routines/routine-commands";
 import { closeRoutineHost, openRoutineSidecar } from "#src/features/routines/routine-host";
 import { routinesPaths } from "#src/features/routines/routines-paths";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { createRoutineApprovalObserver, type RoutineApprovalObserver } from "#src/features/routines/routine-approval-observer";
 import type { OpenRoutinesSqlite } from "#src/platform/db/sqlite/routines-db";
 import type { StoreCloseRegistration } from "../site-deps/open-store.js";
@@ -65,6 +66,8 @@ export interface ComposeAssistantRoutinesOptional {
   createService?: (required: { persistence: RoutineDurablePersistence; holderId: string }) => RoutineService;
   /** Builds the run handler once the approval observer exists (P3-T3.T), so every accepted run can be tracked; wins over `runStarter`. */
   createRunHandler?: (ports: { approvals: Pick<RoutineApprovalObserver, "track" | "untrack">; updateRun: RoutineDurablePersistence["updateRun"] }) => RoutineRunHandler;
+  /** Reports the store-open failure under an admin `ERR-` id; defaults to the admin failure sink (`reportServerFailure`). */
+  reportFailure?: (required: { error: unknown; operation: string }) => { errorId: string };
 }
 
 export interface AssistantRoutinesHandle {
@@ -144,23 +147,45 @@ function commandPortsFor(commands: RoutineCommands, actor: RoutineActor, service
 }
 
 /** Wraps a factory spec so its deps are built per request from the AUTHENTICATED principal only. */
-function bindForPrincipal(spec: AnySpec, portsFor: (actor: RoutineActor) => unknown, withAvailability: boolean) {
+function bindForPrincipal(spec: AnySpec, portsFor: (actor: RoutineActor) => unknown, withAvailability: boolean, { errorId }: { errorId?: string } = {}) {
   return { ...spec, handle: async (args: { input: unknown; context?: AdminPrincipal; deps: unknown }, optional?: { signal?: AbortSignal }) => {
     const principal = args.context;
     if (!principal) return err({ error: { code: "UNAUTHORIZED", message: COPY.UNAUTHORIZED! } });
     const actor: RoutineActor = { principalId: principal.id, workspaceId: principal.workspaceId };
     const result = await spec.handle({ input: args.input, context: args.context, deps: portsFor(actor) }, optional);
+    if (!result.ok && errorId) return withIncidentId(result, errorId);
     // GET ready answers `{ routines, availability }` (sheet step 6); only reached when the gate said ready.
     return withAvailability && result.ok ? { ...result, value: { ...(result.value as object), availability: "ready" } } : result;
   } } as unknown as JsonRouteSpec<unknown, unknown, Record<string, never>, AdminPrincipal>;
 }
 
+/** The store-open refusal names the boot's admin `ERR-` incident, so the owner's screen and the server log
+ *  point at one failure. Only that refusal: it is reached after the owner check, so a non-owner's 403 never carries it. */
+function withIncidentId<R extends { ok: false; error: { details?: unknown } }>(result: R, errorId: string): R {
+  const details = result.error.details as { reason?: string } | undefined;
+  if (details?.reason !== ROUTINE_AVAILABILITY_REFUSALS.error.reason) return result;
+  return { ...result, error: { ...result.error, details: { ...details, errorId } } };
+}
+
+/** The create factory requires a body `target`, but the commands never read one: composition supplies it
+ *  (sheet P3-T1a.T Defaults) and the admin form sends none. Parse is handed the composed target, so a body
+ *  is not refused over a field nobody uses; a non-object body still reaches the factory's own 400. */
+function withComposedTarget(spec: AnySpec, target: RoutineTarget): AnySpec {
+  return { ...spec, parse: (raw: RouteInputContext) => {
+    const { body } = raw;
+    const isObject = typeof body === "object" && body !== null && !Array.isArray(body);
+    return spec.parse(isObject ? { ...raw, body: { ...body, target } } : raw);
+  } } as AnySpec;
+}
+
+type MountRoutineRoutesArgs = { mountAdminRoute: MountRoutineAdminRoute; workspaceId: string; portsFor: (actor: RoutineActor) => unknown; target: RoutineTarget; errorId?: string };
+
 /** Mounts the seven routes. Writes are same-origin by their factory; every route is session-credential only. */
-function mountRoutineRoutes({ mountAdminRoute, workspaceId, portsFor }: { mountAdminRoute: MountRoutineAdminRoute; workspaceId: string; portsFor: (actor: RoutineActor) => unknown }) {
+function mountRoutineRoutes({ mountAdminRoute, workspaceId, portsFor, target, errorId }: MountRoutineRoutesArgs) {
   const id = `${ROUTINE_ROUTE_BASE}/:id`;
   const specs: Array<[AnySpec, boolean]> = [
     [createRoutineListRoute({ path: ROUTINE_ROUTE_BASE, copy: COPY }) as unknown as AnySpec, true],
-    [createRoutineCreateRoute({ path: ROUTINE_ROUTE_BASE, copy: COPY }) as unknown as AnySpec, false],
+    [withComposedTarget(createRoutineCreateRoute({ path: ROUTINE_ROUTE_BASE, copy: COPY }) as unknown as AnySpec, target), false],
     [createRoutineGetRoute({ path: id, copy: COPY }) as unknown as AnySpec, false],
     [createRoutineUpdateRoute({ path: id, copy: COPY }) as unknown as AnySpec, false],
     [createRoutineDeleteRoute({ path: id, copy: COPY }) as unknown as AnySpec, false],
@@ -168,7 +193,7 @@ function mountRoutineRoutes({ mountAdminRoute, workspaceId, portsFor }: { mountA
     [createRoutineRunsRoute({ path: `${id}/runs`, copy: COPY }) as unknown as AnySpec, false],
   ];
   for (const [spec, withAvailability] of specs) {
-    mountAdminRoute({ spec: bindForPrincipal(spec, portsFor, withAvailability), deps: { workspaceId } }, { sessionCredentialOnly: SESSION_ONLY });
+    mountAdminRoute({ spec: bindForPrincipal(spec, portsFor, withAvailability, { errorId }), deps: { workspaceId } }, { sessionCredentialOnly: SESSION_ONLY });
   }
 }
 
@@ -176,10 +201,11 @@ function mountRoutineRoutes({ mountAdminRoute, workspaceId, portsFor }: { mountA
 const UNOPENED_STORE = new Proxy({}, { get: () => () => { throw new Error("The routine store is not open."); } }) as RoutineStore;
 
 /** Mounts routes that refuse with a fixed availability (desktop-only or error), after the owner check. */
-function mountRefusal(required: ComposeAssistantRoutinesRequired, availability: Exclude<RoutineAvailability, "ready">): AssistantRoutinesHandle {
+function mountRefusal(required: ComposeAssistantRoutinesRequired, availability: Exclude<RoutineAvailability, "ready">, { errorId }: { errorId?: string } = {}): AssistantRoutinesHandle {
+  const target = required.policy.target ?? { mode: "create_each_run" };
   const commands = createRoutineCommands({ store: UNOPENED_STORE, service: UNOPENED_STORE as never, access: required.policy.access,
-    onCommandCommitted: () => {}, availability: () => availability, target: required.policy.target ?? { mode: "create_each_run" } }, { log: required.log });
-  mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, null, null) });
+    onCommandCommitted: () => {}, availability: () => availability, target }, { log: required.log });
+  mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, null, null), target, errorId });
   return { availability: () => availability, reconcile: async () => {}, bootInterruption: { isLeaseOwner: () => false, whenInterrupted: async () => {} },
     approvalBindingFor: () => undefined };
 }
@@ -198,10 +224,15 @@ export async function composeAssistantRoutines(required: ComposeAssistantRoutine
   const { launch, policy, contentDbPath, openSqlite, workspaceId, now, newId, timers, log } = required;
   if (!policy.releaseEnabled || !launch.desktopEligible) return mountRefusal(required, "desktop-only");
   const holderId = optional.holderId ?? `boot-${newId()}`;
+  let openError: unknown;
   const sidecar = await openRoutineSidecar({ contentDbPath, openSqlite, runMigrations: optional.runMigrations ?? defaultRunMigrations,
-    migrate: optional.migrate ?? (migrateJiniRoutines as never), scope: workspaceId, holderId, now, newId }, { log });
-  // Store-open failure keeps the site up; routines answer `error` until the next boot.
-  if (!sidecar.ok) return mountRefusal(required, "error");
+    migrate: optional.migrate ?? (migrateJiniRoutines as never), scope: workspaceId, holderId, now, newId },
+  { log: (entry) => { if (entry.event === "routine-sidecar-open-failed") openError = entry.error; log(entry); } });
+  // Store-open failure keeps the site up; routines answer `error` (with this boot's `ERR-` id) until the next boot.
+  if (!sidecar.ok) {
+    const { errorId } = (optional.reportFailure ?? reportServerFailure)({ error: openError, operation: "routines:store-open" });
+    return mountRefusal(required, "error", { errorId });
+  }
   const { monotonicNow = () => performance.now() } = optional;
   const createService = optional.createService ?? (({ persistence, holderId: holder }) => new RoutineService({ persistence },
     { now, monotonicNow, newId, timers, holderId: holder, log: (code, detail) => log({ event: code, error: detail }) }));
@@ -237,7 +268,8 @@ async function startRoutineHost(required: ComposeAssistantRoutinesRequired, { se
   onStoreClose({ registration: () => sidecar.close() });
   const commands = createRoutineCommands({ store: sidecar.store, service, access: policy.access, onCommandCommitted: safeBeacon,
     availability, target: policy.target ?? { mode: "create_each_run" } }, { log });
-  mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, service, sidecar.store) });
+  mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, service, sidecar.store),
+    target: policy.target ?? { mode: "create_each_run" } });
 
   let bootRepaired: Promise<void> = Promise.resolve();
   const enable = async (reason: "start" | "assistant-enabled") => {
