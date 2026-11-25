@@ -10,14 +10,20 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { createSiteAssistantTransport } from "../site-assistant-transport";
+import { createVisitorPageControl } from "../visitor-page-control";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
- * SPEC-046/ADR-054 Task 2. `createSiteAssistantTransport` is the only export — everything else in
- * the source file (`priorTurnsBeforeLatestUserMessage`, `boundHistoryForRequest`, `parseSseFrame`,
- * `drainCompleteFrames`, `pumpServerSentEvents`) is module-private, so every test here drives it
- * through the public `ChatTransport` surface with `globalThis.fetch` stubbed per test (save/restore,
- * matching `remixicon-override.test.ts`'s pattern) rather than reaching into internals.
+ * SPEC-046/ADR-054 Task 2, now on the AG-UI wire. `createSiteAssistantTransport` is the main export
+ * — everything else in the source file (`latestUserTurnIndex`, `boundHistoryForRequest`, the run
+ * lifecycle and the per-event handlers) is module-private, and the SSE parsing and AG-UI validation
+ * belong to Jini's `createAgUiFetchAgent`, so every test here drives the transport through the
+ * public `ChatTransport` surface with `globalThis.fetch` stubbed per test (save/restore, matching
+ * `remixicon-override.test.ts`'s pattern) rather than reaching into internals.
+ *
+ * Every fixture speaks AG-UI and echoes the `threadId`/`runId` of the request it answers (the
+ * transport ignores a `RUN_STARTED` for any other ids): `answering` builds a one-shot body from the
+ * request's ids and `controlledStreamResponse` exposes the same builders for hand-fed streams.
  *
  * One documented finding, since resolved: `priorTurnsBeforeLatestUserMessage`'s post-loop
  * `return history;` fallback (no `role === "user"` entry found) was unreachable through this public
@@ -32,16 +38,37 @@ import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 const CHAT_URL = "/api/site-assistant/chat";
 
-function sseFrame(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+const TIMEOUT_MESSAGE = "Couldn't get an answer: the site took too long to respond. Try again.";
+const RECOVERY_MESSAGE = "Couldn't get an answer from this site. Reload the page and try again.";
+const NO_REPLY_MESSAGE = "Couldn't get an answer: the assistant sent no reply. Try again.";
+
+const frame = (event: Record<string, unknown>) => `data: ${JSON.stringify(event)}\n\n`;
+
+interface RequestIds { threadId: string; runId: string }
+
+function idsOf(init: RequestInit | undefined): RequestIds {
+  const body = JSON.parse(String(init!.body)) as RequestIds;
+  return { threadId: body.threadId, runId: body.runId };
 }
 
-/** A raw frame with only a `data:` line — no `event:` line at all, exercising `parseSseFrame`'s
- *  `let event = "message"` default (a server keep-alive comment would instead omit `data:` entirely;
- *  see `streamResponse`'s keep-alive test). "message" matches none of `startRun`'s known event
- *  branches, so this doubles as the "unrecognized event name" case. */
-function defaultEventFrame(data: unknown): string {
-  return `data: ${JSON.stringify(data)}\n\n`;
+/** AG-UI frames that echo one request's ids. */
+function wireFor(ids: RequestIds) {
+  return {
+    started: () => frame({ type: "RUN_STARTED", ...ids }),
+    finished: (reason = "stop") => frame({ type: "RUN_FINISHED", ...ids, result: { reason } }),
+    text: (delta: string, messageId = "m1") =>
+      frame({ type: "TEXT_MESSAGE_START", messageId, role: "assistant" })
+      + frame({ type: "TEXT_MESSAGE_CONTENT", messageId, delta })
+      + frame({ type: "TEXT_MESSAGE_END", messageId }),
+    error: (message: string, code?: string) => frame({ type: "RUN_ERROR", message, ...(code ? { code } : {}) }),
+    custom: (name: string, value: unknown) => frame({ type: "CUSTOM", name, value }),
+  };
+}
+type Wire = ReturnType<typeof wireFor>;
+
+/** A fetch whose single response body is built from the ids of the request it answers. */
+function answering(build: (wire: Wire) => string[]): typeof fetch {
+  return (async (_url: string, init: RequestInit) => streamResponse(build(wireFor(idsOf(init))))) as typeof fetch;
 }
 
 function streamResponse(frames: string[], status = 200): Response {
@@ -84,9 +111,17 @@ function abortableFetchStub(): { fetch: typeof fetch; signal: () => AbortSignal 
 
 function controlledStreamResponse() {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
+  let ids!: RequestIds;
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
   const stream = new ReadableStream<Uint8Array>({ start(c) { controller = c; } });
+  const response = new Response(stream, { headers: { "content-type": "text/event-stream" } });
   return {
-    response: new Response(stream, { headers: { "content-type": "text/event-stream" } }),
+    response,
+    /** Answers with the held-open body and records the request's ids; await `ready` before `wire()`. */
+    fetch: (async (_url: string, init: RequestInit) => { ids = idsOf(init); resolveReady(); return response; }) as typeof fetch,
+    ready,
+    wire: () => wireFor(ids),
     send: (frame: string) => controller.enqueue(new TextEncoder().encode(frame)),
     close: () => controller.close(),
   };
@@ -94,6 +129,12 @@ function controlledStreamResponse() {
 
 // Let the pump finish its pending reads while the response remains open.
 const flushStream = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+/** The AG-UI request's `messages` read as the latest turn plus the prior turns before it. */
+function toLegacyShape(body: { messages: { role: string; content: string }[] }): { message: string; history: { role: string; content: string }[] } {
+  const prior = body.messages.slice(0, -1).map(({ role, content }) => ({ role, content }));
+  return { message: body.messages.at(-1)!.content, history: prior };
+}
 
 function userMessage(content: string): ChatMessage {
   return { id: `msg-${content}`, role: "user", content };
@@ -149,7 +190,7 @@ describe("createSiteAssistantTransport", () => {
       let fetchCalled = false;
       globalThis.fetch = (async () => {
         fetchCalled = true;
-        return streamResponse([sseFrame("end", { reason: "stop" })]);
+        return streamResponse([]);
       }) as typeof fetch;
 
       const { handlers } = makeHandlers();
@@ -169,7 +210,7 @@ describe("createSiteAssistantTransport", () => {
       globalThis.fetch = (async (url: string, init: RequestInit) => {
         capturedUrl = url;
         capturedInit = init;
-        return streamResponse([sseFrame("end", { reason: "stop" })]);
+        return streamResponse([wireFor(idsOf(init)).started(), wireFor(idsOf(init)).finished()]);
       }) as typeof fetch;
 
       const { handlers, donePromise } = makeHandlers();
@@ -181,20 +222,23 @@ describe("createSiteAssistantTransport", () => {
       assert.equal((capturedInit?.headers as Record<string, string>)["Content-Type"], "application/json");
       assert.equal(capturedInit?.credentials, "same-origin");
       assert.equal(new Headers(capturedInit?.headers).has("Authorization"), false);
-      const body = JSON.parse(capturedInit?.body as string) as { message: string; history: unknown[] };
-      assert.equal(body.message, "hello there");
-      assert.deepEqual(body.history, []);
+      assert.equal(new Headers(capturedInit?.headers).get("accept"), "text/event-stream; agui=1");
+      const body = JSON.parse(capturedInit?.body as string) as { messages: { role: string; content: string }[] };
+      assert.equal(body.messages.at(-1)?.content, "hello there");
+      assert.deepEqual(body.messages.slice(0, -1), []);
       assert.match(runId, /^[0-9a-f-]{36}$/i);
     });
 
     it("streams text and client_directive frames through onEvent and collects both for onDone", async () => {
-      globalThis.fetch = (async () =>
-        streamResponse([
-          sseFrame("text", { delta: "Hi " }),
-          sseFrame("text", { delta: "there" }),
-          sseFrame("client_directive", { type: "highlight_entry", title: "My Post" }),
-          sseFrame("end", { reason: "stop" }),
-        ])) as typeof fetch;
+      globalThis.fetch = answering((w) => [
+        w.started(),
+        frame({ type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" }),
+        frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "Hi " }),
+        frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "there" }),
+        frame({ type: "TEXT_MESSAGE_END", messageId: "m1" }),
+        w.custom("client_directive", { type: "highlight_entry", title: "My Post" }),
+        w.finished(),
+      ]);
 
       const { handlers, events, doneCount, doneEvents, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
@@ -209,23 +253,25 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("preserves split frames, split delimiters, and split UTF-8 bytes", async () => {
-      const textFrame = sseFrame("text", { delta: "Hi 🌍 café" });
-      const encoded = new TextEncoder().encode(textFrame);
-      const emojiStart = Buffer.from(encoded).indexOf(Buffer.from("🌍"));
-      const cuts = [5, emojiStart + 1, emojiStart + 3, encoded.length - 1];
-      globalThis.fetch = (async () => new Response(new ReadableStream<Uint8Array>({
-        start(controller) {
-          let offset = 0;
-          for (const cut of cuts) {
-            controller.enqueue(encoded.slice(offset, cut));
-            offset = cut;
-          }
-          controller.enqueue(encoded.slice(offset));
-          controller.enqueue(new TextEncoder().encode(sseFrame("client_directive", { type: "highlight_entry", title: "Café" })));
-          controller.enqueue(new TextEncoder().encode(sseFrame("end", { reason: "stop" })));
-          controller.close();
-        },
-      }))) as typeof fetch;
+      globalThis.fetch = (async (_url: string, init: RequestInit) => {
+        const w = wireFor(idsOf(init));
+        const encoded = new TextEncoder().encode(
+          w.started() + w.text("Hi 🌍 café") + w.custom("client_directive", { type: "highlight_entry", title: "Café" }) + w.finished(),
+        );
+        const emojiStart = Buffer.from(encoded).indexOf(Buffer.from("🌍"));
+        const cuts = [5, emojiStart + 1, emojiStart + 3, encoded.length - 1];
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            let offset = 0;
+            for (const cut of cuts) {
+              controller.enqueue(encoded.slice(offset, cut));
+              offset = cut;
+            }
+            controller.enqueue(encoded.slice(offset));
+            controller.close();
+          },
+        }));
+      }) as typeof fetch;
       const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
@@ -239,15 +285,16 @@ describe("createSiteAssistantTransport", () => {
 
     it("delivers text while the response is still open, before end or EOF", async () => {
       const stream = controlledStreamResponse();
-      globalThis.fetch = (async () => stream.response) as typeof fetch;
+      globalThis.fetch = stream.fetch;
       const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      await stream.ready;
       try {
-        stream.send(sseFrame("text", { delta: "first" }));
+        stream.send(stream.wire().started() + stream.wire().text("first"));
         await flushStream();
         assert.deepEqual(events, [{ kind: "text", text: "first" }]);
         assert.equal(doneCount(), 0);
-        stream.send(sseFrame("end", { reason: "stop" }));
+        stream.send(stream.wire().finished());
         await flushStream();
         assert.equal(doneCount(), 1);
         assert.deepEqual(doneEvents(), events);
@@ -259,12 +306,11 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("drains multiple coalesced frames exactly once and in order", async () => {
-      globalThis.fetch = (async () => streamResponse([
-        sseFrame("text", { delta: "one" }) +
-        sseFrame("text", { delta: "two" }) +
-        sseFrame("client_directive", { type: "highlight_entry", title: "Post" }) +
-        sseFrame("end", { reason: "stop" }),
-      ])) as typeof fetch;
+      globalThis.fetch = answering((w) => [
+        w.started() + w.text("one", "m1") + w.text("two", "m2") +
+        w.custom("client_directive", { type: "highlight_entry", title: "Post" }) +
+        w.finished(),
+      ]);
       const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
@@ -278,8 +324,7 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("drops unknown and retired client directives before transcript events", async () => {
-      globalThis.fetch = (async () =>
-        streamResponse([sseFrame("client_directive", { anything: [1, 2, 3] }), sseFrame("end", { reason: "stop" })])) as typeof fetch;
+      globalThis.fetch = answering((w) => [w.started(), w.custom("client_directive", { anything: [1, 2, 3] }), w.finished()]);
 
       const { handlers, events, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
@@ -288,23 +333,21 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(events, []);
     });
 
-    it("surfaces an error frame via onError without ending the run, then still ends on a later end frame", async () => {
+    // AG-UI's RUN_ERROR is terminal (legacy `error` frames were not); the visitor-visible contract is
+    // one reported error, one finish, and nothing after it changing either.
+    it("surfaces a RUN_ERROR via onError exactly once, finishes the run, and ignores later frames", async () => {
       const stream = controlledStreamResponse();
-      globalThis.fetch = (async () => stream.response) as typeof fetch;
+      globalThis.fetch = stream.fetch;
       const { handlers, events, errors, doneCount, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      await stream.ready;
       try {
-        stream.send(sseFrame("error", { message: "upstream hiccup" }));
+        stream.send(stream.wire().started() + stream.wire().error("upstream hiccup"));
         await flushStream();
         assert.equal(errors.length, 1);
-        assert.equal(doneCount(), 0, "an error frame must not finish the run");
-        stream.send(sseFrame("text", { delta: "still going" }));
+        assert.equal(doneCount(), 1, "a RUN_ERROR finishes the run");
+        stream.send(stream.wire().text("still going") + stream.wire().finished());
         await flushStream();
-        assert.deepEqual(events, [{ kind: "text", text: "still going" }]);
-        assert.equal(doneCount(), 0, "text after the error must not finish the run");
-        stream.send(sseFrame("end", { reason: "stop" }));
-        await flushStream();
-        assert.equal(doneCount(), 1, "end finishes the run before EOF");
       } finally {
         stream.close();
       }
@@ -312,29 +355,30 @@ describe("createSiteAssistantTransport", () => {
 
       assert.equal(errors.length, 1);
       assert.equal(errors[0]?.message, "Couldn't get an answer: upstream hiccup. Try again.");
-      assert.deepEqual(events, [{ kind: "text", text: "still going" }], "processing must continue past the error frame");
-      assert.equal(doneCount(), 1, "onDone fires exactly once, from the end frame, not the error");
+      assert.deepEqual(events, [], "nothing after the terminal error reaches the transcript");
+      assert.equal(doneCount(), 1, "onDone fires exactly once");
     });
 
-    it("falls back to a generic error message when an error frame carries no message", async () => {
-      globalThis.fetch = (async () => streamResponse([sseFrame("error", {}), sseFrame("end", { reason: "stop" })])) as typeof fetch;
+    it("falls back to the generic recovery wording when a RUN_ERROR carries no message", async () => {
+      globalThis.fetch = answering((w) => [w.started(), w.error("")]);
 
       const { handlers, errors, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant error. Try again.");
+      assert.equal(errors[0]?.message, RECOVERY_MESSAGE);
     });
 
-    it("ends the run when the stream closes with no explicit end frame", async () => {
-      globalThis.fetch = (async () => streamResponse([sseFrame("text", { delta: "partial" })])) as typeof fetch;
+    it("ends the run with the recovery error when the stream closes with no terminal frame", async () => {
+      globalThis.fetch = answering((w) => [w.started(), w.text("partial")]);
 
-      const { handlers, events, doneCount, donePromise } = makeHandlers();
+      const { handlers, events, errors, doneCount, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
 
       assert.deepEqual(events, [{ kind: "text", text: "partial" }]);
+      assert.deepEqual(errors.map((e) => e.message), [RECOVERY_MESSAGE]);
       assert.equal(doneCount(), 1);
     });
 
@@ -342,13 +386,13 @@ describe("createSiteAssistantTransport", () => {
       let signal!: AbortSignal;
       globalThis.fetch = (async (_url: string, init: RequestInit) => {
         signal = init.signal as AbortSignal;
-        return streamResponse(["event: text\ndata: {bad\n\n"]);
+        return streamResponse([wireFor(idsOf(init)).started(), "data: {bad\n\n"]);
       }) as typeof fetch;
       const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
       const { runId } = await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
       assert.equal(errors.length, 1);
-      assert.match(errors[0]?.message ?? "", /^Couldn't get an answer: .+\. Try again\.$/);
+      assert.equal(errors[0]?.message, RECOVERY_MESSAGE);
       assert.deepEqual(events, []);
       assert.equal(doneCount(), 1);
       assert.deepEqual(doneEvents(), []);
@@ -357,8 +401,7 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("skips a keep-alive comment frame (no data: line) without crashing or forwarding it", async () => {
-      globalThis.fetch = (async () =>
-        streamResponse([": keep-alive\n\n", sseFrame("text", { delta: "after keep-alive" }), sseFrame("end", { reason: "stop" })])) as typeof fetch;
+      globalThis.fetch = answering((w) => [": keep-alive\n\n", w.started(), w.text("after keep-alive"), w.finished()]);
 
       const { handlers, events, doneCount, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
@@ -368,9 +411,8 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(doneCount(), 1);
     });
 
-    it("ignores a frame with no event: line (defaults to \"message\", matches no known kind)", async () => {
-      globalThis.fetch = (async () =>
-        streamResponse([defaultEventFrame({ delta: "ignored" }), sseFrame("end", { reason: "stop" })])) as typeof fetch;
+    it("ignores a CUSTOM event with an unrecognized name (matches no known kind)", async () => {
+      globalThis.fetch = answering((w) => [w.started(), w.custom("something_else", { delta: "ignored" }), w.finished()]);
 
       const { handlers, events, doneCount, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
@@ -411,7 +453,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant response had no stream body. Try again.");
+      assert.equal(errors[0]?.message, RECOVERY_MESSAGE);
       assert.equal(doneCount(), 1);
     });
 
@@ -456,7 +498,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "Couldn't get an answer: connection reset. Try again.");
+      assert.equal(errors[0]?.message, RECOVERY_MESSAGE);
       assert.equal(doneCount(), 1);
     });
 
@@ -469,7 +511,7 @@ describe("createSiteAssistantTransport", () => {
 
       assert.equal(errors.length, 1);
       assert.ok(errors[0] instanceof Error);
-      assert.equal(errors[0]?.message, "Couldn't get an answer: boom-non-error. Try again.");
+      assert.equal(errors[0]?.message, RECOVERY_MESSAGE);
     });
 
     it("bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars", async () => {
@@ -487,8 +529,8 @@ describe("createSiteAssistantTransport", () => {
 
       let capturedBody: { message: string; history: { role: string; content: string }[] } | undefined;
       globalThis.fetch = (async (_url: string, init: RequestInit) => {
-        capturedBody = JSON.parse(init.body as string);
-        return streamResponse([sseFrame("end", { reason: "stop" })]);
+        capturedBody = toLegacyShape(JSON.parse(init.body as string));
+        return streamResponse([wireFor(idsOf(init)).started(), wireFor(idsOf(init)).finished()]);
       }) as typeof fetch;
 
       const { handlers, donePromise } = makeHandlers();
@@ -523,28 +565,29 @@ describe("createSiteAssistantTransport", () => {
     const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
     it("reports an end-only stream (no text, no page action) as one no-reply error and still finishes", async () => {
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([sseFrame("end", { reason: "stop" })])) as typeof fetch });
+      const injected = createSiteAssistantTransport({}, { fetch: answering((w) => [w.started(), w.finished()]) });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
-      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the assistant sent no reply. Try again."]);
+      assert.deepEqual(errors.map((e) => e.message), [NO_REPLY_MESSAGE]);
       assert.equal(doneCount(), 1);
     });
 
-    it("treats whitespace-only text that closes without an end frame as no reply", async () => {
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([sseFrame("text", { delta: "  \n" })])) as typeof fetch });
+    it("treats whitespace-only text that ends the run cleanly as no reply", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: answering((w) => [w.started(), w.text("  \n"), w.finished()]) });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
-      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the assistant sent no reply. Try again."]);
+      assert.deepEqual(errors.map((e) => e.message), [NO_REPLY_MESSAGE]);
       assert.equal(doneCount(), 1);
     });
 
     it("a retired page action alone is not a reply", async () => {
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
-        sseFrame("client_directive", { type: "navigate", target: { path: "/about", title: "About" }, auto: true }),
-        sseFrame("end", { reason: "stop" }),
-      ])) as typeof fetch });
+      const injected = createSiteAssistantTransport({}, { fetch: answering((w) => [
+        w.started(),
+        w.custom("client_directive", { type: "navigate", target: { path: "/about", title: "About" }, auto: true }),
+        w.finished(),
+      ]) });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("take me to about")]), handlers);
       await donePromise;
@@ -553,10 +596,11 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("does not add a no-reply error on top of a server error frame", async () => {
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
-        sseFrame("error", { message: "Visitor AI needs a saved key and model." }),
-        sseFrame("end", { reason: "error" }),
-      ])) as typeof fetch });
+      const injected = createSiteAssistantTransport({}, { fetch: answering((w) => [
+        w.started(),
+        w.error("Visitor AI needs a saved key and model."),
+        w.finished("error"),
+      ]) });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
@@ -565,11 +609,12 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("stays silent for an error frame that arrives after the run already ended", async () => {
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
-        sseFrame("text", { delta: "answer" }),
-        sseFrame("end", { reason: "stop" }),
-        sseFrame("error", { message: "late" }),
-      ])) as typeof fetch });
+      const injected = createSiteAssistantTransport({}, { fetch: answering((w) => [
+        w.started(),
+        w.text("answer"),
+        w.finished(),
+        w.error("late"),
+      ]) });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
@@ -578,19 +623,138 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(doneCount(), 1);
     });
 
+    describe("B192: losing the page channel", () => {
+      const PAGE_HTML = '<script id="tovu-visitor-publication" type="application/json">{"revision":"reviewed","elements":[]}</script><main data-visitor-page-root data-agent-publication="reviewed"></main>';
+      const attachedStream = (token: string) => new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "attached", sessionId: "s1", bindToken: token })}\n\n`));
+      } }));
+      /** The chat endpoint, recording each POST's page headers before answering with one reply. */
+      const recordingChat = (posts: Headers[]) => (async (url: string, init: RequestInit) => {
+        posts.push(new Headers(init.headers));
+        return answering((w) => [w.started(), w.text("We open at nine."), w.finished()])(url, init);
+      }) as typeof fetch;
+      const pageHeaderNames = (headers: Headers) => ["x-frontend-tab", "x-frontend-bind-token", "x-visitor-publication"].filter((name) => headers.has(name));
+      const answeredText = (events: AgentEvent[]) => events.map((ev) => (ev.kind === "text" ? ev.text : "")).join("");
+
+      it("attach failure still answers the question", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        let credentialCalls = 0;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) {
+            credentialCalls += 1;
+            if (credentialCalls === 1) throw new TypeError("Failed to fetch");
+            return Response.json({ tabCredential: "tab" });
+          }
+          if (String(url).includes("/stream?")) return attachedStream("fresh-token");
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        try {
+          const first = makeHandlers();
+          await injected.startRun(baseInput([userMessage("when do you open?")]), first.handlers);
+          await first.donePromise;
+          assert.equal(posts.length, 1, "exactly one chat POST for the turn");
+          assert.deepEqual(pageHeaderNames(posts[0]!), [], "no page binding headers after a failed attach");
+          assert.deepEqual(first.errors, []);
+          assert.equal(answeredText(first.events), "We open at nine.");
+          // The next turn is eligible to attach again, and then carries the whole binding.
+          const second = makeHandlers();
+          await injected.startRun(baseInput([userMessage("and on sunday?")]), second.handlers);
+          await second.donePromise;
+          assert.equal(credentialCalls, 2);
+          assert.equal(posts[1]!.get("x-frontend-bind-token"), "fresh-token");
+          assert.deepEqual(second.errors, []);
+        } finally { frontend.close(); dom.window.close(); }
+      });
+
+      it("a failed rebind drops the stale page binding and still answers", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
+        let streamOpens = 0;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) return Response.json({ tabCredential: "tab" });
+          if (String(url).includes("/stream?")) {
+            streamOpens += 1;
+            if (streamOpens === 2) throw new TypeError("Failed to fetch");
+            return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+              streams.push(controller);
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "attached", sessionId: "s1", bindToken: `token-${streamOpens}` })}\n\n`));
+            } }));
+          }
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        // This file's React harness installs jsdom's `Event` globally, but the bridge dispatches it on
+        // Node's own `EventTarget` when a stream ends; a browser has one `Event`, so use Node's here.
+        const harnessEvent = Object.getOwnPropertyDescriptor(globalThis, "Event")!;
+        Object.defineProperty(globalThis, "Event", { configurable: true, writable: true, value: Object.getPrototypeOf(MessageEvent) });
+        try {
+          const first = makeHandlers();
+          await injected.startRun(baseInput([userMessage("hi")]), first.handlers);
+          await first.donePromise;
+          assert.equal(posts[0]!.get("x-frontend-bind-token"), "token-1");
+          streams[0]!.close();
+          await flushStream();
+          const second = makeHandlers();
+          await injected.startRun(baseInput([userMessage("when do you open?")]), second.handlers);
+          await second.donePromise;
+          assert.equal(posts.length, 2);
+          assert.deepEqual(pageHeaderNames(posts[1]!), [], "the dropped binding's token must not travel");
+          assert.deepEqual(frontend.currentHeaders(), {});
+          assert.deepEqual(second.errors, []);
+          assert.equal(answeredText(second.events), "We open at nine.");
+          const third = makeHandlers();
+          await injected.startRun(baseInput([userMessage("thanks")]), third.handlers);
+          await third.donePromise;
+          assert.equal(posts[2]!.get("x-frontend-bind-token"), "token-3");
+        } finally { frontend.close(); dom.window.close(); Object.defineProperty(globalThis, "Event", harnessEvent); }
+      });
+
+      it("Stop racing attach prevents the POST", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        let failCredentials!: (error: Error) => void;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) return new Promise<Response>((_resolve, reject) => { failCredentials = reject; });
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        try {
+          const { handlers, errors, doneCount, donePromise } = makeHandlers();
+          const { runId } = await injected.startRun(baseInput([userMessage("hi")]), handlers);
+          await flushStream();
+          await injected.stopRun(runId);
+          // Stop ends the turn at once; it does not wait out the attachment.
+          await Promise.race([donePromise, sleep(500)]);
+          assert.equal(doneCount(), 1);
+          failCredentials(new TypeError("Failed to fetch"));
+          await flushStream();
+          assert.equal(posts.length, 0, "a stopped turn never falls back to a page-less chat POST");
+          assert.deepEqual(errors, []);
+          assert.equal(doneCount(), 1);
+        } finally { frontend.close(); dom.window.close(); }
+      });
+    });
+
     it("does not re-arm or fire the idle timer for chunks received after end", async (t) => {
       t.mock.timers.enable({ apis: ["setTimeout"] });
       const schedule = t.mock.method(globalThis, "setTimeout");
       const stream = controlledStreamResponse();
       let requestSignal!: AbortSignal;
-      const injected = createSiteAssistantTransport({}, { idleTimeoutMs: 100, fetch: async (_url, init) => {
+      const injected = createSiteAssistantTransport({}, { idleTimeoutMs: 100, fetch: async (url, init) => {
         requestSignal = init!.signal!;
-        return stream.response;
+        return stream.fetch(url, init);
       } });
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       try {
         await injected.startRun(baseInput([userMessage("hi")]), handlers);
-        stream.send(sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" }));
+        await stream.ready;
+        stream.send(stream.wire().started() + stream.wire().text("answer") + stream.wire().finished());
         await donePromise;
         const schedulesAtEnd = schedule.mock.callCount();
         stream.send(": late keep-alive\n\n");
@@ -611,12 +775,13 @@ describe("createSiteAssistantTransport", () => {
       const stream = controlledStreamResponse();
       const input = baseInput([userMessage("hi")]);
       const listenersBefore = getEventListeners(input.signal, "abort").length;
-      const injected = createSiteAssistantTransport({}, { fetch: async () => stream.response });
+      const injected = createSiteAssistantTransport({}, { fetch: stream.fetch });
       const { handlers, donePromise } = makeHandlers();
       try {
         await injected.startRun(input, handlers);
+        await stream.ready;
         assert.equal(getEventListeners(input.signal, "abort").length, listenersBefore + 1);
-        stream.send(sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" }));
+        stream.send(stream.wire().started() + stream.wire().text("answer") + stream.wire().finished());
         await donePromise;
         assert.equal(getEventListeners(input.signal, "abort").length, listenersBefore);
       } finally {
@@ -632,17 +797,19 @@ describe("createSiteAssistantTransport", () => {
         const frontendFinish = t.mock.fn();
         const confirmation = t.mock.fn();
         const injected = createSiteAssistantTransport({}, {
-          fetch: async () => stream.response,
-          frontend: { headers: async () => ({}), finish: frontendFinish },
+          fetch: stream.fetch,
+          frontend: { headers: async () => ({}), finish: frontendFinish, acceptBrowserInvocation: () => {} },
           onToolConfirmation: confirmation,
         });
         const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
-        const end = sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" });
-        const late = sseFrame("text", { delta: "late" }) + sseFrame("error", { message: "late error" }) +
-          sseFrame("client_directive", { kind: "tool_confirmation", challengeId: "a".repeat(22), title: "Allow?", summary: "Search." }) +
-          sseFrame("end", { reason: "navigation" });
         try {
           await injected.startRun(baseInput([userMessage("hi")]), handlers);
+          await stream.ready;
+          const w = stream.wire();
+          const end = w.started() + w.text("answer") + w.finished();
+          const late = w.text("late", "m2") + w.error("late error") +
+            w.custom("client_directive", { kind: "tool_confirmation", challengeId: "a".repeat(22), title: "Allow?", summary: "Search." }) +
+            w.finished("navigation");
           stream.send(end + (delivery === "same chunk" ? late : ""));
           await donePromise;
           if (delivery === "later chunk") stream.send(late);
@@ -677,21 +844,23 @@ describe("createSiteAssistantTransport", () => {
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
       assert.equal(pending.signal().aborted, true, "the idle timer must abort the hung request");
-      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the site took too long to respond. Try again."]);
+      assert.deepEqual(errors.map((e) => e.message), [TIMEOUT_MESSAGE]);
       assert.equal(doneCount(), 1);
     });
 
     it("restarts the idle timer on every received chunk, so a slow but live reply is not cut off", async () => {
       const stream = controlledStreamResponse();
-      const injected = createSiteAssistantTransport({}, { fetch: (async () => stream.response) as typeof fetch, idleTimeoutMs: 300 });
+      const injected = createSiteAssistantTransport({}, { fetch: stream.fetch, idleTimeoutMs: 300 });
       const { handlers, events, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("hi")]), handlers);
-      for (const part of ["one ", "two ", "three"]) {
+      await stream.ready;
+      stream.send(stream.wire().started());
+      for (const [i, part] of ["one ", "two ", "three"].entries()) {
         await sleep(150);
-        stream.send(sseFrame("text", { delta: part }));
+        stream.send(stream.wire().text(part, `m${i}`));
       }
       await sleep(150);
-      stream.send(sseFrame("end", { reason: "stop" }));
+      stream.send(stream.wire().finished());
       stream.close();
       await donePromise;
       assert.deepEqual(errors, [], "600ms total but never 300ms of silence: no timeout");
@@ -736,8 +905,8 @@ describe("history scanning when the latest user turn is not the last entry", () 
     let capturedBody: { message: string; history: { role: string; content: string }[] } | undefined;
     const transport = createSiteAssistantTransport({}, {
       fetch: (async (_url: string, init: RequestInit) => {
-        capturedBody = JSON.parse(init.body as string);
-        return streamResponse([sseFrame("end", { reason: "stop" })]);
+        capturedBody = toLegacyShape(JSON.parse(init.body as string));
+        return streamResponse([wireFor(idsOf(init)).started(), wireFor(idsOf(init)).finished()]);
       }) as typeof fetch,
     });
     const history: ChatMessage[] = [

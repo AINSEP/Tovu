@@ -473,7 +473,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
 
   mountMembersNewsletter({ app, routeDeps });
 
-  mountAdminSystem({ app, routeDeps, reporter: failureReporter });
+  mountAdminSystem({ app, routeDeps, reporter: failureReporter }, { onShutdown: options.onShutdown });
   mountAdminFeatures({ app, routeDeps, reporter: failureReporter });
 
   mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps, reporter: failureReporter }, options);

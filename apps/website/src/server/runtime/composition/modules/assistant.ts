@@ -83,6 +83,10 @@ import { ownerChatAcceptanceFor, sanitizeBrowserRunContext } from "./assistant-r
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "@jini-ai/chat/store/runtime";
+import type { AdminAgUiApprovals } from "#src/assistant/admin-ag-ui-approvals";
+
+/** The one approval operation a Stop needs: settle what the stopped run parked. */
+type StopSettlesApprovals = Pick<AdminAgUiApprovals, "settleAdminApprovalsOnStop">;
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
 type AssistantRouteDeps = RouteDeps & {
@@ -266,10 +270,17 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   res.json({ message: current.message, conversationId: current.conversationId });
 }
 
-async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res: Response; deps: AssistantRouteDeps; daemon: DaemonCallOptions }, _optional = {}): Promise<void> {
+async function cancelDurableRun(
+  { req, res, deps, daemon }: { req: Request; res: Response; deps: AssistantRouteDeps; daemon: DaemonCallOptions },
+  { approvals }: { approvals?: StopSettlesApprovals } = {},
+): Promise<void> {
   let run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
+  // A Stop owns every AG-UI approval this run parked, synchronously, before anything is awaited: a
+  // racing resume either claimed first (its answer reaches the daemon, which this cancel then ends)
+  // or finds nothing to claim. Never both.
+  approvals?.settleAdminApprovalsOnStop({ owner: getAuthedPrincipal(res).id, daemonRunId: run.runId });
   const store = deps.chatRunLedger.durable;
   if (!store) throw new Error("assistant cancellation has no durable run store");
   await store.cancel({ runId: run.runId, reason: "user-stop" }, {});
@@ -585,11 +596,13 @@ interface AssistantMountContext {
   readonly daemon: DaemonCallOptions;
   readonly liveModels: ReturnType<typeof createLiveModelDiscovery>;
   readonly byokSurfaceExchanges: SurfaceExchangeStore;
+  /** The AG-UI approval table, when the AG-UI resume path is composed; absent, Stop is unchanged. */
+  readonly approvals?: StopSettlesApprovals;
 }
 
 /** The chat-run proxy routes, each behind the admin session. */
 function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
-  const { app, routeDeps, daemon } = required;
+  const { app, routeDeps, daemon, approvals } = required;
   app.use("/api/runs", requireAdminSession(routeDeps));
   app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
     proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
@@ -608,7 +621,7 @@ function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
   app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
   app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
   app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
+  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, { approvals }).catch(next));
   // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
   // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
   // pane whether to deliver live or queue the text after the current run. A durable run's id is the
@@ -745,7 +758,10 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
  * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
  * every confirmation would 404/409 against an exchange this store never opened.
  */
-export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore }, _optional: Record<string, never> = {}): ServerModuleHandle {
+export function createAssistantModule(
+  { routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore },
+  { approvals }: { approvals?: StopSettlesApprovals } = {},
+): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
   const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
@@ -760,7 +776,7 @@ export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { rou
   return {
     name: "assistant",
     registerRoutes: ({ app }, _options = {}) => {
-      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges };
+      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges, ...(approvals ? { approvals } : {}) };
       mountRunRoutes(mount);
       mountAgentAndToolRoutes(mount);
       mountFrontendSessionRoutes(mount);

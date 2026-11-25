@@ -8,33 +8,44 @@
  *
  * - The admin transport calls `POST /api/runs` (start) then opens a native `EventSource` against
  *   `GET /api/runs/:runId/events` — a persisted, reattachable run behind an admin-session daemon.
- * - This transport calls `POST /api/site-assistant/chat` exactly once per visitor turn. The whole
- *   reply streams back on that SAME request's response body (`text`/`error`/`end`/`client_directive`
- *   SSE frames — see `site-assistant.ts`'s `sse()` helper), and nothing about the RUN is persisted
- *   server-side: there is still no run id to reattach to (see `reattachRun` below). `startRun` sends
- *   the latest user
- *   turn as `message` (`latestUserPromptFromHistory`) plus, as of SPEC-046 REQ-3, a bounded `history`
- *   of the turns before it — not a flattened transcript string the way `buildTranscript`'s "## user /
- *   ## assistant" replay format works (that is built for a coding-agent transcript, not a
- *   natural-language question); the server keeps each turn's own `role` and feeds them to Gemini as
- *   real multi-turn `Content` entries (`assistant/site/history.ts`). `boundHistoryForRequest` below
- *   is a bandwidth/politeness courtesy only — the server treats whatever arrives as untrusted and
- *   re-bounds/validates it independently, so this file's caps do not need to match the server's
- *   exactly.
+ * - This transport calls `POST /api/site-assistant/chat` exactly once per visitor turn, negotiating
+ *   AG-UI with the exact `Accept: text/event-stream; agui=1` range and a `RunAgentInput` body
+ *   (`buildVisitorRunInput`); the server's `site-assistant-ag-ui.ts` answers on that SAME request's
+ *   response body. Nothing about the RUN is persisted server-side: there is still no run id to
+ *   reattach to (see `reattachRun` below). The body carries the latest user turn plus, as of SPEC-046
+ *   REQ-3, a bounded list of the turns before it, each keeping its own `role` — not a flattened
+ *   transcript string the way `buildTranscript`'s "## user / ## assistant" replay format works (that
+ *   is built for a coding-agent transcript, not a natural-language question); the server feeds them
+ *   to Gemini as real multi-turn `Content` entries (`assistant/site/history.ts`).
+ *   `boundHistoryForRequest` below is a bandwidth/politeness courtesy only — the server treats
+ *   whatever arrives as untrusted and re-bounds/validates it independently, so this file's caps do
+ *   not need to match the server's exactly.
  *
- * Because a native `EventSource` cannot POST, the SSE body is parsed by hand off `fetch`'s
- * `ReadableStream`, matching the exact two-line `event:`/`data:` framing `sse()` writes server-side.
+ * A native `EventSource` cannot POST, so the response body is read by Jini's `createAgUiFetchAgent`
+ * (the one SSE parser and AG-UI 1.0 validator); this file owns only HTTP, refusals, the idle policy
+ * and what each validated event means for the visitor. Old loaded bundles keep the legacy wire,
+ * which the server still serves to any request without the AG-UI range.
  */
+import { EventType } from "@ag-ui/core";
+import type { AGUIEvent, Message, RunAgentInput } from "@ag-ui/core";
 import { assistantContentFromEvents, latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
+import type { AgUiToAgentTranslationState } from "@jini-ai/chat/core/ag-ui/reduction";
+import type { ChatPaneAgentToolAction, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import { createAgUiFetchAgent } from "@jini-ai/chat/transports/ag-ui";
 
-import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
+import { NO_REPLY_REASON, UNCLASSIFIED_FAILURE_REASON, visitorFacingError } from "./site-assistant-errors";
 import { parseToolConfirmation } from "./tool-confirmation";
 import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 const CHAT_URL = "/api/site-assistant/chat";
+/** The only media range the server answers with AG-UI; anything else gets the legacy wire. */
+const VISITOR_AG_UI_ACCEPT = "text/event-stream; agui=1";
+/** The server emits no usage/status CUSTOM events to visitors, and every CUSTOM event is
+ *  intercepted before reduction, so these names are never consulted; they only satisfy the reducer. */
+const UNCONSULTED_CUSTOM_EVENT_NAMES = { usage: "usage", status: "status", extensionPrefix: "ext." } as const;
 /** Silence (no bytes at all) this long ends the turn with a visible error instead of an endless
  *  "Replying…". The server sends no keep-alive frames, and a reply can pause while it searches
  *  content, so this is generous; any received chunk restarts it. */
@@ -46,20 +57,15 @@ const TIMEOUT_REASON = "the site took too long to respond";
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_MESSAGE_CHARS = 2000;
 
-interface HistoryTurn {
-  readonly role: ChatMessage["role"];
-  readonly content: string;
-}
-
 /**
  * `input.history`'s trailing entry is the message currently being sent — `useConversation.ts`'s
  * `sendMessage` builds `history` as `[...priorMessages, userMessage]` before calling `run.start`, and
- * `latestUserPromptFromHistory` extracts that same trailing user turn as `message`. This returns
- * everything BEFORE it, scanning from the end (the same direction `latestUserPromptFromHistory` scans
+ * `latestUserPromptFromHistory` extracts that same trailing user turn as `message`. This returns the
+ * index of that turn, scanning from the end (the same direction `latestUserPromptFromHistory` scans
  * in) rather than assuming a fixed "drop the last element" so this stays correct even if a future
  * caller's `history` does not end in the user turn.
  */
-function priorTurnsBeforeLatestUserMessage({ history }: { history: ChatMessage[] }, _options = {}): ChatMessage[] {
+function latestUserTurnIndex({ history }: { history: ChatMessage[] }, _options = {}): number {
   // Precondition: `history` holds a user turn. `startRun` calls `latestUserPromptFromHistory` first,
   // which throws when there is none and scans for the same condition (last `role === "user"`, from
   // the end) over the same unmutated array — so this scan always stops at an index >= 0. The former
@@ -67,100 +73,93 @@ function priorTurnsBeforeLatestUserMessage({ history }: { history: ChatMessage[]
   // removed; a caller breaking the precondition now fails fast instead of sending everything.
   let i = history.length - 1;
   while (history[i]!.role !== "user") i -= 1;
-  return history.slice(0, i);
+  return i;
 }
 
 /** Bounds the prior turns sent alongside a message. Not the security boundary (see file header) —
  *  just keeps a long local conversation from ballooning every request's payload. */
-function boundHistoryForRequest({ history }: { history: ChatMessage[] }, _options = {}): HistoryTurn[] {
-  const prior = priorTurnsBeforeLatestUserMessage({ history });
+function boundHistoryForRequest({ prior }: { prior: ChatMessage[] }, _options = {}): Message[] {
   const recent = prior.length > MAX_HISTORY_MESSAGES ? prior.slice(prior.length - MAX_HISTORY_MESSAGES) : prior;
   return recent
     .filter((m) => m.content.trim().length > 0)
-    .map((m) => ({
-      role: m.role,
-      content: m.content.length > MAX_HISTORY_MESSAGE_CHARS ? m.content.slice(0, MAX_HISTORY_MESSAGE_CHARS) : m.content,
-    }));
-}
-
-interface ChatFrameText {
-  readonly delta: string;
-}
-interface ChatFrameError {
-  readonly message: string;
-}
-/** Parses one complete SSE frame's `event:`/`data:` lines (defaulting `event` to `"message"`). */
-function parseSseFrame({ frame }: { frame: string }, _options = {}): { event: string; data: string | null } {
-  let event = "message";
-  let data: string | null = null;
-  for (const line of frame.split("\n")) {
-    if (line.startsWith("event:")) event = line.slice("event:".length).trim();
-    if (line.startsWith("data:")) data = line.slice("data:".length).trim();
-  }
-  return { event, data };
+    .map((m): Message => {
+      const content = m.content.length > MAX_HISTORY_MESSAGE_CHARS ? m.content.slice(0, MAX_HISTORY_MESSAGE_CHARS) : m.content;
+      return m.role === "user" ? { id: m.id, role: "user", content } : { id: m.id, role: "assistant", content };
+    });
 }
 
 /**
- * Extracts and dispatches every complete `\n\n`-delimited frame currently in `buffer` via `onFrame`,
- * returning the remaining not-yet-terminated tail for the next read.
+ * The visitor turn as an AG-UI 1.0 `RunAgentInput`: bounded prior turns with their ids and roles,
+ * then the latest user turn. `state`, `tools` and `context` are empty because the server owns the
+ * provider, catalog and identity; `forwardedProps.turnId` is the one client field it reads, for
+ * turn dedupe (`visitor-turn-dedupe.ts`).
+ * @complexity O(n) in the history length.
  */
-function drainCompleteFrames({ buffer, onFrame }: { buffer: string; onFrame: (event: string, data: unknown) => void }, _options = {}): string {
-  let remaining = buffer;
-  let boundary = remaining.indexOf("\n\n");
-  while (boundary !== -1) {
-    const frame = remaining.slice(0, boundary);
-    remaining = remaining.slice(boundary + 2);
-
-    const { event, data } = parseSseFrame({ frame });
-    // `sse()` always writes both lines together; a frame with no `data:` line is not one of ours
-    // (a proxy keep-alive comment, e.g.) and is skipped rather than handed to `JSON.parse(null)`.
-    if (data !== null) onFrame(event, JSON.parse(data));
-
-    boundary = remaining.indexOf("\n\n");
-  }
-  return remaining;
+export function buildVisitorRunInput(
+  { input, threadId, runId, turnId }: { input: StartRunInput; threadId: string; runId: string; turnId: string },
+  _optional: Record<string, never> = {},
+): RunAgentInput {
+  const history = input.history as ChatMessage[];
+  const latest = latestUserTurnIndex({ history });
+  return {
+    threadId, runId, state: null, tools: [], context: [], forwardedProps: { turnId },
+    messages: [
+      ...boundHistoryForRequest({ prior: history.slice(0, latest) }),
+      { id: history[latest]!.id, role: "user", content: latestUserPromptFromHistory({ history }) },
+    ],
+  };
 }
 
-/**
- * Parses one `fetch` response body as the `event:`/`data:` SSE framing `sse()` writes
- * (`apps/website/src/server/runtime/composition/modules/site-assistant.ts`), invoking `onFrame` once per complete frame and `onChunk`
- * once per received chunk (any bytes, complete frame or not — the idle timer's "still alive" signal).
- *
- * Hand-rolled rather than a library SSE client because `fetch` is required here (a POST body), and
- * the browser's native `EventSource` only ever issues GET — the same constraint the admin transport
- * itself does not have, since its run-events endpoint IS a GET.
- *
- * @complexity O(n) in response bytes; buffers only the not-yet-terminated tail between reads.
- * @overallScore 100
- */
-async function pumpServerSentEvents(
-  { response, onFrame, onChunk }: { response: Response; onFrame: (event: string, data: unknown) => void; onChunk: () => void }, _options = {},
-): Promise<void> {
-  const body = response.body;
-  if (!body) throw new Error("site assistant response had no stream body");
-
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    onChunk();
-    buffer += decoder.decode(value, { stream: true });
-    buffer = drainCompleteFrames({ buffer, onFrame });
-  }
+/** One thread id per mounted conversation: a turn with nothing before it (first mount, or after
+ *  "New thread" cleared the transcript) starts a new thread; every later turn reuses it. */
+function createVisitorThreadIds({ newId }: { newId: () => string }, _optional = {}) {
+  let current: string | null = null;
+  return ({ input }: { input: StartRunInput }): string => {
+    if (current === null || latestUserTurnIndex({ history: input.history as ChatMessage[] }) === 0) current = newId();
+    return current;
+  };
 }
 
 /** Tracks the one in-flight fetch per `runId` so `stopRun` can cancel it. Module-scope: the
  *  transport itself is stateless per call, but a cancellation has to reach a specific earlier call. */
 const activeRuns = new Map<string, AbortController>();
 
+/** The optional page channel of this document (`createVisitorPageControl`), injected by the host. */
+export interface VisitorFrontend {
+  /** All-or-nothing page binding headers for one turn's run; rejects when attach or rebind failed. */
+  headers(required?: { signal?: AbortSignal }): Promise<Record<string, string>>;
+  finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
+  /** Live-only: a delivered page action goes here and nowhere else (never events or storage). */
+  acceptBrowserInvocation(required: { runId: string; action: ChatPaneAgentToolAction }, optional?: Record<string, never>): void;
+}
+
+/** The only tool call this transport hands to the page; every other tool call name is ignored. */
+const PAGE_ACTION_TOOL_NAME = "tovu.page_action";
+/** Matches the page bridge's own response cap: a reviewed page action is small. */
+const MAX_PAGE_ACTION_ARGS_CHARS = 96_000;
+
+/**
+ * Losing the optional page channel does not make a visitor's question unanswerable: a failed attach
+ * or rebind (the page control already closed and forgot that binding) sends this turn without any
+ * page header, and a Stop during the attach resolves at once so the caller can recheck its signal.
+ */
+export async function resolvePageHeadersForTurn(
+  { frontend, signal }: { frontend: VisitorFrontend | undefined; signal: AbortSignal },
+  _optional = {},
+): Promise<Record<string, string>> {
+  if (!frontend || signal.aborted) return {};
+  let onAbort = () => {};
+  const stopped = new Promise<Record<string, string>>((resolve) => { onAbort = () => resolve({}); });
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await Promise.race([frontend.headers({ signal }).catch(() => ({})), stopped]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 export interface SiteAssistantTransportOptions {
-  readonly frontend?: {
-    headers(): Promise<Record<string, string>>;
-    finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
-  };
+  readonly frontend?: VisitorFrontend;
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
   readonly onToolConfirmation?: (required: { directive: ToolConfirmationDirective | null }, optional?: Record<string, never>) => void;
   /** Mints the one turn id a visitor message keeps across every automatic retry of its POST, so the
@@ -186,11 +185,19 @@ function consumeToolConfirmation({ data, settled, receive }: {
 }
 
 type Options = SiteAssistantTransportOptions;
+/** One live approval's correlators and its single answer. Memory only: the pause is a one-use
+ *  right to answer an already-running call, and the challenge addresses that decision but cannot
+ *  authenticate it, so it never enters events, persisted messages, provider history or storage. */
+interface ParkedApproval { readonly ctx: EventContext; answer?: Promise<boolean> }
+/** Host-scoped (one per transport), keyed by challenge id. */
+type Approvals = Map<string, ParkedApproval>;
 /** `turnId` is minted once in `startRun`, so every POST made for this run (a retry included) reuses it. */
-type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch; approvals: Approvals; pageRun: PageRunPin };
+/** The server's logical run for this visitor turn, pinned by its first delivered page action. */
+type PageRunPin = { runId: string | undefined };
 
 /** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
-function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs }: RunArgs, _options = {}) {
+function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs, approvals }: RunArgs, _options = {}) {
   const collected: AgentEvent[] = [];
   const flags = { settled: false, failed: false, replied: false, timedOut: false };
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -220,6 +227,8 @@ function createRunLifecycle({ input, handlers, options, runId, controller, idleT
     clearTimeout(idleTimer);
     input.signal.removeEventListener("abort", abort);
     activeRuns.delete(runId);
+    // A settled turn has nothing left to answer: drop its live approvals with it.
+    for (const [id, parked] of approvals) if (parked.ctx.args.runId === runId) approvals.delete(id);
     handlers.onDone(collected);
   };
   input.signal.addEventListener("abort", abort);
@@ -227,50 +236,205 @@ function createRunLifecycle({ input, handlers, options, runId, controller, idleT
 }
 type RunLifecycle = ReturnType<typeof createRunLifecycle>;
 
-function handleTextFrame({ data, life, handlers }: { data: unknown; life: RunLifecycle; handlers: RunHandlers }, _options = {}) {
-  const ev: AgentEvent = { kind: "text", text: (data as ChatFrameText).delta };
-  if (ev.text.trim()) life.flags.replied = true;
-  life.collected.push(ev);
-  handlers.onEvent(ev);
+/** The active request's correlators. Events for another run, and events before this run's own
+ *  `RUN_STARTED`, are ignored rather than trusted. */
+interface VisitorWire {
+  readonly threadId: string;
+  readonly runId: string;
+  readonly reduction: AgUiToAgentTranslationState;
+  started: boolean;
+  streaming: boolean;
+  /** This segment ended with an approval interrupt: its body closing is not a lost terminal. */
+  interrupted: boolean;
+  /** `tovu.page_action` calls opened on this segment, by tool call id, with their arguments so far. */
+  readonly toolCalls: Map<string, string>;
+}
+/** `accepted` reports whether a resume segment's POST was taken; the first report wins. */
+type EventContext = { life: RunLifecycle; args: RunArgs; wire: VisitorWire; accepted?: (ok: boolean) => void };
+
+function matchesActiveRun({ event, wire }: { event: { threadId: string; runId: string }; wire: VisitorWire }, _options = {}): boolean {
+  return event.threadId === wire.threadId && event.runId === wire.runId;
 }
 
-function handleEndFrame({ data, life, args }: { data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
-  const { input, options, runId } = args;
-  // The end reason is server telemetry only; nothing here branches on it.
+/** Text events go through Jini's reduction; only text reaches the transcript, never its step markers. */
+function handleTextEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }, _options = {}) {
+  if (!ctx.wire.started) return;
+  const reduced = translateAgUiEventToAgentEvent({ event: event as Parameters<typeof translateAgUiEventToAgentEvent>[0]["event"], state: ctx.wire.reduction });
+  for (const ev of reduced) {
+    if (ev.kind !== "text") continue;
+    if (ev.text.trim()) ctx.life.flags.replied = true;
+    ctx.life.collected.push(ev);
+    ctx.args.handlers.onEvent(ev);
+  }
+}
+
+/**
+ * The standard AG-UI interrupt outcome for a visitor approval, as the live card's directive.
+ * `undefined` means an ordinary terminal; `{ directive: null }` an interrupt this page cannot answer.
+ */
+function readApprovalInterrupt({ event }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }> }, _options = {}): { directive: ToolConfirmationDirective | null } | undefined {
+  const outcome = (event as { outcome?: { type?: unknown; interrupts?: unknown } }).outcome;
+  if (outcome?.type !== "interrupt") return undefined;
+  const interrupts = Array.isArray(outcome.interrupts) ? outcome.interrupts as { id?: unknown; reason?: unknown; message?: unknown }[] : [];
+  const first = interrupts.find((interrupt) => interrupt?.reason === "confirmation");
+  // The server words the interrupt as "title: summary"; the card shows them as two parts.
+  const message = typeof first?.message === "string" ? first.message : "";
+  const split = message.indexOf(": ");
+  const [title, summary] = split < 0 ? [message, ""] : [message.slice(0, split), message.slice(split + 2)];
+  return { directive: parseToolConfirmation({ value: { kind: "tool_confirmation", challengeId: first?.id, title, summary } }) };
+}
+
+/** Park the turn on a live approval: the logical turn stays busy across segments until a resume
+ *  segment settles it, Stop/unmount/idle aborts it, or the server refuses the answer. */
+function parkApproval({ directive, ctx }: { directive: ToolConfirmationDirective; ctx: EventContext }, _options = {}) {
+  const { args, life } = ctx;
+  ctx.wire.interrupted = true;
+  const parked: ParkedApproval = { ctx };
+  args.approvals.set(directive.challengeId, parked);
+  // No request is in flight while the visitor decides, so nothing else would settle an abort
+  // (Stop, unmount, or the idle timer still armed from the last byte) until they answer.
+  args.controller.signal.addEventListener("abort", () => {
+    if (parked.answer) return;
+    // Stop is the owner's answer: deny, never a silent leak until expiry. Claiming `answer` first
+    // makes this the approval's one answer, so a late click cannot post a second resume.
+    parked.answer = Promise.resolve(false);
+    sendCancelledResume({ ctx, challengeId: directive.challengeId });
+    if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
+    life.finish({ expectReply: false });
+  }, { once: true });
+  args.options.onToolConfirmation?.({ directive });
+}
+
+/**
+ * The parked approval's `cancelled` resume: the same chat route and in-memory correlators as an
+ * answer, sent once and not awaited. It cannot ride the turn's fetch agent, whose controller is the
+ * one this Stop just aborted. Failures are dropped: the visitor already stopped, and the server's
+ * own expiry still denies the call if this never arrives.
+ */
+function sendCancelledResume({ ctx, challengeId }: { ctx: EventContext; challengeId: string }, _options = {}): void {
+  const { args, wire } = ctx;
+  const input: RunAgentInput = {
+    threadId: wire.threadId, runId: crypto.randomUUID(), parentRunId: wire.runId, state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: challengeId, status: "cancelled" }],
+  };
+  void (async () => {
+    // The tab identity that owns the approval; a fresh call, since the turn's signal is aborted.
+    const frontendHeaders = await (args.options.frontend?.headers() ?? Promise.resolve({})).catch(() => ({}));
+    const response = await args.fetchChat(CHAT_URL, {
+      method: "POST", headers: { "Content-Type": "application/json", ...frontendHeaders, Accept: VISITOR_AG_UI_ACCEPT },
+      credentials: "same-origin", mode: "same-origin", redirect: "error", keepalive: true, body: JSON.stringify(input),
+    });
+    await response.body?.cancel();
+  })().catch(() => {});
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The delivered `{ runId, invocationId, capabilityId, input }`, only when it names its own tool call:
+ * a model call id is not a capability. `runId` is the server's logical run (the frontend registry's
+ * binding key), not this segment's AG-UI run id, which the client chose and a resume replaces.
+ */
+function readPageAction({ toolCallId, json }: { toolCallId: string; json: string }, _options = {}): { runId: string; action: ChatPaneAgentToolAction } | undefined {
+  let value: unknown;
+  try { value = JSON.parse(json); } catch { return undefined; }
+  if (!isRecord(value) || value.invocationId !== toolCallId || typeof value.runId !== "string") return undefined;
+  if (typeof value.capabilityId !== "string" || !isRecord(value.input)) return undefined;
+  return { runId: value.runId, action: { invocationId: toolCallId, capabilityId: value.capabilityId, input: value.input } };
+}
+
+/** One logical run per visitor turn: an action naming any other run than the first is ignored. */
+function deliverPageAction({ delivered, ctx }: { delivered: { runId: string; action: ChatPaneAgentToolAction }; ctx: EventContext }, _options = {}) {
+  const pinned = (ctx.args.pageRun.runId ??= delivered.runId);
+  if (delivered.runId !== pinned) return;
+  ctx.args.options.frontend?.acceptBrowserInvocation({ runId: pinned, action: delivered.action });
+}
+
+/** An oversized call is dropped whole: a truncated action must never reach the page. */
+function appendToolCallArgs({ wire, toolCallId, next }: { wire: VisitorWire; toolCallId: string; next: string }, _options = {}) {
+  if (next.length > MAX_PAGE_ACTION_ARGS_CHARS) wire.toolCalls.delete(toolCallId);
+  else wire.toolCalls.set(toolCallId, next);
+}
+
+type ToolCallEvent = Extract<AGUIEvent, { type: EventType.TOOL_CALL_START | EventType.TOOL_CALL_ARGS | EventType.TOOL_CALL_END }>;
+
+/**
+ * The model can request an effect but cannot deliver one: only a complete `tovu.page_action` the
+ * server projected onto this validated segment reaches the page control, under the server's logical run
+ * id it names, and as live-only data — it never enters events, the transcript or storage.
+ */
+function handleToolCallEvent({ event, ctx }: { event: ToolCallEvent; ctx: EventContext }, _options = {}) {
+  const { wire } = ctx;
+  if (!wire.started || wire.interrupted) return;
+  if (event.type === EventType.TOOL_CALL_START) {
+    if (event.toolCallName === PAGE_ACTION_TOOL_NAME) wire.toolCalls.set(event.toolCallId, "");
+    return;
+  }
+  const soFar = wire.toolCalls.get(event.toolCallId);
+  if (soFar === undefined) return;
+  if (event.type === EventType.TOOL_CALL_ARGS) {
+    appendToolCallArgs({ wire, toolCallId: event.toolCallId, next: soFar + event.delta });
+    return;
+  }
+  wire.toolCalls.delete(event.toolCallId);
+  const delivered = readPageAction({ toolCallId: event.toolCallId, json: soFar });
+  if (delivered) deliverPageAction({ delivered, ctx });
+}
+
+function handleRunFinished({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }>; ctx: EventContext }, _options = {}) {
+  if (!ctx.wire.started || !matchesActiveRun({ event, wire: ctx.wire })) return;
+  const { input, options, runId } = ctx.args;
+  const { life } = ctx;
+  // Handled before ordinary terminal processing: an interrupt is a pause, not a completed reply.
+  const interrupt = readApprovalInterrupt({ event });
+  if (interrupt?.directive) return parkApproval({ directive: interrupt.directive, ctx });
+  if (interrupt) life.fail({ error: UNCLASSIFIED_FAILURE_REASON });
   life.finish();
-  options.frontend?.finish({ navigation: (data as { reason?: string }).reason === 'navigation', messages: [
+  // Only "navigation" releases the deferred page action; any other reason is server telemetry.
+  const navigation = (event.result as { reason?: unknown } | undefined)?.reason === "navigation";
+  options.frontend?.finish({ navigation, messages: [
     ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: life.collected }), events: life.collected, runStatus: 'succeeded' },
   ] });
 }
 
-function handleFrame({ event, data, life, args }: { event: string; data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
-  // End is terminal even for frames coalesced into the same response chunk.
-  if (life.flags.settled) return;
-  if (event === "text") {
-    handleTextFrame({ data, life, handlers: args.handlers });
-  } else if (event === "error") {
-    life.fail({ error: new Error((data as ChatFrameError).message || "site assistant error") });
-  } else if (event === "end") {
-    handleEndFrame({ data, life, args });
-  } else if (event === "client_directive") {
-    // Confirmation directives go to their receiver; retired/unknown machine directives
-    // never enter the visitor transcript either way.
-    consumeToolConfirmation({ data, settled: life.flags.settled, receive: args.options.onToolConfirmation });
-  } else {
-    // Ignore event kinds outside this transport's protocol.
-  }
+function handleRunError({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_ERROR }>; ctx: EventContext }, _options = {}) {
+  // AG-UI 1.0's RUN_ERROR carries no correlators; the settled latch already drops late ones.
+  ctx.life.fail({ error: new Error(event.code === "NO_REPLY" ? NO_REPLY_REASON : event.message) });
+  ctx.life.finish();
 }
 
-function postChat({ args, message, frontendHeaders }: { args: RunArgs; message: string; frontendHeaders: Record<string, string> }, _options = {}): Promise<Response> {
-  return args.fetchChat(CHAT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...frontendHeaders },
-    credentials: "same-origin", mode: "same-origin", redirect: "error",
-    // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
-    // key stays server-side, and this route requires no admin session.
-    body: JSON.stringify({ message, turnId: args.turnId, history: boundHistoryForRequest({ history: args.input.history as ChatMessage[] }) }),
-    signal: args.controller.signal,
-  });
+function handleCustomEvent({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.CUSTOM }>; ctx: EventContext }, _options = {}) {
+  // Confirmation directives go to their receiver; retired/unknown machine directives
+  // never enter the visitor transcript either way.
+  // Any other CUSTOM name is ignored: arbitrary CUSTOM data cannot drive the browser.
+  if (event.name === "client_directive") consumeToolConfirmation({ data: event.value, settled: false, receive: ctx.args.options.onToolConfirmation });
+}
+
+type EventHandler = (args: { event: never; ctx: EventContext }) => void;
+/** One handler per event kind this transport speaks; any other kind is ignored. */
+const EVENT_HANDLERS: Partial<Record<EventType, EventHandler>> = {
+  [EventType.RUN_STARTED]: ({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_STARTED }>; ctx: EventContext }) => {
+    if (matchesActiveRun({ event, wire: ctx.wire })) ctx.wire.started = true;
+  },
+  [EventType.RUN_FINISHED]: handleRunFinished,
+  [EventType.RUN_ERROR]: handleRunError,
+  [EventType.CUSTOM]: handleCustomEvent,
+  [EventType.TEXT_MESSAGE_START]: handleTextEvent,
+  [EventType.TEXT_MESSAGE_CONTENT]: handleTextEvent,
+  [EventType.TEXT_MESSAGE_END]: handleTextEvent,
+  [EventType.TOOL_CALL_START]: handleToolCallEvent,
+  [EventType.TOOL_CALL_ARGS]: handleToolCallEvent,
+  [EventType.TOOL_CALL_END]: handleToolCallEvent,
+};
+
+/** Machine events are intercepted before reduction and never enter the transcript. */
+function handleAgUiEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }, _options = {}) {
+  // End is terminal even for frames coalesced into the same response chunk.
+  if (ctx.life.flags.settled) return;
+  // Ignore event kinds outside this transport's protocol.
+  (EVENT_HANDLERS[event.type] as ((args: { event: AGUIEvent; ctx: EventContext }) => void) | undefined)?.({ event, ctx });
 }
 
 async function failOnRefusal({ response, life }: { response: Response; life: RunLifecycle }, _options = {}) {
@@ -285,46 +449,117 @@ async function failOnRefusal({ response, life }: { response: Response; life: Run
   life.finish();
 }
 
-/** One chat turn end to end: POST, pump the SSE body, and always settle the run exactly once. */
-async function performRun({ args, life, message }: { args: RunArgs; life: RunLifecycle; message: string }, _options = {}) {
-  try {
-    life.armIdleTimer();
-    const frontendHeaders = await args.options.frontend?.headers() ?? {};
-    const response = await postChat({ args, message, frontendHeaders });
+/** The fetch agent's injected HTTP: a refusal is settled here, before any stream is read. */
+function createVisitorRequest({ ctx }: { ctx: EventContext }, _options = {}) {
+  const { args, life, wire } = ctx;
+  return async ({ input, signal }: { input: RunAgentInput; signal: AbortSignal }): Promise<Response> => {
+    const frontendHeaders = await resolvePageHeadersForTurn({ frontend: args.options.frontend, signal });
+    // A Stop that raced the page attachment ends the turn; it must never become a page-less chat.
+    signal.throwIfAborted();
+    const response = await args.fetchChat(CHAT_URL, {
+      method: "POST",
+      // The exact range is what selects AG-UI; no frontend header may replace it.
+      headers: { "Content-Type": "application/json", ...frontendHeaders, Accept: VISITOR_AG_UI_ACCEPT },
+      credentials: "same-origin", mode: "same-origin", redirect: "error",
+      // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
+      // key stays server-side, and this route requires no admin session.
+      body: JSON.stringify(input),
+      signal,
+    });
     if (!response.ok) {
+      ctx.accepted?.(false);
       await failOnRefusal({ response, life });
-      return;
+      // The run is already settled with the refusal; this only stops the agent from reading a body.
+      throw new Error("refused before streaming");
     }
-    await pumpServerSentEvents({ response, onFrame: (event, data) => handleFrame({ event, data, life, args }), onChunk: life.armIdleTimer });
-    // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
-    // finish anyway so the pane never shows a run stuck "in progress" forever.
-    life.finish();
-  } catch (error) {
-    // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
-    // report — it is the requested outcome, and `res.on("close")` server-side already turned
-    // it into a clean upstream cancellation rather than a wasted completed generation. The
-    // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
-    if (error instanceof DOMException && error.name === "AbortError") {
-      if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
-      life.finish({ expectReply: false });
-      return;
-    }
-    life.fail({ error });
-    life.finish();
+    wire.streaming = true;
+    ctx.accepted?.(true);
+    return response;
+  };
+}
+
+function handleStreamFailure({ error, ctx }: { error: unknown; ctx: EventContext }, _options = {}) {
+  const { life, args, wire } = ctx;
+  ctx.accepted?.(false);
+  // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
+  // report — it is the requested outcome, and `res.on("close")` server-side already turned
+  // it into a clean upstream cancellation rather than a wasted completed generation. The
+  // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
+  if (args.controller.signal.aborted) {
+    if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
+    life.finish({ expectReply: false });
+    return;
   }
+  // Before the body streams, failures are classified (network, refusal body); a broken or
+  // invalid stream gets the fixed recovery wording and keeps its cause privately.
+  life.fail({ error: wire.streaming ? new Error(UNCLASSIFIED_FAILURE_REASON, { cause: error }) : error });
+  life.finish();
+}
+
+/** One chat turn end to end: POST, read the AG-UI body, and always settle the run exactly once. */
+async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLifecycle; runInput: RunAgentInput }, { accepted }: { accepted?: (ok: boolean) => void } = {}) {
+  // Armed before headers: a server that never answers is as stuck as one that stops mid-reply.
+  life.armIdleTimer();
+  const wire: VisitorWire = { threadId: runInput.threadId, runId: runInput.runId, started: false, streaming: false, interrupted: false, toolCalls: new Map(),
+    reduction: createAgUiToAgentTranslationState({ customEventNames: UNCONSULTED_CUSTOM_EVENT_NAMES }) };
+  const ctx: EventContext = accepted ? { life, args, wire, accepted } : { life, args, wire };
+  // Any received bytes (a heartbeat or half a frame) restart the idle timer, not only whole events.
+  const agent = createAgUiFetchAgent({ request: createVisitorRequest({ ctx }) }, { abortController: args.controller, onBytes: life.armIdleTimer });
+  await agent.run(runInput).subscribe({
+    next: (event) => handleAgUiEvent({ event, ctx }),
+    error: (error) => handleStreamFailure({ error, ctx }),
+    // A body that ends without RUN_FINISHED or RUN_ERROR was interrupted: partial text is not a
+    // successful reply, so it is never saved as one.
+    complete: () => {
+      if (wire.interrupted) return;
+      ctx.accepted?.(false);
+      life.fail({ error: UNCLASSIFIED_FAILURE_REASON });
+      life.finish();
+    },
+  });
 }
 
 /**
- * Every failure a visitor can hit — non-ok HTTP (incl. the server's JSON `{ error }`), an SSE
- * `error` frame, a network/stream failure, a stream that settles with no reply, or
+ * The one resume for a parked approval: a fresh run id on the original thread, the original run as
+ * parent, and nothing else the server could mistake for a new turn. Read with the same fetch agent
+ * and lifecycle, so the resumed segment continues and settles the same logical turn.
+ */
+function resumeApproval({ parked, challengeId, allow }: { parked: ParkedApproval; challengeId: string; allow: boolean }, _options = {}): Promise<boolean> {
+  const { args, life, wire } = parked.ctx;
+  const runInput: RunAgentInput = {
+    threadId: wire.threadId, runId: crypto.randomUUID(), parentRunId: wire.runId, state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: challengeId, status: "resolved", payload: allow ? "allow" : "deny" }],
+  };
+  return new Promise<boolean>((resolve) => { void performRun({ args, life, runInput }, { accepted: resolve }); });
+}
+
+/** The visitor transport plus the host-scoped answer for its live approval cards. */
+export interface SiteAssistantTransport extends ChatTransport {
+  answerApproval(required: { challengeId: string; allow: boolean }, optional?: Record<string, never>): Promise<boolean>;
+}
+
+/**
+ * Every failure a visitor can hit — non-ok HTTP (incl. the server's JSON `{ error }`), a
+ * `RUN_ERROR`, a network/stream failure, a stream that ends with no terminal or no reply, or
  * {@link IDLE_TIMEOUT_MS} of silence — reaches `onError` exactly once, worded by
  * `visitorFacingError`, and the run always finishes so the composer re-enables for another try.
  */
-export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): ChatTransport {
+export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): SiteAssistantTransport {
   const fetchChat: typeof fetch = options.fetch ?? ((...args) => globalThis.fetch(...args));
   const idleTimeoutMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
   const newTurnId = options.newTurnId ?? (() => crypto.randomUUID());
+  const threadIdFor = createVisitorThreadIds({ newId: () => crypto.randomUUID() });
+  const approvals: Approvals = new Map();
   return {
+    /** Unknown, settled or already-answered challenges post nothing new: a double click shares
+     *  the first answer's one resume, and there is no automatic retry of an approval. */
+    answerApproval({ challengeId, allow }, _optional = {}) {
+      const parked = approvals.get(challengeId);
+      if (!parked || parked.ctx.life.flags.settled) return Promise.resolve(false);
+      parked.answer ??= resumeApproval({ parked, challengeId, allow });
+      return parked.answer;
+    },
+
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       const message = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
       if (!message) throw new Error("no user message to send");
@@ -332,8 +567,9 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat };
-      void performRun({ args, life: createRunLifecycle(args), message });
+      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat, approvals, pageRun: { runId: undefined } };
+      const runInput = buildVisitorRunInput({ input, threadId: threadIdFor({ input }), runId, turnId: args.turnId });
+      void performRun({ args, life: createRunLifecycle(args), runInput });
       return { runId };
     },
 

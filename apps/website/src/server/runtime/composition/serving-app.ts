@@ -78,13 +78,16 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  *   `siteSearchMaintenance.stop` wait for a running pass), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
  *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
+ *   `releaseOnShutdown`: runs every process-local release `createApp` handed out
+ *   (`CreateAppOptions.onShutdown`, the parked AG-UI approvals); the host calls it when it stops.
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
-): { routines: ServingRoutines; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+): { routines: ServingRoutines; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[]; releaseOnShutdown: () => void } {
   const bootWork: Promise<void>[] = [];
+  const shutdownReleases: Array<() => void> = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   // Routines (P3-T1a.T): the slot is placed inside createApp's admin routes; the host composes into it
   // after createApp returns. Absent `optional.routines` (tests, hermetic roots) means ineligible and dark.
@@ -99,6 +102,7 @@ export function createServingApp(
     if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
   } };
   const app = createApp(routeDeps, { assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+    onShutdown: ({ shutdown }) => { shutdownReleases.push(shutdown); },
     mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); },
     // Lazy: the handle composes after createApp returns, so the tools resolve it per call (P3-T4.T / T3.T).
     ...servingRoutineToolOptions({ canRun: routinesCanRun, releaseEnabled: optional.routines?.releaseEnabled ?? false,
@@ -147,5 +151,6 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
+  return { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork,
+    releaseOnShutdown: () => { for (const release of shutdownReleases) release(); } };
 }

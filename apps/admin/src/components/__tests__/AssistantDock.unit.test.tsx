@@ -218,6 +218,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** No live AG-UI interrupt: every card keeps its own route. */
+const NO_AG_UI_APPROVALS = { answersExchange: () => false, answer: async () => false };
 describe("AssistantDock", () => {
   it("keeps ChatPane beneath the dock's explicitly targeted flex wrapper", () => {
     const { container } = render(<aside className="admin-chat-dock"><AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} /></aside>);
@@ -782,7 +784,7 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 describe("AssistantDock — ext event renderer registrations", () => {
   let registry: ExtEventRendererRegistry;
   beforeEach(() => {
-    registry = renderHook(() => useDockRendererRegistry()).result.current.registry;
+    registry = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS })).result.current.registry;
   });
   /**
    * Retrieves the callback from the dock's owned Jini registry for direct assertions.

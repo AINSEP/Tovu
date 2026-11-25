@@ -1,0 +1,17 @@
+{
+  "firstSegment": {
+    "status": 200,
+    "contentType": "text/event-stream",
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"conv-00000000-0000-4000-8000-000000000001\",\"runId\":\"00000000-0000-4000-8000-000000000002\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"Checking.\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.ext.mcp-ui\",\"value\":{\"type\":\"resource\",\"resource\":{\"uri\":\"ui://tovu/forms.fill/ex-form\",\"mimeType\":\"text/html\",\"text\":\"<p>Delete?</p>\",\"_meta\":{\"x-jini-mcp-ui/action-plan\":{\"title\":\"Fill in the form\",\"actions\":[{\"id\":\"submit\",\"label\":\"submit\"}]},\"jini/surface-exchange\":{\"exchangeId\":\"ex-form\",\"toolId\":\"forms.fill\",\"runId\":\"00000000-0000-4000-8000-000000000002\"}}}}}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.ext.mcp-ui\",\"value\":{\"type\":\"resource\",\"resource\":{\"uri\":\"ui://tovu/posts.delete/ex-1\",\"mimeType\":\"text/html\",\"text\":\"<p>Delete?</p>\",\"_meta\":{\"x-jini-mcp-ui/action-plan\":{\"title\":\"Delete the post?\",\"actions\":[{\"id\":\"confirm\",\"label\":\"confirm\"},{\"id\":\"cancel\",\"label\":\"cancel\"}]},\"jini/surface-exchange\":{\"exchangeId\":\"ex-1\",\"toolId\":\"posts.delete\",\"runId\":\"00000000-0000-4000-8000-000000000002\"}}}}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"conv-00000000-0000-4000-8000-000000000001\",\"runId\":\"00000000-0000-4000-8000-000000000002\",\"outcome\":{\"type\":\"interrupt\",\"interrupts\":[{\"id\":\"00000000-0000-4000-8000-000000000003\",\"reason\":\"confirmation\",\"message\":\"Delete the post?\",\"metadata\":{\"exchangeId\":\"ex-1\"}}]}}\n\n"
+  },
+  "resumeSegment": {
+    "status": 200,
+    "contentType": "text/event-stream",
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"conv-00000000-0000-4000-8000-000000000001\",\"runId\":\"seg-2\",\"parentRunId\":\"00000000-0000-4000-8000-000000000002\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"Deleted.\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"conv-00000000-0000-4000-8000-000000000001\",\"runId\":\"seg-2\",\"result\":{\"reason\":\"stop\"}}\n\n"
+  },
+  "refusal": {
+    "status": 400,
+    "contentType": "application/json",
+    "body": "{\"error\":\"This request expired. Ask again.\"}"
+  }
+}

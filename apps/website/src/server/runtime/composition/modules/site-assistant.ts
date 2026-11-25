@@ -2,6 +2,8 @@ import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/cli
 import { createVisitorPageTargets } from "../visitor-page-targets.js";
 import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { projectVisitorBrowserInvocation } from "#src/assistant/site/visitor-browser-invocation";
+import type { FrontendInvocationDelivery } from "@jini-ai/daemon";
 import { daemonRouteHost, mountJiniRoutes, NO_OPERATION_TRACKING, nodeSessionTimer } from "../../../../platform/express/jini-routes.js";
 import { requestHookInput } from "#src/platform/express/request-facts";
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
@@ -23,6 +25,8 @@ import { readVisitorToolsSnapshot } from "@jini-ai/cms/settings/site/visitor-too
 import { VISITOR_TOOLS_HOST } from "#src/features/settings/settings-write-policies";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
+import { createVisitorAgUiResume, VISITOR_APPROVAL_EXPIRED } from "#src/assistant/site/visitor-ag-ui-resume";
+import { agUiApprovalChannel, createVisitorTurnSegments, handleVisitorAgUiResume, isVisitorAgUiResume, type VisitorSegment, type VisitorTurnSegments } from "./site-assistant-ag-ui-approval.js";
 import { randomBytes } from "node:crypto";
 import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/core/contracts/server/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -42,6 +46,8 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { listPublishedPosts } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+import { EventEncoder } from "@ag-ui/encoder";
+import { createVisitorAgUiWriter, readVisitorChatInput, selectVisitorChatWire, type VisitorAgUiCopy, type VisitorAgUiWriter, type VisitorChatWire, type VisitorTurnWriter } from "./site-assistant-ag-ui.js";
 
 /**
  * @file The PUBLIC site assistant's HTTP surface (ADR-054) — the visitor-facing chat, distinct from
@@ -227,6 +233,42 @@ function sse({ res, event, data }: { res: Response; event: string; data: unknown
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+/** The compatibility writer for widget bundles already running in open tabs (the one-release
+ *  window): exactly the legacy frames and no terminal latch, so its bytes stay pinned by the
+ *  legacy golden. `sse()` is used only here. */
+function createVisitorLegacyWriter({ res }: { res: Response }, _optional = {}): VisitorTurnWriter {
+  return {
+    start: () => {},
+    text: ({ delta }) => { sse({ res, event: "text", data: { delta } }); },
+    directive: ({ value }) => { sse({ res, event: "client_directive", data: value }); },
+    finish: ({ outcome }) => {
+      if (outcome.kind === "ok") sse({ res, event: "end", data: { reason: outcome.reason } });
+      else sse({ res, event: "error", data: { code: outcome.code, errorId: outcome.errorId, message: outcome.message } });
+    },
+    settle: () => {},
+  };
+}
+
+/** Fixed visitor copy for AG-UI terminals the server writes itself. `noReply` is the widget's own
+ *  no-reply reason (`apps/site-chat/src/site-assistant-errors.ts` `NO_REPLY_REASON`), so both wires
+ *  render the same sentence. */
+const VISITOR_AG_UI_COPY: VisitorAgUiCopy = { noReply: "the assistant sent no reply", interrupted: "the reply was interrupted" };
+/** Stateless beyond a fixed flag, so one instance serves every request (as in `assistant-ag-ui.ts`). */
+const visitorAgUiEncoder = new EventEncoder();
+
+/** The negotiated wire of one request, and its writer once the body named the turn. */
+interface VisitorTurnStream { readonly wire: VisitorChatWire; writer?: VisitorSegment["writer"]; wireIds?: { threadId: string; runId: string } | undefined }
+
+function createVisitorTurnWriter({ res, deps, stream, wireIds }: { res: Response; deps: RouteDeps; stream: VisitorTurnStream; wireIds: { threadId: string; runId: string } | undefined }): VisitorSegment["writer"] {
+  if (stream.wire !== "ag-ui" || !wireIds) return createVisitorLegacyWriter({ res });
+  return createVisitorAgUiSegmentWriter({ res, deps, wireIds });
+}
+
+function createVisitorAgUiSegmentWriter({ res, deps, wireIds }: { res: Response; deps: RouteDeps; wireIds: { threadId: string; runId: string } }): VisitorAgUiWriter {
+  return createVisitorAgUiWriter({ ids: { next: ({ prefix }) => `${prefix}_${deps.idGen.newId()}` }, encode: (event) => visitorAgUiEncoder.encodeSSE(event),
+    write: (chunk) => { res.write(chunk); }, threadId: wireIds.threadId, runId: wireIds.runId, copy: VISITOR_AG_UI_COPY });
+}
+
 function beginStream(req: Request, res: Response): void {
   res.status(200).set({
     "content-type": "text/event-stream",
@@ -255,11 +297,11 @@ interface SiteAssistantProviderConfig {
 
 type SiteAssistantPreflight =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig; turnId: string | null; wireIds: { threadId: string; runId: string } | undefined };
 
 type MessageGuardResult =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[] };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; turnId: string | null; wireIds: { threadId: string; runId: string } | undefined };
 
 /**
  * The visibility, shape, and budget gates: is the workspace's public assistant on at all, is
@@ -267,7 +309,7 @@ type MessageGuardResult =
  * window. Each one can end the request on its own before anything downstream (mode, credentials)
  * is even looked at.
  */
-async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps, reportError: SiteAssistantErrorReporter): Promise<MessageGuardResult> {
+async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps, reportError: SiteAssistantErrorReporter, wire: VisitorChatWire): Promise<MessageGuardResult> {
   // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
   // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and exposes NO
   // assistant endpoint... registers the visitor-facing assistant route(s) conditionally, or has
@@ -283,22 +325,20 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
     return { ok: false };
   }
 
-  const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
-  const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (message.length === 0) {
-    respondPublicError({ res, status: 400, reportError, code: "VALIDATION", diagnostic: "message must be a non-empty string" });
+  // Both wires normalize here, so the legacy body and an AG-UI `RunAgentInput` pass the same
+  // shape, length, rate-limit and dedupe gates in the same order.
+  const input = readVisitorChatInput({ body: req.body, wire, readTurnId: readVisitorTurnId, maxMessageChars: MAX_MESSAGE_CHARS });
+  if (!input.ok) {
+    respondPublicError({ res, status: input.status, reportError, code: input.code, diagnostic: input.diagnostic });
     return { ok: false };
   }
-  if (message.length > MAX_MESSAGE_CHARS) {
-    respondPublicError({ res, status: 413, reportError, code: "TOO_LARGE", diagnostic: `message exceeds ${MAX_MESSAGE_CHARS} characters` });
-    return { ok: false };
-  }
+  const { message } = input;
   // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
   // is bounded and fail-soft (malformed shapes degrade to less context, never a 4xx) rather
   // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
   // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
   // actively sending; `history` is passive background context they did not just author.
-  const priorTurns = resolveBoundedHistory({ rawHistory: body.history });
+  const priorTurns = resolveBoundedHistory({ rawHistory: input.rawHistory });
 
   // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
   // budget never reaches the provider call (or its 501/503 config-error branches either) —
@@ -315,7 +355,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
     return { ok: false };
   }
 
-  return { ok: true, message, priorTurns };
+  return { ok: true, message, priorTurns, turnId: input.turnId, wireIds: input.wireIds };
 }
 
 /** The stored `provider` string, narrowed to a protocol this route can actually dispatch, or `null`
@@ -556,14 +596,15 @@ async function runSiteAssistantPreflight(
   env: NodeJS.ProcessEnv,
   resolution: SiteAssistantModeResolution,
   reportError: SiteAssistantErrorReporter,
+  wire: VisitorChatWire,
 ): Promise<SiteAssistantPreflight> {
-  const guard = await guardMessageAndRateLimit(req, res, deps, reportError);
+  const guard = await guardMessageAndRateLimit(req, res, deps, reportError, wire);
   if (!guard.ok) return { ok: false };
 
   const provider = await resolveProviderConfigOrRespond({ res, deps, env, resolution, reportError });
   if (!provider) return { ok: false };
 
-  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
+  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider, turnId: guard.turnId, wireIds: guard.wireIds };
 }
 
 /** The site's route deps plus the two test seams the visitor assistant reads. */
@@ -575,7 +616,7 @@ type SiteAssistantModuleDeps = RouteDeps & { siteAssistantErrorLog?: (entry: Sit
 export function createSiteAssistantModule(
   { deps, reporter }: { deps: SiteAssistantModuleDeps; reporter: ErrorReporter },
   { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
-): ServerModuleHandle {
+): ServerModuleHandle & { shutdown: () => void } {
   const context = createSiteAssistantContext(deps, env, reporter);
   const { resolution } = context;
   return {
@@ -596,6 +637,9 @@ export function createSiteAssistantModule(
     },
 
     registerRoutes: ({ app }, _options = {}) => registerSiteAssistantRoutes(app, context),
+
+    /** Process shutdown: every parked visitor approval is denied and its held call ended. */
+    shutdown: () => context.approvalResume.shutdownVisitorApprovals(),
   };
 }
 
@@ -630,22 +674,33 @@ function createSiteAssistantContext(deps: SiteAssistantModuleDeps, env: NodeJS.P
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
   });
   const turnDedupe = createVisitorTurnDedupe({ clock: deps.clock });
-  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
+  // Process-local AG-UI approval handoff; the same scheduler port as the exchange expiry.
+  const approvalResume = createVisitorAgUiResume<VisitorSegment>({ nowMs: () => deps.clock.nowMs(),
+    scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}), confirm: (required) => confirmations.confirm(required),
+    reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); } });
+  return { approvalResume, deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
 }
 
 function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
       const { deps, env, confirmations, confirmLimiter, reporter, frontend } = context;
       frontend.mount({ app });
+      const enabled = async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
+        { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
+      const allowsOrigin = async ({ origin }: { origin: string }) => {
+        const target = normalizeOriginCandidate({ rawUrl: origin });
+        if (!target) return false;
+        const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
+        return isSameOrigin({ target, canonical });
+      };
+      const resumePorts = { enabled, allowsOrigin, limiter: confirmLimiter, resolveApprovalOwner: frontend.resolveApprovalOwner, resume: context.approvalResume,
+        openSegment: ({ req, res, threadId, runId }: { req: Request; res: Response; threadId: string; runId: string }): VisitorSegment => {
+          beginStream(req, res);
+          const writer = createVisitorAgUiSegmentWriter({ res, deps, wireIds: { threadId, runId } });
+          writer.start();
+          return { res, writer, runId };
+        } };
       registerSiteAssistantConfirm({ app, ports: {
-        confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner,
-        enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
-          { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
-        allowsOrigin: async ({ origin }) => {
-          const target = normalizeOriginCandidate({ rawUrl: origin });
-          if (!target) return false;
-          const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-          return isSameOrigin({ target, canonical });
-        },
+        confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner, enabled, allowsOrigin,
         reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
       } });
       // The app's public JSON parser runs before this module. Handle its errors here, before the
@@ -666,12 +721,25 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
       app.post(CHAT_PATH, (req: Request, res: Response) => {
         const secrets: string[] = env.GEMINI_API_KEY ? [env.GEMINI_API_KEY] : [];
         const reportError: SiteAssistantErrorReporter = required => reporter(required, { exactSecrets: secrets });
-        void handleChat(req, res, { ...context, reportError, secrets }).catch((error: unknown) => {
+        // Only the explicit AG-UI media range switches wires; the response then varies by Accept,
+        // refusals included. Legacy responses keep their pinned headers.
+        const stream: VisitorTurnStream = { wire: selectVisitorChatWire({ accept: req.get("accept") }) };
+        if (stream.wire === "ag-ui") res.vary("Accept");
+        // An answer to a parked approval, not a new turn: recognized before any provider start.
+        if (stream.wire === "ag-ui" && isVisitorAgUiResume({ body: req.body })) {
+          void handleVisitorAgUiResume({ req, res, ports: resumePorts }).catch((error: unknown) => {
+            reporter({ code: "visitor_tools_confirm", diagnostic: error });
+            if (!res.headersSent) res.status(400).json({ error: VISITOR_APPROVAL_EXPIRED }); else res.end();
+          });
+          return;
+        }
+        void handleChat(req, res, { ...context, reportError, secrets, stream }).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
           const publicError = reportError({ code: "unavailable", diagnostic: error });
           if (res.headersSent) {
-            sse({ res, event: "error", data: publicError });
+            // The writer's terminal latch makes this a no-op on AG-UI when the turn already ended.
+            (stream.writer ?? createVisitorLegacyWriter({ res })).finish({ outcome: { kind: "error", ...publicError } });
             res.end();
           } else {
             const { message, ...metadata } = publicError;
@@ -681,29 +749,33 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
       });
     }
 
-async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] }): Promise<void> {
+async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[]; stream: VisitorTurnStream }): Promise<void> {
         const { deps, env, resolution, frontend, reportError, secrets } = context;
-        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
+        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError, context.stream.wire);
         if (!preflight.ok) return;
-        const { message, priorTurns, provider } = preflight;
+        const { message, priorTurns, provider, turnId, wireIds } = preflight;
         // Owner decision 2026-11-23: a widget retry carries the SAME turnId, and the server must not
         // bill a second provider run for it. Admitted here (after the cheap gates, before any spend);
         // a failure before `providerStarted()` releases the turn so the retry still works.
-        const turn = context.turnDedupe.admit({ scope: `${deps.workspaceId}|${resolveClientIp(req)}`, turnId: readVisitorTurnId({ body: req.body }) });
+        const turn = context.turnDedupe.admit({ scope: `${deps.workspaceId}|${resolveClientIp(req)}`, turnId });
         if (!turn.admitted) {
           respondPublicError({ res, status: 409, reportError, code: VISITOR_TURN_DUPLICATE_CODE, diagnostic: `visitor turn already ${turn.state}` });
           return;
         }
+        context.stream.writer = createVisitorTurnWriter({ res, deps, stream: context.stream, wireIds });
+        context.stream.wireIds = wireIds;
         try { await handleAdmittedChat({ req, res, context, preflight: { message, priorTurns, provider }, turn }); }
         finally { turn.finish({ delivered: res.writableEnded }); }
       }
 
 async function handleAdmittedChat({ req, res, context, preflight, turn }: {
-  req: Request; res: Response; context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] };
+  req: Request; res: Response; context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[]; stream: VisitorTurnStream };
   preflight: { message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
   turn: { providerStarted(): void };
 }): Promise<void> {
         const { deps, frontend, reportError, secrets } = context;
+        const segments = createVisitorTurnSegments({ initial: { res, writer: context.stream.writer ?? createVisitorLegacyWriter({ res }), runId: context.stream.wireIds?.runId ?? "" } });
+        const writer = segments.writer;
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
@@ -731,13 +803,17 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
         // that already succeeded, which is harmless but produces alarming logs.
         const abort = new AbortController();
         res.on("close", () => { if (!res.writableEnded) abort.abort(); });
-        const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
+        // Only the AG-UI `/chat` path opts into run-specific delivery; the legacy SSE path keeps the session stream.
+        const deliverInvocation = context.stream.wire === "ag-ui" ? visitorInvocationDelivery({ segments, logicalRunId }) : undefined;
+        const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId }, deliverInvocation ? { deliverInvocation } : {});
         const { owner, publication, release: releaseFrontend } = binding;
-        res.once('close', releaseFrontend);
-        const capabilities = await createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
-        const executeTool = createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }, navigation);
+        // A parked approval keeps its frontend binding past this segment's close; the run's own end releases it.
+        res.once('close', () => { if (!segments.parked) releaseFrontend(); });
+        const confirmationChannel = await turnConfirmationChannel({ req, context, segments, abort });
+        const capabilities = await createVisitorCapabilities({ req, confirmationChannel, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
+        const executeTool = createVisitorToolExecutor({ capabilities, segments, writer, releaseFrontend, abort, reportError }, navigation);
 
-        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
+        await runVisitorProviderTurn({ req, res, segments, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
       }
 
 /**
@@ -755,8 +831,8 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
          * for human confirmation. The visitor delegate separately emits that summary
          * while held; its challenge is human-only and never part of this model-facing return value.
          */
-function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }: {
-  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; releaseFrontend: () => void;
+function createVisitorToolExecutor({ capabilities, segments, writer, releaseFrontend, abort, reportError }: {
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; segments: VisitorTurnSegments; writer: VisitorTurnWriter; releaseFrontend: () => void;
   abort: AbortController; reportError: SiteAssistantErrorReporter;
 }, navigation: { terminalNavigation: boolean }): (call: ProviderToolCall) => Promise<ProviderToolResult> {
   return async (call: ProviderToolCall): Promise<ProviderToolResult> => {
@@ -765,13 +841,13 @@ function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, 
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
             case "ok":
-              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
+              if (outcome.directive) writer.directive({ value: outcome.directive });
               if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
                 navigation.terminalNavigation = true;
-                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
-                sse({ res, event: 'end', data: { reason: 'navigation' } });
+                writer.text({ delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' });
+                writer.finish({ outcome: { kind: 'ok', reason: 'navigation' } });
                 releaseFrontend();
-                res.end();
+                segments.current.res.end();
                 abort.abort();
               }
               return { content: JSON.stringify(outcome.result) };
@@ -792,6 +868,22 @@ function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, 
 
 
 
+/**
+ * Run-specific page delivery for one AG-UI visitor turn. The model can request an effect but cannot
+ * deliver one: only a registry invocation for THIS request's internal logical run reaches the page,
+ * and delivery alone is not permission — the page must `begin` it against the live binding first.
+ * It writes through whichever segment is current, so a T2 resume moves delivery to the new segment
+ * without re-authorizing the old attachment or changing the invocation identity. While parked there
+ * is no segment to carry it; the registry's own timeout then fails the call back to the model.
+ */
+function visitorInvocationDelivery({ segments, logicalRunId }: { segments: VisitorTurnSegments; logicalRunId: string }, _optional = {}): FrontendInvocationDelivery {
+  return ({ runId, invocation }) => {
+    if (runId !== logicalRunId || segments.parked) return;
+    const toolCall = segments.current.writer.toolCall;
+    if (toolCall) projectVisitorBrowserInvocation({ runId, invocation, writer: { toolCall } });
+  };
+}
+
 function visitorPageOptions({ binding, frontend, pageTargets }: {
   binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;
   frontend: ReturnType<typeof createVisitorFrontendControl>; pageTargets: ReturnType<typeof createVisitorPageTargets>;
@@ -810,14 +902,26 @@ function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { termin
   return aborted ? 'cancelled' : runOutcome;
 }
 
-function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
+function visitorConfirmationChannel({ confirmations, writer }: { confirmations: ReturnType<typeof createVisitorConfirmations>; writer: VisitorTurnWriter }) {
   // Content tools still need Ask confirmation when page credentials/publication are absent.
   // The gate binds the request to its IP and adds the authenticated owner when available.
-  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
+  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { writer.directive({ value: directive }); } } };
 }
 
-async function createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
-  req: Request; res: Response; reportError: SiteAssistantErrorReporter; abort: AbortController;
+/** AG-UI turns park Ask approvals and resume them on `/chat`; legacy turns keep the in-band card
+ *  answered through `/confirm` for the one-release window. */
+async function turnConfirmationChannel({ req, context, segments, abort }: {
+  req: Request; context: ReturnType<typeof createSiteAssistantContext> & { stream: VisitorTurnStream }; segments: VisitorTurnSegments; abort: AbortController;
+}) {
+  const { stream, deps, confirmations, frontend, approvalResume } = context;
+  if (stream.wire !== "ag-ui" || !stream.wireIds) return visitorConfirmationChannel({ confirmations, writer: segments.writer });
+  const owner = await frontend.resolveApprovalOwner(requestHookInput({ req }));
+  return agUiApprovalChannel({ confirmations, resume: approvalResume, segments, owner, quotaKey: resolveClientIp(req), threadId: stream.wireIds.threadId,
+    nowMs: () => deps.clock.nowMs(), waitMs: VISITOR_CONFIRMATION_WAIT_MS, abort });
+}
+
+async function createVisitorCapabilities({ req, confirmationChannel, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
+  req: Request; confirmationChannel: Awaited<ReturnType<typeof turnConfirmationChannel>>; reportError: SiteAssistantErrorReporter; abort: AbortController;
   binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>;
   owner: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["owner"];
   publication: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["publication"];
@@ -834,7 +938,7 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
             const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId, visitorTools: VISITOR_TOOLS_HOST });
             return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
           },
-          ...visitorConfirmationChannel({ confirmations, res }),
+          ...confirmationChannel,
           ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: logicalRunId, owner: owner ?? undefined, publicationRevision: publication?.revision, clock: deps.clock,
           ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
             const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
@@ -856,13 +960,14 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
 }
 
 
-async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
-  req: Request; res: Response; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
+async function runVisitorProviderTurn({ req, res, segments, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
+  req: Request; res: Response; segments: VisitorTurnSegments; writer: VisitorTurnWriter; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
   capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
   abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
   logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean }; providerStarted: () => void;
 }): Promise<void> {
         beginStream(req, res);
+        writer.start();
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
         await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
@@ -898,10 +1003,10 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
             if (navigation.terminalNavigation) return;
-            if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
-            else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
+            if (event.type === "text_delta") writer.text({ delta: event.delta });
+            else if (event.type === "error") { runOutcome = "failed"; writer.finish({ outcome: { kind: "error", ...reportError({ code: "provider_error", diagnostic: event.message }) } }); }
             else {
-              if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
+              if (event.type === "end") writer.finish({ outcome: { kind: "ok", reason: event.reason } });
             }
           },
         }, {
@@ -915,6 +1020,7 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
         });
         } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
         finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
-        res.end();
+        if (!segments.current.res.writableEnded) writer.settle();
+        segments.current.res.end();
       
 }

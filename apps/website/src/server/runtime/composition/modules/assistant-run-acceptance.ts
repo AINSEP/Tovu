@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { RoutineRunMarker } from "@tovu/contracts/routines";
-import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
+import { createRunAcceptance, type RunAcceptancePorts } from "#src/assistant/durable-runs/accept";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
@@ -19,6 +19,11 @@ import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
  * unattended routine run. It is trusted ONLY when the host passes it in the optional field; any
  * `context.routine` a browser sent is dropped first, so a person cannot mark their chat as a routine
  * (and so cannot make generic recovery skip it or tool access treat it as unattended).
+ *
+ * The AG-UI canary route (`assistant-ag-ui.ts`) accepts through {@link acceptOwnedAssistantRun} over
+ * the SAME ledger store, so `/api/runs` and AG-UI replay the same idempotent attempt and either one's
+ * Stop (`cancelOwnedRun`, by assistant message id) stops it. That entry is browser-fed too, so it
+ * applies the same marker strip: no browser path can stamp routine authority.
  */
 
 export type AcceptOwnerChatRunRequired = Readonly<{
@@ -146,4 +151,67 @@ export function ownerChatAcceptanceFor({ deps }: { deps: AssistantAcceptanceRout
       signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
     })),
   }, {});
+}
+
+/** The accepted contextRef as an object; a non-object (never produced by the routes) becomes `{}`.
+ * @complexity O(n) in the contextRef length. */
+function parseContextRef({ contextRef }: { contextRef: string }, _optional = {}): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(contextRef);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Everything acceptance touches, injected: ledger store, clock, id source, daemon launch, the
+ *  finalizer watch and the start capture. */
+export interface AssistantRunAcceptancePorts {
+  readonly store: DurableRunStore;
+  readonly now: () => number;
+  readonly mintRunId: () => string;
+  readonly launch: RunAcceptancePorts["launch"];
+  readonly watch: (required: DurableRun, optional: {}) => void;
+  readonly onAccepted: NonNullable<RunAcceptancePorts["onAccepted"]>;
+}
+
+/** Accepts (or replays) the owned durable run for one assistant message. `null` when the store
+ *  refuses it (a foreign or mismatched message), which both routes answer as not found.
+ * @complexity O(1) store calls plus at most one daemon launch. */
+export async function acceptOwnedAssistantRun(
+  { principalId, workspaceId, conversationId, messageId, request, ports }: {
+    principalId: string; workspaceId: string; conversationId: string; messageId: string;
+    request: { agentId?: string; contextRef: string }; ports: AssistantRunAcceptancePorts;
+  },
+  _optional = {},
+): Promise<DurableRun | null> {
+  const acceptance = createRunAcceptance({ store: ports.store, now: ports.now, mintRunId: ports.mintRunId,
+    onAccepted: ports.onAccepted, launch: ports.launch, attach: (run) => ports.watch(run, {}) }, {});
+  // Browser-fed: strip any routine marker / recovery choice before it becomes the accepted contextRef.
+  const contextRef = JSON.stringify(sanitizeBrowserRunContext({ decoded: parseContextRef({ contextRef: request.contextRef }) }, {}));
+  return acceptance.accept({ principalId, workspaceId, conversationId, messageId, request: { ...request, contextRef } }, {});
+}
+
+/** The production ports for one verified principal, or `null` when this root has no durable store
+ *  (the caller then keeps its legacy, non-durable start).
+ * @complexity O(1). */
+export function assistantRunAcceptancePorts(
+  { deps, principalId }: {
+    deps: Pick<RouteDeps, "chatRunLedger" | "tracker" | "observability"> & { assistantDaemonDemand?: { ensureReady: NonNullable<Parameters<typeof createHttpRunDaemonClient>[1]>["ensureReady"] } | undefined };
+    principalId: string;
+  },
+  _optional = {},
+): AssistantRunAcceptancePorts | null {
+  const store = deps.chatRunLedger.durable;
+  if (!store) return null;
+  const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
+  const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
+  return { store, now: Date.now, mintRunId: randomUUID,
+    onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principalId }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
+    launch: (required, optional) => {
+      if (!client.launch) throw new Error("assistant daemon has no launch operation");
+      return client.launch(required, optional);
+    },
+    watch: (run) => finalizer.watch({ principalId, conversationId: run.conversationId, message: run.message }),
+  };
 }

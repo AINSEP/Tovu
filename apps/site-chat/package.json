@@ -15,7 +15,7 @@
     "measure:bundles": "node scripts/measure-bundles.mjs"
   },
   "dependencies": {
-    "@ag-ui/core": "0.0.58",
+    "@ag-ui/core": "1.0.4",
     "@jini-ai/agentic": "^0.7.3-next.2",
     "@jini-ai/chat": "^0.7.3-next.2",
     "@jini-ai/core": "^0.7.3-next.2",

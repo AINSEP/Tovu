@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { confirmSiteAssistantTool } from './tool-confirmation';
+import type { AnswerToolConfirmation } from './tool-confirmation';
 import type { ToolConfirmationDirective } from '@jini-ai/core/contracts/site/client-directives';
 
 /** Live prompt state has no persistence or message/history dependency. Native buttons provide
  * keyboard activation; focus returns to the prior control after a click, expiry or run teardown.
  * @complexity O(1), one 60-second UI deadline. The server owns the authoritative expiry.
  */
-export function useSiteToolConfirmation(_required: Record<string, never>, { confirm = confirmSiteAssistantTool }: { confirm?: typeof confirmSiteAssistantTool } = {}) {
+export function useSiteToolConfirmation({ confirm }: { confirm: AnswerToolConfirmation }, _optional = {}) {
   const [pending, setPending] = useState<ToolConfirmationDirective | null>(null);
   const [sendFailed, setSendFailed] = useState(false);
   const inFlight = useRef(false);

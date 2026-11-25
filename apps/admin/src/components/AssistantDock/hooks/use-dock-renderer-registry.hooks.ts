@@ -14,6 +14,7 @@ import {
 } from "@jini-ai/chat/react";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/shell-collaborators";
+import { routeApprovalToolCall, type AgUiApprovalPoster } from "../../../lib/ag-ui-approval-relay";
 import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
 import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
@@ -79,7 +80,10 @@ const dockClock = createSystemClock();
  * removes only its own entry (Jini compares the registration, not the callback), so a stale cleanup
  * never erases a newer registration of the same name.
  */
-function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistry }): () => void {
+function registerDockRenderers({ registry, agUiApprovals }: { registry: ExtEventRendererRegistry; agUiApprovals: AgUiApprovalPoster }): () => void {
+  // The card's decision resumes a live AG-UI interrupt only when that interrupt named its exchange;
+  // otherwise it keeps the existing redemption route (see `routeApprovalToolCall`).
+  const cardToolCall = routeApprovalToolCall({ approvals: agUiApprovals, fallback: mcpUiToolCaller }, {});
   const unregister = [
     /**
      * Registered via the low-level `register` (not Jini's own `registerMcpUiSurfaceRenderer`
@@ -153,7 +157,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
     registry.register({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => createElement(OverflowAwareMcpUiSurfaceCard, {
       useTHook: useT,
       ...props,
-      onToolCall: mcpUiToolCaller,
+      onToolCall: cardToolCall,
       // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
       // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
       // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
@@ -230,12 +234,15 @@ export interface DockRendererBinding {
  * unmount removes the cards, and StrictMode's effect replay or a Fast Refresh re-registers right
  * after its own cleanup (last writer wins, so the creation-time entries are simply replaced).
  */
-export function useDockRendererRegistry(): DockRendererBinding {
+export function useDockRendererRegistry(
+  { agUiApprovals }: { agUiApprovals: AgUiApprovalPoster },
+  _optional: Record<string, never> = {},
+): DockRendererBinding {
   const [registry] = useState(() => {
     const owned = createExtEventRendererRegistry({});
-    registerDockRenderers({ registry: owned });
+    registerDockRenderers({ registry: owned, agUiApprovals });
     return owned;
   });
-  useLayoutEffect(() => registerDockRenderers({ registry }), [registry]);
+  useLayoutEffect(() => registerDockRenderers({ registry, agUiApprovals }), [registry, agUiApprovals]);
   return { registry, mcpUiToolCaller };
 }

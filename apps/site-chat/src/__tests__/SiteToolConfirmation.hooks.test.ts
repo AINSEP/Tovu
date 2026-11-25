@@ -13,7 +13,7 @@ test('hook discards expiry, repeated clicks and teardown without posting an appr
   const decisions: unknown[] = [];
   const confirm = async (input: unknown) => { decisions.push(input); return true; };
   function Host() {
-    control = useSiteToolConfirmation({}, { confirm });
+    control = useSiteToolConfirmation({ confirm });
     return control.pending ? React.createElement('button', { ref: control.cancelRef }, 'Cancel') : null;
   }
   t.after(async () => { await act(async () => root.unmount()); restore(); });
@@ -45,7 +45,7 @@ for (const allow of [true, false]) test(`failed React decision allow=${allow} ke
     return decisions.length === 1 ? new Promise<boolean>(resolve => { settle = resolve; }) : Promise.resolve(true);
   };
   function Host() {
-    control = useSiteToolConfirmation({}, { confirm });
+    control = useSiteToolConfirmation({ confirm });
     return control.pending ? React.createElement('button', { ref: control.cancelRef }, 'Cancel') : null;
   }
   t.after(async () => { await act(async () => root.unmount()); restore(); });
@@ -71,7 +71,7 @@ for (const replacement of [false, true]) test(`late React failure cannot revive 
   let settle!: (ok: boolean) => void;
   const confirm = () => new Promise<boolean>(resolve => { settle = resolve; });
   function Host() {
-    control = useSiteToolConfirmation({}, { confirm });
+    control = useSiteToolConfirmation({ confirm });
     return control.pending ? React.createElement('button', { ref: control.cancelRef }, 'Cancel') : null;
   }
   t.after(async () => { await act(async () => root.unmount()); restore(); });

@@ -124,8 +124,9 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
   }, {
     registerStop: ({ stop }, _optional = {}) => { stopRef.requestStop = stop; },
     bootWork: () => owned.bootWork,
+    // First: a parked AG-UI approval is denied and its held call ended, never left to its expiry.
     stopServing: () => stopServingWithinGrace({ server, workers: [
-      { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+      { stop: async () => serving.releaseOnShutdown() }, { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
     ] }),
     // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
     stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
