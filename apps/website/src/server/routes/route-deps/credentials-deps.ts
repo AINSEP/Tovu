@@ -1,6 +1,6 @@
 import type { RememberedApprovalPort } from "@jini-ai/core";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
-import type { PublishCompatibilityPort } from "../../../features/custom-credentials/index.js";
+import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "#src/assistant/host-ports";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";

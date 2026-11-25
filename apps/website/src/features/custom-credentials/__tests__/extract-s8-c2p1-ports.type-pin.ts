@@ -27,7 +27,7 @@ import { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlPro
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
 import type { bindPublishCompatibility } from "../../deployments/publish-credentials/compatibility-port.js";
-import type { PublishCompatibilityPort } from "../publish-compatibility-port.js";
+import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;
