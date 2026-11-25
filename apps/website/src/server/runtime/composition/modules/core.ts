@@ -4,7 +4,7 @@ import { healthRoute, healthzRoute } from "@jini-ai/cms/public-http/routes/ops/h
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerReadyzRoute, type NoDepsRouteRegistrar } from "#src/server/inbound/public-http/routes/ops/health";
 import { registerPublishTrustHandshakeRoutes } from "./publish-trust.js";
-import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
+import { InMemoryPublishChallengeStore } from "@jini-ai/cms/publish/trust/challenge";
 import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
 import { createPublishTrustRevocationReader } from "../publish-trust-revocations.js";

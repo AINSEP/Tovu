@@ -7,7 +7,8 @@ import { publishTrustChallengeRoute, publishTrustIdentityRoute, publishTrustSess
 
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
+import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
@@ -102,7 +103,7 @@ export function registerPublishTrustHandshakeRoutes({ app, deps }: { app: Expres
     // grant `findGrant` answered and the claims `verifyResponse` verified.
     isGrantActive: ({ grant }: { grant: PublishTrustGrant }) => isGrantActive({ grant, nowIso: deps.clock.nowIso() }),
     verifyResponse: (input: { grant: PublishTrustGrant; targetInstallationId: string; response: PublishChallengeResponse }) =>
-      verifyChallengeResponse({ deps: { store: deps.challengeStore, clock: deps.clock }, input }),
+      verifyChallengeResponse({ deps: { store: deps.challengeStore, clock: deps.clock, messageVersion: PUBLISH_TRUST_WIRE.messageVersion }, input }),
     mintSession: (input: MintInput) => mintPublishSession({ deps: { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock }, input }),
   } });
 }

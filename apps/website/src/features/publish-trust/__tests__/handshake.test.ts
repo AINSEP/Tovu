@@ -10,7 +10,8 @@ import {
   InMemoryPublishChallengeStore,
   issuePublishChallenge,
   verifyChallengeResponse,
-} from "../challenge.js";
+} from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import { isPublishTrustRoute, parsePublishTrustGrant, PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "@jini-ai/cms/publish/trust/session";
@@ -103,6 +104,7 @@ async function handshake(options: { clock: ReturnType<typeof movableClock>; sign
 
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const message = buildChallengeMessage({
+    messageVersion: PUBLISH_TRUST_WIRE.messageVersion,
     nonce: challenge.nonce,
     targetInstallationId: TARGET_INSTALL,
     sourceInstallationId: SOURCE_INSTALL,
@@ -126,7 +128,7 @@ test("the happy path: a source that never received a secret authenticates end to
 
   const verified = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -162,7 +164,7 @@ test("a valid signature under an expired grant is refused", async () => {
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
   const result = await verifyChallengeResponse({
-                                                 deps: { store, clock },
+                                                 deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                                  input: {
       grant: { ...grant, notAfter: "2020-01-01T00:00:00.000Z" },
       targetInstallationId: TARGET_INSTALL, response,
@@ -177,7 +179,7 @@ test("missing, empty and non-string challenge nonces are refused without throwin
   for (const nonce of [undefined, null, "", 42]) {
     assert.deepEqual(
       await verifyChallengeResponse({
-                                      deps: { store, clock },
+                                      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                       input: {
           grant, targetInstallationId: TARGET_INSTALL,
           response: { ...response, nonce: nonce as unknown as string },
@@ -194,9 +196,9 @@ test("a valid signature claiming another source installation is refused", async 
   const key = await sourceKey();
   const claimed = { ...response, sourceInstallationId: "another-source-install" };
   // Sign the claimed identity so signature verification cannot mask a missing grant binding.
-  claimed.signatureB64u = key.sign({ message: buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }) });
+  claimed.signatureB64u = key.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...claimed, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
-    await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: claimed } }),
+    await verifyChallengeResponse({ deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: claimed } }),
     { ok: false, reason: "the response names an installation this grant is not for" }
   );
 });
@@ -207,9 +209,9 @@ test("a validly signed challenge requesting no capabilities is refused", async (
   const key = await sourceKey();
   const empty = { ...response, capabilities: [] };
   // An empty list is signed correctly and passes the per-capability loop vacuously.
-  empty.signatureB64u = key.sign({ message: buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }) });
+  empty.signatureB64u = key.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...empty, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
-    await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: empty } }),
+    await verifyChallengeResponse({ deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: empty } }),
     { ok: false, reason: "no capabilities requested" }
   );
 });
@@ -222,9 +224,9 @@ test("changing a signed read request to apply invalidates the signature", async 
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...response, targetInstallationId: TARGET_INSTALL }) });
   const result = await verifyChallengeResponse({
-                                                 deps: { store, clock },
+                                                 deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                                  input: { grant,
       targetInstallationId: TARGET_INSTALL, response: { ...response, capabilities: ["publish_content.apply"] } }
                                                });
@@ -239,8 +241,8 @@ test("a read-only handshake mints a read-only session", async () => {
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
-  const verified = await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response } });
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...response, targetInstallationId: TARGET_INSTALL }) });
+  const verified = await verifyChallengeResponse({ deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response } });
   assert.ok(verified.ok);
   assert.deepEqual(verified.verified.capabilities, ["publish_content.read"]);
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
@@ -257,7 +259,7 @@ test("PROOF 1 — an UNSIGNED request is refused", async () => {
     const { store, grant, response } = await handshake({ clock });
     const result = await verifyChallengeResponse(
       {
-        deps: { store, clock },
+        deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
         input: {
           grant,
           targetInstallationId: TARGET_INSTALL,
@@ -277,7 +279,7 @@ test("PROOF 2 — a signature from the WRONG KEY is refused", async () => {
 
   const result = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -291,7 +293,7 @@ test("PROOF 3 — a REPLAYED nonce is refused", async () => {
 
   const first = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -299,7 +301,7 @@ test("PROOF 3 — a REPLAYED nonce is refused", async () => {
 
   const replay = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -313,7 +315,7 @@ test("a nonce is burned even by a FAILED attempt — a rejection cannot keep it 
 
   const bad = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response: { ...response, signatureB64u: "AAAA" } }
     }
   );
@@ -321,7 +323,7 @@ test("a nonce is burned even by a FAILED attempt — a rejection cannot keep it 
 
   const retryWithGoodSignature = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -336,7 +338,7 @@ test("an EXPIRED nonce is refused", async () => {
   clock.advance(CHALLENGE_TTL_MS);
   const result = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId: TARGET_INSTALL, response }
     }
   );
@@ -428,11 +430,11 @@ test("a nonce issued by another destination is refused", async () => {
   const key = await sourceKey();
   const targetInstallationId = "someone-elses-install";
   // The signature is valid for the receiving destination; only the nonce's issuance binding differs.
-  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId }) });
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...response, targetInstallationId }) });
 
   const result = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: { grant, targetInstallationId, response }
     }
   );
@@ -448,6 +450,7 @@ test("a capability the grant does not hold is refused, not narrowed", async () =
 
   const capabilities = ["publish_content.apply", "content.write"];
   const message = buildChallengeMessage({
+    messageVersion: PUBLISH_TRUST_WIRE.messageVersion,
     nonce: challenge.nonce,
     targetInstallationId: TARGET_INSTALL,
     sourceInstallationId: SOURCE_INSTALL,
@@ -457,7 +460,7 @@ test("a capability the grant does not hold is refused, not narrowed", async () =
 
   const result = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: {
         grant,
         targetInstallationId: TARGET_INSTALL,
@@ -484,7 +487,7 @@ test("a response claiming a generation the grant does not accept is refused", as
 
   const result = await verifyChallengeResponse(
     {
-      deps: { store, clock },
+      deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
       input: {
         grant,
         targetInstallationId: TARGET_INSTALL,
@@ -611,7 +614,7 @@ test("an absent challenge response is refused without consuming the issued nonce
   const { store, grant, response, challenge } = await handshake({ clock });
   for (const missing of [undefined, null]) {
     assert.deepEqual(await verifyChallengeResponse({
-                                                     deps: { store, clock },
+                                                     deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                                      input: {
         grant, targetInstallationId: TARGET_INSTALL, response: missing as unknown as typeof response,
       }
@@ -624,7 +627,7 @@ test("an unusable verification clock refuses and consumes an otherwise valid cha
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
   assert.deepEqual(await verifyChallengeResponse({
-                                                   deps: { store, clock: { nowIso: () => "invalid" } },
+                                                   deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock: { nowIso: () => "invalid" } },
                                                    input: {
       grant, targetInstallationId: TARGET_INSTALL, response,
     }
@@ -639,7 +642,7 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     // Simulate a corrupt adapter record while retaining a valid signature and grant.
     await store.put({ record: { ...challenge, expiresAtIso: expiresAtIso as unknown as string } });
     assert.deepEqual(await verifyChallengeResponse({
-                                                     deps: { store, clock },
+                                                     deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                                      input: {
         grant, targetInstallationId: TARGET_INSTALL, response,
       }
@@ -666,7 +669,7 @@ for (const capabilities of [undefined, null, "publish_content.read", {}]) {
     const clock = movableClock();
     const { store, grant, response } = await handshake({ clock });
     assert.deepEqual(await verifyChallengeResponse({
-                                                     deps: { store, clock },
+                                                     deps: { messageVersion: PUBLISH_TRUST_WIRE.messageVersion, store, clock },
                                                      input: {
         grant, targetInstallationId: TARGET_INSTALL,
         response: { ...response, capabilities: capabilities as unknown as string[] },

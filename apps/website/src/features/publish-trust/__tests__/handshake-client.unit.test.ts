@@ -5,7 +5,8 @@ import test from "node:test";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
-import { buildChallengeMessage } from "../challenge.js";
+import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import {
   fetchDestinationIdentity,
   openPublishSession,
@@ -217,7 +218,7 @@ test("the session leg carries a generation-1 signature over the destination's ch
   assert.deepEqual({ ...body, signatureB64u: "-" }, { nonce: "nonce-1", sourceInstallationId, generation: 1, capabilities, signatureB64u: "-" });
 
   const key = await derivePublishSigningKey({ keyring, workspaceId: WORKSPACE, sourceInstallationId, targetOrigin: BASE, generation: 1 });
-  const message = buildChallengeMessage({ ...CHALLENGE, sourceInstallationId, generation: 1, capabilities });
+  const message = buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, ...CHALLENGE, sourceInstallationId, generation: 1, capabilities });
   assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: body.signatureB64u }), true);
 });
 

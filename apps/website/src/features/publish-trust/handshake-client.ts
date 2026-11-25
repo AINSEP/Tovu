@@ -1,7 +1,8 @@
 import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
 
-import { buildChallengeMessage } from "./challenge.js";
+import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "./host-settings.js";
 import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
 import { deriveInstallationId, derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 
@@ -289,7 +290,7 @@ export async function openPublishSession(
 
   const capabilities: readonly PublishingCapability[] = input.backstop
     ? [...DEFAULT_PUBLISHING_CAPABILITIES, "publish_content.backstop"] : DEFAULT_PUBLISHING_CAPABILITIES;
-  const signatureB64u = signingKey.sign({ message: buildChallengeMessage({ nonce, targetInstallationId, sourceInstallationId, generation, capabilities }) });
+  const signatureB64u = signingKey.sign({ message: buildChallengeMessage({ messageVersion: PUBLISH_TRUST_WIRE.messageVersion, nonce, targetInstallationId, sourceInstallationId, generation, capabilities }) });
 
   const minted = await callHandshake(deps, {
     method: "POST",

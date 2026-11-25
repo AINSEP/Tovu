@@ -6,7 +6,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import type { HttpClientPort } from "#src/platform/http/index";
-import { buildChallengeMessage } from "../challenge.js";
+import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import { PUBLISH_TRUST_ROUTES, isPublishTrustRoute } from "@jini-ai/cms/publish/trust/grant";
 import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHandshakeError } from "../handshake-client.js";
 import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
@@ -54,6 +55,7 @@ function linesMatching(pattern: RegExp): string[] {
 
 test("T-FROZEN: the challenge domain tag is the first line of the signed message", () => {
   const message = buildChallengeMessage({
+    messageVersion: PUBLISH_TRUST_WIRE.messageVersion,
     nonce: "n",
     targetInstallationId: "t",
     sourceInstallationId: "s",

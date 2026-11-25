@@ -7,7 +7,7 @@ import test from "node:test";
 import express, { type NextFunction, type Request, type Response as ExpressResponse } from "express";
 
 import { createFixedKeyring } from "#src/features/publish-trust/__tests__/support/fixed-keyring";
-import type { PublishChallengeRecord, PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
+import type { PublishChallengeRecord, PublishChallengeStorePort } from "@jini-ai/cms/publish/trust/challenge";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
