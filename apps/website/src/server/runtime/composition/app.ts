@@ -440,7 +440,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
 
   mountMembersNewsletter({ app, routeDeps });
 
-  mountAdminSystem({ app, routeDeps });
+  mountAdminSystem({ app, routeDeps }, options.siteStorage ? { siteStorage: options.siteStorage } : {});
   mountAdminFeatures({ app, routeDeps });
 
   mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps }, options);

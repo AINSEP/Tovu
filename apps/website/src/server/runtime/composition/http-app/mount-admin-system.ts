@@ -46,6 +46,8 @@ import { isLocalTovuHost } from "../registered-sites.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
+import { mountStorageRoutes, storageOwnerFrom, type SiteStoragePort } from "../modules/storage-routes.js";
+import { adminSameOriginWrites } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
 /** `GET .../system/module-status` (Jini spec) over this process's boot readiness snapshot; direct
  * authorization and the route's own failure copy, as the hand-written route answered.
@@ -113,8 +115,10 @@ export function registerAdminAssistantDaemonRoutes(
 }
 
 /** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. */
-export function mountAdminSystem({ app, routeDeps }: MountInput, _optional = {}): void {
+export function mountAdminSystem({ app, routeDeps }: MountInput, { siteStorage }: { siteStorage?: SiteStoragePort } = {}): void {
   mountAnalyticsAndSiteAssistant({ app, routeDeps });
+  mountStorageRoutes({ app, storage: siteStorage, authorizeOwner: storageOwnerFrom({ ownerPrincipalId: async () => routeDeps.ownerPrincipalId }),
+    adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize }, origin: adminSameOriginWrites } }, {});
   mountObservability({ app, routeDeps });
   mountMail({ app, routeDeps });
   mountSiteAdmin({ app, routeDeps });
