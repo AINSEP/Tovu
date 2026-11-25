@@ -1,104 +1,16 @@
-import { useEffect, useState } from "react";
-
-import { ApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { ALWAYS_ALLOW_KEYS, formatGrantedAt, groupAlwaysAllow, type AlwaysAllowGroup } from "@jini-ai/admin/screens/providers/always-allow-rules";
+import { useAlwaysAllow, type AlwaysAllowController } from "@jini-ai/admin/screens/providers/hooks/use-always-allow.hooks";
 import { tProviders as defaultT } from "../../../lib/i18n-common";
 import { defaultAlwaysAllowPort } from "./always-allow-dependencies.hooks";
-import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
 
 /**
- * @file Everything the Integrations "Always allow" tab does, so `AlwaysAllowPanel.tsx` is only
- * markup: load the saved approvals (labelled from the roster), and revoke one.
- *
- * No confirm step (owner call 2026-09-28): revoking is reversible — the tool just asks again.
- * A revoke that 404s means the row is already gone (another tab, or the server was removed), which
- * is the outcome the owner asked for, so it refreshes the list rather than showing an error.
- *
- * A revoked row is hidden at once rather than after the list's refetch lands, so it never sits
- * there looking un-revoked; the next load of the list (which already reflects the revoke) clears
- * that local state. The list always revalidates on mount and on window focus: a grant happens on
- * a chat card, in any window, so no write on this page could invalidate it.
+ * @file This host's binding of `@jini-ai/admin`'s `useAlwaysAllow`: the real external-MCP approvals
+ * port, the host's locale and translator, and the host's query/mutation hooks.
  */
 
-export interface AlwaysAllowController {
-  /** `null` until the first load finishes. */
-  groups: AlwaysAllowGroup[] | null;
-  loadError: string | null;
-  revokeError: string | null;
-  /** `serverId` + `toolName` of the revoke in flight, so only that row's button disables. */
-  pendingKey: string | null;
-  revoke: (input: { serverId: string; toolName: string }, options?: Record<string, never>) => void;
-  /** Stable row key, shared by `pendingKey` and the markup. */
-  rowKey: (input: { serverId: string; toolName: string }, options?: Record<string, never>) => string;
-  formatDate: (input: { grantedAt: string }, options?: Record<string, never>) => string;
-  t: (key: string) => string;
-}
-
-const rowKey = ({ serverId, toolName }: { serverId: string; toolName: string }, _options: Record<string, never> = {}): string => JSON.stringify([serverId, toolName]);
-
-/**
- * @complexity O(a + s + g log g) per render, from {@link groupAlwaysAllow}.
- */
-export function useAlwaysAllow({ port, t, locale }: { port: AlwaysAllowPort; t: (key: string) => string; locale: string }, _options: Record<string, never> = {}): AlwaysAllowController {
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
-  const [revokeError, setRevokeError] = useState<string | null>(null);
-  const [revoked, setRevoked] = useState<ReadonlySet<string>>(() => new Set());
-
-  const list = useFetchQuery({
-    key: ALWAYS_ALLOW_KEYS.list,
-    fetch: async () => {
-      const [{ approvals }, { servers }] = await Promise.all([port.listExternalMcpToolApprovals(), port.listExternalMcpServers()]);
-      return { approvals, servers };
-    },
-  }, {
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-  });
-
-  useEffect(() => setRevoked(new Set()), [list.data]);
-
-  const revokeMutation = useFetchMutation({
-    run: async ({ input: { serverId, toolName } }: { input: { serverId: string; toolName: string } }) => {
-      try {
-        return await port.revokeExternalMcpToolApproval({ serverId, toolName });
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return { removed: false };
-        throw error;
-      }
-    },
-  }, {
-    invalidates: [ALWAYS_ALLOW_KEYS.list],
-  });
-
-  function revoke({ serverId, toolName }: { serverId: string; toolName: string }, _options: Record<string, never> = {}): void {
-    setRevokeError(null);
-    const key = rowKey({ serverId, toolName });
-    setPendingKey(key);
-    revokeMutation
-      .mutate({ input: { serverId, toolName } })
-      .then(() => setRevoked((current) => new Set(current).add(key)))
-      .catch(() => setRevokeError(t("Couldn't revoke. Try again.")))
-      .finally(() => setPendingKey(null));
-  }
-
-  const approvals = list.data?.approvals.filter((row) => !revoked.has(rowKey({ serverId: row.serverId, toolName: row.toolName })));
-
-  return {
-    groups: list.data && approvals ? groupAlwaysAllow(approvals, list.data.servers) : null,
-    loadError: list.error && !list.data ? t("Couldn't load this list.") : null,
-    revokeError,
-    pendingKey,
-    revoke,
-    rowKey,
-    formatDate: ({ grantedAt }, _options = {}) => formatGrantedAt({ grantedAt, locale }),
-    t,
-  };
-}
-
-/** The zero-argument pair `AlwaysAllowPanel.tsx` mounts: the real port and the real locale. */
+/** The zero-argument pair `AlwaysAllowPanel` mounts: the real port and the real locale. */
 export function useWiredAlwaysAllow(): AlwaysAllowController {
   const locale = useAdminLocale();
-  return useAlwaysAllow({ port: defaultAlwaysAllowPort, t: (key) => defaultT({ locale: locale, key: key }), locale: locale });
+  return useAlwaysAllow({ port: defaultAlwaysAllowPort, t: (key) => defaultT({ locale: locale, key: key }), locale: locale, useFetchQuery, useFetchMutation });
 }

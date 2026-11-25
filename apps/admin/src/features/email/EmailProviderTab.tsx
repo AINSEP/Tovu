@@ -8,7 +8,8 @@ import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-stat
 import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "@jini-ai/admin/screens/email/email-api.types";
-import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
+import { Chip, Loaded, Section, when, type Tone } from "@jini-ai/admin/screens/email/EmailParts";
+import { Segments } from "./EmailSegments";
 import { isFullyActive, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 
 /**

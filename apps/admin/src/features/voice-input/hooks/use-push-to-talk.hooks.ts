@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { TranscriptionAvailability } from "@jini-ai/core/contracts/speech-transcription";
 import { getVoiceInputPort, type VoiceInputPort } from "../voice-input-port";
 import { NO_DESKTOP_SHELL_REASON, describeVoiceUnavailability } from "@jini-ai/admin/screens/voice-input/voice-unavailability";
-import { createMicPushToTalkCapture, type PushToTalkCapture } from "./mic-capture";
+import { createMicPushToTalkCapture, type PushToTalkCapture } from "@jini-ai/admin/screens/voice-input/hooks/mic-capture";
 import {
   INITIAL_PUSH_TO_TALK_STATE,
   describePushToTalkIndicator,

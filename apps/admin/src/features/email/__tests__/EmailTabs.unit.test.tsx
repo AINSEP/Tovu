@@ -5,10 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
 import type { MailTestSendResult } from "@jini-ai/admin/screens/email/email-api.types";
 import { ADD_PROVIDER_PART, CAPABILITIES_PART, EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
-import { EmailSenderTab } from "../EmailSenderTab";
-import { EmailOverviewTab } from "../EmailOverviewTab";
-import { EmailActivityTab } from "../EmailActivityTab";
-import { EmailTemplatesTab } from "../EmailTemplatesTab";
+import { EmailSenderTab } from "@jini-ai/admin/screens/email/EmailSenderTab";
+import { EmailOverviewTab } from "@jini-ai/admin/screens/email/EmailOverviewTab";
+import { EmailActivityTab } from "@jini-ai/admin/screens/email/EmailActivityTab";
+import { EmailTemplatesTab } from "@jini-ai/admin/screens/email/EmailTemplatesTab";
 import { useEmailProvider, useProviderChoices } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
