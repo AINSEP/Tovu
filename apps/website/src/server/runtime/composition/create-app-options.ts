@@ -6,6 +6,7 @@
 import type { Express } from "express";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
+import type { SiteStoragePort } from "./modules/storage-routes.js";
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
@@ -27,6 +28,9 @@ export interface CreateAppOptions {
   /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
    *  apps never pass it, so signing in to them pulls nothing. */
   onAdminSignIn?: AdminSignInPort;
+  /** Serving boot only: the site's retention runner and measurement behind `/api/admin/storage/*`.
+   *  Every other app answers those routes with a plain "not serving" refusal. */
+  siteStorage?: SiteStoragePort;
   /**
    * Render the site's pages through this theme id instead of the stored active one, for every request
    * this app serves. Only `RouteDeps.createSiteApp({ themeId })` sets it, for a throwaway loopback app

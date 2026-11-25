@@ -3,6 +3,8 @@ import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
 import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { servingStoragePaths, type SiteStoragePort } from "./modules/storage-routes.js";
+import { measureSiteStorage } from "#src/features/storage/measure";
 import { stat, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
@@ -97,9 +99,13 @@ export function createServingApp(
       log: line => console.log(line),
     }, {})
     : undefined;
+  const siteStorage: SiteStoragePort | undefined = siteRetention && {
+    measure: () => measureSiteStorage({ siteDir: routeDeps.siteBinding.dir, paths: servingStoragePaths({ siteDir: routeDeps.siteBinding.dir, ...routeDeps.siteStoragePaths, themesDir: routeDeps.themesDir }) }),
+    runOnce: siteRetention.runOnce, lastPass: siteRetention.lastReport,
+  };
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
-  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn });
+  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn, ...(siteStorage ? { siteStorage } : {}) });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }
