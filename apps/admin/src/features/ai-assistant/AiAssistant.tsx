@@ -4,7 +4,8 @@ import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import type { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import type { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
-import { isDesktopAdmin, localCliScopeCopy } from '../settings/ai-agent-presentation';
+import { isDesktopAdmin, scopeKeys } from '../settings/ai-agent-presentation';
+import { localCliScopeCopy } from '@jini-ai/chat/react/admin-execution/ai-agent-presentation';
 import { hostLocalCliScopeLabel } from '../../integrations/jini-admin/settings-execution-copy';
 import {
   ByokProviderForm,
@@ -274,7 +275,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         // Detection runs wherever the Tovu SERVER runs. On desktop that is this computer;
         // on a deployed CMS it is a different one. Share Settings' bridge-based scope copy
         // so neither mount makes a false claim about whose CLIs these are.
-        localCliScopeLabel={hostLocalCliScopeLabel({ locale, key: localCliScopeCopy({ desktop: isDesktopAdmin({}) }) })}
+        localCliScopeLabel={hostLocalCliScopeLabel({ locale, key: localCliScopeCopy({ desktop: isDesktopAdmin({}), ...scopeKeys }) })}
         // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
         // same six pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
         // disagree" reason this file's own header already documents for `useStoredCredential`. The

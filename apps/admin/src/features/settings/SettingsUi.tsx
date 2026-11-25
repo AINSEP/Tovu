@@ -128,7 +128,9 @@ import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
 import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
 import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
-import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
+import { useAiAgentPresentation } from "@jini-ai/chat/react/admin-execution/hooks/use-ai-agent-presentation.hooks";
+import { isDesktopAdmin, scopeKeys } from "./ai-agent-presentation";
+import { t as translateAgentPresentation } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
 import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { UserInterfaceSettingsPanel } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel";
@@ -304,6 +306,7 @@ export function SettingsUi({
 
   const agentPresentation = useAiAgentPresentationHook({
     port: s.port, config: executionPolicy.config, locale: settingsLocale,
+    desktop: isDesktopAdmin({}), defaultLocalAgentId: "claude", translate: translateAgentPresentation, scopeKeys,
   });
 
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`

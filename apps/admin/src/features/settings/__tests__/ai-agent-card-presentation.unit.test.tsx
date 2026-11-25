@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ExecutionTab, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from '@jini-ai/ui';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { ADMIN_LOCALES } from '@/lib/settings-tabs';
-import { createAgentPresentationPort } from '../ai-agent-presentation';
+import { createAgentPresentationPort } from '@jini-ai/chat/react/admin-execution/ai-agent-presentation';
 import { aiAgentPanelDictionaries } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
 
 afterEach(cleanup);

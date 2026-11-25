@@ -3,8 +3,10 @@ import * as React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import type { ExecutionCardAgent, ExecutionPort } from '@jini-ai/core/contracts/execution';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
-import { createAgentPresentationPort, isDesktopAdmin, localCliScopeCopy, normalizeAgentDescription, selectedAgentWarning } from '../ai-agent-presentation';
-import { useAiAgentPresentation } from '../hooks/use-ai-agent-presentation.hooks';
+import { createAgentPresentationPort, localCliScopeCopy, normalizeAgentDescription } from '@jini-ai/chat/react/admin-execution/ai-agent-presentation';
+import { isDesktopAdmin, scopeKeys, selectedAgentWarning } from '../ai-agent-presentation';
+import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
+import { useAiAgentPresentation } from '@jini-ai/chat/react/admin-execution/hooks/use-ai-agent-presentation.hooks';
 
 const claude: ExecutionCardAgent = { id: 'claude', label: 'Claude Code', installed: true, authStatus: 'missing' };
 const fakePort = (agents: readonly ExecutionCardAgent[]): ExecutionPort => ({ detectLocalAgents: async () => agents, testConnection: async () => ({ ok: true }) });
@@ -16,7 +18,7 @@ describe('D-21 AI agent presentation', () => {
     try {
       for (const name of bridges) Object.defineProperty(window, name, { configurable: true, value: undefined });
       const port = fakePort([claude]);
-      const { result } = renderHook(() => useAiAgentPresentation({ port, config: null, locale: 'en' }));
+      const { result } = renderHook(() => useAiAgentPresentation({ port, config: null, locale: 'en', desktop: isDesktopAdmin({}), defaultLocalAgentId: 'claude', translate: t, scopeKeys }));
       await act(async () => { await result.current.port.detectLocalAgents(); });
       expect(result.current.scopeCopy).toBe('Detected on the {productName} server, not on your own computer.');
       expect(result.current.warning).toBeNull();
@@ -32,7 +34,7 @@ describe('D-21 AI agent presentation', () => {
   it('keeps the warning after an identical scan and clears it when authentication changes', async () => {
     let agents: readonly ExecutionCardAgent[] = [claude];
     const port: ExecutionPort = { ...fakePort([]), detectLocalAgents: async () => agents };
-    const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true }));
+    const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en', desktop: true, defaultLocalAgentId: 'claude', translate: t, scopeKeys }));
     await act(async () => { await result.current.port.detectLocalAgents(); });
     expect(result.current.warning).toBe('Claude Code: Authentication required. Sign in before sending.');
     agents = [{ ...claude }];
@@ -53,7 +55,7 @@ describe('D-21 AI agent presentation', () => {
     const state = vi.spyOn(React, 'useState').mockReturnValueOnce([[], publish]);
     try {
       const { result, unmount } = renderHook(() => {
-        const presentation = useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true });
+        const presentation = useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en', desktop: true, defaultLocalAgentId: 'claude', translate: t, scopeKeys });
         presentations.push(presentation.warning);
         return presentation;
       });
@@ -74,8 +76,8 @@ describe('D-21 AI agent presentation', () => {
   });
 
   it('words desktop and server scope exactly, reusing host bridge presence', () => {
-    expect(localCliScopeCopy({ desktop: true })).toBe('Detected on this computer.');
-    expect(localCliScopeCopy({ desktop: false })).toBe('Detected on the {productName} server, not on your own computer.');
+    expect(localCliScopeCopy({ desktop: true, ...scopeKeys })).toBe('Detected on this computer.');
+    expect(localCliScopeCopy({ desktop: false, ...scopeKeys })).toBe('Detected on the {productName} server, not on your own computer.');
     expect(isDesktopAdmin({}, { targetWindow: {} as Window })).toBe(false);
     expect(isDesktopAdmin({}, { targetWindow: { tovuFiles: { getPathForFile: () => '' } } as unknown as Window })).toBe(true);
   });
@@ -111,7 +113,7 @@ describe('D-21 AI agent presentation', () => {
   it('updates the inline warning on selection, BYOK switches, and rescan', async () => {
     const config = { ...DEFAULT_EXECUTION_CONFIG, mode: 'local-cli' as const, localCli: { ...DEFAULT_EXECUTION_CONFIG.localCli, agentId: 'claude' } };
     const port = { ...fakePort([claude]), rescanLocalAgents: async () => [{ ...claude, authStatus: 'ok' as const }] };
-    const { result, rerender } = renderHook(({ current }) => useAiAgentPresentation({ port, config: current, locale: 'en' }, { desktop: true }), { initialProps: { current: config as typeof DEFAULT_EXECUTION_CONFIG } });
+    const { result, rerender } = renderHook(({ current }) => useAiAgentPresentation({ port, config: current, locale: 'en', desktop: true, defaultLocalAgentId: 'claude', translate: t, scopeKeys }), { initialProps: { current: config as typeof DEFAULT_EXECUTION_CONFIG } });
     await act(async () => { await result.current.port.detectLocalAgents(); });
     expect(result.current.warning).toBe('Claude Code: Authentication required. Sign in before sending.');
     rerender({ current: { ...config, mode: 'byok' } });
@@ -126,7 +128,7 @@ describe('D-21 AI agent presentation', () => {
 
 it('warns for the dock default Claude when the ledger has no agent selection yet', async () => {
   const port = fakePort([claude]);
-  const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true }));
+  const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en', desktop: true, defaultLocalAgentId: 'claude', translate: t, scopeKeys }));
   await act(async () => { await result.current.port.detectLocalAgents(); });
   expect(result.current.warning).toBe('Claude Code: Authentication required. Sign in before sending.');
 });
