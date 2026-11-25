@@ -344,7 +344,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   });
   const hostCreated = await createEntry({
     deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
-    input: { actorId: "system", workspaceId: deps.workspaceId, type: "article", slug: "route-test-host", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this paragraph" }] }] } },
+    input: { actorId: "system", actor: { id: "system", kind: "system" }, workspaceId: deps.workspaceId, type: "article", slug: "route-test-host", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this paragraph" }] }] } },
   });
   if (!hostCreated.ok) throw hostCreated.error;
   const hostId = hostCreated.value.entry.id;
@@ -1042,6 +1042,7 @@ test("admin widgets agent tools: widgets.remove removes a region placement (regi
     deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
     input: {
       actorId: "system",
+      actor: { id: "system", kind: "system" },
       workspaceId: deps.workspaceId,
       type: "article",
       slug: "agent-tools-embed-host",
@@ -1343,6 +1344,7 @@ test("admin widgets embed-remove route: rejects wrong workspace and a missing ba
     deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
     input: {
       actorId: "system",
+      actor: { id: "system", kind: "system" },
       workspaceId: deps.workspaceId,
       type: "article",
       slug: "embed-remove-route-host",
@@ -1458,6 +1460,7 @@ test("admin widgets regions-list/region-get: reject wrong workspace and no-permi
     deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
     input: {
       actorId: "system",
+      actor: { id: "system", kind: "system" },
       workspaceId: deps.workspaceId,
       type: "article",
       slug: "not-a-widget-area",
