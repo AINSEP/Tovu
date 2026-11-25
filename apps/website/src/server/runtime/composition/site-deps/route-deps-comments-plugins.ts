@@ -17,7 +17,7 @@ import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import { AlwaysUnavailableWatermarkSource } from "@jini-ai/db/recovery/lookup-adapters";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
-import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
+import { InMemorySiteStatusRepo } from "@jini-ai/db/site/repo.memory";
 import { RECHARTS_DEFAULT_PROVIDER } from "../charts-recharts-source.js";
 import { RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";

@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
-import { createDeployHostKit } from "../host-kit.js";
+import { createDeployHostKit } from "../host-kit-binding.js";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 /**
@@ -72,4 +72,16 @@ test("without an observability port the kit records nothing and still sends", as
   const kit = createDeployHostKit({ fetchFn: async () => new Response("ok", { status: 200 }) });
   assert.equal((await kit.fetch("https://api.deploy.example/", {}, { timeoutMs: 1_000 })).status, 200);
   assert.equal(exporter.getFinishedSpans().length, 0);
+});
+
+test("one safe span per outbound operation and none for sign", async () => {
+  const { exporter, port } = createInMemoryOtel();
+  const kit = createDeployHostKit({ observability: port, fetchFn: async () => new Response("ok", { status: 200 }) });
+  await kit.fetch(`https://api.deploy.example/private?token=${TOKEN}`, {}, { timeoutMs: 1_000 });
+  await kit.checkDeploymentUrl(`https://8.8.8.8/private?token=${TOKEN}`);
+  await kit.createSigV4Client({ accessKeyId: "AKIAFIXTURE", secretAccessKey: TOKEN, service: "s3", region: "us-east-1" }).sign("https://bucket.s3.amazonaws.com/private");
+  const spans = exporter.getFinishedSpans();
+  assert.equal(spans.length, 2);
+  assert.deepEqual(spans.map(span => span.name), ["GET api.deploy.example", "HEAD 8.8.8.8"]);
+  for (const span of spans) assertSpanOmits(span, [TOKEN, "AKIAFIXTURE", "private"]);
 });

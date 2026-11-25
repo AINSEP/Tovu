@@ -1,3 +1,4 @@
+import { formReceiverKey } from "../key-store.js";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +7,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import { createFormDestinationPort } from "../port.js";
+import { createFormDestinationPort } from "@jini-ai/cms/forms/destinations/port";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 import type { FormDestinationForm } from "@jini-ai/core/contracts/site/cms-forms";
@@ -30,14 +31,23 @@ function credentials(): CustomCredentialWriteDeps {
 function setup(required: { setting?: string; forms?: FormDestinationForm[]; relay?: FormDestinationModule; credentialLabel?: string }) {
   const creds = credentials();
   const prepared: unknown[] = [];
+  let generated = 0;
   const relay: FormDestinationModule = required.relay ?? { ...receiving, prepare: async (args) => { prepared.push(args); return { submitUrl: "https://relay.example/in/" }; } };
   const registry = buildFormDestinationRegistry({ refusals: [], loaded: [
     { descriptor: { id: "co", label: "Co", module: "co.mjs", receive: "co-hosted", hosts: ["host-a"] }, pluginId: "p1", module: receiving },
     { descriptor: { id: "relay", label: "Relay", module: "relay.mjs", receive: "external", ...(required.credentialLabel ? { credentialLabel: required.credentialLabel } : {}) }, pluginId: "p2", module: relay },
   ] });
-  const port = createFormDestinationPort({ listForms: async () => required.forms ?? FORMS, credentials: creds,
-    loadRegistry: async () => registry, readSetting: async () => required.setting }, { newSecret: () => KEY });
-  return { port, creds, prepared };
+  const port = createFormDestinationPort({ listForms: async () => required.forms ?? FORMS, hasExistingKey: async ({ workspaceId, hostingTargetId }) => (await listCustomCredentials(creds, { workspaceId })).some(item => item.label === `Form submissions key: ${hostingTargetId}`),
+    readExistingKey: async ({ workspaceId, hostingTargetId }) => (await resolveCustomCredentialByLabel(creds, { workspaceId, label: `Form submissions key: ${hostingTargetId}` }))?.connection.token,
+    resolveCredential: async input => {
+      const saved = await resolveCustomCredentialByLabel(creds, input);
+      return saved ? { token: saved.connection.token, baseUrl: saved.baseUrl, ...(saved.connection.username ? { username: saved.connection.username } : {}) } : null;
+    },
+    formReceiverKey: (input, optional) => formReceiverKey({ credentials: creds, ...input }, optional),
+    noReceiverMessage: ({ reason }) => `Form submissions: off, because ${reason}. Submissions on the published site will not reach Tovu. Install or turn on a form destination, or set the site's form receiver (core.forms receiver), then preview again.`,
+    missingCredentialMessage: ({ id, label }) => `form destination '${id}' needs its saved connection "${label}". Save it under Custom credentials with exactly that label, then try again`,
+    loadRegistry: async () => registry, readSetting: async () => required.setting }, { newSecret: () => { generated++; return KEY; } });
+  return { port, creds, prepared, generated: () => generated };
 }
 const labels = async (creds: CustomCredentialWriteDeps) => (await listCustomCredentials(creds, { workspaceId: W })).map((summary) => summary.label);
 
@@ -127,11 +137,12 @@ test("external preview receives a saved connection without a username; non-Error
   await assert.rejects(throwing.port.prepare(input("host-z")), { message: "form destination 'relay' could not prepare its receiver: relay offline" });
 });
 
-test('empty built-in manifest retains the existing co-hosted receiver key so pending imports can finish', async () => {
+test('empty forms retain the existing key without generating another', async () => {
   const state = setup({ forms: [] });
   await createCustomCredential(state.creds, { workspaceId: W, label: 'Form submissions key: host-a', category: 'hosting', baseUrl: 'https://old-site.example', connection: { token: KEY } });
   const plan = await state.port.prepare(input('host-a'));
   assert.deepEqual(plan.hosting, { forms: [], secret: KEY });
   assert.deepEqual(await state.port.previewInput(input('host-a')), { hosting: { forms: [] } });
   assert.deepEqual(await labels(state.creds), ['Form submissions key: host-a']);
+  assert.equal(state.generated(), 0);
 });

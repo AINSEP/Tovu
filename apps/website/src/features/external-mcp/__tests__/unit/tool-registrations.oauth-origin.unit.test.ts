@@ -17,7 +17,7 @@ import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
-import type { ExternalMcpToolDeps } from "../../deps.js";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -74,7 +74,7 @@ function call(handler: ToolRegistration["handler"], input: unknown) {
 
 /** Builds a real, wired `external_mcp_oauth_connect` handler over one saved authorization_code
  *  OAuth row — `derivedPublicOrigin` is the one field each test below varies. */
-async function makeConnectHandler(derivedPublicOrigin: string | undefined): Promise<ToolRegistration["handler"]> {
+async function makeConnectHandler(derivedPublicOrigin: string | undefined, { grant = "authorization_code" }: { grant?: "authorization_code" | "device_code" } = {}): Promise<ToolRegistration["handler"]> {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
@@ -96,7 +96,7 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
       principalId: "principal-1",
       oauth: {
         providerId: PROVIDER.providerId,
-        grant: "authorization_code",
+        grant,
         clientId: "tovu-client",
         scopes: "read",
         tokenEnvName: "TEST_OAUTH_SRV_TOKEN",
@@ -112,8 +112,10 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
     clock,
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
-      fetchFn: ({ url }, init) => (NETWORK_TRIPWIRE)(url, init) },
-    lookupProvider: () => PROVIDER,
+      fetchFn: ({ url }, init) => grant === "device_code"
+        ? Promise.resolve(Response.json({ device_code: "private-device-code", user_code: "ABCD", verification_uri: "https://auth.example.com/activate", expires_in: 900, interval: 5 }))
+        : (NETWORK_TRIPWIRE)(url, init) },
+    lookupProvider: () => ({ ...PROVIDER, supportedGrants: [grant], deviceAuthorizationEndpoint: "https://auth.example.com/device" }),
   });
 
   const routeDeps: ExternalMcpToolDeps = {
@@ -256,4 +258,14 @@ test("an explicit HTTP override is used after trimming and stripping its path", 
   const handler = await makeConnectHandler("https://ignored.example");
   const result = await call(handler, { id: SERVER }) as { authorizationUrl: string };
   assert.equal(redirectUriOf(result.authorizationUrl), `http://localhost:8080${CALLBACK_PATH_SUFFIX}`);
+});
+
+test("device grant works without an inferred redirect origin", async t => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+  delete process.env.TOVU_PUBLIC_URL;
+  const handler = await makeConnectHandler(undefined, { grant: "device_code" });
+  const result = await call(handler, { id: SERVER }) as { kind: string; userCode: string };
+  assert.equal(result.kind, "device_code");
+  assert.equal(result.userCode, "ABCD");
 });

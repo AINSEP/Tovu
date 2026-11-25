@@ -10,7 +10,7 @@ import test from "node:test";
 import type { DeployTarget } from "@jini-ai/devops/deploy";
 
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import type {
   DeployTargetCreateContext,
   DeployTargetModule,

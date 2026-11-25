@@ -4,7 +4,8 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
-import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
+import { DEPLOY_FETCH_TIMEOUTS } from "@jini-ai/devops/deploy/site/deploy-targets/host-kit";
+import { createDeployHostKit } from "../deploy-targets/host-kit-binding.js";
 import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";

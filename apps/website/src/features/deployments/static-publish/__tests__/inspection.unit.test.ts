@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { DeployTargetRegistry, DeployTargetInspection } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import type { PluginDeployHostKit as DeployHostKit } from '@jini-ai/devops/deploy';
-import { createDeployHostKit } from '../../deploy-targets/host-kit.js';
+import { createDeployHostKit } from '../../deploy-targets/host-kit-binding.js';
 import { inspectStaticPublish } from '../inspection.js';
 import type { PublishCredentialSource } from '@jini-ai/devops/deploy/site/static-publish/types';
 import type { FormDestinationForm, FormReceiverPort, FormSubmissionsInspection } from '@jini-ai/core/contracts/site/cms-forms';

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
-import { createDeployHostKit } from '../deploy-targets/host-kit.js';
+import { createDeployHostKit } from '../deploy-targets/host-kit-binding.js';
 import type { DeployTargetInspection } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import type { FormDestinationForm } from '@jini-ai/core/contracts/site/cms-forms';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';

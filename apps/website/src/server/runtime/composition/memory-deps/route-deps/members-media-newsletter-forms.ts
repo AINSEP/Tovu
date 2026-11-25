@@ -29,7 +29,7 @@ import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { executeCommand } from "@jini-ai/cms/core";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
-import { InMemoryDatabaseLedgerRepo, InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
+import { InMemoryDatabaseLedgerRepo, InMemoryMigrationRunsRepo } from "@jini-ai/db/site/repo.memory";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 
 /** Nothing is delivered locally, so the preview is the mail: the full body carries the sign-in or

@@ -6,7 +6,7 @@ import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.j
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../external-mcp-store.js";
 import { openExternalMcpOAuthPayload } from "../../external-mcp-store.js";
 import type { SurfaceEmission } from "@jini-ai/core";
-import type { ExternalMcpToolDeps } from "../../deps.js";
+import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";

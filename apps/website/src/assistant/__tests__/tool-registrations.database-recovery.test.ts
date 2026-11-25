@@ -17,7 +17,7 @@ import {
   InMemoryMigrationRunsRepo,
   InMemoryRestorePointsRepo,
   InMemorySiteStatusRepo,
-} from "../../features/database/repo.memory.js";
+} from "@jini-ai/db/site/repo.memory";
 import { type AgentToolDefinition as RecoveryAgentToolDefinition } from "@jini-ai/core";
 import { recoveryAgentToolCatalog } from "../../features/recovery/tool-registrations.js";
 import {

@@ -84,7 +84,7 @@ import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-regi
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { siteEvidenceAgentToolCatalog } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
-import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
+import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/catalog-host.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
 import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
@@ -110,7 +110,7 @@ function fixtureImageModelIds(): readonly string[] {
   return registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
 }
 const mediaGenerationAgentToolCatalog = () => buildMediaGenerationAgentToolCatalog({ imageModelIds: fixtureImageModelIds(), mediaAssetReadToolId: "content_read.media_asset" });
-import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
+import { mediaProvidersAgentToolCatalog } from "@jini-ai/cms/media/site-generation/providers-tools";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { buildMediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";

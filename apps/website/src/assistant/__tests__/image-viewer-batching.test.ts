@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { ToolRegistration } from '@jini-ai/core';
 import { buildMediaViewImageAgentToolCatalog } from '@jini-ai/cms/media/site/view-image-tool';
 import { catalog as mediaViewVideoAgentToolCatalog } from '../../features/media/view-video-tool.js';
-import { webScreenshotAgentToolCatalog } from '../../features/web-screenshot/agent-tools.js';
+import { webScreenshotAgentToolCatalog } from '../../features/web-screenshot/catalog-host.js';
 import { demoImageAgentToolCatalog } from '../demo-image-tool.js';
 import { applyBatchInputs, resolveBatchableTools } from '../batch-tool-inputs.js';
 

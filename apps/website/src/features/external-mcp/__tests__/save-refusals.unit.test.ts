@@ -8,7 +8,7 @@ import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
 import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
-import type { ExternalMcpToolDeps } from '../deps.js';
+import type { ExternalMcpToolDeps } from '@jini-ai/core/contracts/site/external-mcp-tool-ports';
 
 /**
  * @file Save refusals over the mounted `external_mcp_save` registration. Three different causes
