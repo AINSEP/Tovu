@@ -295,10 +295,37 @@ function parkApproval({ directive, ctx }: { directive: ToolConfirmationDirective
   // (Stop, unmount, or the idle timer still armed from the last byte) until they answer.
   args.controller.signal.addEventListener("abort", () => {
     if (parked.answer) return;
+    // Stop is the owner's answer: deny, never a silent leak until expiry. Claiming `answer` first
+    // makes this the approval's one answer, so a late click cannot post a second resume.
+    parked.answer = Promise.resolve(false);
+    sendCancelledResume({ ctx, challengeId: directive.challengeId });
     if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
     life.finish({ expectReply: false });
   }, { once: true });
   args.options.onToolConfirmation?.({ directive });
+}
+
+/**
+ * The parked approval's `cancelled` resume: the same chat route and in-memory correlators as an
+ * answer, sent once and not awaited. It cannot ride the turn's fetch agent, whose controller is the
+ * one this Stop just aborted. Failures are dropped: the visitor already stopped, and the server's
+ * own expiry still denies the call if this never arrives.
+ */
+function sendCancelledResume({ ctx, challengeId }: { ctx: EventContext; challengeId: string }, _options = {}): void {
+  const { args, wire } = ctx;
+  const input: RunAgentInput = {
+    threadId: wire.threadId, runId: crypto.randomUUID(), parentRunId: wire.runId, state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: challengeId, status: "cancelled" }],
+  };
+  void (async () => {
+    // The tab identity that owns the approval; a fresh call, since the turn's signal is aborted.
+    const frontendHeaders = await (args.options.frontend?.headers() ?? Promise.resolve({})).catch(() => ({}));
+    const response = await args.fetchChat(CHAT_URL, {
+      method: "POST", headers: { "Content-Type": "application/json", ...frontendHeaders, Accept: VISITOR_AG_UI_ACCEPT },
+      credentials: "same-origin", mode: "same-origin", redirect: "error", keepalive: true, body: JSON.stringify(input),
+    });
+    await response.body?.cancel();
+  })().catch(() => {});
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
