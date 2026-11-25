@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import express, { type Request } from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
+import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { originFixture } from '#src/features/member-login/__tests__/fixtures';
 import { MemberLoginError } from '@jini-ai/user-management/server';
@@ -9,7 +10,6 @@ import * as memberLogin from '@jini-ai/user-management/member-login/oidc-login';
 import type { MemberRecord, MemberSessionRecord } from '@jini-ai/user-management/members/types';
 import { InMemoryMemberExternalIdentityRepo } from '@jini-ai/user-management/members/repo.memory';
 import type { MemberPublicRouteDeps } from '../../deps.js';
-import { MEMBER_OIDC_PATH } from '@jini-ai/core/contracts/headless/member-login';
 import { currentOidcMember, memberOidcCookie, MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from '../../oidc-deps.js';
 import { registerMemberOidcStartRoute } from '../../oidc-start.js';
 import { registerMemberLoginProvidersRoute, registerPublicMemberMeRoute } from '#src/server/runtime/composition/modules/public-members';
@@ -76,26 +76,42 @@ test('OIDC cookies keep configured base paths and reject malformed binding befor
   assert.equal(calls.length, 3);
 });
 
-for (const query of [{ error: 'access_denied' }, { error: 'provider-secret' }, { code: [], state: 'state' },
-  { code: 'code', state: {} }, { code: '', state: 'state' }, { code: 'c'.repeat(4097), state: 'state' },
-  { code: 'code', state: '' }, { code: 'code', state: 's'.repeat(16385) }, { code: 'valid-code', state: 'valid-state' }]) {
+/** The names of the cookies a wire answer clears, as Express's `res.clearCookie(name, …)` writes them (an empty
+ *  value expiring at the epoch); any other `Set-Cookie` is kept as `set:<name>` so it cannot pass for a clear. */
+function clearedCookies(headers: Record<string, unknown>): string[] {
+  const lines = headers['set-cookie'] === undefined ? [] : ([] as string[]).concat(headers['set-cookie'] as string | string[]);
+  return lines.map((line) => {
+    const name = line.slice(0, line.indexOf('='));
+    return line.startsWith(`${name}=;`) && line.includes('Expires=Thu, 01 Jan 1970 00:00:00 GMT') ? name : `set:${name}`;
+  });
+}
+
+/** Arrays and objects by kind, strings verbatim: what the callback's query parser distinguishes. */
+const queryShape = (query: Record<string, unknown>) => Object.fromEntries(Object.entries(query).map(([key, value]) =>
+  [key, typeof value === 'string' ? value : Array.isArray(value) ? 'array' : typeof value]));
+
+// Each former hand-made `req.query` beside the wire query Express's parser turns into the same shape (an empty
+// array or object has no query-string spelling; a one-element array / one-key object is the same non-string kind).
+for (const [query, search] of [[{ error: 'access_denied' }, 'error=access_denied'], [{ error: 'provider-secret' }, 'error=provider-secret'],
+  [{ code: [], state: 'state' }, 'code[]=&state=state'], [{ code: 'code', state: {} }, 'code=code&state[k]='],
+  [{ code: '', state: 'state' }, 'code=&state=state'], [{ code: 'c'.repeat(4097), state: 'state' }, `code=${'c'.repeat(4097)}&state=state`],
+  [{ code: 'code', state: '' }, 'code=code&state='], [{ code: 'code', state: 's'.repeat(16385) }, `code=code&state=${'s'.repeat(16385)}`],
+  [{ code: 'valid-code', state: 'valid-state' }, 'code=valid-code&state=valid-state']] as const) {
   test(`OIDC callback clears binding and bounds query before exchange ${Object.keys(query).join(',')}:${JSON.stringify(query).length}`, async () => {
     completions = 0;
     const app = express();
+    let parsed: Record<string, unknown> | undefined;
+    app.use((req, _res, next) => { parsed = req.query; next(); });
     const members = memberDeps({});
     const deps = portFake<MemberOidcRouteDeps>({ members, protocol: { origin: originFixture() } });
     registerMemberOidcCallbackRoute({ app, deps });
-    const { res, capture } = createCapturingResponse();
-    const calls: unknown[] = [];
-    Object.assign(res, { setHeader: () => res, clearCookie: (name: string) => { calls.push(name); return res; },
-      redirect: (status: number, location: string) => { capture.statusCode = status; capture.jsonBody = location; return res; } });
-    await extractRouteHandler(app, 'get', `${MEMBER_OIDC_PATH}/callback`)({ params: { workspaceId: 'ws', providerId: 'google' },
-      headers: {}, query, socket: { remoteAddress: '203.0.113.1' }, get: () => undefined }, res);
-    assert.deepEqual(calls, [MEMBER_OIDC_BINDING_COOKIE]);
-    const valid = query.code === 'valid-code';
+    const response = await dispatchHttpRequest({ app, method: 'GET', url: `/api/members/v1/workspaces/ws/oidc/google/callback?${search}` });
+    assert.deepEqual(queryShape(parsed ?? {}), queryShape(query), 'the wire query parses to the former query shape');
+    assert.deepEqual(clearedCookies(response.headers), [MEMBER_OIDC_BINDING_COOKIE]);
+    const valid = 'code' in query && query.code === 'valid-code';
     assert.equal(completions, valid ? 1 : 0);
-    const code = valid ? 'LOGIN_UNAVAILABLE' : query.error === 'access_denied' ? 'LOGIN_CANCELLED' : 'LOGIN_INVALID';
-    assert.deepEqual(capture, { statusCode: 303, jsonBody: `/signin#oidcError=${code}` });
+    const code = valid ? 'LOGIN_UNAVAILABLE' : 'error' in query && query.error === 'access_denied' ? 'LOGIN_CANCELLED' : 'LOGIN_INVALID';
+    assert.deepEqual({ statusCode: response.status, location: response.headers.location }, { statusCode: 303, location: `/signin#oidcError=${code}` });
   });
 }
 
@@ -112,10 +128,8 @@ for (const failure of [new MemberLoginError({ code: 'LOGIN_UNAVAILABLE' }), new 
 test('OIDC start refuses an invalid provider id before resolving provider configuration', async () => {
   const app = express();
   registerMemberOidcStartRoute({ app, deps: portFake<MemberOidcRouteDeps>({ members: memberDeps({}) }) });
-  const { res, capture } = createCapturingResponse();
-  Object.assign(res, { setHeader: () => res, redirect: (status: number, location: string) => { capture.statusCode = status; capture.jsonBody = location; return res; } });
-  await extractRouteHandler(app, 'get', `${MEMBER_OIDC_PATH}/start`)({ params: { workspaceId: 'ws', providerId: 'INVALID' }, headers: {}, get: () => undefined, socket: {} }, res);
-  assert.deepEqual(capture, { statusCode: 303, jsonBody: '/signin#oidcError=LOGIN_INVALID' });
+  const response = await dispatchHttpRequest({ app, method: 'GET', url: '/api/members/v1/workspaces/ws/oidc/INVALID/start' });
+  assert.deepEqual({ statusCode: response.status, location: response.headers.location }, { statusCode: 303, location: '/signin#oidcError=LOGIN_INVALID' });
 });
 
 test('me keeps linked identities readable when provider discovery is unavailable', async () => {
