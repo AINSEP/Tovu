@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createOwnerChatAcceptance, sanitizeBrowserRunContext } from "../assistant-run-acceptance.js";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
+import { acceptOwnedAssistantRun, cancelOwnedRun, createOwnerChatAcceptance, sanitizeBrowserRunContext } from "../assistant-run-acceptance.js";
 
 /**
  * @file Owner-chat acceptance seam. The marker tests are the security-relevant ones: a routine marker
@@ -104,4 +105,44 @@ test("cancelChatRun cancels the owned run by saved message id and recovers it on
   // Another owner's run is not cancelable through this seam.
   assert.equal(await h.acceptance.cancelChatRun({ ...base, principalId: "other" }, {}), false);
   assert.equal(h.cancels.length, 1);
+});
+
+/** Codex FIX 14: P6's AG-UI entry (`acceptOwnedAssistantRun`) and P3's trusted routine acceptance share one seam. */
+function agUiPorts(h: ReturnType<typeof harness>) {
+  const store = { accept: async (input: never) => { const i = input as { runId: string; messageId: string; principalId: string; conversationId: string; request: unknown };
+    h.accepted.push(i as never); return { ...i, workspaceId: "ws", message: { runStatus: "queued" }, recoveryCount: 0, cancelReason: null }; } };
+  return { store: store as never, now: () => 1, mintRunId: () => "run-x", onAccepted: () => {}, launch: async ({ run }: { run: { messageId: string } }) => { h.launched.push(run.messageId); }, watch: () => {} } as never;
+}
+
+test("the AG-UI entry strips a browser routine marker: no browser path can stamp routine authority", async () => {
+  const h = harness();
+  const run = await acceptOwnedAssistantRun({ ...base, request: { contextRef: JSON.stringify({ prompt: "hi", routine: MARKER, recoveryMode: "native" }) }, ports: agUiPorts(h) }, {});
+  assert.ok(run);
+  const context = JSON.parse(h.accepted[0]!.request.contextRef) as Record<string, unknown>;
+  assert.equal("routine" in context, false);
+  assert.equal("recoveryMode" in context, false);
+  assert.equal(context.prompt, "hi");
+});
+
+test("Stop from the owner-chat seam reaches the SAME run the AG-UI entry accepted", async () => {
+  const h = harness();
+  const run = await acceptOwnedAssistantRun({ ...base, request: { contextRef: "{}" }, ports: agUiPorts(h) }, {});
+  const store = { head: async () => run, cancel: async (input: { runId: string; reason: string }) => { h.cancels.push(input); } };
+  assert.equal(await cancelOwnedRun({ store: store as never, recover: async ({ messageId }) => { h.recovered.push(messageId); } }, { ...base }), true);
+  assert.deepEqual(h.cancels, [{ runId: run!.runId, reason: "user-stop" }]);
+  assert.deepEqual(h.recovered, ["m1"]);
+});
+
+test("durable ownership is authorized before Stop: another principal or workspace cannot cancel", async () => {
+  for (const [name, scope] of [["principal", { ...base, principalId: "intruder" }], ["workspace", { ...base, workspaceId: "ws-other" }]] as const) {
+    const h = harness();
+    const run = await acceptOwnedAssistantRun({ ...base, request: { contextRef: "{}" }, ports: agUiPorts(h) }, {});
+    const store = { head: async () => run, cancel: async (input: { runId: string; reason: string }) => { h.cancels.push(input); } };
+    assert.equal(await cancelOwnedRun({ store: store as never, recover: async () => {} }, scope), false, name);
+    assert.deepEqual(h.cancels, [], name);
+  }
+});
+
+test("Codex FIX 3: routines stay dark — the release flag is off at the host root", () => {
+  assert.equal(ROUTINES_RELEASE_ENABLED, false);
 });
