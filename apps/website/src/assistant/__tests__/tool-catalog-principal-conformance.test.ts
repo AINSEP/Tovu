@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
-import { daemonRouteHost } from "../../server/runtime/composition/jini-routes.js";
+import { daemonRouteHost } from "../../platform/express/jini-routes.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
