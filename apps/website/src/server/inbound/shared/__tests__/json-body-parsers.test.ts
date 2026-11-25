@@ -11,6 +11,7 @@ import {
   isAuthenticatedBodyPath,
   jsonBodyLimitForAuthenticatedRequest,
   LARGE_UPLOAD_JSON_BODY_LIMIT,
+  MEDIA_UPLOAD_JSON_BODY_LIMIT,
   AUTHENTICATED_JSON_BODY_LIMIT,
   parseAuthenticatedJsonBody,
   parsePublicJsonBody,
@@ -102,15 +103,30 @@ test("isAuthenticatedBodyPath matches every session-gated prefix on a segment bo
   }
 });
 
-test("jsonBodyLimitForAuthenticatedRequest gives the upload limit only to the three large-body routes", () => {
-  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
+test("jsonBodyLimitForAuthenticatedRequest gives the 700 MB video limit only to media upload and replace; publish-content keeps 75 MB", () => {
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media" }), MEDIA_UPLOAD_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media/m1/replace" }), MEDIA_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PUT", path: "/api/admin/v1/workspaces/w/publish-content/blobs/abc" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/publish-content/bundles" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
+  assert.equal(LARGE_UPLOAD_JSON_BODY_LIMIT, "75mb", "only video media routes may exceed the previous limit");
+  assert.equal(MEDIA_UPLOAD_JSON_BODY_LIMIT, "700mb");
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PATCH", path: "/api/admin/v1/workspaces/w/media" }), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media/1/extra" }), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/runs" }), AUTHENTICATED_JSON_BODY_LIMIT);
 });
 
+test("a 100 MB body declared to a publish-content route is refused by the parser; to media upload and replace it is not", async () => {
+  const declared = 100 * 1024 * 1024;
+  for (const [path, tooLarge] of [
+    ["/api/admin/v1/workspaces/ws/publish-content/bundles", true],
+    ["/api/admin/v1/workspaces/ws/media", false],
+    ["/api/admin/v1/workspaces/ws/media/m1/replace", false],
+  ] as const) {
+    // raw-body compares the declared Content-Length with the limit before buffering, so no 100 MB is allocated.
+    const { error } = await parseBody(path, "{}", false, declared);
+    assert.equal((error as { type?: string } | undefined)?.type === "entity.too.large", tooLarge, path);
+  }
+});
 
 /** A real request stream exercises body-parser without needing a listening socket. */
 async function parseBody(path: string, body: string, publicRoute = false, declaredBytes = Buffer.byteLength(body)) {

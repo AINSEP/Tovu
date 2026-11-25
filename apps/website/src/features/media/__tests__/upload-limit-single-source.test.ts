@@ -3,7 +3,7 @@ import test from "node:test";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { MAX_UPLOAD_BYTES, VIDEO_UPLOAD_LIMIT_BYTES, uploadLimitFor } from "@tovu/contracts/upload-limits";
 import { MEDIA_IMPORT_MAX_BYTES } from "#src/features/media-import/fetch-image";
-import { LARGE_UPLOAD_JSON_BODY_LIMIT } from "#src/server/inbound/shared/json-body-parsers";
+import { MEDIA_UPLOAD_JSON_BODY_LIMIT } from "#src/server/inbound/shared/json-body-parsers";
 
 /** One upload limit for the whole site (owner 2026-10-29). The server enforces Jini's `MAX_DOCUMENT_BYTES`
  *  (every `TOVU_MAX_UPLOAD_BYTES` alias is that value); admin screens read the same number from
@@ -14,7 +14,7 @@ test("the shared contract limit is the exact value the server enforces", () => {
 });
 
 test("the upload route's JSON body limit still fits the limit once base64 inflates it", () => {
-  const megabytes = Number.parseInt(LARGE_UPLOAD_JSON_BODY_LIMIT, 10);
+  const megabytes = Number.parseInt(MEDIA_UPLOAD_JSON_BODY_LIMIT, 10);
   const base64Bytes = Math.ceil(VIDEO_UPLOAD_LIMIT_BYTES / 3) * 4;
   assert.ok(base64Bytes <= megabytes * 1024 * 1024, "a limit-sized video would be refused by the body parser");
 });

@@ -11,6 +11,7 @@ import express, { type ErrorRequestHandler, type NextFunction, type Request, typ
  *   leaves session-gated paths ({@link isAuthenticatedBodyPath}) unparsed.
  * - {@link parseAuthenticatedJsonBody} runs INSIDE `requireAdminSession`, after the caller has
  *   authenticated, at {@link AUTHENTICATED_JSON_BODY_LIMIT} — or {@link LARGE_UPLOAD_JSON_BODY_LIMIT}
+ *   (publish-content) / {@link MEDIA_UPLOAD_JSON_BODY_LIMIT} (media upload + replace, which may carry a video)
  *   for the few routes that carry base64 file bytes.
  *
  * `body-parser` marks a request once it has parsed it, so whichever parser runs first wins and a
@@ -31,8 +32,13 @@ export const AUTHENTICATED_JSON_BODY_LIMIT = "15mb";
 /** Decoded streamed telemetry bytes, enforced before any larger authenticated parser. */
 export const TELEMETRY_JSON_BODY_LIMIT = "16kb";
 
-/** Covers the 500 MiB video limit (`VIDEO_UPLOAD_LIMIT_BYTES`) once base64 inflates it ~1.33x (~667 MiB), plus headroom. */
-export const LARGE_UPLOAD_JSON_BODY_LIMIT = "700mb";
+/** The limit for publish-content blob/bundle bodies — unchanged since before the video cap, because those routes never carry a video. */
+export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
+
+/** Covers the 500 MiB video limit (`VIDEO_UPLOAD_LIMIT_BYTES`) once base64 inflates it ~1.33x (~667 MiB), plus headroom.
+ *  ONLY media upload and replace get this: every other large-body route stays at {@link LARGE_UPLOAD_JSON_BODY_LIMIT},
+ *  so one authenticated caller cannot make any other route buffer 700 MB. */
+export const MEDIA_UPLOAD_JSON_BODY_LIMIT = "700mb";
 
 /** Every mount prefix of `requireAdminSession` (`modules/core.ts`, `assistant*.ts`). A prefix here
  *  that has no gate would leave its routes with no parsed body at all. */
@@ -50,11 +56,13 @@ const AUTHENTICATED_PATH_PREFIXES = [
 /** `registerAuthRoutes` registers login/logout/boot-session under `/api/admin` BEFORE the gate. */
 const UNGATED_ADMIN_AUTH_PREFIX = "/api/admin/v1/auth/";
 
-/** Routes whose JSON carries base64 file bytes: media upload, publish-content blob put, bundle create. */
-const LARGE_UPLOAD_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp }> = [
-  { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/?$/ },
-  { method: "PUT", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/publish-content\/blobs\/[^/]+\/?$/ },
-  { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/publish-content\/bundles\/?$/ },
+/** Routes whose JSON carries base64 file bytes, with the limit each may buffer: media upload and replace accept a
+ *  video (700 MB), publish-content blob put and bundle create never do (75 MB). */
+const LARGE_UPLOAD_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; limit: string }> = [
+  { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },
+  { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/[^/]+\/replace\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },
+  { method: "PUT", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/publish-content\/blobs\/[^/]+\/?$/, limit: LARGE_UPLOAD_JSON_BODY_LIMIT },
+  { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/publish-content\/bundles\/?$/, limit: LARGE_UPLOAD_JSON_BODY_LIMIT },
 ];
 
 /**
@@ -78,14 +86,15 @@ export function jsonBodyLimitForAuthenticatedRequest({ method, path }: { method:
   const lower = path.toLowerCase();
   if (/^\/api\/admin\/v1\/telemetry\/?$/.test(lower)) return TELEMETRY_JSON_BODY_LIMIT;
   if (lower === "/api/p" || lower.startsWith("/api/p/")) return PUBLIC_JSON_BODY_LIMIT;
-  const isLarge = LARGE_UPLOAD_ROUTES.some((route) => route.method === method.toUpperCase() && route.pattern.test(lower));
-  return isLarge ? LARGE_UPLOAD_JSON_BODY_LIMIT : AUTHENTICATED_JSON_BODY_LIMIT;
+  const large = LARGE_UPLOAD_ROUTES.find((route) => route.method === method.toUpperCase() && route.pattern.test(lower));
+  return large?.limit ?? AUTHENTICATED_JSON_BODY_LIMIT;
 }
 
 const publicParser = express.json({ limit: PUBLIC_JSON_BODY_LIMIT });
 const authenticatedParser = express.json({ limit: AUTHENTICATED_JSON_BODY_LIMIT });
 const telemetryParser = express.json({ limit: TELEMETRY_JSON_BODY_LIMIT });
 const largeUploadParser = express.json({ limit: LARGE_UPLOAD_JSON_BODY_LIMIT });
+const mediaUploadParser = express.json({ limit: MEDIA_UPLOAD_JSON_BODY_LIMIT });
 
 /** App-level parser for every route; session-gated paths are left for {@link parseAuthenticatedJsonBody}. */
 export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
@@ -101,9 +110,10 @@ export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
 export function parseAuthenticatedJsonBody(req: Request, res: Response, next: NextFunction): void {
   const limit = jsonBodyLimitForAuthenticatedRequest({ method: req.method, path: `${req.baseUrl}${req.path}` });
   if (limit === TELEMETRY_JSON_BODY_LIMIT) { telemetryParser(req, res, next); return; }
-  const largerParser = limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
-  const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : largerParser;
-  parser(req, res, next);
+  const parserByLimit = new Map<string, RequestHandler>([
+    [PUBLIC_JSON_BODY_LIMIT, publicParser], [LARGE_UPLOAD_JSON_BODY_LIMIT, largeUploadParser], [MEDIA_UPLOAD_JSON_BODY_LIMIT, mediaUploadParser],
+  ]);
+  (parserByLimit.get(limit) ?? authenticatedParser)(req, res, next);
 }
 
 /**
