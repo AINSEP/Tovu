@@ -167,7 +167,8 @@ export function createTovuSignInPorts({ signInLink }: { readonly signInLink: Hos
   return { ...tovuSignInPortsBase, signInLink };
 }
 
-/** Tovu's sign-in service: the neutral {@link createHostedMcpSignInService} bound to {@link createTovuSignInPorts}. Defaults unchanged. */
+/** Tovu's sign-in service: the neutral {@link createHostedMcpSignInService} bound to {@link tovuSignInPorts}. Signature and defaults unchanged. */
+// A06: `tovuSignInPorts` is now built per service by `createTovuSignInPorts`; the one added required arg is the host-bound `signInLink`.
 export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps & { readonly signInLink: HostedMcpSignInPorts["signInLink"] }, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
   const { signInLink, ...deps } = required;
   return createHostedMcpSignInService({ ...deps, ports: createTovuSignInPorts({ signInLink }) });
