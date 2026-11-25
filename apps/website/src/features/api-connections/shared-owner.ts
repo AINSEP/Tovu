@@ -5,7 +5,7 @@ import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
 import type { KeyringPort, SecretSealerPort, VaultRepoPort, VaultMeta } from '@jini-ai/core/contracts/vault';
 import type { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
-import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
+import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-store-binding.js';
 
 /** Issuing configuration is sealed in the owner store; a consuming site's client cannot replace it. */
 export interface SharedOAuthIssuingContext {

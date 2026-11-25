@@ -20,7 +20,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
-import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
+import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-store-binding";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
 import type { OAuthCallbackFailureReason } from "@jini-ai/core/contracts/site/oauth-callback-page";
 import { API_CONNECTION_BINDING_COOKIE, clearedBrowserBindingCookie } from "#src/features/api-connections/browser-binding";

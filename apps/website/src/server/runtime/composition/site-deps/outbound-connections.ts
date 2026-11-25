@@ -12,7 +12,7 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
-import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";

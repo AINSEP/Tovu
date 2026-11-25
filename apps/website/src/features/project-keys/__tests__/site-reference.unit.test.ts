@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
-import { createApiConnectionVault } from '../../api-connections/vault-stores.js';
+import { createApiConnectionVault } from '../../api-connections/vault-store-binding.js';
 import { createSiteKeyReferences } from '../site-references.js';
 
 test('site reference stores only credentialId and removal touches only that reference', async () => {

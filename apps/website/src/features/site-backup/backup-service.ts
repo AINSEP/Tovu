@@ -23,7 +23,8 @@ import {
   type CustomProviderConnectionInput,
 } from "../custom-credentials/index.js";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
-import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
+import { normalizeWriteFilePath, validateBranch, validateCommitMessage } from "@jini-ai/integrations/custom-credentials/write-files-validation";
+import { validateRepositoryTarget } from "../custom-credentials/repository-target.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
@@ -539,7 +540,7 @@ export async function planSiteBackup(required: { deps: SiteBackupToolDeps; call:
 
   const folderName = path.basename(sources.siteDir);
   const folder = input.folder ?? normalizeWriteFilePath({ rawPath: folderName });
-  const { owner, repo: repoName } = validateRepositoryTarget({ owner: input.owner, repo: input.repo }, credential.provider.validateTarget);
+  const { owner, repo: repoName } = validateRepositoryTarget({ owner: input.owner, repo: input.repo }, { ...(credential.provider.validateTarget === undefined ? {} : { validateTarget: credential.provider.validateTarget }) });
   requireUnreservedFolder({ folder, provider: credential.provider });
   const target = backupTarget({ credential, owner, repo: repoName });
   const repo = await inspect({ deps, provider: credential.provider, toolId: PLAN_TOOL_ID, input: { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder } });

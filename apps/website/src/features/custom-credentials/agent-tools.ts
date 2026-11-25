@@ -1,6 +1,6 @@
 import { buildCustomCredentialsAgentToolCatalog } from "@jini-ai/integrations/custom-credentials/agent-tools";
 
-import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
+import { WRITE_FILES_LIMITS } from "@jini-ai/integrations/custom-credentials/write-files-validation";
 
 export const WRITE_FILES_TOOL_ID = "custom_credential_write_files";
 

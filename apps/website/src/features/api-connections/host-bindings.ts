@@ -8,7 +8,7 @@ import { createAdminSurfaceCallbackInbox } from '@jini-ai/agent-plugins/admin-su
 import { createAgentPluginStateStore } from './plugin-state.js';
 import { API_CONNECTION_OAUTH_CALLBACK_PATH } from './browser-binding.js';
 import { createByoCredentials, type ByoClientCredentials } from './byo-client.js';
-import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
+import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-store-binding.js';
 import { loadDeclaredApiConnections } from './contribution.js';
 import type { ClientNamespaceFor } from '@jini-ai/core/contracts/site/integrations-api-connections';
 import { createSharedApiConnections, type SharedApiConnectionDeps } from '@jini-ai/integrations/api-connections/shared-api';

@@ -6,7 +6,7 @@ import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { createAgentPluginStateStore } from '../plugin-state.js';
 import { API_CONNECTION_VAULT_KIND, PLUGIN_STATE_FORMAT, apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
-import { createApiConnectionVault } from '../vault-stores.js';
+import { createApiConnectionVault } from '../vault-store-binding.js';
 
 test('A3 pin: real state store preserves the format, vault scope, row id and label', async () => {
   const workspaceId = 'workspace-pin';

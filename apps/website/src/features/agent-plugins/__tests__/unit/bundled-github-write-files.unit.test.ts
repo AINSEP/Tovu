@@ -10,7 +10,7 @@ import type { FileWritePlan as GitHubWriteFilesPlan, SourceControlProviderOperat
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
-import { validateWriteFilesInput } from "#src/features/custom-credentials/write-files-validation";
+import { validateWriteFilesInput } from "@jini-ai/integrations/custom-credentials/write-files-validation";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 const GITHUB_PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });

@@ -19,7 +19,7 @@ import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import { createSharedOAuthOwnerStorage, type SharedOAuthIssuingContext } from '../shared-owner.js';
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
-import { createApiConnectionVault } from '../vault-stores.js';
+import { createApiConnectionVault } from '../vault-store-binding.js';
 
 const clock = { nowMs: () => Date.parse('2026-11-05T19:00:00Z') };
 const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { pluginId: 'shared-fixture', connectionId: 'account',

@@ -1,6 +1,6 @@
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
-import { validateRepositoryTarget } from "#src/features/custom-credentials/write-files-validation";
+import { validateRepositoryTarget } from "#src/features/custom-credentials/repository-target";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 
 import type { RouteDeps } from "../../routes/types.js";

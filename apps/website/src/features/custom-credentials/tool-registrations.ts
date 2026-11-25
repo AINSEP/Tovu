@@ -52,13 +52,15 @@ import { loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPlu
 import { buildCreateForm, buildCreateOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-create-ui";
 import { setTokenForm, setTokenOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
-import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
+import { describeDeleteRequestApproval } from "@jini-ai/integrations/custom-credentials/delete-request-confirmation-ui";
 import type { LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel, updateCustomCredential } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
-import { validateWriteFilesInput } from "./write-files-validation.js";
+import { validateWriteFilesInput } from "@jini-ai/integrations/custom-credentials/write-files-validation";
 import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts, CredentialToolOperations } from "@jini-ai/integrations/credentialed-http/tools";
 import { tovuCredentialCardIdentity } from "./tovu-credential-card-identity.js";
+
+const MAKE_CREDENTIALED_REQUEST_TOOL_ID = "custom_credential_make_request";
 
 /**
  * @file Tovu bindings for the credential tools: permissions, reviewed catalog, error allowlists,
@@ -459,7 +461,9 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     approval: {
       handler: steps => createApprovalHandler(steps),
       askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
-      describeDelete: describeDeleteRequestApproval,
+      describeDelete: input => describeDeleteRequestApproval({ ...input, toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID,
+        irreversibleDescription: "This calls the third-party API's own DELETE endpoint using this saved credential — Tovu has no way to undo whatever the provider does with it.",
+      }),
     },
     pluginCards: {
       load: required => loadPluginCredentialCardsSafely({ ...required, loadCards: routeDeps.loadPluginCredentialCards }),

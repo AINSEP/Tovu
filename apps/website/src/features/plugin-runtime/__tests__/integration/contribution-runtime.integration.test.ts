@@ -17,11 +17,19 @@ import { attachAssistantToolExtensions } from '../../../../assistant/installed-e
 import { registerInstalledExtensionTools } from '../../../../server/runtime/composition/installed-extension-tools.js';
 import { TOVU_CORE_EXTENSION_CLAIMS } from '../../../../server/runtime/composition/core-extension-claims.js';
 import { createTempSiteLayoutFixture } from '../../../../__tests__/fixtures/site-layout-context.js';
-import { renderPluginWidgetPartials } from '../../widget-partials.js';
+import { renderPluginWidgetPartials } from '@jini-ai/plugins/runtime/widget-partials';
+import { markersOfType, PARTIAL_MARKER_TYPE, expandPartials } from '@jini-ai/cms/widgets/markers';
+import { validateServerWidgetFragment } from '@jini-ai/cms/widgets/html';
+import { DEFAULT_THEME_SLOTS } from '@jini-ai/cms/themes/theme-slots';
 import { buildToolCatalogQuery } from '../../../../assistant/tool-catalog-query.js';
 const workspaceId = 'site';
 const clock = { nowMs: () => Date.parse('2026-10-09T00:00:00Z') };
 const pluginId = 'site-sample';
+const widgetRender: Parameters<typeof renderPluginWidgetPartials>[0]['render'] = {
+  readNames: ({ html }) => markersOfType({ html, type: PARTIAL_MARKER_TYPE }).flatMap(marker => marker.id ? [marker.id] : []),
+  validateHtml: validateServerWidgetFragment,
+  expand: ({ html, partials, slots }) => expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html, theme: { partials: { ...partials }, manifest: { slots } } }),
+};
 const entry = (version: string) => `export default { definition: { setup(sdk) {
   for (const access of ['public','member','admin']) sdk.routes.add({ method:'POST', path:'/'+access, access,
     handler: async ({body,auth,sdk}) => ({body:{version:'${version}',body,auth,hasSdk:!!sdk.routes}}) });
@@ -106,7 +114,7 @@ test('host enforces public/member/admin independently and caps JSON, text and fo
 test('reload replaces route/tool/widget generations; disable removes catalog and handlers without a restart', async t => {
   const h = await harness(t); await h.author(); await h.setEnabled();
   const markup = '<div data-embed-config=\'{"type":"partial","id":"site-sample-banner"}\'></div>';
-  const render = () => renderPluginWidgetPartials({html:markup,workspaceId,contributions:h.runtime.pluginContributions,activationRepo:h.activationRepo});
+  const render = () => renderPluginWidgetPartials({html:markup,workspaceId,contributions:h.runtime.pluginContributions,activationRepo:h.activationRepo,render:widgetRender});
   assert.match(await render(),/<strong>first<\/strong>/);
   await h.source.write({id:pluginId,path:'server/index.mjs',content:entry('second')});
   const sealed = await h.source.seal({id:pluginId}); assert.equal(sealed.reloaded,true);
@@ -123,7 +131,7 @@ test('reload replaces route/tool/widget generations; disable removes catalog and
 test('a partial marker that names no partial id is left untouched, even with a partial-contributing plugin enabled', async t => {
   const h = await harness(t); await h.author(); await h.setEnabled();
   const markup = '<div data-embed-config=\'{"type":"partial"}\'></div>';
-  assert.equal(await renderPluginWidgetPartials({ html: markup, workspaceId, contributions: h.runtime.pluginContributions, activationRepo: h.activationRepo }), markup);
+  assert.equal(await renderPluginWidgetPartials({ html: markup, workspaceId, contributions: h.runtime.pluginContributions, activationRepo: h.activationRepo, render: widgetRender }), markup);
 });
 test('claim collision refuses activation before publishing any candidate handler', async t => {
   const h = await harness(t, { coreClaims: [{ kind: 'route', key: 'POST /api/p/site-other/public', mode: 'exclusive' }] }); await h.author(); await h.setEnabled();
@@ -155,7 +163,7 @@ test('failed replacement restores working routes, tools and widgets without disa
   assert.equal(h.runtime.pluginLoadedVersion({ id: pluginId }), '0.1.0');
   assert.equal((await (await h.request('public')).json()).version, 'first');
   assert.equal(((await h.tool()).output as { version: string }).version, 'first');
-  const html = await renderPluginWidgetPartials({ html: '<div data-embed-config=\'{"type":"partial","id":"site-sample-banner"}\'></div>', workspaceId, contributions: h.runtime.pluginContributions, activationRepo: h.activationRepo });
+  const html = await renderPluginWidgetPartials({ html: '<div data-embed-config=\'{"type":"partial","id":"site-sample-banner"}\'></div>', workspaceId, contributions: h.runtime.pluginContributions, activationRepo: h.activationRepo, render: widgetRender });
   assert.match(html, /<strong>first<\/strong>/);
 });
 

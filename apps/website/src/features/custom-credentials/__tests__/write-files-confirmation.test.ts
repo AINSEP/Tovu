@@ -17,7 +17,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
-import { validateRepositoryTarget } from "../write-files-validation.js";
+import { validateRepositoryTarget } from "../repository-target.js";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 

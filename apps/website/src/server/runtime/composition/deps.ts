@@ -24,7 +24,7 @@ import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { setServerLogTraceReader } from '../../../platform/server-logs/index.js';
 import { createVaultProviderConfigSource } from "./provider-config-source.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
-import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createTelemetryConsent } from "./telemetry-consent.js";
 
 import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";

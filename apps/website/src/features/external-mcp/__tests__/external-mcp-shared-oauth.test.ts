@@ -4,7 +4,7 @@ import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
-import { createApiConnectionVault } from '../../api-connections/vault-stores.js';
+import { createApiConnectionVault } from '../../api-connections/vault-store-binding.js';
 import { createSharedOAuthOwnerStorage } from '../../api-connections/shared-owner.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { fakeAttachments } from '../../project-keys/__tests__/helpers.js';

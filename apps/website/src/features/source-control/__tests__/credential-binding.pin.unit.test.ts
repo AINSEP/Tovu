@@ -8,7 +8,7 @@ import type { SourceControlProviderOperations } from "@jini-ai/devops/source-con
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import { validateRepositoryTarget } from "../../custom-credentials/write-files-validation.js";
+import { validateRepositoryTarget } from "../../custom-credentials/repository-target.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { createSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl } from "../store.js";
 import type { SourceControlProviderRegistry } from "../provider-registry.js";

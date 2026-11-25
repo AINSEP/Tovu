@@ -1,7 +1,7 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
-import { createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from '../../../api-connections/vault-stores.js';
+import { createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from '../../../api-connections/vault-store-binding.js';
 import { createSiteOAuthBindings } from '../../../project-keys/site-references.js';
 import { createSavedKeysStore } from './saved-keys-store.fixture.js';
 /** k1 T1–T4: real SQL vaults, project attachments, envelope, ZIP, isolated worker and site creation. */

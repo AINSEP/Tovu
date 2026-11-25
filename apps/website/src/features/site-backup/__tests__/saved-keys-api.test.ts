@@ -4,7 +4,7 @@ import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import { InMemoryVaultRepo, prepareVaultArchiveRestore, type VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { rebindApiConnectionArchive, createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../../api-connections/vault-stores.js";
+import { rebindApiConnectionArchive, createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../../api-connections/vault-store-binding.js";
 
 const owner = { workspaceId: "source", pluginId: "office", connectionId: "main", clientId: "client" };
 const key = deriveApiConnectionKey(owner);
