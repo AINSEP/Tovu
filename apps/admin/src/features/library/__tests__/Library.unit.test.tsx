@@ -12,11 +12,16 @@ import { Placeholder } from "@/components/Placeholder";
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { translateAdminNavLabel } from "../../../lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { Library } from "../Library";
-import { documentMenuItems, markdownFrameDocument } from "@jini-ai/admin/screens/library/Library";
+import { Library, documentMenuItems, markdownFrameDocument } from "../Library";
 import { resolveLibraryTabId } from "@jini-ai/admin/screens/library/Library.hooks";
-import { createApiLibraryPort, type LibraryApiClient, type LibraryFetch } from "@jini-ai/admin/screens/library/hooks/library-api-port.hooks";
-import { createFakeLibraryPort, defaultLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
+import {
+  createApiLibraryPort,
+  createFakeLibraryPort,
+  defaultLibraryPort,
+  fakeDocument,
+  type LibraryApiClient,
+  type LibraryFetch,
+} from "../hooks/library-dependencies.hooks";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
@@ -257,7 +262,7 @@ describe("Library rename and Trash", () => {
     const toast = await screen.findByRole("status");
     expect(toast).toHaveClass("jini-toast");
     expect(toast).toHaveTextContent("Moved to Trash.");
-    expect(container.querySelector(".jini-library-notice")).toBeNull();
+    expect(container.querySelector(".library-notice")).toBeNull();
     await userEvent.click(within(toast).getByRole("button", { name: "Open Trash" }));
     expect(window.location.pathname).toMatch(/\/trash$/);
     await userEvent.click(within(toast).getByRole("button", { name: "Dismiss" }));
@@ -559,7 +564,7 @@ describe("Library page states", () => {
 
   it("shows the list error instead of the table", () => {
     renderStub(stubController({ listError: "Couldn't load documents." }), "documents");
-    expect(screen.getByText("Couldn't load documents.")).toHaveClass("jini-notice", "jini-notice-error");
+    expect(screen.getByText("Couldn't load documents.")).toHaveClass("notice", "error");
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
@@ -589,15 +594,15 @@ describe("Library upload tab rows", () => {
     });
     const { container } = renderStub(controller, "upload");
     const rows = within(screen.getByRole("list", { name: "Uploads" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.querySelector(".jini-library-upload-status")?.textContent)).toEqual([
+    expect(rows.map((row) => row.querySelector(".library-upload-status")?.textContent)).toEqual([
       "Waiting…",
       "Uploading…",
       "Uploaded",
       "document bytes do not have a PDF signature",
       "Upload failed.",
     ]);
-    expect(container.querySelectorAll(".jini-library-spinner")).toHaveLength(1);
-    expect(rows[1]!.querySelector(".jini-library-spinner")).not.toBeNull();
+    expect(container.querySelectorAll(".library-spinner")).toHaveLength(1);
+    expect(rows[1]!.querySelector(".library-spinner")).not.toBeNull();
     expect(screen.getAllByRole("alert").map((el) => el.textContent)).toEqual([
       "document bytes do not have a PDF signature",
       "Upload failed.",
@@ -734,7 +739,7 @@ describe("Library rename field", () => {
     const input = screen.getByRole("textbox", { name: "New name" });
     expect(input).toHaveValue("notes");
     expect(input).not.toHaveAttribute("aria-invalid");
-    expect(screen.getByText(".md")).toHaveClass("jini-library-rename-ext");
+    expect(screen.getByText(".md")).toHaveClass("library-rename-ext");
     fireEvent.change(input, { target: { value: "minutes" } });
     fireEvent.keyDown(input, { key: "a" });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -778,7 +783,7 @@ describe("Library preview dialog", () => {
 
   it("shows a preview error", () => {
     renderPreview(previewState({ error: "Preview failed." }));
-    expect(screen.getByText("Preview failed.")).toHaveClass("jini-notice", "jini-notice-error");
+    expect(screen.getByText("Preview failed.")).toHaveClass("notice", "error");
   });
 
   it.each([
@@ -788,7 +793,7 @@ describe("Library preview dialog", () => {
     ["a download-only document", { kind: "download" as const, item: fakeDocument({ filename: "report.docx" }) }],
   ])("falls back to the no-preview note for %s", (_label, overrides) => {
     renderPreview(previewState(overrides));
-    expect(screen.getByText("No preview for this file type. Download it to open it.")).toHaveClass("jini-library-preview-none");
+    expect(screen.getByText("No preview for this file type. Download it to open it.")).toHaveClass("library-preview-none");
     expect(screen.queryByTitle(/\./)).toBeNull();
   });
 
