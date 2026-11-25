@@ -37,6 +37,7 @@ import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
 import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
+import { chatPinned } from "./chat/0004_chat_pinned.js";
 import { activeRunIndex } from "./chat/0003_active_run_index.js";
 import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
 import { siteKeyAttachments } from "./project/0002_site_key_attachments.js";
@@ -133,6 +134,7 @@ export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = 
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
   activeRunIndex({ checksum: pinned("chat/0003_active_run_index") }, {}),
+  chatPinned({ checksum: pinned("chat/0004_chat_pinned") }, {}),
 ];
 
 /** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */

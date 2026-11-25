@@ -36,10 +36,12 @@ function startServing({ optional, deps, owned, stopRef }: { optional: RunServeCo
       const stop = stopRef.requestStop;
       setImmediate(() => stop(input));
     },
+    runningLease: owned.runningLease,
   };
   const serving = (optional.createServingApp ?? createServingApp)(deps, servingOptions);
-  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = serving;
+  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, siteRetention, bootWork } = serving;
   owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
+  if (siteRetention) owned.workers.push(siteRetention);
   owned.bootWork.push(...bootWork);
   return serving;
 }
@@ -96,7 +98,7 @@ function launchAssistantDaemon({ context, siteApiOrigin, daemonCallback }: { con
 /** BR-07 shutdown: stop serving within a grace window, then close the store and the daemon. */
 function installShutdown({ context, server, daemonCallback }: { context: ServeListenContext; server: import("node:http").Server; daemonCallback: DaemonCallback }): void {
   const { owned, serving, stopRef } = context;
-  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance } = serving;
+  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, siteRetention } = serving;
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
       // First, so no new outbox drain or trash sweep starts while the grace window below runs
@@ -120,9 +122,12 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
   }, {
     registerStop: ({ stop }, _optional = {}) => { stopRef.requestStop = stop; },
     bootWork: () => owned.bootWork,
-    stopServing: () => stopServingWithinGrace({ server, workers: [
+    stopServing: async () => {
+      await siteRetention?.stop();
+      await stopServingWithinGrace({ server, workers: [
       { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
-    ] }),
+    ] });
+    },
     // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
     stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
   });
@@ -138,6 +143,7 @@ async function onListening({ context, server, resolve, reject }: { context: Serv
   server.once("close", () => { void daemonCallback.close(); });
   try { owned.runningLease.ready({ port }); }
   catch (error) { server.close(); reject(error); return; }
+  serving.siteRetention?.listenerReady();
   announceStartup({ input, target, workspaceId: owned.bootResult.workspaceId, host, port });
   resolve();
   launchAssistantDaemon({ context: { ...context, deps }, siteApiOrigin, daemonCallback });

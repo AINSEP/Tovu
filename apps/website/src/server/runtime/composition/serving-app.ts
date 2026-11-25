@@ -1,3 +1,8 @@
+import { createRetentionRunner } from "@jini-ai/platform/retention";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
+import { startSiteRetention } from "./retention.js";
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
@@ -79,8 +84,16 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+  optional: { runningLease?: ReturnType<typeof claimSiteRunning>; stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
+): { siteRetention?: ReturnType<typeof startSiteRetention>; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+  // Exporter, daemon, attached serve and memory-only roots do not own this runner.
+  const siteRetention = optional.runningLease && !optional.runningLease.attached
+    ? startSiteRetention({
+      createRunner: createRetentionRunner, policiesForSignal: () => [], clock: Date, scheduler: globalThis,
+      reportError: ({ error }, {}) => console.warn(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)),
+      log: line => console.log(line),
+    }, {})
+    : undefined;
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn });
@@ -124,5 +137,5 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
+  return { siteRetention, app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
 }
