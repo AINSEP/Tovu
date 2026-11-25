@@ -3,7 +3,8 @@ import { composeAgentPluginPreferences } from "#src/server/runtime/composition/a
 import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
+import { cp, mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ensureSettingDefinitions, InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
@@ -24,12 +25,15 @@ import { createSettingsPrincipalLookup, set } from '../../features/settings/inde
 import { pluginPreflightFixture } from "#src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.fixture";
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
-import { resolveAgentPluginRefs, resolveAgentPluginGuidance } from '../../features/agent-plugins/lifecycle.js';
+import { rankInstalledAgentPlugins, resolveAgentPluginRefs, resolveAgentPluginGuidance } from '../../features/agent-plugins/lifecycle.js';
 import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
-import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
+import { bindAutomaticGuidanceResolver, createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
+import { loadAgentPluginSearchCandidates } from '../../features/agent-plugins/tool-registrations.js';
+import { createAutomaticAgentPluginUse } from '@jini-ai/agent-plugins/lifecycle';
+import { agentPluginSourceDir } from '../../../../../development/test-support/agent-plugin-source.mjs';
 
 // Real catalog, activation, ranker, skill resolution and effective settings. No daemon boot.
-async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true, maturity }: { pluginId?: string; count?: number; trusted?: boolean; maturity?: 'untested' | 'soon' } = {}) {
+async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true, maturity, linked = [] }: { pluginId?: string; count?: number; trusted?: boolean; maturity?: 'untested' | 'soon'; linked?: readonly string[] } = {}) {
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
   const workspaceId = 'workspace-auto';
@@ -41,6 +45,11 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
     await mkdir(path.join(packageDir, 'skills', id), { recursive: true });
     await writeFile(path.join(packageDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: '1.0.0', keywords: ['holography'], extensions: { tovu: { id: `test/${id}`, displayName: count === 1 ? 'Synthetic Author' : id, provides: ['theme-authoring'], maturity } } }));
     await writeFile(path.join(packageDir, 'skills', id, 'SKILL.md'), `---\nname: ${id}\ndescription: Holography instructions\n---\nUse holographic layout discipline.\n`);
+  }
+  // Linked = the real package bytes Tovu ships from the linked Jini checkout, manifests unchanged.
+  for (const id of linked) {
+    await cp(agentPluginSourceDir({ pluginId: id }), path.join(workspace.pluginPackagesDir({ pluginId: id }), 'a'.repeat(64)), { recursive: true });
+    pluginIds.push(id);
   }
   await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: Object.fromEntries(pluginIds.map(id => [id, { enabled: true, origin: 'bundled', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' }])) }));
   // The fixture represents a build-seeded package; untrusted = a bundled id at a digest the build did not ship.
@@ -371,6 +380,101 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.equal((again.output as { status: string }).status, 'loaded');
   assert.equal((again.output as { guidance: string }).guidance, (retry.output as { guidance: string }).guidance);
   f.runs.forget({ runId: 'inactive' });
+});
+
+/** Write activations synchronously so a flip can land inside the synchronous rank port. O(p). */
+function writeActivationsSync({ root, enabled }: { root: string; enabled: Record<string, boolean> }): void {
+  writeFileSync(path.join(root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: Object.fromEntries(Object.entries(enabled).map(([id, on]) => [id, { enabled: on, origin: 'bundled', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' }])) }));
+}
+
+test('an off plugin is not inlined by automatic delivery', async t => {
+  const f = await fixture(t);
+  const resolve = bindAutomaticGuidanceResolver({ workspaceLayout: f.workspace, resolveGuidance: resolveAgentPluginGuidance });
+  const published: { id: string }[][] = [];
+  let flipped = false;
+  // Activation flips after ranking admitted the plugin and before the resolver rechecks it:
+  // Jini's own enabled filter has already passed, so only the bound resolver can refuse.
+  const controller = createAutomaticAgentPluginUse({ mode: 'auto', ports: {
+    list: () => loadAgentPluginSearchCandidates({ workspaceId: f.workspaceId, agentPluginLayout: f.layout }),
+    rank: input => {
+      const ranked = rankInstalledAgentPlugins({ query: input.query, candidates: input.candidates, limit: input.limit }, { automatic: true });
+      if (flipped) return ranked; // Later rank calls only build notes for already-off candidates.
+      flipped = true;
+      assert.deepEqual(ranked.map(match => match.pluginId), [f.pluginId], 'the plugin was ranked while still on');
+      writeActivationsSync({ root: f.workspace.root, enabled: { [f.pluginId]: false } });
+      return ranked;
+    },
+    resolve,
+    ask: async () => assert.fail('Auto must not ask'), saveAuto: async () => assert.fail('Auto must not save'),
+    publish: async value => { published.push([...value.plugins]); },
+  } });
+  const note = await controller.prepare({ query: 'Design holography' });
+  assert.ok(flipped, 'activation flipped between ranking and resolution');
+  assert.doesNotMatch(note, /Use holographic layout discipline|AGENT_PLUGIN pluginId=/);
+  assert.deepEqual(controller.guidanceIds({}), []);
+  assert.ok(published.every(plugins => plugins.length === 0), 'an off plugin is never recorded as delivered');
+  // The bound resolver itself, with no second argument, refuses the now-off plugin.
+  const direct = await resolve({ pluginId: f.pluginId });
+  assert.equal(direct.ok, false);
+  assert.doesNotMatch(JSON.stringify(direct), /Use holographic layout discipline/);
+  // Positive control: only the explicit read-only option reads it.
+  const explicit = await resolve({ pluginId: f.pluginId }, { allowInactiveGuidance: true });
+  assert.equal(explicit.ok, true);
+});
+
+test('an explicit load of an off plugin returns read-only guidance and grants no tools', async t => {
+  const f = await fixture(t);
+  await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: false, actor: 'fixture' });
+  t.after(() => f.runs.forget({ runId: 'explicit-off' }));
+  await f.runs.start({ runId: 'explicit-off', context: { ...f.context, query: 'hello' } });
+  const registry = createToolRegistry({});
+  registry.register(f.runs.loadRegistration);
+  registry.register({ descriptor: { id: 'guarded_write', description: 'Fixture theme write', metadata: themeMetadata.theme_reset_file }, policy: { authorize: async () => 'allow' as const }, handler: async () => ({ written: true }) });
+  const executor = createToolExecutor({ registry }, { prepareGuidance: f.runs.prepareGuidance });
+  const call = (toolId: string, input: Record<string, unknown>) => executor.execute({ principal: f.context.principal, run: { id: 'explicit-off' }, toolId, input });
+  const before = await call('guarded_write', {});
+  assert.equal(before.status, 'completed');
+  assert.doesNotMatch(JSON.stringify(before.output), /Use holographic layout discipline|agentPluginGuidance/);
+  const loaded = await call('load_agent_plugin', { pluginId: f.pluginId });
+  assert.equal(loaded.status, 'completed');
+  const output = loaded.output as { status: string; guidance: string; note: string };
+  assert.equal(output.status, 'installed-but-inactive');
+  assert.match(output.guidance, /off; its tools are unavailable/);
+  assert.match(output.guidance, /Use holographic layout discipline/, 'the full read-only guidance is returned');
+  assert.match(output.note, /Read-only guidance/);
+  assert.deepEqual(f.runs.guidanceIds({ runId: 'explicit-off' }), [], 'a read-only read is not delivery');
+  assert.ok(f.published.every(event => event.plugins.length === 0), 'an off read never appears as loaded');
+  const after = await call('guarded_write', {});
+  const outcome = ({ status, output }: typeof before) => ({ status, output });
+  assert.deepEqual(outcome(after), outcome(before), 'the guarded write is refused guidance exactly as before the read');
+  assert.ok(f.published.every(event => event.plugins.length === 0));
+});
+
+test('kUInetic match delivers ui-ux-design as its companion in full and lists the rest as catalog lines', async t => {
+  const f = await fixture(t, { count: 2, linked: ['kuinetic', 'ui-ux-design'] });
+  t.after(() => f.runs.forget({ runId: 'companion' }));
+  const note = await f.runs.start({ runId: 'companion', context: { ...f.context, query: 'Add a kUInetic scroll reveal' } });
+  const primary = note.indexOf('AGENT_PLUGIN pluginId="kuinetic"');
+  const companion = note.indexOf('AGENT_PLUGIN pluginId="ui-ux-design"');
+  assert.ok(primary >= 0, 'the kUInetic match is delivered in full');
+  assert.ok(companion > primary, 'its declared companion follows it in full');
+  assert.match(note.slice(primary, companion), /# kUInetic Reference/);
+  assert.match(note.slice(companion), /# Skill: UI\/UX Design/);
+  assert.doesNotMatch(note, /Use holographic layout discipline/, 'unmatched plugins are not inlined');
+  const catalog = note.slice(note.indexOf('Enabled agent plugins'));
+  assert.deepEqual([...catalog.matchAll(/^- .+ \(([^)]+)\):/gm)].map(match => match[1]), ['synthetic-00', 'synthetic-01']);
+  assert.deepEqual(f.published.at(-1)?.plugins.map(plugin => plugin.id), ['kuinetic', 'ui-ux-design']);
+});
+
+test('a missing companion is skipped, never an error', async t => {
+  const f = await fixture(t, { count: 2, linked: ['kuinetic'] });
+  t.after(() => f.runs.forget({ runId: 'no-companion' }));
+  const note = await f.runs.start({ runId: 'no-companion', context: { ...f.context, query: 'Add a kUInetic scroll reveal' } });
+  assert.match(note, /AGENT_PLUGIN pluginId="kuinetic"/);
+  assert.match(note, /# kUInetic Reference/);
+  assert.doesNotMatch(note, /ui-ux-design"|# Skill: UI\/UX Design/);
+  assert.deepEqual(f.published.at(-1)?.plugins.map(plugin => plugin.id), ['kuinetic']);
+  assert.deepEqual(f.runs.guidanceIds({ runId: 'no-companion' }), ['kuinetic']);
 });
 
 test('the first theme write loads installed tovu-theme after a note-only preflight', async t => {

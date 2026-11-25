@@ -107,6 +107,21 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
 }
 
 
+/** The automatic resolver port: rechecks activation and trust on every read. Off plugins are read
+ * only when Jini's explicit loader asks with `allowInactiveGuidance`; automatic delivery omits it,
+ * so a plugin switched off after ranking is never inlined. Read-only setup guidance is not activation,
+ * authorization or delivery. O(1) plus one resolver read.
+ */
+export function bindAutomaticGuidanceResolver(
+  { workspaceLayout, resolveGuidance }: { workspaceLayout: Parameters<typeof resolveAgentPluginGuidance>[0]['workspaceLayout']; resolveGuidance: typeof resolveAgentPluginGuidance },
+  _optional = {},
+): AutomaticAgentPluginPorts['resolve'] {
+  return ({ pluginId, ...request }, { allowInactiveGuidance = false } = {}) => resolveGuidance(
+    { pluginRefIds: [pluginId], workspaceLayout },
+    { ...request, deliveryMode: 'inject', allowInactiveGuidance },
+  );
+}
+
   /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
   function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }, { deps, surfaces, askAgentPluginChoice, lateAnswers }: Parameters<typeof createAutomaticPluginRuns>[0] & { lateAnswers: Map<string, ChatAgentPluginState> }): Entry {
     const abort = new AbortController();
@@ -122,18 +137,7 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
-      resolve: (
-        { pluginId, ...request },
-        { allowInactiveGuidance = false } = {},
-      ) => resolveAgentPluginGuidance(
-        {
-          pluginRefIds: [pluginId],
-          workspaceLayout: deps.agentPluginLayout.forWorkspace({
-            workspaceId: deps.workspaceId,
-          }),
-        },
-        { ...request, deliveryMode: 'inject', allowInactiveGuidance },
-      ),
+      resolve: bindAutomaticGuidanceResolver({ workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }), resolveGuidance: resolveAgentPluginGuidance }),
       ask: createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }, { getEntry: () => entry, approve: revisionSeq => { approvedPreferenceRevisionSeq = revisionSeq; } }),
       saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
