@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
-import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
+import { PluginChevronIcon, PluginPackageIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
 import { EyeIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 

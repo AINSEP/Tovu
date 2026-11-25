@@ -28,6 +28,9 @@ import { useT as useChatT, createExtEventRendererRegistry, createLastConversatio
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle, isTerminalRunStatus } from '@jini-ai/chat/core';
 import { createA2uiActionPoster, createConditionalHistoryRead, createChatAttachmentValidator } from '@jini-ai/chat/transports/http';
 import { createAgentInventorySnapshot } from '@jini-ai/chat/browser/agent-inventory';
+import { adminSurfaceFrameAttributes, readAdminSurfaceTheme, adminSurfaceThemeMessage, adminSurfaceInitMessage, adminSurfaceActionResponse, createAdminSurfaceMount,
+  openAdminSurfaceLink, readAdminSurfaceResize, validateAdminSurfaceMessage } from '@jini-ai/agent-plugins/admin-surfaces';
+import { isProviderSettingRequired } from '@jini-ai/plugins/host';
 import type { AdminKit } from '@jini-ai/admin/react/kit';
 import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
 import type { UserManagementKit } from '@jini-ai/user-management/react/kit';
@@ -55,6 +58,8 @@ export const adminKit = {
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID,
     buildSandboxProxyDataUrl, openLightboxDialog, closeLightboxDialog, resolveTabBarTabIndex, hasPermission, standingDraftRecoveryMessage,
     createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab,
+    adminSurfaceFrameAttributes, readAdminSurfaceTheme, adminSurfaceThemeMessage, adminSurfaceInitMessage, adminSurfaceActionResponse, createAdminSurfaceMount,
+    openAdminSurfaceLink, readAdminSurfaceResize, validateAdminSurfaceMessage, isProviderSettingRequired,
     readableTextColor, canAcceptRefresh, mergeSaveStates, SAVE_DEBOUNCE_MS, startVisibleInterval, nextConfigForAgentSelect, nextConfigForAgentModel,
     nextConfigForAgentReasoning, resolveSelectedPreset, createExecutionHttpAdapter, requireExecutionResponseData, retryWhileUnreachable, createBrowserViewerClipboard,
     folderPathsFromDataTransfer, findEditorBlockOpening, isEditorSourceError, resolveAccentColor, normalizeAccentColor, resolveSelectTriggerLabel,
