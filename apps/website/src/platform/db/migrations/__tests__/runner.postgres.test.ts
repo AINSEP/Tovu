@@ -103,7 +103,7 @@ test("the content history through the current head applies on real Postgres", as
 
 test("the chat history lands in ai_chat with its own ledger there; public gets no chat table", async () => {
   const report = await migrateChatDatabase({ kernel: baseline });
-  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts", "0003_active_run_index"]);
+  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts", "0003_active_run_index", "0049_scrub_assistant_chat_titles"]);
   const [busyIndex] = await baseline.query<{ indexdef: string }>(sql`SELECT indexdef FROM pg_indexes
     WHERE schemaname = 'ai_chat' AND indexname = 'idx_ai_chat_messages_active'`);
   assert.match(busyIndex!.indexdef, /ON ai_chat.ai_chat_messages USING btree \(role, run_status, id\) WHERE/);

@@ -24,8 +24,9 @@ import {
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
 import type { useWiredMedia, MediaController } from "./hooks/use-media.hooks";
-import { t as mediaTranslate } from "./media-i18n";
+import { t as mediaTranslate, VIDEO_CONVERSION_NOTICE_KEY } from "./media-i18n";
 import type { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
 import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import type { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
@@ -1004,7 +1005,8 @@ export interface MediaProps {
   useMediaGridSizeHook: typeof useMediaGridSize;
   useAdminThemeBoundaryHook: typeof useAdminThemeBoundary;
   useMediaItemLinkHook: typeof useMediaItemLink;
-
+  /** The zone an upload date is shown in: the viewer's own, never the site's schedule zone. Defaults to {@link VIEWER_TIME_ZONE}. */
+  viewerTimeZone?: string;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
@@ -1026,8 +1028,8 @@ export interface MediaProps {
  *  (owner design, 2026-11-01 — the shape and length used to be badges on the picture). Parts that
  *  do not apply are left out, so an image has no length and an unloaded one no size yet. Each part
  *  stays its own element so a part can be found by its text. */
-function MediaCardMetadata(props: { useMediaCardMetadataHook: typeof useMediaCardMetadata; item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
-  const metadata = props.useMediaCardMetadataHook({ item: props.item }, { locale: props.locale });
+function MediaCardMetadata(props: { useMediaCardMetadataHook: typeof useMediaCardMetadata; item: AdminMedia; locale: string; viewerTimeZone: string; shape: MediaShape | null; t: (key: string) => string }) {
+  const metadata = props.useMediaCardMetadataHook({ item: props.item }, { locale: props.locale, viewerTimeZone: props.viewerTimeZone });
   const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
@@ -1044,6 +1046,7 @@ function MediaCardMetadata(props: { useMediaCardMetadataHook: typeof useMediaCar
 interface MediaCardMenuProps {
   editingId: string | null;
   locale: string;
+  viewerTimeZone: string;
   rowSavingId: string | null;
   isPhone: boolean;
   onOpenDetails: (item: AdminMedia) => void;
@@ -1096,7 +1099,7 @@ function MediaCard({ item, handle, onExpand, menu, t, useMediaPreviewHook, useMe
             items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale, translate: mediaTranslate })}
           />
         </div>
-        <MediaCardMetadata useMediaCardMetadataHook={useMediaCardMetadataHook} item={item} locale={menu.locale} shape={preview.shape} t={t} />
+        <MediaCardMetadata useMediaCardMetadataHook={useMediaCardMetadataHook} item={item} locale={menu.locale} viewerTimeZone={menu.viewerTimeZone} shape={preview.shape} t={t} />
       </div>
     </div>
   );
@@ -1119,6 +1122,7 @@ function MediaGridOrEmpty({
   gridSize,
   editingId,
   locale,
+  viewerTimeZone,
   t,
   onExpand,
   onToggleEdit,
@@ -1136,6 +1140,7 @@ function MediaGridOrEmpty({
   mediaExpandHandles: string[];
   editingId: string | null;
   locale: string;
+  viewerTimeZone: string;
   t: (key: string) => string;
   onExpand: (index: number) => void;
   onToggleEdit: (item: AdminMedia) => void;
@@ -1170,7 +1175,7 @@ function MediaGridOrEmpty({
           item={item}
           handle={mediaExpandHandles[index]}
           onExpand={() => onExpand(index)}
-          menu={{ editingId, locale, rowSavingId, isPhone, onOpenDetails: openDetails, onToggleEdit, onTrash, onRestore, onRequestPurge }}
+          menu={{ editingId, locale, viewerTimeZone, rowSavingId, isPhone, onOpenDetails: openDetails, onToggleEdit, onTrash, onRestore, onRequestPurge }}
           t={t}
         />
       ))}
@@ -1212,6 +1217,7 @@ function MediaCardTitle({ item, isPhone, onOpenDetails, t }: {
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
     media: AdminMedia[];
+    viewerTimeZone: string;
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
@@ -1235,6 +1241,7 @@ function MediaLibraryPanel(
     openUpload,
     closeUpload,
     uploadError,
+    conversionNotice,
     canUpload,
     altDraft,
     setAltDraft,
@@ -1259,12 +1266,15 @@ function MediaLibraryPanel(
     setOrderBy,
     t,
     locale,
+    viewerTimeZone,
   } = props;
   const [gridSize, setGridSize] = props.useMediaGridSizeHook({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
 
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
+      {/* On the page, not in the upload dialog: the dialog closes on success, and the notice reports that success. */}
+      <UploadConversionStatus notice={conversionNotice} t={t} />
       {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
           the right edge. Each button owns its dialog. */}
       <div className="toolbar media-order-row">
@@ -1321,6 +1331,7 @@ function MediaLibraryPanel(
         gridSize={gridSize}
         editingId={editingId}
         locale={locale}
+        viewerTimeZone={viewerTimeZone}
         t={t}
         onExpand={setLightboxIndex}
         onToggleEdit={toggleEditing}
@@ -1391,6 +1402,13 @@ function MediaTrashEmptyState({ t }: { t: (key: string) => string }) {
       </div>
     </div>
   );
+}
+
+/** Non-error status for an upload that was stored as-is because its web-playable copy could not be made.
+ *  The server sends only the fixed code; the sentence is localized here. */
+function UploadConversionStatus({ notice, t }: { notice: MediaController["conversionNotice"]; t: (key: string) => string }) {
+  if (notice !== "web-copy-unavailable") return null;
+  return <div role="status" className="notice">{t(VIDEO_CONVERSION_NOTICE_KEY)}</div>;
 }
 
 /** Note shown on a filtered tab when some assets have no detected type. See `rules.ts`'s
@@ -1518,6 +1536,8 @@ export function Media(props: MediaProps) {
   // for the complexity gate; Media is small enough to resolve them directly.
   const useMediaHook = props.useMediaHook;
   const useMediaTabsHook = props.useMediaTabsHook;
+  // The site zone controls site schedules, not how an owner sees a local upload time.
+  const viewerTimeZone = props.viewerTimeZone ?? VIEWER_TIME_ZONE;
   const controller = useMediaHook();
   const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
@@ -1584,6 +1604,7 @@ export function Media(props: MediaProps) {
         useMediaGridSizeHook={props.useMediaGridSizeHook}
         {...controller}
         media={media}
+        viewerTimeZone={viewerTimeZone}
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}

@@ -11,6 +11,7 @@ import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { createElement } from "react";
 import { Media } from "./panel-pages";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
@@ -26,5 +27,5 @@ export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<strin
   // Legacy Media owns `/admin/media` in every build until owner visual-parity sign-off.
   // Pass its existing tab prop through so direct links and its tab buttons use the same URL.
   // `?id=` names one item whose detail dialog opens (use-media-item-link.hooks.ts).
-  return createElement(Media, { useMediaHook: useWiredMedia, useMediaTabsHook: useMediaTabs, useMediaPreviewHook: useWiredMediaPreview, useEditMediaPanelHook: useWiredEditMediaPanel, useEditMediaModalHook: useEditMediaModal, useAdminKitValuesHook: useAdminKitValues, useMediaCardMetadataHook: useMediaCardMetadata, useMediaCardDetailsHook: useMediaCardDetails, useMediaGridSizeHook: useMediaGridSize, useAdminThemeBoundaryHook: useAdminThemeBoundary, useMediaItemLinkHook: useMediaItemLink, tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
+  return createElement(Media, { useMediaHook: useWiredMedia, useMediaTabsHook: useMediaTabs, useMediaPreviewHook: useWiredMediaPreview, useEditMediaPanelHook: useWiredEditMediaPanel, useEditMediaModalHook: useEditMediaModal, useAdminKitValuesHook: useAdminKitValues, useMediaCardMetadataHook: useMediaCardMetadata, useMediaCardDetailsHook: useMediaCardDetails, useMediaGridSizeHook: useMediaGridSize, useAdminThemeBoundaryHook: useAdminThemeBoundary, useMediaItemLinkHook: useMediaItemLink, viewerTimeZone: VIEWER_TIME_ZONE, tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
 }

@@ -32,6 +32,7 @@ export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { Members } from "@jini-ai/user-management/react";
 import { membersScreenProps } from "./features/members";
+import { useRouteGuardedMenuEditor } from "./features/menus/hooks/use-route-guarded-menu-editor.hooks";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
@@ -371,7 +372,7 @@ const PANELS: readonly TovuAdminPanel[] = [
       if (ctx.view === "menu-editor") {
         // The `/new` pattern below captures no params, so `menuId` is `undefined` there — the
         // same "new means null" mapping `App.tsx`'s old `parseRoute` did inline.
-        return <MenuEditor key={ctx.params.menuId ?? "new"} menuId={ctx.params.menuId ?? null} />;
+        return <MenuEditor key={ctx.params.menuId ?? "new"} menuId={ctx.params.menuId ?? null} useMenuEditorHook={useRouteGuardedMenuEditor} />;
       }
       return <Menus />;
     },
