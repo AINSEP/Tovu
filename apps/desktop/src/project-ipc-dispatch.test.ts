@@ -58,6 +58,9 @@ function fixture({ t }: { t: TestContext }) {
     readPreviewVersion: ({ siteDir }) => previews.has(siteDir) ? 7 : null,
     readPreviewDataUrl: ({ id }) => previews.get(id) ?? null,
     deletePreview: ({ id }) => { deletedPreviews.push(id); previews.delete(id); },
+    // No Electron partition in this harness; cache retirement is covered in project-ipc.test.ts.
+    trimRetiredSiteCache: async () => {},
+    warn: () => {},
     adoptSiteDir: async (input) => {
       adoptions.push(input);
       fs.mkdirSync(input.dir, { recursive: true });
