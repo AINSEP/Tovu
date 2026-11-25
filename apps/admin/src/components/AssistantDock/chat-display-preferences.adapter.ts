@@ -2,7 +2,7 @@
 import { loadNamespaceValues, saveChangedEntries } from "@/lib/ledger-slice";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY, loadChatDisplayPreferences, saveChatDisplayPreferences, type ChatDisplayLedgerPort } from "./chat-display-preferences";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY, loadChatDisplayPreferences, saveChatDisplayPreferences, type ChatDisplayLedgerPort } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import {
   useChatDisplayPreferences as usePreferences, type ChatDisplayPreferencesController, type ChatDisplayPreferencesPort,
 } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";

@@ -2,7 +2,7 @@ import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "../../styles/media-content-editor.css";
-import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
 import { htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes } from "./media-content-rules";
 

@@ -1,6 +1,6 @@
-import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./resolve-composer-discovery-outcome";
+import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/shell/components/AssistantDock/hooks/resolve-composer-discovery-outcome";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
-import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
+import { SKILLS_CHANGED_EVENT, loadSkillDraft } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { useCallback, useEffect, useState } from "react";
 import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "@jini-ai/chat/react";
@@ -8,7 +8,7 @@ import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import { createBundledComposerCapabilitySource } from "@/features/plugins/composer-capabilities";
+import { createBundledComposerCapabilitySource, resolveTovuComposerDiscoveryRoute } from "@/features/plugins/composer-capabilities";
 import { emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
 function createComposerReload(
@@ -160,6 +160,8 @@ export function useComposerDiscoverySelect(
       resolveComposerDiscoveryOutcome(selection, {
         capabilities: composerCapabilities,
         navigate: (routePath) => navigate({ routePath }),
+        resolveRoute: resolveTovuComposerDiscoveryRoute,
+        loadSkillDraft,
         callAllowlistedTool,
         addPluginRef,
         skillsAvailable,

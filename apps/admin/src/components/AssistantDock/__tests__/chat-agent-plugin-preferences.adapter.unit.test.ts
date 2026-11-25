@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LedgerCandidate } from "@/lib/ledger-slice";
 import type { SettingsRefreshScope } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { CHAT_DISPLAY_NAMESPACE } from "../chat-display-preferences";
+import { CHAT_DISPLAY_NAMESPACE } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { CHAT_AGENT_PLUGINS_KEY } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
 import {
   createChatAgentPluginsPreferencePort,

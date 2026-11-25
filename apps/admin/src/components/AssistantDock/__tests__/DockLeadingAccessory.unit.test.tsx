@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockLeadingAccessory, type DockLeadingAccessoryProps } from "../DockLeadingAccessory";
+import { DockLeadingAccessory, type DockLeadingAccessoryProps } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
 
 /**
  * @file `DockLeadingAccessory` — what the dock puts in `ChatPane`'s `leadingAccessory` slot —

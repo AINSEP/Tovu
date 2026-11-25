@@ -2,8 +2,8 @@
 import { useFetchQuery, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
 import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
-import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
-import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, loadAssistantRuntimePreferences, saveAssistantRuntimePreferences } from './assistant-runtime-preferences';
+import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from '@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences';
+import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, loadAssistantRuntimePreferences, saveAssistantRuntimePreferences } from '@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences';
 import {
   useAssistantRuntimePreferences, type AssistantRuntimePreferencesController, type AssistantRuntimePreferencesPort,
 } from '@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks';

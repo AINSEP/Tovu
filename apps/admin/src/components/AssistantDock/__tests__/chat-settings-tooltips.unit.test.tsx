@@ -6,10 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections, groupOptionTooltips, type DockSettingsMenuItem } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { ASSISTANT_DOCK_HOST_FIELDS } from "@/app-i18n";
-import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 
 afterEach(cleanup);
 
