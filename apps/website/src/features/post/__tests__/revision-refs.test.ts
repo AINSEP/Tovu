@@ -9,6 +9,7 @@ import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dial
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { postRepoFor } from "../repo.js";
 import { postRevisionRefProbes } from "../revision-refs.js";
+import { postRevisionLockKey } from "../repo.js";
 import type { ThinnedRevision } from "../revision-thinning.js";
 
 /**
@@ -102,4 +103,16 @@ test("a probe that cannot read throws, so the engine keeps the revision", async 
   await f.kernel.run((db) => db.schema.dropTable("change_set_items").execute());
   await assert.rejects(f.ask("undoRefs", 0));
   await assert.rejects(f.ask("restoreRefs", 0));
+});
+
+test("change-set insert takes the post revision fence for items naming a revision", async () => {
+  const f = await fixture();
+  const keys: string[] = [];
+  const lockKey = f.kernel.lockKey.bind(f.kernel);
+  f.kernel.lockKey = async (key: string) => { keys.push(key); return lockKey(key); };
+  await f.changeSet({ beforeRevisionId: f.revisions[0]!.id });
+  await f.changeSet({ afterRevisionId: f.revisions[1]!.id }, { workspaceId: "ws-b" });
+  await f.changeSet({});
+  await f.changeSet({ entityType: "menu", entityId: "m1", beforeRevisionId: "menu-rev-1" });
+  assert.deepEqual(keys, [postRevisionLockKey(SCOPE, {}), postRevisionLockKey({ workspaceId: "ws-b", postId: "p1" }, {})]);
 });
