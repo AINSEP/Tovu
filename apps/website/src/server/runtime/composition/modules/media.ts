@@ -438,7 +438,7 @@ export function createMediaModule(
       registerAdminMediaUpdateRoute({ errors, app, deps });
       registerAdminMediaTrashRoute({ errors, app, deps });
       registerAdminMediaDeleteRoute({ errors, app, deps });
-      registerAdminMediaOriginalRoute({ app, deps });
+      registerAdminMediaOriginalRoute({ errors, app, deps });
       registerAdminMediaTextRoute({ errors, app, deps });
       registerMediaRenditionRoute({ app, deps });
       registerMediaOriginalVideoRoute({ app, deps });

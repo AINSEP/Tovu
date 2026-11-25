@@ -1,4 +1,3 @@
-import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 import { assistantDaemonToken, delegatedAssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 import type { AssistantDaemonConnection } from "@tovu/contracts/daemon-connection";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";

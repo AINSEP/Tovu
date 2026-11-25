@@ -161,10 +161,10 @@ export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle<RouteReg
       registerAdminSeoGetSettingsRoute({ errors, app, deps });
       registerAdminSeoPutSettingsRoute({ errors, app, deps });
       registerAdminSeoPostSitemapRegenerateRoute({ errors, app, deps });
-      registerSeoSitemapRoute({ app, deps });
-      registerSeoRobotsRoute({ app, deps });
-      registerLlmsTxtRoute({ app, deps });
-      registerFeedRoute({ app, deps });
+      registerSeoSitemapRoute({ errors, app, deps });
+      registerSeoRobotsRoute({ errors, app, deps });
+      registerLlmsTxtRoute({ errors, app, deps });
+      registerFeedRoute({ errors, app, deps });
     },
   };
 }
