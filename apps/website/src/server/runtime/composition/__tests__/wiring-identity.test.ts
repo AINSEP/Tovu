@@ -212,7 +212,9 @@ const BASELINE_OWNER_FILES = new Set([
   "features/site-backup/archive-extensions.ts",
   "features/site-backup/import-plugin-state.ts",
   "server/runtime/composition/memory-deps/slices/agent-plugins.ts",
-  "server/runtime/composition/deps.ts",
+  // The site lifecycle owner deps.ts built moved (deps-split) to site-deps/agent-plugin-bootstrap.ts:
+  // the same single owner at its new path, not a new one, so the entry follows the move.
+  "server/runtime/composition/site-deps/agent-plugin-bootstrap.ts",
   "server/runtime/composition/plugin-credential-cards.ts",
   "server/runtime/composition/site-guide.ts",
   "server/runtime/composition/site-mailer.ts",
