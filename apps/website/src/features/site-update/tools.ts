@@ -6,7 +6,7 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
-import { checkForUpdateFromFeed, runSiteUpdate, type SiteUpdateCallOptions, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
+import { checkForUpdateFromFeed, type SiteUpdateCallOptions, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
 import { approvalToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import type { IdGenerator } from "@jini-ai/core/primitives";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/site-update";
@@ -30,7 +30,10 @@ export interface SiteUpdateRuntime extends SiteUpdateCheckRuntime {
   site: SiteUpdatePort;
   backup: SiteBackupPort;
   readiness: MigrationReadinessPort;
-  /** The managed supervisor hand-off. Present: apply prepares and submits instead of replacing the site in-process. */
+  /**
+   * The managed supervisor's durable hand-off. Required for `site_update_apply` to be registered at all (FIX 16):
+   * absent, the runtime is check-only, because an in-process replacement cannot survive the restart it causes.
+   */
   handoff?: ApprovedHandoffPorts | undefined;
   /** Serialises whole updates (backup through verify); the host binds its own lock. Absent: no serialisation. */
   lock?: SiteUpdateLockPort;
@@ -109,10 +112,11 @@ async function prepareApply({ deps, runtime, ctx }: { deps: SiteUpdateToolDeps; 
   return { runningVersion, plan: await runtime.site.planUpdate({ runningVersion, update }, { signal: ctx.signal }) };
 }
 
-const STEP_LABELS = { approval: "Approval", backup: "Backup", readiness: "Readiness", apply: "Apply", verify: "Verify", rollback: "Rollback" } as const;
+/** A runtime that may apply: site ports plus the durable supervisor hand-off. */
+type ApplyRuntime = SiteUpdateRuntime & { handoff: ApprovedHandoffPorts };
 
-/** -> runSiteUpdate with an approval minted from the plan the owner saw, so it can name no other version. */
-async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps: SiteUpdateToolDeps; runtime: SiteUpdateRuntime; ctx: ToolExecutionContext; prepared: PreparedUpdate; approvedBy: string }, _optional = {}) {
+/** -> the durable hand-off with an approval minted from the plan the owner saw, so it can name no other version. */
+async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps: SiteUpdateToolDeps; runtime: ApplyRuntime; ctx: ToolExecutionContext; prepared: PreparedUpdate; approvedBy: string }, _optional = {}) {
   const { plan, runningVersion } = prepared;
   if (!plan) return { applied: false, runningVersion, message: `You are on the latest version (${runningVersion}). Nothing was changed.` };
   await deps.authorize({ ctx, permission: "system.write" });
@@ -127,21 +131,12 @@ async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps:
     if (liveVersion !== plan.fromVersion) {
       return { applied: false, outcome: "refused", runningVersion: liveVersion, message: `The site is now on ${liveVersion}, but you approved the update from ${plan.fromVersion}. Nothing was changed. Ask again to approve the update from ${liveVersion}.` };
     }
-    return applyApproved({ runtime, ctx, plan, approvedBy });
+    return handOffApproved({ ports: { backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, handoff: runtime.handoff, plan, approvedBy }, { signal: ctx.signal });
   };
   return runtime.lock ? runtime.lock.withLock({ run: guarded }, { signal: ctx.signal }) : guarded();
 }
 
-async function applyApproved({ runtime, ctx, plan, approvedBy }: { runtime: SiteUpdateRuntime; ctx: ToolExecutionContext; plan: SiteUpdatePlan; approvedBy: string }, _optional = {}) {
-  if (runtime.handoff) return handOffApproved({ ports: { backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, handoff: runtime.handoff, plan, approvedBy }, { signal: ctx.signal });
-  const result = await runSiteUpdate(
-    { ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy, toVersion: plan.toVersion } },
-    { signal: ctx.signal },
-  );
-  return { applied: result.outcome === "updated", outcome: result.outcome, message: result.summary, steps: result.steps.map((step) => `${STEP_LABELS[step.step]}: ${step.detail}`), ...(result.backupId ? { backupId: result.backupId } : {}), ...(result.errorId ? { errorId: result.errorId } : {}) };
-}
-
-function applyTool({ deps, runtime, surfaces }: { deps: SiteUpdateToolDeps; runtime: SiteUpdateRuntime; surfaces: AssistantSurfaceDeps }, _optional = {}) {
+function applyTool({ deps, runtime, surfaces }: { deps: SiteUpdateToolDeps; runtime: ApplyRuntime; surfaces: AssistantSurfaceDeps }, _optional = {}) {
   return approvalToolHandler<PreparedUpdate>({ surfaces,
     prepare: ({ ctx }) => prepareApply({ deps, runtime, ctx }),
     describe: ({ prepared }) => {
@@ -156,9 +151,9 @@ function applyTool({ deps, runtime, surfaces }: { deps: SiteUpdateToolDeps; runt
   }, { flag: "applied", ask: ({ prepared }) => prepared.plan !== null });
 }
 
-/** True when the runtime carries apply ports; a check-only runtime never does. */
-function canApply(runtime: SiteUpdateCheckRuntime): runtime is SiteUpdateRuntime {
-  return "site" in runtime;
+/** True only when the runtime carries apply ports AND a durable hand-off (FIX 16); otherwise it is check-only. */
+function canApply(runtime: SiteUpdateCheckRuntime): runtime is ApplyRuntime {
+  return "site" in runtime && (runtime as SiteUpdateRuntime).handoff !== undefined;
 }
 
 export function buildSiteUpdateRegistrations(deps: SiteUpdateToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {

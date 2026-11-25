@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createFakeSiteUpdate, runSiteUpdate, type DesktopAppUpdaterPort, type SiteHealthPort } from "@jini-ai/devops/deploy";
+import { createFakeSiteUpdate, type DesktopAppUpdaterPort, type SiteHealthPort } from "@jini-ai/devops/deploy";
 import { bindSiteUpdateRuntime } from "#src/server/runtime/composition/site-deps/site-update-binding";
+import { buildSiteUpdateRegistrations } from "../tools.js";
 
 /** @file The desktop binding: the desktop main owns the app updater, so the site's runtime reaches it only through an injected hand-off port. */
 
@@ -54,26 +55,20 @@ test("desktop mode without the hand-off port, or a different host kind, gives no
   assert.equal(bindSiteUpdateRuntime(r.required({ ...ENV, TOVU_UPDATE_HOST: "self-hosted" }), { desktop: r.desktop }), null);
 });
 
-test("apply without the owner's approval for that version is refused before the app updater or backup is touched", async () => {
+test("FIX 16: desktop is check-only: with no durable hand-off the bound runtime exposes no apply, before or without the owner's approval", () => {
   const r = rig();
   const runtime = bindSiteUpdateRuntime(r.required(ENV), { desktop: r.desktop });
   assert.ok(runtime);
-  const plan = { fromVersion: "1.2.0", toVersion: "1.3.0", notes: "n" };
-  for (const approval of [undefined, { kind: "owner-approval" as const, approvedBy: "owner-1", toVersion: "1.4.0" }]) {
-    const result = await runSiteUpdate({ ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval });
-    assert.equal(result.outcome, "refused");
-  }
+  const ids = buildSiteUpdateRegistrations({ authorize: async () => {}, readOwnerId: async () => "owner-1", runtime }, {} as never).map((t) => t.descriptor.id);
+  assert.deepEqual(ids, ["site_update_check"]);
   assert.deepEqual(r.calls, []);
 });
 
-test("an approved apply backs up first, stages the approved version, then hands off; rollback restores the restore point", async () => {
+test("FIX 16: desktop is check-only even with a rehearsal: no apply is exposed, so nothing is captured, staged or handed off", () => {
   const r = rig();
   const runtime = bindSiteUpdateRuntime(r.required(ENV), { desktop: r.desktop, rehearseMigration: async () => ({ status: "ok" }) });
   assert.ok(runtime);
-  const plan = { fromVersion: "1.2.0", toVersion: "1.3.0", notes: "n" };
-  const { backupId } = await runSiteUpdate({ ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy: "owner-1", toVersion: "1.3.0" } });
-  assert.deepEqual(r.calls.slice(0, 3), ["capture", "stage:1.3.0", "apply:1.3.0"]);
-  assert.ok(backupId);
-  await runtime.site.rollback({ to: "1.2.0", backupId });
-  assert.deepEqual(r.calls.slice(-2), ["rollback:1.2.0", "restore:rp-1"]);
+  const ids = buildSiteUpdateRegistrations({ authorize: async () => {}, readOwnerId: async () => "owner-1", runtime }, {} as never).map((t) => t.descriptor.id);
+  assert.deepEqual(ids, ["site_update_check"]);
+  assert.deepEqual(r.calls, []);
 });

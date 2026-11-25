@@ -5,27 +5,48 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
-import { createFakeSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease } from "@jini-ai/devops/deploy";
+import { createFakeSiteUpdate, finishPreparedSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease, type SiteUpdateRunResult } from "@jini-ai/devops/deploy";
 import { createOperationLock } from "@jini-ai/db/recovery/operation-lock";
 import { createOperationUpdateLock } from "../operation-update-lock.js";
+import type { ApprovedHandoffPorts } from "../approved-handoff.js";
 import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
 
-/** @file `site_update_apply`: never runs without the owner's card; the approval is for exactly the version shown. */
+/**
+ * @file `site_update_apply`: never runs without the owner's card; the approval is for exactly the version shown.
+ * FIX 16: apply is exposed only with a durable hand-off, so every apply here runs through a fake durable supervisor
+ * that replaces the site and finishes the update the way the real one would after the restart.
+ */
 
 const APPLY = "site_update_apply";
 const OWNER = "owner-1";
 
+/** A durable supervisor stand-in: accepts the prepared update, then applies, verifies and rolls back out of band. */
+function createFakeSupervisor(fake: ReturnType<typeof createFakeSiteUpdate>) {
+  const finished: SiteUpdateRunResult[] = [];
+  const handoff: ApprovedHandoffPorts = {
+    submitPrepared: async ({ prepared }) => {
+      const apply = await fake.ports.site.applyUpdate({ plan: prepared.plan, backupId: prepared.backupId })
+        .then(({ summary }) => ({ status: "landed" as const, summary }), () => ({ status: "failed" as const }));
+      finished.push(await finishPreparedSiteUpdate({ prepared, ports: { site: fake.ports.site, ids: fake.ports.ids }, apply }));
+      return { operationId: `op-${finished.length}` };
+    },
+    readLastAttempt: async () => undefined,
+  };
+  return { handoff, finished };
+}
+
 function setup(options: FakeSiteUpdateOptions = {}, latest: SiteRelease = { version: "1.3.0", notes: "Faster pages." }) {
   const fake = createFakeSiteUpdate({ runningVersion: "1.2.0", latest }, options);
+  const supervisor = createFakeSupervisor(fake);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps: SiteUpdateToolDeps = {
     authorize: async () => {},
     readOwnerId: async () => OWNER,
-    runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion },
+    runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion, handoff: supervisor.handoff },
   };
   const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
   assert.ok(tool, "site_update_apply must be registered");
-  return { fake, surfaceExchanges, tool, deps };
+  return { fake, surfaceExchanges, tool, deps, finished: supervisor.finished };
 }
 
 function invoke(tool: ToolRegistration, input: unknown, emitSurface?: SurfaceEmitter) {
@@ -87,17 +108,20 @@ test("a version other than the one on offer is refused before any card or change
   assert.deepEqual(fake.calls, []);
 });
 
-test("confirm: the approved version is applied and the step log is reported in plain words", async () => {
-  const { tool, fake, surfaceExchanges } = setup();
+test("confirm: the approved version is handed to the durable supervisor, which applies it with a plain-words step log", async () => {
+  const { tool, fake, surfaceExchanges, finished } = setup();
   const { ui, pending } = await raiseCard(tool, { toVersion: "1.3.0" });
   answer(surfaceExchanges, ui!, "confirm");
-  const result = (await pending) as { applied: boolean; outcome: string; message: string; steps: string[] };
-  assert.equal(result.applied, true);
-  assert.equal(result.outcome, "updated");
-  assert.equal(result.message, "Updated from 1.2.0 to 1.3.0. What changed: Faster pages.");
-  assert.deepEqual(result.steps, [
-    "Approval: Approved by owner-1 for 1.3.0.", "Backup: Backup backup-1 made of 1.2.0.", "Readiness: Stored data is ready for 1.3.0.",
-    "Apply: Deployed 1.3.0.", "Verify: The live site works on 1.3.0.",
+  const result = (await pending) as { applied: boolean; outcome: string; operationId: string };
+  assert.equal(result.applied, false, "the website itself never claims the swap: the supervisor owns it");
+  assert.equal(result.outcome, "updating");
+  assert.equal(result.operationId, "op-1");
+  assert.equal(finished.length, 1);
+  assert.equal(finished[0]!.outcome, "updated");
+  assert.equal(finished[0]!.summary, "Updated from 1.2.0 to 1.3.0. What changed: Faster pages.");
+  assert.deepEqual(finished[0]!.steps.map((step) => `${step.step}: ${step.detail}`), [
+    "approval: Approved by owner-1 for 1.3.0.", "backup: Backup backup-1 made of 1.2.0.", "readiness: Stored data is ready for 1.3.0.",
+    "apply: Deployed 1.3.0.", "verify: The live site works on 1.3.0.",
   ]);
   assert.deepEqual(fake.calls.filter((c) => c.startsWith("applyUpdate")), ["applyUpdate:1.3.0:backup-1"]);
 });
@@ -122,7 +146,7 @@ test("already on the latest: no card, nothing applied", async () => {
 });
 
 test("a blocked migration check is reported and the deploy is never started", async () => {
-  const { tool, fake, surfaceExchanges } = setup({ readiness: { status: "blocked", reason: "Two database changes are still pending." } });
+  const { tool, fake, surfaceExchanges, finished } = setup({ readiness: { status: "blocked", reason: "Two database changes are still pending." } });
   const { ui, pending } = await raiseCard(tool);
   answer(surfaceExchanges, ui!, "confirm");
   const result = (await pending) as { applied: boolean; outcome: string; message: string };
@@ -130,16 +154,16 @@ test("a blocked migration check is reported and the deploy is never started", as
   assert.equal(result.outcome, "blocked");
   assert.match(result.message, /Two database changes are still pending/);
   assert.equal(fake.calls.some((c) => c.startsWith("applyUpdate")), false);
+  assert.deepEqual(finished, [], "a blocked preparation never reaches the supervisor");
 });
 
 test("a failed live check rolls back and says so", async () => {
-  const { tool, surfaceExchanges } = setup({ verify: { status: "unhealthy", reason: "the home page returned an error" } });
+  const { tool, surfaceExchanges, finished } = setup({ verify: { status: "unhealthy", reason: "the home page returned an error" } });
   const { ui, pending } = await raiseCard(tool);
   answer(surfaceExchanges, ui!, "confirm");
-  const result = (await pending) as { applied: boolean; outcome: string; message: string };
-  assert.equal(result.applied, false);
-  assert.equal(result.outcome, "rolled-back");
-  assert.match(result.message, /rolled back to 1\.2\.0/);
+  assert.equal(((await pending) as { outcome: string }).outcome, "updating");
+  assert.equal(finished[0]!.outcome, "rolled-back");
+  assert.match(finished[0]!.summary, /rolled back to 1\.2\.0/);
 });
 
 test("permission is checked before any card is shown", async () => {
@@ -211,6 +235,14 @@ test("a second approved update cannot capture another backup while the first own
   answer(surfaceExchanges, second.ui!, "confirm");
   await assert.rejects(second.pending, /Another update, migration or restore is running on this site\. Nothing was changed\./);
   releaseFirst();
-  assert.equal(((await first.pending) as { applied: boolean }).applied, true);
+  assert.equal(((await first.pending) as { outcome: string }).outcome, "updating");
   assert.equal(captures, 1, "only the update that owns the site may capture a backup");
+});
+
+test("absent handoff exposes no apply operation: the runtime is check-only (FIX 16, M apply-without-handoff)", async () => {
+  const { deps, fake, surfaceExchanges } = setup();
+  const { handoff: _dropped, ...inProcess } = deps.runtime as NonNullable<SiteUpdateToolDeps["runtime"]> & { handoff?: unknown };
+  const ids = buildSiteUpdateRegistrations({ ...deps, runtime: inProcess }, { surfaceExchanges } as never).map((r) => r.descriptor.id);
+  assert.deepEqual(ids, ["site_update_check"], "site ports without a durable hand-off must not register site_update_apply");
+  assert.deepEqual(fake.calls, []);
 });

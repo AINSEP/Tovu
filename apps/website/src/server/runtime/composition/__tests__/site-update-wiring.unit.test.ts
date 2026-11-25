@@ -24,9 +24,10 @@ test("site-update has no tools when the host supplies no update runtime", () => 
   assert.deepEqual(siteUpdateContributor().build({ authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws" } as never, {} as never), []);
 });
 
-test("site-update offers both tools once a host supplies a runtime, and metadata covers them", () => {
+test("site-update offers both tools once a host supplies a runtime with a durable hand-off (FIX 16), and metadata covers them", () => {
   const fake = createFakeSiteUpdate({ runningVersion: "1.2.0", latest: { version: "1.3.0", notes: "Faster pages." } });
-  const runtime = { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => "1.2.0" };
+  const handoff = { submitPrepared: async () => ({ operationId: "op-1" }), readLastAttempt: async () => undefined };
+  const runtime = { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => "1.2.0", handoff };
   const registrations = siteUpdateContributor().build({ authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws", siteUpdateRuntime: runtime } as never, { surfaceExchanges: {} } as never);
   assert.deepEqual(registrations.map((r) => r.descriptor.id).sort(), ["site_update_apply", "site_update_check"]);
   for (const id of ["site_update_check", "site_update_apply"]) assert.ok(nativeToolMetadata.byId[id], `metadata for ${id}`);
