@@ -14264,6 +14264,14 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "cfea228594d9",
+      "reason": "site-key-legacy deadline markers on the retired RootKey import aliases; B018 (P8-L1.T) repointed to the canonical SiteKey names that the resolved @jini-ai/platform 0.7.3-next.2 artifact exports, so the condition they waited on is met."
+    },
+    {
+      "id": "918fdcf94bca",
+      "reason": "Documented the deleted assemblePromptWithPluginPrefix forwarding export (C036, P8-L1.T-C036); the assembly owner plugin-prompt-assembly.ts:3-10 keeps the empty-prefix and separator explanation."
     }
   ]
 }
