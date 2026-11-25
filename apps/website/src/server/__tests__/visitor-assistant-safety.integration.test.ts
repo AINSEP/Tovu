@@ -449,12 +449,14 @@ test("a disconnected page cannot begin or settle its old invocation", { timeout:
     chatAbort.abort();
   } }).catch(() => undefined);
   assert.ok(action, "the page action was delivered before the page left");
-  // The registry tells the tab its action was withdrawn once the server has seen the request close.
-  for (let tries = 0; !tab.sessionFrames.some(frame => frame.includes('"cancelled"')) && tries < 100; tries += 1) await new Promise(resolve => setTimeout(resolve, 20));
-  assert.ok(tab.sessionFrames.some(frame => frame.includes('"cancelled"') && frame.includes(action!.invocationId)));
+  // Bounded wait for the server to see the close: the registry then tells the tab its action was withdrawn.
+  // The wait does not gate the refusals below, so a server that neither withdraws nor releases fails on them.
+  const withdrawn = () => tab.sessionFrames.some(frame => frame.includes('"cancelled"') && frame.includes(action!.invocationId));
+  for (let tries = 0; !withdrawn() && tries < 50; tries += 1) await new Promise(resolve => setTimeout(resolve, 20));
   const claim = { sessionId: tab.sessionId, runId: action!.runId, invocationId: action!.invocationId };
-  assert.equal(await tab.post("begin", claim), '{"begun":false}');
+  assert.equal(await tab.post("begin", claim), '{"begun":false}', "the released binding cannot claim the old invocation");
   assert.equal(await tab.post("responses", { invocationId: action!.invocationId, ok: true, output: { navigated: true } }), '{"settled":false}');
+  assert.ok(withdrawn(), "the tab is told its undelivered action was withdrawn");
   assert.equal(requests.length, 1, "nothing about the withdrawn action reaches the model as a success");
   assert.doesNotMatch(JSON.stringify(requests), /navigated/);
 });
