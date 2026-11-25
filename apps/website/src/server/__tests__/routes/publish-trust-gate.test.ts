@@ -8,12 +8,13 @@ import test from "node:test";
 import type { NextFunction, Request, Response as ExpressResponse } from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
+import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { parseGrantDocument, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
-import { mintPublishSession } from "#src/features/publish-trust/session";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { loginAsOwner } from "../helpers/http-test-server.js";
@@ -116,6 +117,7 @@ async function handshakeOver(
   const challenge = (await challengeRes.json()) as { nonce: string; targetInstallationId: string };
 
   const message = buildChallengeMessage({
+    messageVersion: PUBLISH_TRUST_WIRE.messageVersion,
     nonce: challenge.nonce,
     targetInstallationId: challenge.targetInstallationId,
     sourceInstallationId: SOURCE_INSTALL,
