@@ -1,3 +1,4 @@
+import type { SiteImportPage } from "@jini-ai/core/contracts/site/site-import-history";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
@@ -82,7 +83,7 @@ export interface SiteTransferPort {
   shareDownloadRefusal(required: { share: SiteShare }, optional?: Record<string, never>): Promise<ShareDownloadRefusal | null>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
   shareDownloadHref(required: { share: SiteShare }, optional?: Record<string, never>): string;
-  listImports(): Promise<{ imports: SiteImport[] }>;
+  listImports(required: { cursor?: string }, optional?: Record<string, never>): Promise<SiteImportPage<SiteImport>>;
   uploadImportZip(input: { file: Blob }): Promise<{ uploadId: string }>;
   startImport(input: { url: string } | { uploadId: string }, optional?: Record<string, never>): Promise<SiteImport>;
   /** Both passwords use the session-only form endpoint, never URLs or tool inputs. */
@@ -152,7 +153,10 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   acknowledgeShare: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/acknowledge`, body: {} }),
   shareDownloadRefusal: ({ share }, _optional = {}) => readDownloadRefusal({ href: defaultSiteTransferPort.shareDownloadHref({ share }) }),
   shareDownloadHref: ({ share }, _options = {}) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
-  listImports: () => authenticatedAdminRequest({ method: "GET", path: IMPORTS }),
+  listImports: ({ cursor }, _optional = {}) => {
+    const query = new URLSearchParams(cursor === undefined ? {} : { cursor });
+    return authenticatedAdminRequest({ method: "GET", path: IMPORTS + (query.size ? `?${query}` : "") });
+  },
   // The upload route admits only `application/zip`; Windows reports `.zip` files as
   // `application/x-zip-compressed` and some browsers send no type, so the bytes are re-typed here.
   uploadImportZip: ({ file }) =>

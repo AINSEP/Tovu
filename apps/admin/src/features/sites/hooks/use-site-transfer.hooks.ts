@@ -97,6 +97,11 @@ export function useSiteExport(
 }
 
 export interface SiteImportController {
+  nextCursor?: string;
+  loadingMore: boolean;
+  moreError: string | null;
+  loadMore: (required: Record<string, never>, optional?: Record<string, never>) => Promise<void>;
+  reset: (required: Record<string, never>, optional?: Record<string, never>) => void;
   savedKeysPassword: string;
   setSavedKeysPassword: (password: string) => void;
   imports: SiteImport[] | undefined;
@@ -140,7 +145,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const {
     list, refresh, link, setLinkState, file, setFile, importing, setImporting, importError, setImportError, current, setCurrent, password, setPassword, confirm,
     setConfirm, savedKeysPassword, setSavedKeysPassword, settingOwner, setSettingOwner, ownerError, setOwnerError, liveAddress, setLiveAddress, arrivedForImport,
-    unavailable, setLink, chooseFiles,
+    unavailable, setLink, chooseFiles, imports, nextCursor, loadingMore, moreError, loadMore, reset,
   } = useSiteImportState({ port, t });
   const { startImport } = createSiteImportAction({
     importing, unavailable, file, link, setImportError, t, setImporting, setSavedKeysPassword, port, setCurrent, setLinkState, setFile, refresh,
@@ -154,7 +159,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   return createSiteImportController({
     savedKeysPassword, setSavedKeysPassword, unavailable, list, t, link, setLink, file, chooseFiles, setFile, importing, importError, startImport,
     current, setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner, liveAddress,
-    setLiveAddress, arrivedForImport,
+    setLiveAddress, arrivedForImport, imports, nextCursor, loadingMore, moreError, loadMore, reset,
   });
 }
 

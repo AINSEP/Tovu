@@ -1,3 +1,4 @@
+import { useImportHistoryPages } from "../hooks/use-site-import-state.hooks";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { STATIC_EXPORT_OPTIONS_KEY } from "../hooks/use-static-export-selection.hooks";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -100,7 +101,7 @@ describe("site transfer port", () => {
     await expect(port.startImport({ url: "https://example.com" })).rejects.toThrow("startImport was not expected");
     await expect(port.completeImportOwner({ importId: "i", adminPassword: "p" })).rejects.toThrow("completeImportOwner was not expected");
     await expect(port.listShares()).resolves.toEqual({ shares: [] });
-    await expect(port.listImports()).resolves.toEqual({ imports: [] });
+    await expect(port.listImports({})).resolves.toEqual({ imports: [] });
   });
 
   const base = "/api/admin/v1/workspaces/workspace-local";
@@ -109,7 +110,7 @@ describe("site transfer port", () => {
     { name: "createShare", run: () => defaultSiteTransferPort.createShare({}), path: "/site-shares", method: "POST", contentType: undefined, body: "{}" },
     { name: "createShare poll", run: () => defaultSiteTransferPort.createShare({ jobId: "job-1" }), path: "/site-shares", method: "POST", contentType: undefined, body: JSON.stringify({ jobId: "job-1" }) },
     { name: "revokeShare", run: () => defaultSiteTransferPort.revokeShare({ shareId: "a/b" }), path: "/site-shares/a%2Fb", method: "DELETE", contentType: undefined, body: undefined },
-    { name: "listImports", run: () => defaultSiteTransferPort.listImports(), path: "/site-imports", method: "GET", contentType: undefined, body: undefined },
+    { name: "listImports", run: () => defaultSiteTransferPort.listImports({}), path: "/site-imports", method: "GET", contentType: undefined, body: undefined },
     { name: "staticExportOptions", run: () => defaultSiteTransferPort.staticExportOptions({}), path: "/site-shares/static/options", method: "GET", contentType: undefined, body: undefined },
     { name: "startSelectedStaticShare", run: () => defaultSiteTransferPort.createStaticShare({ themeIds: ["poster", "editorial"] }), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({ themeIds: ["poster", "editorial"] }) },
     { name: "createStaticShare", run: () => defaultSiteTransferPort.createStaticShare({}), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({}) },
@@ -608,3 +609,50 @@ it("isolates export and import history when the signed-in principal changes", as
   await waitFor(() => expect(result.current.exports.shares?.[0]?.shareId).toBe("second-owner"));
   await waitFor(() => expect(result.current.imports.imports?.[0]?.importId).toBe("second-owner"));
 }, 10000);
+
+
+it("load more cannot append a stale page after refresh or principal change", async () => {
+  let finish!: (page: { imports: SiteImport[] }) => void;
+  const listImports = vi.fn(() => new Promise<{ imports: SiteImport[] }>(resolve => { finish = resolve; }));
+  const onReset = vi.fn();
+  const firstPage = { imports: [siteImport({ importId: "first" })], nextCursor: "cursor" };
+  const { result, rerender } = renderHook(({ scopeKey, firstPage }) => useImportHistoryPages({ scopeKey, firstPage, listImports, onReset, t }), { initialProps: { scopeKey: "one", firstPage } });
+  let pending!: Promise<void>;
+  act(() => { pending = result.current.loadMore({}); });
+  act(() => { void result.current.loadMore({}); });
+  expect(listImports).toHaveBeenCalledTimes(1);
+  act(() => result.current.reset({}));
+  await act(async () => { finish({ imports: [siteImport({ importId: "late" })] }); await pending; });
+  expect(result.current.imports?.map(row => row.importId)).toEqual(["first"]);
+  act(() => { pending = result.current.loadMore({}); });
+  rerender({ scopeKey: "two", firstPage: { imports: [siteImport({ importId: "second" })], nextCursor: "cursor" } });
+  await act(async () => { finish({ imports: [siteImport({ importId: "private-one" })] }); await pending; });
+  expect(result.current.imports?.map(row => row.importId)).toEqual(["second"]);
+});
+
+it("pages dedupe in order, keep rows on failure and reset an invalid cursor", async () => {
+  let failure: unknown;
+  const onReset = vi.fn();
+  const firstPage = { imports: [siteImport({ importId: "first" })], nextCursor: "cursor" };
+  const listImports = vi.fn(async () => { if (failure) throw failure; return { imports: [siteImport({ importId: "first" }), siteImport({ importId: "second" })], nextCursor: "next" }; });
+  const { result } = renderHook(() => useImportHistoryPages({ scopeKey: "owner", firstPage, listImports, onReset, t }));
+  await act(() => result.current.loadMore({}));
+  expect(listImports).toHaveBeenCalledWith({ cursor: "cursor" }, {});
+  expect(result.current.imports?.map(row => row.importId)).toEqual(["first", "second"]);
+  failure = new ApiError({ status: 500, message: "Retry later" });
+  await act(() => result.current.loadMore({}));
+  expect(result.current.imports).toHaveLength(2);
+  expect(result.current.moreError).toContain("Retry later");
+  failure = new ApiError({ status: 400, message: "Invalid cursor" }, { code: "INVALID_CURSOR" });
+  await act(() => result.current.loadMore({}));
+  expect(result.current.imports).toHaveLength(1);
+  expect(onReset).toHaveBeenCalledTimes(1);
+  expect(result.current.moreError).toBe("This list of imports changed. Reload it to see the newest imports.");
+});
+
+it("transports the import cursor as a query string", async () => {
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ imports: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+  vi.stubGlobal("fetch", fetchMock);
+  await defaultSiteTransferPort.listImports({ cursor: "abc_-" });
+  expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/site-imports?cursor=abc_-");
+});

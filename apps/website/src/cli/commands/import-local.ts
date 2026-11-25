@@ -1,3 +1,4 @@
+import type { SiteImportSource, SiteImportView } from "@jini-ai/core/contracts/site/site-import-history";
 import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -6,7 +7,7 @@ import { parseRequestObject, readStdinRequestLine, type RequestLineStream } from
 import { leaveSavedKeysOut } from "@jini-ai/devops/backup/site/saved-keys";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
-import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";
+import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { createSitesWorkspace, ValidationError, type SitesWorkspace } from "#src/platform/site-dir/index";
 import { composeSiteImportBackend } from "#src/server/runtime/composition/site-import-backend";
 

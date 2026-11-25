@@ -32,6 +32,7 @@ a deliberate scope boundary for this pass, not an oversight.
 | `013-members.yaml` | Member accounts | **Undocumented public magic-link sign-in API** — spec claims no public surface exists |
 | `014-analytics.yaml` | Analytics ingestion + admin read | Minor: undocumented permission gate, undocumented 500 |
 | `015-integrations.yaml` | Outbound integration subscriptions | Permission name itself is wrong in the doc (`integration.manage` vs real `admin.integrations.manage`) |
+| `022-site-imports.yaml` | Private site import history | Principal-bound cursor paging and flat refusals; correlated storage failures |
 | `021-media-assets.yaml` | Media library, transforms, delivery | **3 undocumented routes, including a media-provider credentials GET/PUT** |
 
 ## Known drift — cross-feature patterns

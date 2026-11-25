@@ -1,3 +1,5 @@
+import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
+import { createSiteImportPayloadFs } from "#src/server/runtime/composition/site-import-payload-fs";
 /** Hard-kill at real lifecycle boundaries: bypass catch/finally to test durable recovery. */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +14,11 @@ import * as yauzl from "yauzl";
 const [root, importId, boundary] = process.argv.slice(2) as [string, string, string];
 const options = { homeDir: root, cwd: root, appDataDir: path.join(root, "profile"), env: { TOVU_SITES_HOME: path.join(root, "sites") } };
 const workspace = createSitesWorkspace({}, options);
-const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
+const registry = new SiteImportRegistry({ directory: path.join(root, "private"), payload: {
+    fs: createSiteImportPayloadFs({}), clock: { nowMs: () => Date.now() }, lock: { withFileLock },
+    readJsonAt: ({ file }: { file: string }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
+    writeJsonAt: ({ file, value }: { file: string; value: unknown }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
+  } });
 const die = () => {
   fs.writeFileSync(path.join(root, "interruption.json"), JSON.stringify(registry.get({ importId, principalId: "recipient" })));
   process.kill(process.pid, "SIGKILL");

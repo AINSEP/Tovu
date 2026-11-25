@@ -1,3 +1,4 @@
+import type { SiteImportRecord, SiteImportSource, SiteImportView } from "@jini-ai/core/contracts/site/site-import-history";
 import fs from "node:fs";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
@@ -5,7 +6,7 @@ import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
+import type { SiteImportRegistry } from "./import-registry.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "./share-policy.js";
 
@@ -15,15 +16,6 @@ import { SHARE_LIMITS } from "./share-policy.js";
  * Each takes its ports explicitly; `import-backend.ts` sequences them under the import lock.
  */
 
-export type SiteImportSource = { url: string } | { uploadId: string };
-export interface SiteImportView {
-  importId: string; source: SiteImportSource; newSiteId: string | null; newSiteName: string | null;
-  state: SiteImportRecord["status"]; status: SiteImportRecord["status"]; createdAt: string;
-  warnings?: readonly string[];
-  credentialWarnings: readonly import("@jini-ai/devops/backup/site/credential-warnings").CredentialWarning[];
-  hasEncryptedKeys?: boolean;
-  setupUrl?: string; adminUrl?: string | null; error?: string; instructions: string;
-}
 export interface ParsedSiteImportInput { source: SiteImportSource; displayName?: string; requestId?: string }
 
 export function refusal({ code, message }: { code: string; message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code, message }); }
@@ -75,10 +67,11 @@ export function requireFreeSpace(required: { dir: string; message: string }): vo
 
 /** At most four private payloads (uploads or stages) and 900 MiB free before retaining more bytes. */
 export function requireStagingBudget(required: { registry: SiteImportRegistry }): void {
-  required.registry.expire({});
-  const payloads = fs.readdirSync(required.registry.directory).filter(name => name.endsWith(".upload.zip") || name.endsWith(".stage"));
-  if (payloads.length >= 4) refusal({ code: "BUSY", message: "Four imports are staged. Complete owner setup or wait for expiry before uploading another." });
-  requireFreeSpace({ dir: required.registry.directory, message: "Import requires 900 MiB of free private staging space." });
+  required.registry.expirePayloads({});
+  // The staging cap counts disposable payloads, not history.
+  const payloads = required.registry.countStagedPayloads({});
+  if (payloads >= 4) refusal({ code: "BUSY", message: "Four imports are staged. Complete owner setup or wait for expiry before uploading another." });
+  requireFreeSpace({ dir: required.registry.payloadDirectory, message: "Import requires 900 MiB of free private staging space." });
 }
 
 /** The caller's signal (when given) combined with this step's own deadline. */
@@ -117,8 +110,8 @@ export async function downloadShareArchive(required: { http: HttpClientPort; url
  * the previous holder crashed. A verifying row failed; a creating row with an allocation is
  * reconciled against the workspace, one without it failed. Either way its stage is discarded.
  */
-export async function reconcileInterruptedImports(required: { registry: SiteImportRegistry; workspace: SitesWorkspace; put: (row: SiteImportRecord) => void }): Promise<void> {
-  for (const row of required.registry.list({})) {
+export async function reconcileInterruptedImports(required: { registry: SiteImportRegistry; workspace: SitesWorkspace; put: (row: SiteImportRecord) => void; activeRows: (required: Record<string, never>, optional?: Record<string, never>) => SiteImportRecord[] }, _optional: Record<string, never> = {}): Promise<void> {
+  for (const row of required.activeRows({}, {})) {
     if (row.status === "verifying") required.put({ ...row, status: "failed", error: "Archive verification was interrupted. Import the archive again." });
     else if (row.status === "creating") required.put(await reconcileCreatingRow({ row, workspace: required.workspace }));
     else continue;

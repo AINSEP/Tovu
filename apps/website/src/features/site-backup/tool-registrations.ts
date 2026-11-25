@@ -1,3 +1,4 @@
+import { parseSiteImportListQuery } from "@jini-ai/cms/admin-http/routes/system/site-imports";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { siteBackupToolMetadata as toolMetadata } from "../../contracts/core/tool-metadata/index.js";
@@ -89,7 +90,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "site_import_list", description: "List your private import history: date, source, new site, status and opening/setup instructions. Does not include other principals' imports or credentials.",
-    sideEffects: "none", authorization: { permission: "system.read" }, inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    sideEffects: "none", authorization: { permission: "system.read" }, inputSchema: { type: "object", additionalProperties: false, properties: { cursor: { type: "string", maxLength: 96, description: "nextCursor from the previous page." } } },
   },
   {
     name: PLAN_TOOL_ID,
@@ -239,8 +240,10 @@ async function handleImport(required: { deps: SiteBackupToolDeps; ctx: ToolExecu
   try {
     const input = requireInputRecord({ input: ctx.input });
     if (list) {
-      if (Object.keys(input).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_import_list takes no fields." });
-      return { imports: await deps.siteImportBackend.list({ principalId: ctx.principal.id }) };
+      if (Object.keys(input).some(key => key !== "cursor")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_import_list accepts only cursor." });
+      const parsed = parseSiteImportListQuery({ query: input });
+      if (!parsed.ok) throw new SiteShareRefusal({ code: "INVALID_CURSOR", message: parsed.error.message });
+      return await deps.siteImportBackend.listPage({ ...parsed.value, principalId: ctx.principal.id });
     }
     return await deps.siteImportBackend.importBackup({ ...parseSiteImportInput({ input }), principalId: ctx.principal.id }, { signal: ctx.signal });
   } catch (error) {

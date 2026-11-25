@@ -1,3 +1,11 @@
+import fs from "node:fs";
+import type { ImportHistoryPolicy } from "@jini-ai/core/contracts/site/site-import-history";
+import { openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
+import { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-index/errors";
+import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
+import { bindSiteImportBackfill } from "./site-import-backfill.js";
+import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
+import { createSiteImportPayloadFs } from "#src/server/runtime/composition/site-import-payload-fs";
 import { join } from "node:path";
 import * as yauzl from "yauzl";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
@@ -35,8 +43,32 @@ export function composeSiteImportBackend(
   } = {},
 ): SiteImportBackend {
   const { workspace, savedKeys, startSite } = required;
-  return createSiteImportBackend({
-    registry: new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", required.workspaceId) }),
+  const directory = join(workspace.config({}).appData, "site-imports", required.workspaceId);
+  const clock = { nowMs: () => Date.now() };
+  const payloadFs = createSiteImportPayloadFs({});
+  const registry = new SiteImportRegistry({ directory, payload: {
+    fs: payloadFs, clock, lock: { withFileLock },
+    readJsonAt: ({ file }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
+    writeJsonAt: ({ file, value }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
+  } });
+  const policy: ImportHistoryPolicy = { cutoverPolicy: "rollback", historyVisibleMs: 2_592_000_000, replayFenceMs: 31_536_000_000, legacyRetireMs: 2_592_000_000, sweepOnClockRollback: false };
+  const open = ({ file, options }: { file: string; options: { readonly?: boolean; fileMustExist?: boolean } }, _optional: Record<string, never> = {}) => openNativeSqlite(file, options);
+  const backfill = bindSiteImportBackfill({ directory, fs: payloadFs, clock, policy,
+    openCandidate: (_required, _optional = {}) => {
+      const file = join(directory, "site-imports.db");
+      if (!fs.existsSync(file)) fs.closeSync(fs.openSync(file, "wx", 0o600));
+      const stat = fs.lstatSync(file);
+      if (!stat.isFile() || (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) throw new ImportHistoryUnavailable({ code: "IMPORT_HISTORY_DAMAGED", status: 503, message: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID." });
+      return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy,
+        checkIntegrity: ({ db }, _optional = {}) => {
+          if (db.pragma("quick_check(1)", { simple: true }) !== "ok") throw new ImportHistoryUnavailable({ code: "IMPORT_HISTORY_DAMAGED", status: 503, message: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID." });
+        },
+      });
+    },
+    log: ({ message, counts }, _optional = {}) => console.warn("[site-backup]", message, counts),
+  });
+  const args: Parameters<typeof createSiteImportBackend>[0] & { backfill: ReturnType<typeof bindSiteImportBackfill> } = {
+    registry, backfill,
     workspace, createSite, startSite,
     restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options),
     reader: createShareArchiveReader({ yauzl }),
@@ -45,5 +77,6 @@ export function composeSiteImportBackend(
     schema: runtimeSchemaVersion(),
     ...(optional.tracker ? { tracker: optional.tracker } : {}),
     ...(optional.setupBase ? { setupBase: optional.setupBase } : {}),
-  }, optional.report ? { report: optional.report } : {});
+  };
+  return createSiteImportBackend(args, optional.report ? { report: optional.report } : {});
 }
