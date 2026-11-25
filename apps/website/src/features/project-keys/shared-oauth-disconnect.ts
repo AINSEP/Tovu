@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { ApiConnectionError, disconnectApiConnection, type ApiConnectionHooks } from '@jini-ai/integrations/api-connections';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { SharedOAuthOwnerStorage } from '../api-connections/shared-owner.js';
-import type { KeyAttachments, ProjectKeyTransaction } from './attachments.js';
+import type { KeyAttachments, ProjectKeyTransaction } from '@jini-ai/core/contracts/site/project-key-attachments';
 
 export interface SharedOAuthDisconnectReport {
   id: string; label: string; sites: string[]; revision: number; sourceDigest: string;
