@@ -1,4 +1,4 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
+import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { readOverwriteEntityKeys } from "@jini-ai/cms/admin-http/routes/publish-content/import";
 import type { Response } from "express";
 
@@ -42,13 +42,13 @@ export type MappedErrorClass = readonly [errorClass: abstract new (...args: neve
  * Anything not in `table` is a 500 with fixed text: a raw driver error's message is never echoed.
  * @complexity O(t) in the table length.
  */
-export function mappedErrorResponse({ err, table }: { err: unknown; table: readonly MappedErrorClass[] }, options: AdminFailurePorts & {
+export function mappedErrorResponse({ err, table }: { err: unknown; table: readonly MappedErrorClass[] }, options: BoundFailurePorts & {
   message?: string; method?: string; route?: string; discloseDetails?: boolean;
-} = {}): RouteRefusal {
+}): RouteRefusal {
   for (const [errorClass, status, code] of table) {
     if (err instanceof errorClass) return { status, body: { error: err.message, code } };
   }
-  return adminFailureResponse({ error: err, tracker: options.tracker }, {
+  return adminFailureResponse({ error: err, tracker: options.tracker, reporter: options.reporter }, {
     operation: "routes/publish-content/route-helpers", message: options.message,
     method: options.method, route: options.route, discloseDetails: options.discloseDetails,
   });

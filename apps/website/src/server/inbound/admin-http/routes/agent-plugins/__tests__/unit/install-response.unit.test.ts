@@ -1,4 +1,5 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { NO_INCIDENT_REPORTER, recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,62 +31,62 @@ test("bodyParseRefusal: any other parse failure is an unreadable upload", () => 
 });
 
 test("installErrorResponse: an unreadable archive upload is 400 with plain text", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "ARCHIVE_UNREADABLE", message: "yauzl: bad central directory" }) }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "ARCHIVE_UNREADABLE", message: "yauzl: bad central directory" }) }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 400, body: { code: "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: "This file is not a readable .zip." },
   });
 });
 
 test("installErrorResponse: a taken plugin id is 409 pointing at Replace", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_ID_TAKEN", message: "taken" }) }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_ID_TAKEN", message: "taken" }) }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 409, body: { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN", error: "This plugin ID is already installed. Choose Replace existing version to upgrade it." },
   });
 });
 
 test("installErrorResponse: other upload refusals are 409 with the upload error's own message", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_BUNDLED", message: "A bundled plugin owns this ID." }) }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_BUNDLED", message: "A bundled plugin owns this ID." }) }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 409, body: { code: "AGENT_PLUGIN_PLUGIN_BUNDLED", error: "A bundled plugin owns this ID." },
   });
 });
 
 test("installErrorResponse: an installer size refusal is 413", () => {
-  assert.deepEqual(installErrorResponse({ error: installError("ARCHIVE_TOO_LARGE") }), {
+  assert.deepEqual(installErrorResponse({ error: installError("ARCHIVE_TOO_LARGE") }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 413, body: { code: "AGENT_PLUGIN_ARCHIVE_TOO_LARGE", error: "The .zip is larger than the 32 MiB limit." },
   });
 });
 
 test("installErrorResponse: a publish failure is 500 with the fallback text and no host path", () => {
-  assert.deepEqual(installErrorResponse({ error: installError("PUBLISH_FAILED") }), {
+  assert.deepEqual(installErrorResponse({ error: installError("PUBLISH_FAILED") }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 500, body: { code: "AGENT_PLUGIN_PUBLISH_FAILED", error: FALLBACK },
   });
 });
 
 test("installErrorResponse: a digest mismatch is 400 asking to retry", () => {
-  assert.deepEqual(installErrorResponse({ error: installError("DIGEST_MISMATCH") }), {
+  assert.deepEqual(installErrorResponse({ error: installError("DIGEST_MISMATCH") }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 400, body: { code: "AGENT_PLUGIN_DIGEST_MISMATCH", error: "The upload arrived damaged. Try again." },
   });
 });
 
 test("installErrorResponse: manifest refusals are 400 with their own text", () => {
   assert.deepEqual(
-    [installErrorResponse({ error: installError("MANIFEST_MISSING") }).body.error, installErrorResponse({ error: installError("MANIFEST_INVALID") }).body.error],
+    [installErrorResponse({ error: installError("MANIFEST_MISSING") }, { reporter: NO_INCIDENT_REPORTER }).body.error, installErrorResponse({ error: installError("MANIFEST_INVALID") }, { reporter: NO_INCIDENT_REPORTER }).body.error],
     ["No plugin.json found. Put plugin.json at the top of the .zip, or inside one folder.", "plugin.json is not a valid Agent Plugin manifest."],
   );
 });
 
 test("installErrorResponse: every unpacked-size refusal shares one 400 message", () => {
   const codes: AgentPluginInstallErrorCode[] = ["TOO_MANY_ENTRIES", "FILE_TOO_LARGE", "DECOMPRESSION_BOMB", "TOTAL_SIZE_EXCEEDED"];
-  assert.deepEqual(codes.map((code) => installErrorResponse({ error: installError(code) })), codes.map((code) => ({ status: 400, body: { code: `AGENT_PLUGIN_${code}`, error: UNPACKED } })));
+  assert.deepEqual(codes.map((code) => installErrorResponse({ error: installError(code) }, { reporter: NO_INCIDENT_REPORTER })), codes.map((code) => ({ status: 400, body: { code: `AGENT_PLUGIN_${code}`, error: UNPACKED } })));
 });
 
 test("installErrorResponse: an unsafe entry is 400 with the fallback text", () => {
-  assert.deepEqual(installErrorResponse({ error: installError("UNSAFE_ENTRY_PATH") }), {
+  assert.deepEqual(installErrorResponse({ error: installError("UNSAFE_ENTRY_PATH") }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 400, body: { code: "AGENT_PLUGIN_UNSAFE_ENTRY_PATH", error: FALLBACK },
   });
 });
 
 test("installErrorResponse: an unreadable activation record is 409 busy and logs the real cause", () => {
   const error = new AgentPluginActivationsUnreadableError({ filePath: "/ws/activations.json", reason: "invalid JSON" });
-  assert.deepEqual(installErrorResponse({ error }), {
+  assert.deepEqual(installErrorResponse({ error }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 409,
     body: { code: "AGENT_PLUGIN_ACTIVATIONS_BUSY", error: "Could not install the plugin. Try again." },
     warning: `[agent-plugins] upload refused — ${error.message}`,
@@ -94,7 +95,7 @@ test("installErrorResponse: an unreadable activation record is 409 busy and logs
 
 test("installErrorResponse: a held activation lock is 409 busy and logs the real cause", () => {
   const error = new AgentPluginActivationsBusyError({ lockPath: "/ws/activations.lock", holder: undefined, lost: false });
-  assert.deepEqual(installErrorResponse({ error }), {
+  assert.deepEqual(installErrorResponse({ error }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 409,
     body: { code: "AGENT_PLUGIN_ACTIVATIONS_BUSY", error: "Could not install the plugin. Try again." },
     warning: `[agent-plugins] upload refused — ${error.message}`,
@@ -102,7 +103,7 @@ test("installErrorResponse: a held activation lock is 409 busy and logs the real
 });
 
 test("installErrorResponse: an unrecognised error is a redacted 500 with no warning", () => {
-  assertAdminResponse({ actual: installErrorResponse({ error: new Error("private /secret/layout") }), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
+  assertAdminResponse({ actual: installErrorResponse({ error: new Error("private /secret/layout") }, { reporter: recordingComposedReporter().reporter }), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
 });
 
 const candidate: AgentPluginSearchCandidate = {
@@ -147,12 +148,12 @@ test("agentPluginLifecycleFields: passes origin, host verdict, requirements, dep
 
 test("installErrorResponse: every update refusal is 409 with the lifecycle owner's code and message", () => {
   for (const code of ["PLUGIN_CHANGED", "PLUGIN_DOWNGRADE_REFUSED", "PLUGIN_BUNDLED", "PLUGIN_UPDATE_PENDING", "PLUGIN_ID_MISMATCH", "PLUGIN_UPDATE_PATH_UNSAFE", "PLUGIN_MCP_PROVISION_FAILED"]) {
-    assert.deepEqual(installErrorResponse({ error: new AgentPluginUpdateError({ code, message: `Refused: ${code}.` }) }), { status: 409, body: { code, error: `Refused: ${code}.` } });
+    assert.deepEqual(installErrorResponse({ error: new AgentPluginUpdateError({ code, message: `Refused: ${code}.` }) }, { reporter: NO_INCIDENT_REPORTER }), { status: 409, body: { code, error: `Refused: ${code}.` } });
   }
 });
 
 test("installErrorResponse: an incompatible host is 409 PLUGIN_HOST_INCOMPATIBLE", () => {
-  const response = installErrorResponse({ error: new AgentPluginHostIncompatibleError({ pluginId: "future-only" }) });
+  const response = installErrorResponse({ error: new AgentPluginHostIncompatibleError({ pluginId: "future-only" }) }, { reporter: NO_INCIDENT_REPORTER });
   assert.equal(response.status, 409);
   assert.equal(response.body.code, "PLUGIN_HOST_INCOMPATIBLE");
   assert.match(response.body.error, /future-only/);

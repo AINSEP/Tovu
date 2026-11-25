@@ -1,4 +1,4 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
+import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
@@ -75,8 +75,8 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
  * Maps a thrown install error to its HTTP refusal. Anything unrecognised is a redacted 500.
  * @complexity O(1).
  */
-export function installErrorResponse({ error }: { error: unknown }, options: AdminFailurePorts = {}): InstallRefusal {
-  return knownInstallRefusal({ error }) ?? adminFailureResponse({ error: error, tracker: options.tracker }, { operation: "routes/agent-plugins/install-response" });
+export function installErrorResponse({ error }: { error: unknown }, options: BoundFailurePorts): InstallRefusal {
+  return knownInstallRefusal({ error }) ?? adminFailureResponse({ error: error, tracker: options.tracker, reporter: options.reporter }, { operation: "routes/agent-plugins/install-response" });
 }
 
 /**

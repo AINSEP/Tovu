@@ -61,7 +61,7 @@ const widgetJsonRoutePorts: JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrinc
   onError: ({ res, error }) => {
     if (error instanceof RouteRefusalError) { res.status(error.response.status).json(error.response.body); return; }
     if (error instanceof WidgetToolPlacementFailedError) {
-      const { status, body } = widgetErrorToResponse({ err: error.cause }, { tracker: res.locals?.adminFailureTracker });
+      const { status, body } = widgetErrorToResponse({ err: error.cause }, { tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter });
       res.status(status).json(widgetToolPlacementFailedBody({ widget: error.widget, errorBody: body }));
       return;
     }

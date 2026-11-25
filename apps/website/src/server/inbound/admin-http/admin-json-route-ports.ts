@@ -296,7 +296,7 @@ function writeAdminFailure({ res, error, options, authorized }: { res: Response;
   const byPhase = options.failureByPhase && (authorized ? options.failureByPhase.afterAuthorize : options.failureByPhase.beforeAuthorize);
   const failure = options.failureFor?.(error) ?? byPhase ?? options.failure;
   if (options.failureCopy !== "operation") { sendAdminFailure({ res, error }, failure); return; }
-  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker }, failure);
+  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, failure);
   res.status(status).json(body);
 }
 

@@ -15,6 +15,7 @@ import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[]) {
@@ -137,17 +138,18 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse({ err }, options),
+  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
-  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),
-  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => installErrorResponse({ error: err }, options),
+  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => mappedErrorResponse({ err, table: [] }, options),
+  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => installErrorResponse({ error: err }, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {
     const secret = "ghp_" + "x".repeat(36);
-    const logs: unknown[][] = [], tracked: any[] = [];
+    const logs: unknown[][] = [];
+    const { reporter, records, reports: tracked } = recordingComposedReporter();
     t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
     for (const error of [new Error(`private ${secret}`), `private ${secret}`, null]) {
-      const failure = map({ err: error }, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
+      const failure = map({ err: error }, { reporter });
       const body = failure.body as Record<string, unknown>;
       assert.equal(failure.status, 500);
       assert.equal(body.code, "INTERNAL_ERROR");
@@ -158,12 +160,12 @@ for (const [name, map] of Object.entries({
       assert.equal((body.details as any).failure.errorId, body.errorId);
       assert.equal((body.details as any).failure.cause, "The error ID identifies the server report.");
       assert.equal(JSON.stringify(body).includes(secret), false);
-      assert.ok(JSON.stringify(logs.at(-1)).includes(String(body.errorId)));
+      assert.ok(JSON.stringify(records.at(-1)).includes(String(body.errorId)));
       assert.ok(JSON.stringify(tracked.at(-1)).includes(String(body.errorId)));
-      assert.equal(JSON.stringify(logs).includes(secret), false);
-      assert.equal(String(tracked.at(-1)[0].error.message).includes(secret), false);
+      assert.equal(JSON.stringify(records).includes(secret), false);
+      assert.equal(String(tracked.at(-1)![0].error.message).includes(secret), false);
     }
-    assert.equal(logs.length, 3); assert.equal(tracked.length, 3);
+    assert.equal(records.length, 3); assert.equal(tracked.length, 3); assert.equal(logs.length, 0);
   });
 }
 

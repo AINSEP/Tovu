@@ -67,7 +67,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ a
       res.status(error.response.status).type("text/plain").send((error.response.body as { error: string }).error);
     },
     failureWriter: ({ res, error }: { res: express.Response; error: unknown }) => {
-      const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker }, { message: "preview render failed" });
+      const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }, { message: "preview render failed" });
       res.status(failure.status).type("text/plain").send(failure.body.error);
     },
   };

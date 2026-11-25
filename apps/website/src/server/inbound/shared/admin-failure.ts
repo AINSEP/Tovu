@@ -40,6 +40,9 @@ export interface AdminFailurePorts {
   trackerAlreadyReported?: boolean;
 }
 
+/** Ports for a failure site with no response of its own: the composed reporter is REQUIRED, never the legacy pair. */
+export type BoundFailurePorts = AdminFailurePorts & { reporter: Pick<ErrorReporter, "record"> };
+
 const UNEXPECTED_CAUSE = "The error ID identifies the server report.";
 
 function mintErrorId(): string {

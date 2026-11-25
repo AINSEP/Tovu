@@ -23,6 +23,13 @@ import { registerPublicNewsletterConfirmRoute } from "../inbound/public-http/rou
 import { registerPublicNewsletterUnsubscribeRoute } from "../inbound/public-http/routes/site/newsletter-unsubscribe.js";
 import type { NewsletterPublicRouteDeps } from "../inbound/public-http/routes/site/newsletter-deps.js";
 import type { RouteDeps } from "#src/server/routes/types";
+import { createAdminJsonRoutePorts } from "../inbound/admin-http/admin-json-route-ports.js";
+import { registerAdminAnalyticsRecentHitsRoute, type AdminAnalyticsRecentHitsDeps } from "../inbound/admin-http/routes/analytics/recent-hits.js";
+import { registerAdminPostTemplatePreviewRoute } from "../inbound/admin-http/routes/posts/template-preview.js";
+import { mapWidgetErrorToResponse } from "../inbound/admin-http/http/widgets.js";
+import { installErrorResponse } from "../inbound/admin-http/routes/agent-plugins/install-response.js";
+import { importErrorResponse } from "../inbound/admin-http/routes/publish-content/import-errors.js";
+import { respondWithError } from "../inbound/admin-http/routes/publish-content/peer-transport.js";
 
 const REF = /(ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/;
 
@@ -127,3 +134,65 @@ for (const [path, register] of [["/newsletter/confirm", registerPublicNewsletter
   probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
 });
 
+
+// FIX 4 (rv1125a item 4): the last seven `adminFailureResponse` callers that still wrote the legacy console + tracker pair.
+test("admin JSON ports, operation copy: an unexpected failure is one composed incident", (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const ports = createAdminJsonRoutePorts({ failure: { operation: "presentation:update" }, failureCopy: "operation" });
+  const { res, out } = fakeRes(probe.reporter, { principal: { id: "owner" } });
+  ports.onError!({ res, error: thrown } as never);
+  assert.equal(out.status, 500);
+  probe.assertOneIncident({ errorId: (out.body as { errorId: string }).errorId, thrown });
+});
+
+/** An app whose admin request carries an owner principal and the composed reporter, as `createApp` binds it. */
+function adminApp(reporter: unknown): Express {
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = reporter; next(); });
+  return app;
+}
+
+test("analytics recent hits: a sink failure is one composed incident", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const app = adminApp(probe.reporter);
+  registerAdminAnalyticsRecentHitsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    analyticsSink: { capabilities: () => ({ durable: false, batch: true }), accept: async () => {}, acceptBatch: async () => {}, list: async () => { throw thrown; } } } as AdminAnalyticsRecentHitsDeps });
+  const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/analytics/recent-hits" });
+  assert.equal(response.status, 500);
+  probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
+});
+
+test("post template preview: an unexpected failure is one composed incident", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const app = adminApp(probe.reporter);
+  registerAdminPostTemplatePreviewRoute({ app, deps: { workspaceId: "ws", authorize: async () => { throw thrown; } } as never });
+  const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/posts/p1/template-preview" });
+  assert.equal(response.status, 500);
+  probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
+});
+
+test("widgets error mapping: an unmapped failure is one composed incident", (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const { res, out } = fakeRes(probe.reporter);
+  mapWidgetErrorToResponse({ err: thrown, res: res as unknown as Response });
+  assert.equal(out.status, 500);
+  probe.assertOneIncident({ errorId: (out.body as { errorId: string }).errorId, thrown });
+});
+
+test("publish peer actions: an unmapped failure is one composed incident", (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const { res, out } = fakeRes(probe.reporter);
+  respondWithError({ res: res as unknown as Response, err: thrown });
+  assert.equal(out.status, 500);
+  probe.assertOneIncident({ errorId: (out.body as { errorId: string }).errorId, thrown });
+});
+
+for (const [name, map] of [
+  ["agent plugin install", (reporter: never, error: Error) => installErrorResponse({ error }, { reporter })],
+  ["content import", (reporter: never, error: Error) => importErrorResponse({ err: error }, { reporter })],
+] as const) test(`${name} error mapping: an unmapped failure records through the injected reporter`, (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const { status, body } = map(probe.reporter as never, thrown);
+  assert.equal(status, 500);
+  probe.assertOneIncident({ errorId: (body as { errorId: string }).errorId, thrown });
+});

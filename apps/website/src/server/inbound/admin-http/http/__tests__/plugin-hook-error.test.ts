@@ -1,4 +1,5 @@
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { NO_INCIDENT_REPORTER } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -108,7 +109,7 @@ test("HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_
 });
 
 test("widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500", () => {
-  assert.deepEqual(widgetErrorToResponse({ err: new PluginHookFailedError("seo", "plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123") }), {
+  assert.deepEqual(widgetErrorToResponse({ err: new PluginHookFailedError("seo", "plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123") }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 500,
     body: { error: "a site plugin (seo) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "seo" },
   });

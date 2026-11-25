@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { NO_INCIDENT_REPORTER } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import test from "node:test";
 import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
 import { plan, confirm, execute, PlanStaleError } from "../../../contracts/core/gated-mutations/gateway.js";
@@ -99,7 +100,7 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
       } catch (error) {
         if (!(error instanceof PlanStaleError)) throw error;
         // The real peer turns a stale plan into an HTTP refusal instead of a network failure.
-        const refusal = importErrorResponse({ err: error });
+        const refusal = importErrorResponse({ err: error }, { reporter: NO_INCIDENT_REPORTER });
         return { status: refusal.status, headers: {}, bodyText: JSON.stringify(refusal.body) };
       }
     } else throw new Error(`unexpected peer call: ${path}`);

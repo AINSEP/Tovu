@@ -11,6 +11,7 @@ import { registerAdminPostUpdateRoute } from "#src/server/runtime/composition/mo
 import { respondToSettingsError } from "../../routes/settings/shared.js";
 import { sendValidationOrInternalError } from "../../routes/media/route-guards.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 const ranked = [
   { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminAssistantGetSettingsRoute({ app, deps }), method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
@@ -64,7 +65,7 @@ for (const [step, invoke] of [
 
 test("content.import: unexpected failure retains its concrete message with safe copyable evidence", t => {
   t.mock.method(console, "error", () => {});
-  const response = importErrorResponse({ err: new Error("private backend") });
+  const response = importErrorResponse({ err: new Error("private backend") }, { reporter: recordingComposedReporter().reporter });
   assert.equal(response.status, 500);
   const body = response.body as any;
   assert.equal(body.error, `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`);

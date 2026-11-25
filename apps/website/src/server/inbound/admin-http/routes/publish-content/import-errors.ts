@@ -1,4 +1,4 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
+import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
@@ -28,8 +28,8 @@ export interface ImportErrorResponse {
  *
  * @complexity O(1).
  */
-export function importErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): ImportErrorResponse {
-  return knownImportErrorResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker }, IMPORT_FAILURE);
+export function importErrorResponse({ err }: { err: unknown }, options: BoundFailurePorts): ImportErrorResponse {
+  return knownImportErrorResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker, reporter: options.reporter }, IMPORT_FAILURE);
 }
 
 /** The redacted-500 options for an unrecognised import error; the import specs' mounts answer with the same. */

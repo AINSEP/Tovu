@@ -23,14 +23,37 @@ export interface ComposedReporterProbe {
   assertOneIncident(args: { errorId?: string; thrown: Error }, optional?: { reports?: number }): void;
 }
 
-/** Build the composed reporter over recording sinks; console.error is captured for the test's duration. */
-export function composedReporterProbe({ t }: { t: TestContext }, _optional: Record<string, never> = {}): ComposedReporterProbe {
+/** The composed reporter over recording sinks: `records` are its host-log calls, `reports` its tracker calls. */
+export function recordingComposedReporter(_optional: Record<string, never> = {}) {
   const records: unknown[][] = [];
   const reports: Array<[{ error: Error }, unknown]> = [];
-  const consoleLines: unknown[] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { consoleLines.push(args); });
   const reporter = createTovuErrorReporter({ logger: { warn: (...a: unknown[]) => { records.push(a); }, error: (...a: unknown[]) => { records.push(a); } },
     tracker: { error: (...a: unknown[]) => { reports.push(a as never); } }, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } } as never);
+  return { reporter, records, reports };
+}
+
+/** For a mapping whose input is a typed refusal: recording an incident at all is the failure. The
+ * reporter-breach arm absorbs this throw into the fixed unavailable ID, so the caller's exact 4xx body
+ * assertion is what goes red; the throw only keeps a stray record out of any sink. */
+export const NO_INCIDENT_REPORTER = { record: (): never => assert.fail("a typed refusal is not a server incident") };
+
+/** The host-record twin of `assertAdminDiagnostics`: one record per expected diagnostic, each under the
+ * operation as its step, an ERR id, and the redacted diagnostic. */
+export function assertReporterDiagnostics({ records, operation, diagnostics }: { records: readonly unknown[][]; operation: string; diagnostics: readonly RegExp[] }, _optional: Record<string, never> = {}): void {
+  assert.equal(records.length, diagnostics.length);
+  records.forEach((record, index) => {
+    const meta = (record[1] as { meta: { errorId: string; step: string; diagnostic: string } }).meta;
+    assert.match(meta.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+    assert.equal(meta.step, operation);
+    assert.match(meta.diagnostic, diagnostics[index]!);
+  });
+}
+
+/** Build the composed reporter over recording sinks; console.error is captured for the test's duration. */
+export function composedReporterProbe({ t }: { t: TestContext }, _optional: Record<string, never> = {}): ComposedReporterProbe {
+  const { reporter, records, reports } = recordingComposedReporter();
+  const consoleLines: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { consoleLines.push(args); });
   const serialize = (v: unknown) => JSON.stringify(v, (_k, x: unknown) => x instanceof Error ? { ...Object.fromEntries(Object.getOwnPropertyNames(x).map((k) => [k, (x as never)[k]])), cause: x.cause } : x);
   return {
     reporter,

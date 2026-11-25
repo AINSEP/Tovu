@@ -113,7 +113,7 @@ export function respondWithError({ res, err }: { res: Response; err: unknown }, 
   // The mapper needs the registered template to distinguish preparation from an uncertain send.
   // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
   sendRefusal({ res, refusal: mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
-    tracker: res.locals?.adminFailureTracker, message, method: res.req?.method,
+    tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter, message, method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
   }) });

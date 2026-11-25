@@ -1,9 +1,10 @@
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 /**
  * @file Coverage for `import-errors.ts`: each gateway/import error maps to its own HTTP status and
  * stable code with the error's own message; anything else is a 500 `INTERNAL_ERROR` with fixed text
  * (its message can carry a path, SQL or a credential) and the full error in the server log.
  */
+import { NO_INCIDENT_REPORTER, assertReporterDiagnostics, recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -63,7 +64,7 @@ for (const order of [["disk", "crash"], ["crash", "disk"]] as const) {
 test("disk budget refusal is HTTP 507 with its actionable typed message and no incident", t => {
   const logged = t.mock.method(console, "error", () => {});
   const err = new DatabaseDiskSpaceError({ freeBytes: 12 * 1024 * 1024, requiredBytes: 62 * 1024 * 1024 });
-  const response = importErrorResponse({ err });
+  const response = importErrorResponse({ err }, { reporter: NO_INCIDENT_REPORTER });
   assert.deepEqual(response, { status: 507, body: { error: err.message, code: "INSUFFICIENT_STORAGE" } });
   assert.equal(logged.mock.callCount(), 0);
 });
@@ -80,7 +81,7 @@ test("the real pre-publish SQLite capture reaches HTTP 507 before writing, inclu
   const probe = t.mock.method(fsp, "statfs", async () => ({ ...space, bavail: 0 }));
   const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
   await assert.rejects(adapter.captureRestorePoint({ scopeId: "s" }, { directory }), error => {
-    const refusal = importErrorResponse({ err: error });
+    const refusal = importErrorResponse({ err: error }, { reporter: NO_INCIDENT_REPORTER });
     assert.equal(refusal.status, 507);
     assert.equal(refusal.body.code, "INSUFFICIENT_STORAGE");
     assert.match(refusal.body.error, /disk is almost full \(0 MB free, needs \d+ MB\)/);
@@ -100,13 +101,13 @@ test("each known import error maps to its status and code, keeping its message",
     [new PublishContentBundleNotFoundError({ message: "bundle gone" }), 404, "BUNDLE_NOT_FOUND"],
   ];
   for (const [err, status, code] of cases) {
-    assert.deepEqual(importErrorResponse({ err }), { status, body: { error: err.message, code } }, code);
+    assert.deepEqual(importErrorResponse({ err }, { reporter: NO_INCIDENT_REPORTER }), { status, body: { error: err.message, code } }, code);
   }
 });
 
 test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming the plugin, like the posts routes", () => {
   const err = new PluginHookFailedError("seo", "plugin 'seo' filter failed: password=hunter2", { refusedItemRef: "post:p-2" });
-  assert.deepEqual(importErrorResponse({ err }), {
+  assert.deepEqual(importErrorResponse({ err }, { reporter: NO_INCIDENT_REPORTER }), {
     status: 500,
     body: {
       error: "a site plugin (seo) refused item post:p-2; items applied before it stay saved, so check the import history before retrying",
@@ -118,16 +119,20 @@ test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming t
 
 test("an unrecognised error is a 500 with fixed text; its own message goes only to the server log", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
+  const host = recordingComposedReporter();
   const err = new Error("SQLITE_CANTOPEN: unable to open /srv/tovu/site.db (password=hunter2)");
-  assertAdminResponse({ actual: importErrorResponse({ err }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/SQLITE_CANTOPEN: unable to open \/srv\/tovu\/site.db/] });
-  assert.equal(JSON.stringify(logged.mock.calls).includes("hunter2"), false);
+  assertAdminResponse({ actual: importErrorResponse({ err }, { reporter: host.reporter }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
+  assertReporterDiagnostics({ records: host.records, operation: "routes/publish-content/import-errors", diagnostics: [/SQLITE_CANTOPEN: unable to open \/srv\/tovu\/site.db/] });
+  assert.equal(logged.mock.callCount(), 0);
+  assert.equal(JSON.stringify([host.records, host.reports.map(([report]) => report.error.message)]).includes("hunter2"), false);
 });
 
 test("a non-Error throw is a 500 with the generic message, logged the same way", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
-  assertAdminResponse({ actual: importErrorResponse({ err: "secret detail" }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/^secret detail$/] });
+  const host = recordingComposedReporter();
+  assertAdminResponse({ actual: importErrorResponse({ err: "secret detail" }, { reporter: host.reporter }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
+  assertReporterDiagnostics({ records: host.records, operation: "routes/publish-content/import-errors", diagnostics: [/^secret detail$/] });
+  assert.equal(logged.mock.callCount(), 0);
 });
 
 test("an explicit 503 override preserves default 507 behavior for other admin callers", t => {
