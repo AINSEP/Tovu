@@ -1,21 +1,14 @@
 import { ChromePlaybackNote } from "./chrome-playback-note";
 import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "./media-icons";
-import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
-import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 import {
-  filterMediaByTab,
-  showsUntypedMediaNote,
-  mediaContentTabCounts,
   mediaRowMenuItems,
-  sortMediaByOrder,
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
   mediaFillsPreview,
@@ -39,9 +32,9 @@ import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
-import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
-import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
-import { mediaProvidersPort } from "./media-providers-port";
+import { mediaProviderCatalogPort } from "./media-providers-port";
+import { useMediaProviderCatalog } from "./use-media-provider-catalog.hooks";
+import { ExternalProvidersPanel } from "./ExternalProvidersPanel";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
@@ -971,6 +964,8 @@ export interface MediaProps {
    * own doc for why this pure-UI-state hook has no `useWiredX()` pair to default to instead).
    */
   useMediaTabsHook?: typeof useMediaTabs;
+  /** Test seam for the External Providers catalog read (same convention as `useMediaHook`). */
+  useMediaProviderCatalogHook?: typeof useMediaProviderCatalog;
   /** The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See `use-media-tabs.hooks.ts`'s `resolveActiveTab`. */
   tabId?: string | null;  /** The `?id=` query value — the one media item whose detail (metadata) dialog the URL opens.
@@ -1159,30 +1154,16 @@ function MediaCardTitle({ item, isPhone, onOpenDetails, t }: {
  */
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
-    media: AdminMedia[];
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
   },
 ) {
   const {
-    media,
     error,
     activeTab,
     visibleMedia,
     mediaExpandHandles,
-    uploading,
-    uploadOpen,
-    openUpload,
-    closeUpload,
-    uploadError,
-    canUpload,
-    altDraft,
-    setAltDraft,
-    selectedFileName,
-    onFileChange,
-    fileInputRef,
-    upload,
     editingId,
     editingItem,
     toggleEditing,
@@ -1216,22 +1197,7 @@ function MediaLibraryPanel(
       <div className="toolbar media-order-row">
         <MediaOrderControls orderBy={orderBy} setOrderBy={setOrderBy} size={gridSize} setSize={setGridSize} t={t} />
         <div className="media-actions">
-          <MediaToolbar
-            fileInputRef={fileInputRef}
-            altDraft={altDraft}
-            setAltDraft={setAltDraft}
-            selectedFileName={selectedFileName}
-            onFileChange={onFileChange}
-            upload={upload}
-            uploading={uploading}
-            uploadOpen={uploadOpen}
-            openUpload={openUpload}
-            closeUpload={closeUpload}
-            uploadError={uploadError}
-            canUpload={canUpload}
-            activeTab={activeTab}
-            t={t}
-          />
+          <MediaToolbar {...props} />
           <RemoteImageImport useRemoteImageImportHook={useRemoteImageImport} t={t} kit={IMPORT_DIALOG_KIT} HeaderTip={DockHeaderTip} port={defaultMediaImportPort}
             describeError={describeApiError} useFetchMutation={useFetchMutation} />
         </div>
@@ -1345,42 +1311,6 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
 }
 
 /**
- * The "External Providers" tab body — credentials for outside media generation services (API
- * keys for image/video/audio-generation vendors), extracted the same way `MediaToolbar`/
- * `MediaGridOrEmpty` above are: an independent branch of `Media`'s own render, scored in its own
- * scope.
- *
- * Landed here 2026-09-10 (owner call, second pass) after one day on
- * `features/providers/Providers.tsx` as its "Media" tab — see that file's own header for the full
- * move history, and `media-provider-catalog.ts`/`media-providers-port.ts` (both moved into this
- * feature alongside it) for why the catalog is keyed off the generation engine's own spellings, not
- * `@jini-ai/ui`'s sample one.
- *
- * `I18nProvider` is load-bearing here, not decoration — same trap `Providers.tsx`'s own header
- * documents in full: `MediaProvidersTab` resolves its own copy through `@jini-ai/ui`'s `useT()`,
- * which silently falls through to raw English keys with no ancestor provider, in every non-English
- * locale, with no error anywhere. Classic's light pin on the inner wrapper is the same
- * `media-providers-panel` class `styles.css`'s "Media providers tab: neutralize Jini's warm 'paper'
- * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
- * unmoved. Glass follows the document scheme through the shared controller boundary instead.
- */
-function ExternalProvidersPanel({ locale }: { locale: string }) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  return (
-    <I18nProvider
-      initialLocale={locale}
-      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
-      fallbackLocale="en"
-      syncDocumentAttributes={false}
-    >
-      <div className="media-providers-panel" {...themeBoundary}>
-        <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} catalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
-      </div>
-    </I18nProvider>
-  );
-}
-
-/**
  * The page header and tab bar every `Media` tab shares — extracted so `Media`'s own early return
  * on the External Providers tab (see that function's own comment) does not have to duplicate this
  * markup between two `return` statements. `children` is whichever tab body is active: either
@@ -1459,6 +1389,7 @@ export function Media(props: MediaProps) {
   const useMediaHook = props.useMediaHook ?? useWiredMedia;
   const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+  const providerCatalog = (props.useMediaProviderCatalogHook ?? useMediaProviderCatalog)({ port: mediaProviderCatalogPort });
   // The Providers tab has no grid; it still reads page one of All for the server's tab counts.
   const controller = useMediaHook({ tab: activeTab === "external-providers" ? "all" : activeTab, itemId: props.itemId });
   const { media, error, t } = controller;
@@ -1476,15 +1407,12 @@ export function Media(props: MediaProps) {
   // Per-tab item counts (owner ask, 2026-09-26) — computed once here, after the loading guard above
   // so `media` is non-null, and shared by BOTH of this function's returns below (External Providers
   // included), since the tab bar itself renders identically regardless of which tab is active.
-  // "External Providers" is not `media`-derived at all: it counts the fixed provider CATALOG
-  // (`MEDIA_PROVIDER_CATALOG`, imported above) rather than a live server fetch — that catalog is the
-  // exact same array `ExternalProvidersPanel`'s `MediaProvidersTab` maps one card per entry from, so
-  // its length is already "what that tab lists" with no extra request and nothing that could ever
-  // go stale relative to what renders when the tab opens.
+  // "External Providers" counts the host's live provider catalog — the same array its panel maps one
+  // card per entry from, so badge and cards agree; no badge while it loads or the host is unreachable.
   const tabCounts: Partial<Record<MediaTabId, number>> = {
     // The server's counts over every matching row, not the length of the loaded page.
     ...controller.counts,
-    "external-providers": MEDIA_PROVIDER_CATALOG.length,
+    ...(providerCatalog ? { "external-providers": providerCatalog.length } : {}),
   };
 
   // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
@@ -1495,7 +1423,7 @@ export function Media(props: MediaProps) {
   if (activeTab === "external-providers") {
     return (
       <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
-        <ExternalProvidersPanel locale={controller.locale} />
+        <ExternalProvidersPanel locale={controller.locale} catalog={providerCatalog} />
       </MediaPageShell>
     );
   }
@@ -1520,7 +1448,6 @@ export function Media(props: MediaProps) {
       {notFound ? <div className="notice">{t("That media item wasn't found.")}</div> : null}
       <MediaLibraryPanel
         {...controller}
-        media={media}
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}

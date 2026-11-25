@@ -12,6 +12,8 @@ import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
 import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
 import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put-providers";
+import { mediaProviderCatalogRoute } from "#src/server/inbound/admin-http/routes/media/provider-catalog";
+import { projectMediaProviderCatalog } from "#src/features/media-generation/media-provider-catalog";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
@@ -274,6 +276,13 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
   mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
+/** GET the admin provider cards, projected per request from the live registry generation uses, so a
+ *  plugin vendor mounted after boot is listed exactly when it can generate. */
+export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry });
+  mountAdminJsonRoute({ app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
+};
+
 export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   const saveProviders = ({ workspaceId, providers }: { workspaceId: string; providers: Record<string, unknown> }) => saveMediaProviderCredentials(
     {
@@ -398,6 +407,7 @@ export function createMediaModule(
       registerAdminMediaTextRoute({ app, deps });
       registerMediaRenditionRoute({ app, deps });
       registerMediaOriginalVideoRoute({ app, deps });
+      registerAdminMediaProviderCatalogRoute({ app, deps });
       registerAdminMediaGetProvidersRoute({ app, deps });
       registerAdminMediaPutProvidersRoute({ app, deps });
     },

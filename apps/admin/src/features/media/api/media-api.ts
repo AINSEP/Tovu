@@ -5,6 +5,7 @@ import { siteUrl } from "../../../lib/site-url";
 import type { AdminMedia, MediaGridOrder, MediaGridPage, MediaGridTab } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { MediaProviderOption } from "@jini-ai/core";
 
 /**
  * One media-generation vendor's stored credentials, keyed by ENGINE-CANONICAL provider id (`grok`,
@@ -40,6 +41,10 @@ export const mediaApi = {
    *  Bare map, not a `{ data }` envelope, matching `MediaProvidersPort.fetchMediaProviders`. */
   getMediaProviders: () =>
     request<AdminMediaProviderMap>({ path: `/workspaces/${WORKSPACE_ID}/media/providers` }),
+  /** The host's live, configurable provider cards (one per public provider, aliases merged), projected
+   *  from the registry generation uses. Vendor names, base URLs and model ids only — never keys. */
+  getMediaProviderCatalog: () =>
+    request<{ providers: MediaProviderOption[] }>({ path: `/workspaces/${WORKSPACE_ID}/media/providers/catalog` }),
   /** Replaces the workspace's ENTIRE provider set — a provider absent from `providers` is deleted
    *  server-side, which is how the tab expresses Clear. Resolves the authoritative copy back. */
   saveMediaProviders: (providers: AdminMediaProviderMap) =>

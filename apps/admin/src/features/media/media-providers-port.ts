@@ -1,4 +1,5 @@
 import type { MediaProviderMap, MediaProvidersPort } from "@jini-ai/ui";
+import type { MediaProviderOption } from "@jini-ai/core";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { mediaApi } from "./api/media-api";
@@ -52,3 +53,30 @@ async function saveMediaProviders(providers: MediaProviderMap): Promise<MediaPro
  * renders the way the fake did (the fake had to be ref-held because each call built a fresh store).
  */
 export const mediaProvidersPort: MediaProvidersPort = { fetchMediaProviders, saveMediaProviders };
+
+/** The read seam the External Providers tab takes its cards (and its count) from. */
+export interface MediaProviderCatalogPort {
+  fetchMediaProviderCatalog(_required?: Record<string, never>): Promise<readonly MediaProviderOption[] | null>;
+}
+
+/** A card only when its id and label are strings; anything else in the body is dropped, not trusted. @complexity O(1). */
+function isProviderOption(value: unknown): value is MediaProviderOption {
+  const candidate = value as Partial<MediaProviderOption> | null;
+  return typeof candidate?.id === "string" && typeof candidate.label === "string";
+}
+
+/**
+ * Reads the host's live provider catalog. Resolves `null` — never rejects, never `[]` — when the
+ * server could not be reached or answered something that is not a catalog, for the same reason as
+ * {@link fetchMediaProviders}: an unreachable host is not evidence that no provider exists, and a
+ * `[]` would render as "no providers" with a count of 0.
+ *
+ * @complexity O(p) over the returned cards plus one request.
+ */
+async function fetchMediaProviderCatalog(_required: Record<string, never> = {}): Promise<readonly MediaProviderOption[] | null> {
+  const body = await orFallback({ work: () => mediaApi.getMediaProviderCatalog(), fallback: null, step: "Read media provider catalog" });
+  return Array.isArray(body?.providers) ? body.providers.filter(isProviderOption) : null;
+}
+
+/** The catalog port instance (module singleton for the same reason as {@link mediaProvidersPort}). */
+export const mediaProviderCatalogPort: MediaProviderCatalogPort = { fetchMediaProviderCatalog };
