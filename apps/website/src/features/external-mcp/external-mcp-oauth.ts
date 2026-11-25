@@ -71,8 +71,10 @@ export function createExternalMcpReauthRequiredError(input: { serverId: string; 
  *
  * @complexity O(1).
  */
-export function externalMcpSettingsDeepLink({ serverId }: { serverId: string }, _options = {}): string {
-  return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
+export function externalMcpSettingsDeepLink({ serverId }: { serverId: string }, _optional = {}): string {
+  // A host path: External MCP connections live on the Add-ons integrations screen's own tab.
+  // This selects that tab and names the server; it does not claim the screen focuses that row.
+  return `/addons/integrations?tab=external-mcp&server=${encodeURIComponent(serverId)}`;
 }
 
 /** Tovu's bindings for {@link createHostedMcpConnectionGate}: its reauth factory, revocation error, recovery copy and operator log. */

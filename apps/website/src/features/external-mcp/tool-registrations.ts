@@ -467,6 +467,7 @@ function externalMcpAccessSubject({ record, id }: { record: ExternalMcpServerRec
 
 /** New permissions must name tools actually advertised by this exact admitted endpoint.
  * Existing grants may still be removed or disabled without starting optional remote discovery.
+ * `refusal` replaces the default copy when the caller knows a more precise, value-free cause.
  * @throws ToolInputError before a card/write if any new name is absent from the identity-bound cache.
  * @complexity O(a+w+t) in bounded proposed/current lists and the existing cached tool names; no I/O.
  */
@@ -474,7 +475,7 @@ function requireKnownMcpAccess({ routeDeps, record, previous, access }: {
   routeDeps: ExternalMcpToolDeps; record: ExternalMcpServerRecord;
   previous: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
   access: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
-}): void {
+}, { refusal }: { refusal?: string } = {}): void {
   const enabling = !previous.enabled && access.enabled;
   const newNames = enabling ? [...access.allowedToolNames, ...access.writeAllowedToolNames]
     : [...access.allowedToolNames.filter(name => !previous.allowedToolNames.includes(name)),
@@ -482,7 +483,7 @@ function requireKnownMcpAccess({ routeDeps, record, previous, access }: {
   if (newNames.length === 0) return;
   const known = routeDeps.externalMcpKnownToolNames?.({ serverId: record.serverId, admissionRevision: externalMcpAccessSnapshot({ record }).admissionRevision });
   const names = new Set(known ?? []);
-  if (!newNames.every(name => names.has(name))) throw new ToolInputError({ message: `The '${record.serverId}' connection has no verified tool listing for this proposed access. Open Settings → External MCP, turn on this connection there if it is off, then choose its allowed tools in Tools after it connects. Nothing was changed.` });
+  if (!newNames.every(name => names.has(name))) throw new ToolInputError({ message: refusal ?? `The '${record.serverId}' connection has no verified tool listing for this proposed access. Open Settings → External MCP, turn on this connection there if it is off, then choose its allowed tools in Tools after it connects. Nothing was changed.` });
 }
 
 /** Configuration cards carry the same fresh person and management checks as access cards.
@@ -511,7 +512,24 @@ function requireKnownMcpSave({ routeDeps, record, input }: {
   const targetChanged = candidate.url !== record.url || candidate.command !== record.command || stdioArgsChanged;
   const previous = targetChanged ? { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] }
     : { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
-  requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access });
+  // Fixed copy per transport: the person edited this field, and its submitted value can hold a
+  // credential (a capability URL, a token argument), so the refusal names the field, never the value.
+  const refusal = !targetChanged ? undefined : candidate.transport === 'stdio' ? CHANGED_COMMAND_REFUSAL : CHANGED_ADDRESS_REFUSAL;
+  requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access }, refusal === undefined ? {} : { refusal });
+}
+
+const CHANGED_ADDRESS_REFUSAL = 'The connection address in this form differs from the saved one, so its allowed tools cannot carry over. Keep the saved address, or save the new address with no allowed tools and choose them after it connects. Nothing was saved.';
+const CHANGED_COMMAND_REFUSAL = 'The command or arguments in this form differ from the saved ones, so its allowed tools cannot carry over. Keep the saved command and arguments, or save the new ones with no allowed tools and choose them after it connects. Nothing was saved.';
+
+/** The connection and access a person reviewed on the card no longer match the stored row.
+ * A dedicated identity, separate from bad input (`ToolInputError`/`ExternalMcpValidationError`) and
+ * changed authority (`ForbiddenError`), so the card can ask for a new card rather than a field fix.
+ * It carries no submitted form data: its only rendering is fixed copy. */
+class ExternalMcpSaveBasisChangedError extends Error {
+  constructor() {
+    super('The reviewed External MCP connection changed before it was saved.');
+    this.name = 'ExternalMcpSaveBasisChangedError';
+  }
 }
 
 /** Re-read the identity and access reviewed by the person before the configuration writer.
@@ -521,7 +539,7 @@ async function currentMcpSaveRecord({ routeDeps, id, expected }: {
 }): Promise<ExternalMcpServerRecord | null> {
   const current = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
   const snapshot = current ? externalMcpAccessSnapshot({ record: current }) : null;
-  if (JSON.stringify(snapshot) !== JSON.stringify(expected)) throw new ToolInputError({ message: 'This connection or its access changed while the card was open. Request its connection card again. Nothing was saved.' });
+  if (JSON.stringify(snapshot) !== JSON.stringify(expected)) throw new ExternalMcpSaveBasisChangedError();
   return current;
 }
 
@@ -624,21 +642,32 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
           message: typeof result.message === "string" ? result.message : credentialText({ id: "unreachable", locale: prep.locale }),
         };
       },
-    }, { uriHost: "tovu", frameSize: ["100%", "640px"], safeError: err => {
-      if (err instanceof ForbiddenError) return 'Your permission to save this connection changed. Reopen the chat in your signed-in admin session. Nothing was saved.';
-      if (err instanceof ToolInputError) return 'This connection or your access approval is no longer current. Review the connection and its allowed tools in Settings → External MCP, then request the card again. Nothing was saved.';
-      if (err instanceof ToolAccessLoweringError) return err.message;
-      if (err instanceof ExternalMcpValidationError) {
-        validationField = err.field;
-        return translateCredentialMessage({ message: err.message, locale: errorLocale });
-      }
-      return credentialText({ id: "storage", locale: errorLocale });
-    }, text: {
+    }, { uriHost: "tovu", frameSize: ["100%", "640px"], safeError: error => externalMcpSaveSafeError({ error, locale: errorLocale, onField: field => { validationField = field; } }), text: {
       noEmitter: "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), so a connection form cannot be shown here. Nothing was saved.",
       saveFailure: credentialText({ id: "storage", locale: "en" }),
     } });
     return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
   };
+}
+
+/** Map a save-port failure to card copy; the engine still redacts the returned text.
+ * Three causes stay distinct: changed authority (`ForbiddenError`, which subclasses
+ * `ToolInputError` and so must be checked first), a changed approval basis (request a new card) and
+ * bad input (fix a field). Bad input keeps its actionable sentence; every such sentence on this path
+ * is fixed copy or names a field, never a submitted value. Any other error gets fixed storage copy:
+ * an arbitrary `Error.message` can carry internals or the submitted values themselves.
+ * @complexity O(m) in the message length; no I/O. */
+function externalMcpSaveSafeError({ error, locale, onField }: { error: unknown; locale: string; onField: (field: string) => void }, _optional = {}): string {
+  if (error instanceof ForbiddenError) return 'Your permission to save this connection changed. Reopen the chat in your signed-in admin session. Nothing was saved.';
+  if (error instanceof ExternalMcpSaveBasisChangedError) return 'This connection or your access approval is no longer current. Review the connection and its allowed tools in Settings → External MCP, then request the card again. Nothing was saved.';
+  if (error instanceof ToolAccessLoweringError) return error.message;
+  // Checked before `ToolInputError` in case the validation class ever becomes its subclass: the field path must stay live.
+  if (error instanceof ExternalMcpValidationError) {
+    onField(error.field);
+    return translateCredentialMessage({ message: error.message, locale });
+  }
+  if (error instanceof ToolInputError) return error.message;
+  return credentialText({ id: "storage", locale });
 }
 
 /** Reuse the daemon's configuration resolver when no live probe is wired. */

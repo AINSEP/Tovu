@@ -407,7 +407,7 @@ test("a provider answering invalid_grant transitions to needs_reauth, clears the
     caught.message,
     '"Higgs" is disconnected: its authorization expired or was revoked. Ask the operator to reconnect it in Settings → External MCP. Do not retry this tool.',
   );
-  assert.equal(caught.settingsLink, "/settings/external-mcp?server=higgs");
+  assert.equal(caught.settingsLink, "/addons/integrations?tab=external-mcp&server=higgs");
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "needs_reauth");
@@ -835,8 +835,8 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
   assert.equal((await openExternalMcpOAuthPayload(sealer, row)).tokens?.accessToken, "at-1");
 });
 
-test("the settings deep link escapes its server id", () => {
-  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/settings/external-mcp?server=a%20b%26c");
+test("reauth link preserves the encoded server id in Add-ons", () => {
+  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/addons/integrations?tab=external-mcp&server=a%20b%26c");
 });
 
 // ---------------------------------------------------------------------------
