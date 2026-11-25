@@ -1,6 +1,6 @@
 import { useCallback, type ComponentProps } from "react";
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { ChatSettingsSegmented, ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/chat/react";
+import { ChatSettingsSegmented, ConversationList, ConversationTitle, defaultConversationListHooks, type I18nAdapter } from "@jini-ai/chat/react";
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
@@ -86,7 +86,9 @@ export function DockHeader({
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
         <DockHeaderTip label={t({ key: "Chats" })}>
+          {/* The chat package's list hooks are a required prop since the P11 major; the host binds the real ones here (ST-10 adds pin and cleanup). */}
           <ConversationList
+            hooks={defaultConversationListHooks}
             conversations={chats.conversations}
             activeConversationId={chats.activeId}
             onSelect={onSelect}
