@@ -17,7 +17,7 @@ import test, { type TestContext } from "node:test";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareArchiveExtensions } from "../archive-extensions.js";
-import type { ArchivePlugin } from "../archive-manifest.js";
+import type { ArchivePlugin } from "@jini-ai/devops/backup/site/archive-manifest";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { buildShareZip } from "../share-zip.js";
 import { collectSiteBackupFiles, type SiteBackupSources } from "../sources.js";

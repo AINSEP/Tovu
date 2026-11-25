@@ -3,7 +3,7 @@ import { validateDocumentIngress } from "#src/features/media/index";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
-import type { ArchiveManifest } from "./archive-manifest.js";
+import type { ArchiveManifest } from "@jini-ai/devops/backup/site/archive-manifest";
 import type { ShareDatabaseProjection } from "./share-policy.js";
 import { validateSharePath } from "./share-file-policy.js";
 import { refuseArchive, sha256Hex } from "./import-verifier-inventory.js";

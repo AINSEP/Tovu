@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
-import { ARCHIVE_DATABASE_PATH } from "../archive-manifest.js";
+import { ARCHIVE_DATABASE_PATH } from "@jini-ai/devops/backup/site/archive-manifest";
 import { importFixture, OWNER_PASSWORD, reader, stamp } from "./import.fixture.js";
 
 const privateTables = ["principals", "identity_users", "sessions", "secrets_vault"];

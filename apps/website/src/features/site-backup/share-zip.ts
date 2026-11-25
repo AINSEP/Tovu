@@ -1,4 +1,5 @@
-import { buildArchiveManifest, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH } from "./archive-manifest.js";
+import { buildArchiveManifest } from "./archive-manifest.js";
+import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH } from "@jini-ai/devops/backup/site/archive-manifest";
 import { runtimeToArchivePath, archiveSecretScanPath } from "./archive-paths.js";
 import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";

@@ -366,3 +366,9 @@ test("only notes and learned plugin memory travel, with the same credential scan
     assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), true);
   }
 });
+
+test("a file NAMED like a vendor token is a credential filename through the host redactor, even with plain bytes", () => {
+  const credentialWarnings: { path: string; kind: string }[] = [];
+  requireShareSecretFree({ path: `themes/${providerKey()}.txt`, bytes: Buffer.from("plain text") }, { credentialWarnings });
+  assert.deepEqual(credentialWarnings.map(warning => warning.kind), ["credential filename"]);
+});

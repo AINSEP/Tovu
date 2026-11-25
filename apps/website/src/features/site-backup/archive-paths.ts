@@ -65,7 +65,7 @@ export function archiveCodeUnit(required: { path: string }, _optional = {}): str
 /** Map an agent package to the scanner's runtime-shaped root, retaining its source-build digest.
  * Only an AGENT package needs this mapping; site plugin archive paths already match their runtime
  * layout. Content scans only warn. Exact local file hashes independently determine execution trust. */
-export function archiveSecretScanPath(required: { path: string; plugins: readonly import("./archive-manifest.js").ArchivePlugin[] }, _optional = {}): string {
+export function archiveSecretScanPath(required: { path: string; plugins: readonly import("@jini-ai/devops/backup/site/archive-manifest").ArchivePlugin[] }, _optional = {}): string {
   const match = /^agent-plugins\/([^/]+)\/package\/(.+)$/.exec(required.path);
   if (!match) return required.path;
   const plugin = required.plugins.find(plugin => plugin.kind === "agent" && plugin.id === match[1]);

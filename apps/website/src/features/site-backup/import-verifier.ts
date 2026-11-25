@@ -1,5 +1,5 @@
 import { checkShareLimits, SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, type ArchivePlugin } from "./archive-manifest.js";
+import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, type ArchivePlugin } from "@jini-ai/devops/backup/site/archive-manifest";
 import { archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js";
 import { sha256Hex } from "./import-verifier-inventory.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";

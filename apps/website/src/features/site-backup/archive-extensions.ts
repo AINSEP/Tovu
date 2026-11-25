@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type SiteBackupSources } from "./sources.js";
-import type { ArchivePlugin } from "./archive-manifest.js";
+import type { ArchivePlugin } from "@jini-ai/devops/backup/site/archive-manifest";
 import { runtimeToArchivePath } from "./archive-paths.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
