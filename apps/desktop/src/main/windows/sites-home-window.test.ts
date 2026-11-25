@@ -73,6 +73,7 @@ function fakeHome(overrides: Partial<SitesHomePorts<FakeHomeWindow>> = {}) {
     readWindowBounds: () => null,
     writeWindowBounds: (args) => { writes.push(args); },
     isSupervisedGuestUrl: ({ url }) => url === SUPERVISED,
+    admitGuestPartition: ({ partition }) => partition !== "persist:unheld",
     openExternal: ({ url }) => { opened.push(url); },
     relayFindResults: ({ window: relayed }) => { assert.equal(relayed, window); log.push("relay"); },
     registerSpellCheck: ({ webContents }) => { spellChecked.push(webContents); log.push("spellcheck"); },
@@ -199,6 +200,17 @@ test("a guest pointed anywhere else, or nowhere, is refused and its preferences 
     assert.equal(prevented, 1, JSON.stringify(params));
     assert.deepEqual(prefs, { nodeIntegration: true, preload: "/evil.js" });
   }
+});
+
+test("a supervised guest on a partition this process does not hold is refused before its preferences change", () => {
+  const home = fakeHome();
+  openSitesHomeWindow({ ports: home.ports });
+  const attach = home.window.webContents.listeners.get("will-attach-webview") as (event: { preventDefault(): void }, prefs: GuestWebPreferences, params: { src?: unknown; partition?: string }) => void;
+  let prevented = 0;
+  const prefs: GuestWebPreferences = { nodeIntegration: true, preload: "/evil.js" };
+  attach({ preventDefault: () => { prevented++; } }, prefs, { src: SUPERVISED, partition: "persist:unheld" });
+  assert.equal(prevented, 1);
+  assert.deepEqual(prefs, { nodeIntegration: true, preload: "/evil.js" });
 });
 
 test("an attached guest gets its own spelling menu", () => {
