@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +11,9 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createPublicPageSecurityHeaders } from "#src/server/inbound/public-http/middleware/public-page-security-headers";
 
-import { renderHeadersFile, withSecurityMeta } from "../static-security-headers.js";
+import { renderHeadersFile, withSecurityMeta } from "@jini-ai/devops/static-export/site/static-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
+import { exportSite } from "../site-exporter.js";
 
 /**
  * @file A static export carries the SAME security headers the live server sends. Every expectation
@@ -49,9 +53,10 @@ test("the static header files carry exactly what the live server sends on a publ
   assert.deepEqual(live, Object.fromEntries(Object.entries(golden).map(([key, value]) => [key.toLowerCase(), value])));
   for (const name of LIVE_HEADER_NAMES) assert.notEqual(live[name], "", `live server must send ${name}`);
 
-  assert.deepEqual(parseHeadersFile(renderHeadersFile()), live);
+  const headers = publicPageSecurityHeaders({});
+  assert.deepEqual(parseHeadersFile(renderHeadersFile({ headers })), live);
   assert.equal(
-    withSecurityMeta({ html: "<!doctype html><html><head><title>x</title></head><body></body></html>" }),
+    withSecurityMeta({ html: "<!doctype html><html><head><title>x</title></head><body></body></html>", headers }),
     `<!doctype html><html><head><meta name="referrer" content="${live["referrer-policy"]}"><title>x</title></head><body></body></html>`
   );
 });
@@ -68,14 +73,37 @@ test("changing the shared header set changes the live response and every static 
   const live = await liveHeaders(await fetch(`${baseUrl}/`), names);
 
   assert.deepEqual(live, { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-test-header": "a \"quoted\" value" });
-  assert.deepEqual(parseHeadersFile(renderHeadersFile(custom)), live);
-  assert.match(withSecurityMeta({ html: "<head></head>" }, { headers: custom }), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
+  assert.deepEqual(parseHeadersFile(renderHeadersFile({ headers: custom })), live);
+  assert.match(withSecurityMeta({ html: "<head></head>", headers: custom }), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
 });
 
 test("withSecurityMeta: leaves HTML with no <head> or a set with no Referrer-Policy untouched, and escapes the value", () => {
-  assert.equal(withSecurityMeta({ html: "<p>fragment</p>" }), "<p>fragment</p>");
-  assert.equal(withSecurityMeta({ html: "<head></head>" }, { headers: { "X-Content-Type-Options": "nosniff" } }), "<head></head>");
-  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>` }, { headers: { "Referrer-Policy": `a"b` } }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
+  const headers = publicPageSecurityHeaders({});
+  assert.equal(withSecurityMeta({ html: "<p>fragment</p>", headers }), "<p>fragment</p>");
+  assert.equal(withSecurityMeta({ html: "<head></head>", headers: { "X-Content-Type-Options": "nosniff" } }), "<head></head>");
+  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>`, headers: { "Referrer-Policy": `a"b` } }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
   // `<header>` is not `<head>`: only the real head element gets the tag.
-  assert.equal(withSecurityMeta({ html: "<header></header>" }), "<header></header>");
+  assert.equal(withSecurityMeta({ html: "<header></header>", headers }), "<header></header>");
+});
+
+test("export headers still derive from the live public-page policy", async (t) => {
+  const deps = createRouteDeps();
+  await deps.seoReady;
+  const live = await liveHeaders(await fetch(`${await startTestServer(createApp(deps), t)}/`), ["referrer-policy"]);
+  const site = express();
+  site.get("/", (_req, res) => res.type("html").send("<!doctype html><html><head><title>x</title></head><body></body></html>"));
+  site.get("/sitemap.xml", (_req, res) => res.type("xml").send("<urlset/>"));
+  site.get("/robots.txt", (_req, res) => res.type("text").send(""));
+  site.get("/llms.txt", (_req, res) => res.type("text").send(""));
+  site.get("/feed.xml", (_req, res) => res.type("xml").send("<rss/>"));
+  const outputDir = mkdtempSync(path.join(tmpdir(), "tovu-export-headers-"));
+  try {
+    const routeDeps = { ...deps, themes: [], listPublishedPosts: async () => ({ posts: [] }), resolveStorefrontProducts: async () => [], createSiteApp: () => site };
+    const report = await exportSite({ routeDeps, outputDir });
+    assert.deepEqual(report.routes.failed, []);
+    // The exported page carries the policy the live server sends right now, not a copy frozen in the exporter.
+    assert.equal(readFileSync(path.join(outputDir, "index.html"), "utf8"),
+      `<!doctype html><html><head><meta name="referrer" content="${live["referrer-policy"]}"><title>x</title></head><body></body></html>`);
+    assert.notEqual(live["referrer-policy"], "");
+  } finally { rmSync(outputDir, { recursive: true, force: true }); }
 });

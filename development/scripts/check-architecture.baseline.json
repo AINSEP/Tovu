@@ -118,7 +118,7 @@
     "apps/website/src/features/site-export/route-manifest.ts -> apps/website/src/features/post/index.ts",
     "apps/website/src/features/site-export/route-manifest.ts -> apps/website/src/features/presentation/index.ts",
     "apps/website/src/features/site-export/route-manifest.ts -> apps/website/src/features/theme/index.ts",
-    "apps/website/src/features/site-export/static-security-headers.ts -> apps/website/src/features/theme/public-page-security-headers.ts",
+    "apps/website/src/features/site-export/site-exporter.ts -> apps/website/src/features/theme/public-page-security-headers.ts",
     "apps/website/src/features/site-export/theme-preview-manifest.ts -> apps/website/src/features/theme/preview-switcher-html.ts",
     "apps/website/src/features/site-export/theme-preview-manifest.ts -> apps/website/src/features/theme/preview-switcher.ts",
     "apps/website/src/features/site-guide/facts.ts -> apps/website/src/features/site-inspection/index.ts",

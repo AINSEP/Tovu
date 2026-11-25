@@ -18,7 +18,8 @@ import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
 import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static-export/site/public-origin-policy";
-import { exportHtml } from "../export-html-policy.js";
+import { exportHtml } from "@jini-ai/cms/html/site/export-html-policy";
+import { withoutNativeFormTools as stripNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
 import * as sourceEdits from "@jini-ai/cms/html/site/source-edits";
 
@@ -180,7 +181,7 @@ test("download form edits preserve external and mailto actions, theme attributes
 
 test("fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML", () => {
   const html = '<html><head><meta name="og:url" content="/about"><meta property="og:image" content="https://external.example/image.webp"><script type="application/ld+json">[{"@id":"/site","nested":{"url":"/about","name":"Keep"}}]</script><script type="application/ld+json">invalid</script></head><body><a  href="/about">About</a></body></html>';
-  const actual = exportHtml({ html });
+  const actual = exportHtml({ html, stripNativeFormTools });
   assert.doesNotMatch(actual, /og:url|og:image|@id|"url"|invalid/);
   assert.match(actual, /\[{"nested":{"name":"Keep"}}\]/);
   assert.match(actual, /<a  href="\/about">About<\/a>/);

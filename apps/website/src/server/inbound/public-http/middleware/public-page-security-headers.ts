@@ -25,7 +25,7 @@ import { publicPageSecurityHeaders as defaultSecurityHeaders } from "#src/featur
  * - Admin (`/admin`, `/api/admin`): a separate app with its own headers; left unchanged.
  *
  * The values live in `@jini-ai/cms/public-http/middleware/public-page-security-headers` so a static export carries the
- * SAME set (`features/site-export/static-security-headers.ts`: a `_headers` file or the host's own header
+ * SAME set (`@jini-ai/devops/static-export/site/static-security-headers`: a `_headers` file or the host's own header
  * config, rendered by its plugin, or a `<meta name="referrer">` where the host has no header config).
  */
 

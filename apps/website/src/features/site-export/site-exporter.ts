@@ -13,13 +13,16 @@ import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { type RouteManifestDeps } from "./route-manifest.js";
-import { withSecurityMeta } from "./static-security-headers.js";
+import { withSecurityMeta } from "@jini-ai/devops/static-export/site/static-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
+import { withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
 import { themePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
+import { rewriteExportMediaResponse } from "@jini-ai/devops/static-export/site/media-original-urls";
+import { bindExportMediaUrls, type ExportMediaUrlHostDeps } from "./media-url-bindings.js";
 import { exportPublicOrigin, rewriteExportOriginResponse } from "@jini-ai/devops/static-export/site/public-origin-policy";
-import { exportHtml } from "./export-html-policy.js";
+import { exportHtml } from "@jini-ai/cms/html/site/export-html-policy";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
@@ -485,7 +488,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
     // The global `fetch` read per call, so a test that swaps it is still honored.
     // Responses upgrade media URLs before crawling; Jini applies basePath only to URL positions in output.
 
-export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDeps {
+export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlHostDeps {
   readonly clock: { nowIso(): string };
   readonly settingsRepo?: SettingsRepoPort;
   readonly siteTitleReady?: Promise<void>;
@@ -580,7 +583,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       for (const file of omitted) await rm(path.join(required.outputDir, file.slice(1)), { force: true });
     } },
     fetch: async ({ url }, options) => rewriteExportMediaResponse({
-      response: await rewriteExportOriginResponse({ response: await tracedFetch(url, options?.init), url, publicOrigin: publicBaseUrl, sourceOrigin }), deps: routeDeps,
+      response: await rewriteExportOriginResponse({ response: await tracedFetch(url, options?.init), url, publicOrigin: publicBaseUrl, sourceOrigin }), deps: bindExportMediaUrls({ deps: routeDeps }),
     }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
@@ -596,7 +599,8 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     requestHeaders: { "x-tovu-static-export": "1" },
     security: { transformHtml: ({ html }) => {
       preflight.observePage({ html });
-      return withSecurityMeta({ html: exportHtml({ html, publicOrigin: publicBaseUrl }) });
+      const exported = exportHtml({ html, stripNativeFormTools: withoutNativeFormTools, ...(publicBaseUrl === undefined ? {} : { publicOrigin: publicBaseUrl }) });
+      return withSecurityMeta({ html: exported, headers: publicPageSecurityHeaders({}) });
     } },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },

@@ -8,7 +8,14 @@ import express from "express";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { uploadMedia } from "#src/features/media/index";
 import { exportSite } from "../site-exporter.js";
-import { rewriteMediaOriginalUrls, rewriteExportMediaResponse } from "../media-original-urls.js";
+import { rewriteMediaOriginalUrls as rewriteWithDeps, rewriteExportMediaResponse as rewriteResponseWithDeps } from "@jini-ai/devops/static-export/site/media-original-urls";
+import { bindExportMediaUrls, type ExportMediaUrlHostDeps } from "../media-url-bindings.js";
+
+/** Each direct rewrite binds the host deps the way the exporter does for its route. */
+const rewriteMediaOriginalUrls = (required: { body: string; deps: ExportMediaUrlHostDeps }, optional: { contentType?: string } = {}) =>
+  rewriteWithDeps({ body: required.body, deps: bindExportMediaUrls({ deps: required.deps }) }, optional);
+const rewriteExportMediaResponse = (required: { response: Response; deps: ExportMediaUrlHostDeps }) =>
+  rewriteResponseWithDeps({ response: required.response, deps: bindExportMediaUrls({ deps: required.deps }) });
 
 const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>');
 
@@ -54,7 +61,7 @@ test("without a verified origin, absolute and malformed references stay as writt
   const { deps, old, canonical } = await fixture();
   const unverified = { ...deps, originRegistry: { ...deps.originRegistry, canonicalOrigin: async () => { throw new Error("no verified origin"); } } };
   const body = `<img src="${old}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`;
-  assert.equal(await rewriteMediaOriginalUrls({ body, deps: unverified as typeof deps }),
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: unverified }),
     `<img src="${canonical}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`);
 });
 

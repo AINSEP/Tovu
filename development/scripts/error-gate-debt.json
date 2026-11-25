@@ -730,16 +730,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/site-export/export-html-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-export/media-original-urls.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/site-guide/facts.ts",
     "rule": "catch-reads-error",
     "value": 1
