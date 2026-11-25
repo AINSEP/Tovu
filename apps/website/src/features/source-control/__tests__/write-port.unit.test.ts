@@ -7,6 +7,7 @@ import { CustomCredentialValidationError } from "../../custom-credentials/store.
 import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import type { LoadSourceControlProviders, SourceControlProviderRegistry } from "../provider-registry.js";
 import { bindSourceControlWritePort } from "../write-port.js";
+import { validateRepositoryTarget } from "../../custom-credentials/write-files-validation.js";
 
 /**
  * @file The core `SourceControlWritePort` as Tovu binds it (`write-port.ts`). Real binding over the real provider
@@ -47,7 +48,7 @@ test("SourceControlWritePort: one build, target rules before planning, same prov
   const log = { plans: [] as unknown[], commits: [] as { self: unknown; plan: unknown }[], planSelf: [] as unknown[] };
   let loads = 0;
   const load: LoadSourceControlProviders = async () => { loads += 1; return writerRegistry(log); };
-  const port = bindSourceControlWritePort({ load, httpClient: new ScriptedHttpClient() });
+  const port = bindSourceControlWritePort({ validateRepositoryTarget, load, httpClient: new ScriptedHttpClient() });
   const built = await port.build({ workspaceId: WORKSPACE, baseUrl: "https://git.example.test" });
   assert.equal(loads, 1);
   assert.ok(built.ok);
@@ -75,7 +76,7 @@ test("SourceControlWritePort: one build, target rules before planning, same prov
 });
 
 test("SourceControlWritePort.build reports the host's no-provider message without throwing", async () => {
-  const port = bindSourceControlWritePort({ load: async () => ({ list: () => [], get: () => undefined, refusals: [] }) as unknown as SourceControlProviderRegistry, httpClient: new ScriptedHttpClient() });
+  const port = bindSourceControlWritePort({ validateRepositoryTarget, load: async () => ({ list: () => [], get: () => undefined, refusals: [] }) as unknown as SourceControlProviderRegistry, httpClient: new ScriptedHttpClient() });
   const built = await port.build({ workspaceId: WORKSPACE, baseUrl: "https://git.example.test" });
   assert.equal(built.ok, false);
 });
@@ -84,7 +85,7 @@ test("SourceControlWritePort reads its loader, client and observability when a w
   const log = { plans: [] as unknown[], commits: [] as { self: unknown; plan: unknown }[], planSelf: [] as unknown[] };
   const reads: string[] = [];
   const port = bindSourceControlWritePort({
-    load: async () => writerRegistry(log),
+    validateRepositoryTarget, load: async () => writerRegistry(log),
     get httpClient(): HttpClientPort { reads.push("httpClient"); return new ScriptedHttpClient(); },
     get observability(): undefined { reads.push("observability"); return undefined; },
   });

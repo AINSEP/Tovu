@@ -9,8 +9,9 @@ import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
-import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
+import type { VaultContext, VaultRepoPort, VendorCredentialSetRecord as CoreVendorRecord, VendorCredentialSetRepoPort as CoreVendorRepo } from "@jini-ai/core/contracts/vault";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
+import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "@jini-ai/devops/deploy/site/publish-credentials/types";
@@ -97,18 +98,41 @@ function providerContract({ registry, providerId }: { registry: DeployTargetRegi
   return spec ? { id: providerId, vendorId: spec.vendorId,
     acceptsCustomToken: !spec.fields.some(field => field.required && field.name !== spec.tokenField) } : null;
 }
-function vaultSummary({ summary, providerId, publishHosts = [], defaultFor = [] }: {
-  summary: VaultSummary; providerId: PublishProviderId; publishHosts?: string[]; defaultFor?: string[];
+function vaultSummary({ summary, hint, providerId, publishHosts = [], defaultFor = [] }: {
+  summary: VaultSummary; hint: CredentialVaultBinding["hint"]; providerId: PublishProviderId; publishHosts?: string[]; defaultFor?: string[];
 }, _options = {}): PublishCredentialSummary {
-  const tokenHint = credentialHint({ record: summary });
+  const tokenHint = hint({ record: summary });
   return { id: summary.id, providerId, vendorId: summary.provider ?? providerId, label: summary.label, configured: true,
     credentialType: summary.meta.credentialType as "vendor" | "custom", worksFor: [...summary.meta.worksFor as string[]],
     publishHosts, defaultFor, isDefault: defaultFor.includes(providerId), tokenTail: tokenHint?.last4 ?? "", tokenHint,
     accountLabel: typeof summary.meta.accountLabel === "string" ? summary.meta.accountLabel : null,
     createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
+/** The vault/scope/hint collaborator a credential repo carries, bound to that repo's own vault rows where the
+ * host composition root builds the repo. Policy (Tovu's credential kinds, owner key, typed storage errors) lives with
+ * the binding's owner; this store only says which typed error a storage failure becomes. */
+interface CredentialVaultBinding {
+  open(required: { repo: { vault?: VaultRepoPort }; sealer?: SecretSealerPort; keyring?: KeyringPort; clock?: ClockPort; idGen?: { newId(): string }; storageError: () => Error }, optional?: Record<string, never>): SecretsVaultService;
+  scope(required: { workspaceId: string; kind: "vendor" | "custom"; id?: string }, optional?: Record<string, never>): VaultContext & { id?: string };
+  hint(required: { record: Pick<VaultSummary, "tokenLength" | "last4"> }, optional?: Record<string, never>): CredentialTokenHint | null;
+}
+/** The host's vendor row as this store reads it: the core record plus the safe hint the adapter attaches. */
+type VendorCredentialSetRecord = CoreVendorRecord & { readonly tokenHint?: CredentialTokenHint | null };
+/** The host's vendor repo as this store reads it (structurally; the composition root supplies the real one). */
+interface VendorCredentialSetRepoPort extends CoreVendorRepo {
+  readonly vault?: VaultRepoPort;
+  /** Absent only on a hand-built fake; every store read or write then refuses as an unconfigured vault. */
+  readonly credentialVault?: CredentialVaultBinding;
+  readonly project?: { readonly workspaceId: string; readonly repo: VendorCredentialSetRepoPort; readonly createRepo?: VendorCredentialSetRepoPort;
+    readonly replaceRepo?: VendorCredentialSetRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort };
+}
+/** The repo's host-bound vault collaborator; a repo without one refuses exactly as a repo without a vault did. */
+function bound(deps: { repo: Pick<VendorCredentialSetRepoPort, "credentialVault"> }, _options = {}): CredentialVaultBinding {
+  if (!deps.repo.credentialVault) throw new VaultError({ code: "invalid-record" });
+  return deps.repo.credentialVault;
+}
 function vault(deps: PublishCredentialReadDeps & Partial<PublishCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return bound(deps).open({ ...deps, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
@@ -157,8 +181,8 @@ async function inventory({ deps, workspaceId }: { deps: PublishCredentialReadDep
  */
 async function storeInventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
   const service = vault(deps);
-  const unified = await service.list(credentialScope({ workspaceId, kind: "vendor" }));
-  const legacy = await service.list(credentialScope({ workspaceId, kind: "custom" }));
+  const unified = await service.list(bound(deps).scope({ workspaceId, kind: "vendor" }));
+  const legacy = await service.list(bound(deps).scope({ workspaceId, kind: "custom" }));
   return [...unified, ...legacy]
     .filter(row => {
       if (row.workspaceId !== workspaceId || (row.kind !== "vendor" && row.kind !== "custom")) return false;
@@ -185,7 +209,7 @@ export async function listPublishCredentials(deps: PublishCredentialReadDeps, in
       ? registry.list().find(target => target.descriptor.credential?.vendorId === row.provider)?.descriptor.id : undefined);
     if (providerId === undefined) return [];
     const defaultFor = [...defaults].filter(([, id]) => id === row.id).map(([host]) => host);
-    const summary = vaultSummary({ summary: row, providerId, publishHosts, defaultFor });
+    const summary = vaultSummary({ summary: row, hint: bound(deps).hint, providerId, publishHosts, defaultFor });
     const vendorId = row.provider ?? registry.get(providerId)?.descriptor.credential?.vendorId;
     if (vendorId === undefined) throw new Error(`Publish target ${providerId} has no credential vendor`);
     return [{ ...summary, vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
@@ -440,13 +464,13 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const target = credentialCreateTarget({ deps, input, invalid: message => new PublishCredentialValidationError(message) });
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
   const summary = await saveConnection({ target, providerId, input: {
-    ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
+    ...bound(target.deps).scope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], ...(isDefault === undefined ? {} : { isDefault }),
   } });
   // The project read view deliberately hides this new row until it is attached; use put's result.
   const publishHosts = publishHostsForCredential({ credential: summary, registry });
-  return { ...vaultSummary({ summary, providerId, publishHosts, defaultFor: summary.isDefault ? publishHosts : [] }), ...reportedScope({ deps, workspaceId: input.workspaceId, row: summary }) };
+  return { ...vaultSummary({ summary, hint: bound(target.deps).hint, providerId, publishHosts, defaultFor: summary.isDefault ? publishHosts : [] }), ...reportedScope({ deps, workspaceId: input.workspaceId, row: summary }) };
 }
 
 export interface UpdatePublishCredentialInput {
@@ -552,7 +576,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
   await assertLabelFreeOnSite({ deps, target: scoped, workspaceId: input.workspaceId, vendorId: changes.provider, label, providerId });
-  const summary = await saveConnection({ target: scoped, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
+  const summary = await saveConnection({ target: scoped, providerId, input: { ...bound(scoped.deps).scope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
@@ -607,7 +631,7 @@ export async function deletePublishCredential(deps: {
  * boundaries: a missing key must not become an unhandled rejection in a publishing process. */
 async function decryptRecord({ deps, record, providerId }: { deps: PublishCredentialResolveDeps; record: VendorCredentialSetRecord; providerId: PublishProviderId }, _options = {}): Promise<PublishConnectionInput> {
   try {
-    const resolved = await vault(deps).get({ ...credentialScope({ workspaceId: record.workspaceId, kind: "vendor" }), id: record.id });
+    const resolved = await vault(deps).get({ ...bound(deps).scope({ workspaceId: record.workspaceId, kind: "vendor" }), id: record.id });
     if (!resolved?.payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
     const { vendorId: _vendorId, ...fields } = resolved.payload as Record<string, string>;
     return { ...fields, providerId };
@@ -677,7 +701,7 @@ async function openPublishVaultRecord({ deps, input, candidate }: {
 }, _options = {}) {
   // Opened with the store that sealed it: this site's, or the project's (`credentialScopes`).
   const scoped = scopeOfRow(deps, { workspaceId: input.workspaceId, row: candidate });
-  try { return await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
+  try { return await vault(scoped.deps).get({ ...bound(scoped.deps).scope({ workspaceId: scoped.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
   catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }
 

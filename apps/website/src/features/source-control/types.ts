@@ -1,4 +1,7 @@
-import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
+import type { VaultContext, VaultRepoPort, VaultSummary } from "@jini-ai/core/contracts/vault";
+import type { Clock } from "@jini-ai/core/primitives";
+import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { CredentialTokenHint, CredentialConnection } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -75,7 +78,18 @@ export interface CanonicalSourceControlKeys {
   create?(input: { workspaceId: string; connection: SourceControlConnectionInput }, options?: { signal?: AbortSignal }): Promise<SourceControlCredentialSummary>;
 }
 
+/** The vault/scope/hint collaborator a credential repo carries, bound to that repo's own vault rows where the
+ * host composition root builds the repo. Policy (Tovu's credential kinds, owner key, typed storage errors) lives with
+ * the binding's owner; this store only says which typed error a storage failure becomes. */
+export interface CredentialVaultBinding {
+  open(required: { repo: { vault?: VaultRepoPort }; sealer?: SecretSealerPort; keyring?: KeyringPort; clock?: Clock; idGen?: { newId(): string }; storageError: () => Error }, optional?: Record<string, never>): SecretsVaultService;
+  scope(required: { workspaceId: string; kind: "vendor" | "custom" | "source-control"; id?: string }, optional?: Record<string, never>): VaultContext & { id?: string };
+  hint(required: { record: Pick<VaultSummary, "tokenLength" | "last4"> }, optional?: Record<string, never>): CredentialTokenHint | null;
+}
+
 export interface SourceControlCredentialSetRepoPort {
+  /** Absent only on a hand-built fake; every store read or write then refuses as an unconfigured vault. */
+  readonly credentialVault?: CredentialVaultBinding;
   readonly canonical?: CanonicalSourceControlKeys;
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
