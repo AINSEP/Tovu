@@ -305,47 +305,71 @@ async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps): 
   const identity = readDurableIdentity({ body });
   const ports = identity ? assistantRunAcceptancePorts({ deps, principalId: getAuthedPrincipal(res).id }, {}) : null;
   if (identity && ports) return handleDurableAgUiRun({ req, res, run, identity, ports, deps }, {});
+  return handleLegacyAgUiRun({ req, res, run, deps }, {});
+}
 
-  // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
-  // 2026-08-19 Codex sol bug/architecture audit; RE-AUDITED 2026-08-19 by both `gpt-5.6-sol` and
-  // `gpt-5.6-terra`): the first fix armed `res.on("close")` only after BOTH `startDaemonRun` and
-  // `subscribeToDaemonEvents` had already resolved. Two windows still leaked an orphaned daemon run:
-  // (1) a client abort while either of those `await`s was still pending was missed permanently,
-  // since nothing was listening for `"close"` yet; (2) a subscribe HTTP failure (the 502 branch
-  // below) ends this response NORMALLY from the server's own point of view, so it looked identical
-  // to a successful `drainRunFramesToAgUi` finish and never triggered a cancel either.
-  //
-  // The handler is registered here, before either daemon call, so no window is uncovered. It cannot
-  // cancel before a daemon run actually exists, so `daemonRunId` starts `null`; if `"close"` fires
-  // in that gap, `closedEarly` remembers it and the check right after `startDaemonRun` resolves
-  // fires the cancel retroactively — the two can't race because JS's single-threaded execution
-  // serializes "close fires first" against "the await resolves first," and either ordering leaves
-  // the daemon run cancelled exactly once.
-  //
-  // `runFinished` (not `res.writableEnded`) is what distinguishes "the run reached its own terminal
-  // state" from "this response ended early while the run is still executing" — both leave
-  // `writableEnded === true`, which is exactly why the previous fix's guard missed case (2) above.
-  // It is set `true` only once `drainRunFramesToAgUi` has actually driven the run to completion (terminal
-  // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
-  // before this function returns and therefore strictly before the async `"close"` event can fire —
-  // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
-  const daemon = { observability: deps.observability, reporter: deps.tracker };
-  let daemonRunId: string | null = null;
+/** The legacy per-request run's mutable lifecycle, shared by its close handler and its stream. */
+interface LegacyAgUiRunState {
+  daemonRunId: string | null;
   // One agent-run span per daemon run (its own trace root, like the finalizer's), ended exactly once:
   // canceled by the close handler, failed if the subscribe fails, else the drain's own outcome.
-  let runTracker = UNSTARTED_RUN;
-  let runFinished = false;
-  let closedEarly = false;
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  runTracker: TrackerSpan<AgentRunTrackingOutcome>;
+  runFinished: boolean;
+  closedEarly: boolean;
+  reader: ReadableStreamDefaultReader<Uint8Array> | null;
+}
+
+type LegacyDaemonCall = DaemonCallOptions & { reporter: Pick<RouteDeps["tracker"], "error"> };
+
+/** Arms the legacy run's close handler before either daemon call.
+ *
+ * Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
+ * 2026-08-19 Codex sol bug/architecture audit; RE-AUDITED 2026-08-19 by both `gpt-5.6-sol` and
+ * `gpt-5.6-terra`): the first fix armed `res.on("close")` only after BOTH `startDaemonRun` and
+ * `subscribeToDaemonEvents` had already resolved. Two windows still leaked an orphaned daemon run:
+ * (1) a client abort while either of those `await`s was still pending was missed permanently,
+ * since nothing was listening for `"close"` yet; (2) a subscribe HTTP failure (the 502 branch
+ * of `subscribeToDaemonEvents`) ends this response NORMALLY from the server's own point of view, so it looked identical
+ * to a successful `drainRunFramesToAgUi` finish and never triggered a cancel either.
+ *
+ * The handler is registered here, before either daemon call, so no window is uncovered. It cannot
+ * cancel before a daemon run actually exists, so `daemonRunId` starts `null`; if `"close"` fires
+ * in that gap, `closedEarly` remembers it and the check right after `startDaemonRun` resolves
+ * fires the cancel retroactively — the two can't race because JS's single-threaded execution
+ * serializes "close fires first" against "the await resolves first," and either ordering leaves
+ * the daemon run cancelled exactly once.
+ *
+ * `runFinished` (not `res.writableEnded`) is what distinguishes "the run reached its own terminal
+ * state" from "this response ended early while the run is still executing" — both leave
+ * `writableEnded === true`, which is exactly why the previous fix's guard missed case (2) above.
+ * It is set `true` only once `drainRunFramesToAgUi` has actually driven the run to completion (terminal
+ * frame, natural stream close, or a read error that already unwound the daemon side), synchronously
+ * before this function returns and therefore strictly before the async `"close"` event can fire —
+ * so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
+ * @complexity O(1). */
+function armLegacyCancelOnClose(
+  { req, res, state, daemon }: { req: Request; res: Response; state: LegacyAgUiRunState; daemon: LegacyDaemonCall }, _optional = {},
+): void {
   res.on("close", () => {
     // Closing the response already ends this reader; cancellation is best-effort cleanup.
-    reader?.cancel().catch(() => undefined);
-    if (runFinished) return;
-    if (daemonRunId) {
-      runTracker.setOutcome({ status: "canceled" });
-      cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
-    } else closedEarly = true;
+    state.reader?.cancel().catch(() => undefined);
+    if (state.runFinished) return;
+    if (state.daemonRunId) {
+      state.runTracker.setOutcome({ status: "canceled" });
+      cancelDaemonRunBestEffort(req, res, state.daemonRunId, daemon);
+    } else state.closedEarly = true;
   });
+}
+
+/** The legacy start for canary clients without durable identity: one per-request daemon run whose
+ *  response close cancels it.
+ * @complexity O(h) in bounded history plus the drained run frames. */
+async function handleLegacyAgUiRun(
+  { req, res, run, deps }: { req: Request; res: Response; run: AgUiRunInput; deps: AgUiRouteDeps }, _optional = {},
+): Promise<void> {
+  const daemon: LegacyDaemonCall = { observability: deps.observability, reporter: deps.tracker };
+  const state: LegacyAgUiRunState = { daemonRunId: null, runTracker: UNSTARTED_RUN, runFinished: false, closedEarly: false, reader: null };
+  armLegacyCancelOnClose({ req, res, state, daemon }, {});
 
   // Start the real daemon run BEFORE switching this response into SSE mode — a daemon failure at
   // this point can still answer with an ordinary JSON error status, which is no longer possible
@@ -353,32 +377,42 @@ async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps): 
   const principal = getAuthedPrincipal(res);
   const started = await startDaemonRun(req, res, run, principal.id, daemon);
   if (!started.ok) return undefined;
-  daemonRunId = started.daemonRunId;
-  return deps.tracker.trace({ name: "assistant.run", run: async (span) => {
-    runTracker = span;
-    if (closedEarly) {
-      runTracker.setOutcome({ status: "canceled" });
-      cancelDaemonRunBestEffort(req, res, started.daemonRunId, daemon);
-      return;
-    }
+  state.daemonRunId = started.daemonRunId;
+  return deps.tracker.trace({ name: "assistant.run",
+    run: (span) => streamLegacyDaemonRun({ req, res, run, daemonRunId: started.daemonRunId, span, state, daemon }, {}) },
+  { agent: { runId: started.daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
+}
 
-    const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId, daemon);
-    if (!subscribedReader) {
-      runTracker.setOutcome({ status: "failed" });
-      return;
-    }
-    reader = subscribedReader;
+/** Subscribes and drains one started legacy daemon run under its tracker span.
+ * @complexity O(n) in the drained run frames. */
+async function streamLegacyDaemonRun(
+  { req, res, run, daemonRunId, span, state, daemon }:
+  { req: Request; res: Response; run: AgUiRunInput; daemonRunId: string; span: TrackerSpan<AgentRunTrackingOutcome>; state: LegacyAgUiRunState; daemon: LegacyDaemonCall },
+  _optional = {},
+): Promise<void> {
+  state.runTracker = span;
+  if (state.closedEarly) {
+    span.setOutcome({ status: "canceled" });
+    cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
+    return;
+  }
 
-    beginAgUiStream(req, res, run.requestId);
-    writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
+  const subscribedReader = await subscribeToDaemonEvents(req, res, daemonRunId, daemon);
+  if (!subscribedReader) {
+    span.setOutcome({ status: "failed" });
+    return;
+  }
+  state.reader = subscribedReader;
 
-    const state = createAgUiTranslationState(AG_UI_TRANSLATION);
-    const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state,
-      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
-    runFinished = true;
-    res.end();
-    runTracker.setOutcome(outcome);
-  } }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
+  beginAgUiStream(req, res, run.requestId);
+  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
+
+  const translation = createAgUiTranslationState(AG_UI_TRANSLATION);
+  const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state: translation,
+    notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
+  state.runFinished = true;
+  res.end();
+  span.setOutcome(outcome);
 }
 
 /** The owner-approved RUN_ERROR words for a daemon stream that drops mid-run (bugs1 T4). The
