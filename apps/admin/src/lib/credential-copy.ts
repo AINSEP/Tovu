@@ -1,16 +1,18 @@
 /** Tovu credential copy is shared with the server cards; every offered locale has translations. */
 
 import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
+import { credentialDraftError as jiniCredentialDraftError } from '@jini-ai/admin/security';
+import { storedCredentialHint as jiniStoredCredentialHint } from '@jini-ai/integrations/react/credentials/credential-copy';
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { translateCredentialMessage, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
-/** Only server-derived metadata describes a stored key. A legacy server may still send a mask. */
+/** Only server-derived metadata describes a stored key. A legacy server may still send a mask.
+ *  Binds Jini's hint rule to Tovu's localized hint formatter. */
 export function storedCredentialHint(
   { stored, storedKeyIsForOtherEndpoint = false }: { stored: { isSet: boolean; masked: string | null; tokenHint?: CredentialTokenHint | null } | null; storedKeyIsForOtherEndpoint?: boolean },
   { locale = 'en' }: { locale?: string } = {},
 ): string | undefined {
-  if (storedKeyIsForOtherEndpoint || !stored?.isSet) return undefined;
-  return formatCredentialHint({ hint: stored.tokenHint, locale }) || stored.masked || undefined;
+  return jiniStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint, formatHint: ({ hint, locale: hintLocale }) => formatCredentialHint({ hint, locale: hintLocale }) }, { locale });
 }
 
 /** Preserve the draft bytes; an exact blank update keeps the saved secret. Only the token
@@ -20,10 +22,9 @@ export function credentialDraftError(
   { value }: { value: string },
   { locale = 'en', required = false, assertToken = assertCredentialToken }: { locale?: string; required?: boolean; assertToken?: (required: { value: string }) => void } = {},
 ): string | null {
-  if (value === '' && !required) return null;
-  try { assertToken({ value }); return null; }
-  catch (error) {
-    if (error instanceof CredentialInputError) return translateCredentialMessage({ message: error.message, locale });
-    throw error;
-  }
+  return jiniCredentialDraftError({
+    value,
+    assertToken: ({ value: draft }) => assertToken({ value: draft }),
+    describeInputError: ({ error }) => error instanceof CredentialInputError ? translateCredentialMessage({ message: error.message, locale }) : undefined,
+  }, { required });
 }
