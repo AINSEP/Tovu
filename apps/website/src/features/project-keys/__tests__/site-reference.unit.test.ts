@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { createApiConnectionVault } from '../../api-connections/vault-store-binding.js';
-import { createSiteKeyReferences } from '../site-references.js';
+import { createSiteKeyReferences } from '../host-bindings.js';
 
 test('site reference stores only credentialId and removal touches only that reference', async () => {
   const repo = new InMemoryVaultRepo({});
@@ -21,7 +21,7 @@ test('site reference stores only credentialId and removal touches only that refe
 });
 
 test('OAuth consumer bindings are selected-row references without tokens or authority', async () => {
-  const { createSiteOAuthBindings } = await import('../site-references.js');
+  const { createSiteOAuthBindings } = await import('../host-bindings.js');
   const repo = new InMemoryVaultRepo({});
   const payloads: string[] = [];
   const vault = createApiConnectionVault({ repo, workspaceId: 'workspace-local', clock: { nowMs: () => 0 },

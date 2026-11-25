@@ -8,7 +8,7 @@ import express from "express";
 import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { uploadMedia } from "@jini-ai/cms/media";
-import { saveLibraryDocument } from "../../media/library-save-attachment.js";
+import { saveLibraryDocument } from "@jini-ai/cms/media/site/library-save-attachment";
 import { buildStaticSiteZip } from "../../site-backup/share-zip.js";
 import { createShareArchiveReader } from "../../site-backup/import-archive-reader.js";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

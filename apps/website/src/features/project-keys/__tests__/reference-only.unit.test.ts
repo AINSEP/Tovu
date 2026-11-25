@@ -3,7 +3,7 @@ import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { attachedOnlyVault } from '@jini-ai/user-management/project-keys/attached-vault';
 import { createProjectKeys } from '../service.js';
-import { buildProjectKeyRegistrations } from '../tools.js';
+import { buildProjectKeyRegistrations } from '../host-bindings.js';
 import { fakeAttachments, vaultRow } from './helpers.js';
 import { ProjectKeyCreateConflictError } from '../../../contracts/core/credential-store.js';
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
