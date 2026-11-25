@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { TestContext } from "node:test";
 import type { ImportHistoryPolicy } from "@jini-ai/core/contracts/site/site-import-history";
-import { openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
+import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { sweepExpired } from "@jini-ai/devops/backup/site/import-index/sweep";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { SiteImportRegistry } from "../import-registry.js";
@@ -17,11 +17,12 @@ export async function importHistoryIndexFixture({ t }: { t: TestContext }, _opti
   const file = path.join(h.registry.directory, "site-imports.db");
   const clock = h.payload.clock;
   const open = ({ file, options }: { file: string; options: { readonly?: boolean; fileMustExist?: boolean } }, _optional: Record<string, never> = {}) => openNativeSqlite(file, options);
+  const integrityMemo = createImportIndexIntegrityMemo({});
   const openCandidate = (_required: Record<string, never>, _optional: Record<string, never> = {}) => {
     if (!fs.existsSync(file)) fs.closeSync(fs.openSync(file, "wx", 0o600));
     const stat = fs.lstatSync(file);
     if (!stat.isFile() || (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) throw new Error("Import index must be a private regular file.");
-    return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy,
+    return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy, integrityMemo,
       checkIntegrity: ({ db }, _optional = {}) => {
         if (db.pragma("quick_check(1)", { simple: true }) !== "ok") throw Object.assign(new Error("Import history failed integrity check."), { code: "SQLITE_CORRUPT" });
       },

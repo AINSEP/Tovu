@@ -208,6 +208,8 @@ test("expiry keeps sweeping when one entry cannot be removed, names it in the lo
   const registry = registryIn(t, { log: (line, error) => logged.push({ line, error }) });
   const [A, B, C] = [ID_A, ID_B, ID_C];
   for (const id of [A, B, C]) registry.saveUpload({ row: upload({ uploadId: id, createdAt: NOW - HOUR - 1 }) });
+  // A's payload path is a directory, so removing it throws; the sweep reaches A first.
+  // (Here the throw is injected: rmSync is mocked below to fail on A's payload path.)
   raw(registry, `${A}.upload.zip`, "PK");
   const remove = fs.rmSync;
   t.mock.method(fs, "rmSync", (file: fs.PathLike, options?: fs.RmOptions) => {

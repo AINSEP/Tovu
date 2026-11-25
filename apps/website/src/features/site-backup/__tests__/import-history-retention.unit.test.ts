@@ -1,5 +1,5 @@
 import { leaveSavedKeysOut } from "@jini-ai/devops/backup/site/saved-keys";
-import { openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
+import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { bindSiteImportBackfill } from "#src/server/runtime/composition/site-import-backfill";
 /**
@@ -237,7 +237,7 @@ test("two workspaces under one appData never see each other's rows or fences", a
   const policy = { cutoverPolicy: "rollback" as const, historyVisibleMs: 2_592_000_000 as const, replayFenceMs: 31_536_000_000 as const, legacyRetireMs: 2_592_000_000 as const, sweepOnClockRollback: false as const };
   for (const [index, input] of captures.entries()) {
     const file = path.join(input.registry.directory, "site-imports.db");
-    const handle = openImportIndex({ file, open: openNativeSqlite, clock: h.payload.clock, policy, checkIntegrity: () => {} }, { readonly: true, mustExist: true });
+    const handle = openImportIndex({ file, open: openNativeSqlite, clock: h.payload.clock, policy, checkIntegrity: () => {}, integrityMemo: createImportIndexIntegrityMemo({}) }, { readonly: true, mustExist: true });
     try {
       assert.equal(handle.store.get({ importId: id, principalId: "owner" }) !== undefined, index === 0);
       assert.equal(lookupFence({ db: handle.db, policy, principalId: "owner", requestId: "same", now: Date.now() }) !== undefined, index === 0);

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import type { ImportHistoryPolicy } from "@jini-ai/core/contracts/site/site-import-history";
-import { openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
+import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-index/errors";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { bindSiteImportBackfill } from "./site-import-backfill.js";
@@ -53,13 +53,15 @@ export function composeSiteImportBackend(
   } });
   const policy: ImportHistoryPolicy = { cutoverPolicy: "rollback", historyVisibleMs: 2_592_000_000, replayFenceMs: 31_536_000_000, legacyRetireMs: 2_592_000_000, sweepOnClockRollback: false };
   const open = ({ file, options }: { file: string; options: { readonly?: boolean; fileMustExist?: boolean } }, _optional: Record<string, never> = {}) => openNativeSqlite(file, options);
+  // One memo per composed backend: the integrity check runs once per file+db_id for this backend's lifetime, not per open.
+  const integrityMemo = createImportIndexIntegrityMemo({});
   const backfill = bindSiteImportBackfill({ directory, fs: payloadFs, clock, policy,
     openCandidate: (_required, _optional = {}) => {
       const file = join(directory, "site-imports.db");
       if (!fs.existsSync(file)) fs.closeSync(fs.openSync(file, "wx", 0o600));
       const stat = fs.lstatSync(file);
       if (!stat.isFile() || (process.platform !== "win32" && (stat.mode & 0o077) !== 0)) throw new ImportHistoryUnavailable({ code: "IMPORT_HISTORY_DAMAGED", status: 503, message: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID." });
-      return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy,
+      return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy, integrityMemo,
         checkIntegrity: ({ db }, _optional = {}) => {
           if (db.pragma("quick_check(1)", { simple: true }) !== "ok") throw new ImportHistoryUnavailable({ code: "IMPORT_HISTORY_DAMAGED", status: 503, message: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID." });
         },
