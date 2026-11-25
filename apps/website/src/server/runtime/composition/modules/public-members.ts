@@ -23,9 +23,10 @@ import { captureMemberSignedIn, observeMemberSignInFailure } from "#src/server/i
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
-import { toPublicMemberResponse } from "#src/server/inbound/public-http/http/members";
+import { memberAuthRefusal } from "@jini-ai/user-management/members/public-member-auth-response";
+import { toPublicMemberResponse } from "@jini-ai/user-management/members/public-member-response";
 import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
-import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberAuthRefusal, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { memberOidcRefusal, uniqueMemberCookie, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { MEMBER_SIGN_IN_FAILURE, memberSignInRefusal, reportMemberDeliveryFailure } from "#src/server/inbound/public-http/routes/members/sign-in";
@@ -158,7 +159,7 @@ export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Ex
       sessionCookie: (input) => memberSessionCookie(input),
       // The spec hands back the very result `completeSignIn` answered, so it is this service's record.
       signedIn: ({ result }) => captureMemberSignedIn({ deps, request: currentMemberSignInRequest(), result: result as MemberSignInResult, method: "challenge", workspaceId: deps.workspaceId }),
-      toPublicMember: ({ member }) => toPublicMemberResponse(member as MemberRecord),
+      toPublicMember: ({ member }) => toPublicMemberResponse({ member: member as MemberRecord }),
       refusalFor: ({ error }) => memberAuthRefusal({ error }),
     },
     failure: MEMBER_AUTH_FAILURE,
@@ -182,7 +183,7 @@ export function registerPublicMemberPasswordSignInRoute({ app, deps }: { app: Ex
       sessionCookie: (input) => memberSessionCookie(input),
       // The spec hands back the very result `signInWithPassword` answered, so it is this service's record.
       signedIn: ({ result }) => captureMemberSignedIn({ deps, request: currentMemberSignInRequest(), result: result as MemberSignInResult, method: "password", workspaceId: deps.workspaceId }),
-      toPublicMember: ({ member }) => toPublicMemberResponse(member as MemberRecord),
+      toPublicMember: ({ member }) => toPublicMemberResponse({ member: member as MemberRecord }),
       refusalFor: ({ error }) => memberAuthRefusal({ error }),
     },
     failure: MEMBER_AUTH_FAILURE,
@@ -266,7 +267,7 @@ export function registerPublicMemberMeRoute({ app, deps }: { app: Express; deps:
         nowIso: nowIso({ clock: deps.clock }), sessionToken })).memberId ?? null,
       findMember: ({ id }) => deps.memberRepo.findById({ workspaceId: deps.workspaceId, id }),
       // The spec hands back the very row `findMember` returned, so it is this repository's record.
-      toPublicMember: ({ member }) => toPublicMemberResponse(member as MemberRecord),
+      toPublicMember: ({ member }) => toPublicMemberResponse({ member: member as MemberRecord }),
       listPublicIdentities: ({ memberId }) => publicMemberIdentities({ memberId, deps: options.login }),
       refusalFor: ({ error }) => error instanceof MemberLoginError ? memberOidcRefusal({ error }) : memberAuthRefusal({ error }),
     },

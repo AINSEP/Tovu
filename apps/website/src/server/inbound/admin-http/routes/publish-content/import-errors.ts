@@ -1,9 +1,7 @@
 import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
-import { RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
-import { PublishContentBundleNotFoundError } from "@jini-ai/cms/publish/content/gated-hooks";
+import { knownImportErrorResponse as knownCmsImportErrorResponse, type ImportErrorHost, type ImportErrorResponse } from "@jini-ai/cms/admin-http/routes/publish-content/import-errors";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 
 /**
@@ -12,12 +10,6 @@ import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin
  * directly: several of these errors (an expired confirmation token, a vanished bundle) need a
  * clock or a store race to reach through a real ceremony.
  */
-
-/** The status and JSON body an import route sends for a thrown error. */
-export interface ImportErrorResponse {
-  status: number;
-  body: { error: string; code: string; pluginId?: string; errorId?: string };
-}
 
 /**
  * Maps a gateway/import error to its HTTP status and stable `code`, keeping a recognised error's own
@@ -38,17 +30,15 @@ export const IMPORT_FAILURE = {
   message: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.",
 } as const;
 
+/** The host's gateway classes and plugin envelope, as the CMS mapping's ports. */
+const IMPORT_ERROR_HOST: ImportErrorHost = {
+  readForbiddenReason: ({ error }) => (error instanceof ForbiddenError ? { message: error.message, reasonCode: error.reasonCode } : undefined),
+  isStalePlan: ({ error }) => error instanceof PlanStaleError,
+  pluginHookBody: ({ error }) => (error instanceof PluginHookFailedError ? pluginHookFailedBody(error) : undefined),
+};
+
 /** The typed arms of {@link importErrorResponse}; `undefined` for anything it would answer as the redacted 500.
  * @complexity O(1). */
 export function knownImportErrorResponse({ err }: { err: unknown }, _optional: Record<string, never> = {}): ImportErrorResponse | undefined {
-  if (err instanceof ForbiddenError) return { status: 403, body: { error: err.message, code: err.reasonCode } };
-  if (err instanceof PlanStaleError) return { status: 409, body: { error: err.message, code: "PLAN_STALE" } };
-  if (err instanceof TokenExpiredError) return { status: 409, body: { error: err.message, code: "TOKEN_EXPIRED" } };
-  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, body: { error: err.message, code: "TOKEN_ALREADY_REDEEMED" } };
-  if (err instanceof RestorePointUnavailableError) return { status: 409, body: { error: err.message, code: "RESTORE_POINT_UNAVAILABLE" } };
-  if (err instanceof PublishContentBundleNotFoundError) return { status: 404, body: { error: err.message, code: "BUNDLE_NOT_FOUND" } };
-  // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
-  // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
-  if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
-  return undefined;
+  return knownCmsImportErrorResponse({ err, host: IMPORT_ERROR_HOST });
 }

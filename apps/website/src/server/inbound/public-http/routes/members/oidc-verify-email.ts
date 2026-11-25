@@ -6,7 +6,7 @@ import { resolveFederatedIdentity } from "@jini-ai/user-management/member-login/
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
-import { toPublicMemberResponse } from "../../http/members.js";
+import { toPublicMemberResponse } from "@jini-ai/user-management/members/public-member-response";
 import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_AUTH_FAILURE, memberSessionCookie } from "./complete-sign-in.js";
 import { callbackAddress } from "./oidc-callback.js";
@@ -52,7 +52,7 @@ async function verifyEmailProof({ req, deps, proof }: { req: Request; deps: Memb
     kind: "signed_in",
     sessionCookie: () => memberSessionCookie({ rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt }),
     announce: () => captureMemberSignedIn({ deps: deps.members, request: req, result: linked.result, method: "oidc", workspaceId: deps.members.workspaceId }),
-    member: () => toPublicMemberResponse(linked.result.member),
+    member: () => toPublicMemberResponse({ member: linked.result.member }),
   };
 }
 

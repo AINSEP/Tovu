@@ -1,5 +1,6 @@
 import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { readOverwriteEntityKeys } from "@jini-ai/cms/admin-http/routes/publish-content/import";
+import { knownMappedErrorResponse, type MappedErrorClass, type RouteRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import type { Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -15,12 +16,6 @@ import type { PublishContentRouteDeps } from "./deps.js";
  * transport-shared`, `.../import`), so this relay and the destination cannot drift apart on either. The mount-path 404 lives in `shared/route-guards.ts`.
  */
 
-/** The status-and-body pair a refusal or a mapped error answers with. */
-export interface RouteRefusal {
-  status: number;
-  body: Record<string, unknown>;
-}
-
 /**
  * Reads the authenticated principal and asks `authorize()` for `permission` in this workspace.
  * @returns the principal id, or `null` when the standard 403 has already been sent.
@@ -34,9 +29,6 @@ export async function authorizedPrincipalId(
   return allowed ? principal.id : null;
 }
 
-/** A typed store/transport error class and the status/code it answers with. */
-export type MappedErrorClass = readonly [errorClass: abstract new (...args: never[]) => Error, status: number, code: string];
-
 /**
  * Maps a typed error to its status and `{error, code}` body, keeping the typed error's own message.
  * Anything not in `table` is a 500 with fixed text: a raw driver error's message is never echoed.
@@ -45,9 +37,8 @@ export type MappedErrorClass = readonly [errorClass: abstract new (...args: neve
 export function mappedErrorResponse({ err, table }: { err: unknown; table: readonly MappedErrorClass[] }, options: BoundFailurePorts & {
   message?: string; method?: string; route?: string; discloseDetails?: boolean;
 }): RouteRefusal {
-  for (const [errorClass, status, code] of table) {
-    if (err instanceof errorClass) return { status, body: { error: err.message, code } };
-  }
+  const known = knownMappedErrorResponse({ err, table });
+  if (known) return known;
   return adminFailureResponse({ error: err, tracker: options.tracker, reporter: options.reporter }, {
     operation: "routes/publish-content/route-helpers", message: options.message,
     method: options.method, route: options.route, discloseDetails: options.discloseDetails,

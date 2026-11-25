@@ -1,7 +1,7 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { serialize } from "cookie";
-import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
+import { memberAuthRefusal, memberCookieExpiry } from "@jini-ai/user-management/members/public-member-auth-response";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 
 /**
@@ -39,8 +39,8 @@ export function setMemberSessionCookie({ res, rawToken, expiresAtIso }: {
  *  Shared by the hand-written challenge completion and the password sign-in spec's injected cookie. O(1).
  */
 export function memberSessionCookie({ rawToken, expiresAtIso }: { rawToken: string; expiresAtIso: string }, _options: Record<string, never> = {}): string {
-  const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
-  return serialize(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, expires: new Date(Date.now() + maxAge), maxAge: Math.floor(maxAge / 1000) });
+  const { expires, maxAge } = memberCookieExpiry({ expiresAtIso, nowMs: Date.now });
+  return serialize(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, expires, maxAge });
 }
 
 /** Clear exactly the attributes used to set the cookie, so sign-out removes it reliably. O(1).
@@ -56,18 +56,6 @@ export const MEMBER_AUTH_FAILURE = {
   operation: "public:member-auth",
   visitorError: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.",
 } as const;
-
-/** Credential failures share one body across password, link, code and reset; no exception text leaks.
- * @returns The refusal (status + flat body), or `undefined` for an unexpected error (the 500).
- */
-export function memberAuthRefusal({ error }: { error: unknown }, options: { reset?: boolean } = {}): { status: number; body: { error: string; code?: string } } | undefined {
-  if (error instanceof MemberReauthenticationRequiredError) {
-    return { status: 401, body: { error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" } };
-  }
-  if (error instanceof MemberAuthError) return { status: 401, body: { error: "invalid credentials", code: "INVALID_CREDENTIALS" } };
-  if (options.reset && error instanceof MemberValidationError) return { status: 400, body: { error: error.message } };
-  return undefined;
-}
 
 /** Write `memberAuthRefusal`'s answer, or report the failure and answer the redacted 500. */
 export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {

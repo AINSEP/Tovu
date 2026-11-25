@@ -2,8 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
-import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
-import { memberAuthRefusal } from "./complete-sign-in.js";
+import { memberSignInRefusal as memberSignInRefusalFor } from "@jini-ai/user-management/members/public-member-auth-response";
 
 /**
  * @file Tovu's policy for the PUBLIC sign-in request routes: the sign-in refusal copy, the redacted 500 and the
@@ -38,11 +37,9 @@ export const MEMBER_SIGN_IN_FAILURE = {
  * @returns The refusal (status + flat body), or `undefined` for an unexpected error (the 500).
  */
 export function memberSignInRefusal({ error }: { error: unknown }, _options = {}): { status: number; body: { error: string; code?: string } } | undefined {
-  if (error instanceof MemberAuthError) return memberAuthRefusal({ error });
-  if (error instanceof MemberSignInUnavailableError || error instanceof SenderIdentityNotConfiguredError) {
-    return { status: 503, body: { error: error instanceof SenderIdentityNotConfiguredError
-      ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" } };
-  }
-  if (error instanceof MemberValidationError) return { status: 400, body: { error: error.message } };
-  return undefined;
+  return memberSignInRefusalFor({
+    error,
+    isSenderNotConfigured: ({ error: candidate }) => candidate instanceof SenderIdentityNotConfiguredError,
+    senderNotConfiguredMessage: "Member sign-in is unavailable: email is not set up for this site.",
+  });
 }
