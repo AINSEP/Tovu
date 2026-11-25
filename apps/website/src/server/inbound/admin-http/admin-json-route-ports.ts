@@ -399,13 +399,17 @@ function registeringThroughAsyncRoute(
   return { [method]: register } as unknown as Express;
 }
 
+/** The public mounts' options: per-request host deps, and body parsers registered on THAT route only (http-kit's
+ *  `bodyParsers`) — a webhook keeps its own `express.raw` (any content type, inflated, an empty body as an empty buffer). */
+export type PublicRouteMountOptions<Deps> = RequestDepsMountOption<Deps> & Pick<AdminJsonRouteMountOptions, "bodyParsers">;
+
 /** Mount a Jini public route spec behind the visitor ports (see `createPublicJsonRoutePorts`).
  * @returns Void; registers one endpoint.
  * @complexity O(1) setup.
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
-  optional: RequestDepsMountOption<Deps> = {},
+  optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;

@@ -5,7 +5,7 @@ import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
-import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, routeMountOptionsFor, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure, type RequestDepsMountOption } from "./admin-json-route-ports.js";
+import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, routeMountOptionsFor, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure, type PublicRouteMountOptions, type RequestDepsMountOption } from "./admin-json-route-ports.js";
 
 /**
  * @file Raw (non-JSON) Jini route specs — HTML, XML/text, streams, downloads, `express.raw` uploads,
@@ -79,7 +79,7 @@ export type PublicRawFailureWriter = (required: { res: Response; error: unknown 
  */
 export function mountPublicRawRoute<Deps extends object>(
   required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure | PublicRawFailureWriter; workspaceId?: string; origin?: RouteHostContext },
-  optional: RequestDepsMountOption<Deps> = {},
+  optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
