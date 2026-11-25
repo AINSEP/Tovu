@@ -531,8 +531,8 @@
     }
   },
   "catalog": {
-    "names": 331,
-    "bytes": 764621
+    "names": 333,
+    "bytes": 766829
   },
   "staticDenied": {
     "status": "failed",
