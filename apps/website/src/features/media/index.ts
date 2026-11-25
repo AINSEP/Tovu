@@ -133,3 +133,5 @@ export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 
 export { saveLibraryDocument } from "./library-save-attachment.js";
 export { readChatAttachmentForOwner } from "./read-chat-attachment.js";
+// The one post-store video conversion every import path shares (media-import uses it through this public entry).
+export { createConvertingUploader, type VideoImportOptions } from "./import-video-conversion.js";

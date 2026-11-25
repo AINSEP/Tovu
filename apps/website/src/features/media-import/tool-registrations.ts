@@ -16,7 +16,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { sniffContentType, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/public-urls.js";
-import { createConvertingUploader, type VideoImportOptions } from "../media/import-video-conversion.js";
+import { createConvertingUploader, type VideoImportOptions } from "../media/index.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
