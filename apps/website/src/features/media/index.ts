@@ -122,8 +122,12 @@ export type {
 } from "./provider-credential-store.js";
 export {
   MediaProviderCredentialSecretStoreUnconfiguredError,
+  MediaProviderCredentialStaleError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
+  getMediaProviderCredentialsModel,
+  patchMediaProvider,
+  removeMediaProvider,
   resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "./provider-credential-store.js";

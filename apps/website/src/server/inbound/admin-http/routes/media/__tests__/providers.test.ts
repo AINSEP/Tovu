@@ -52,11 +52,17 @@ async function get(t: import("node:test").TestContext, app: express.Express, pat
   return { status: res.status, json };
 }
 
+/** GET's strong ETag — the basis a whole-set PUT must echo in `If-Match` — or none when GET is refused. */
+async function lastReadBasis(baseUrl: string): Promise<Record<string, string>> {
+  const etag = (await fetch(`${baseUrl}${PATH}`)).headers.get("etag");
+  return etag === null ? {} : { "if-match": etag };
+}
+
 async function put(t: import("node:test").TestContext, app: express.Express, body: unknown, path = PATH) {
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${path}`, {
     method: "PUT",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(await lastReadBasis(baseUrl)) },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
@@ -200,7 +206,7 @@ test("put-providers: a request with no JSON content-type (req.body left undefine
   // Deliberately omit `content-type` so `express.json()` never parses a body and leaves
   // `req.body` as `undefined` — exercises `put-providers.ts`'s `(req.body ?? {})` fallback, a real
   // path any caller can hit by sending a PUT with no/non-JSON content-type, not just an artificial one.
-  const res = await fetch(`${baseUrl}${PATH}`, { method: "PUT" });
+  const res = await fetch(`${baseUrl}${PATH}`, { method: "PUT", headers: await lastReadBasis(baseUrl) });
   const json = await res.json().catch(() => ({}));
   assert.equal(res.status, 200, JSON.stringify(json));
   assert.deepEqual(json, {});
@@ -209,12 +215,12 @@ test("put-providers: a request with no JSON content-type (req.body left undefine
 test("put-providers: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
   const app = buildApp({
-    mediaProviderCredentialRepo: {
-      ...base.mediaProviderCredentialRepo,
+    // Prototype-chained, not spread: the PUT's If-Match basis is read through the repo's real list method.
+    mediaProviderCredentialRepo: Object.assign(Object.create(base.mediaProviderCredentialRepo) as typeof base.mediaProviderCredentialRepo, {
       replaceWorkspace: async () => {
         throw new Error("boom");
       },
-    },
+    }),
   });
   const { status } = await put(t, app, { openai: { apiKey: "sk-1" } });
   assert.equal(status, 500);
