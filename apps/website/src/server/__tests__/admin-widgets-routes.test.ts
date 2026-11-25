@@ -30,7 +30,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createWidgetsModule({ deps, errors: createRouteIncidentReporter().errors }).registerRoutes?.({ app });
   return { app, deps };

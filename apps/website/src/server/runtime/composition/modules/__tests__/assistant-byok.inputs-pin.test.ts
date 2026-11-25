@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -48,7 +49,7 @@ test("BYOK pins history, credential and attachment validation before opening SSE
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const messages = [{ role: "user", content: "Hello" }];
@@ -74,7 +75,7 @@ test("BYOK pins absent and empty attachments, malformed plugin picks, and missin
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   let calls = 0;
@@ -117,7 +118,7 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
   await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: deps.workspaceId }).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const prompts: string[] = [];

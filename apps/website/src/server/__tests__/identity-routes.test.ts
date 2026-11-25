@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import express from "express";
 import { currentCredential, registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
@@ -318,7 +319,7 @@ test("login and logout append their session cookies without replacing an earlier
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   const server = createServer(app);
   server.listen(0);
   await once(server, "listening");

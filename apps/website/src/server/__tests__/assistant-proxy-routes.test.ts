@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -191,7 +192,7 @@ function harness() {
         } });
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         // A fresh, empty store: none of this file's requests carry an exchangeId, so the local-first
         // delivery branch never triggers and every request still reaches the stand-in daemon exactly
         // as before — see `modules/assistant.ts`'s own doc for why the real store must be shared with

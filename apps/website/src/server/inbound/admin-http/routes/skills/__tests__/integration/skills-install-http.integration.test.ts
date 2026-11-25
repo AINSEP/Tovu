@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import assert from "node:assert/strict";
@@ -20,7 +21,7 @@ test("the composed skills module installs, lists, loads, disables and removes an
     const deps = createRouteDeps();
     const app = express();
     app.use(express.json({ limit: "15mb" }));
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     createSkillsModule(deps).registerRoutes!({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);

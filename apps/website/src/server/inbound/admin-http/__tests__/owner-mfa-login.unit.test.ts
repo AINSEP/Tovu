@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -28,7 +29,7 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
   const mfa = await ownerMfaDepsFrom({ deps });
   factor = { ...scope, lastStep: 0, sealedSecret: await mfa.secrets.seal({ ...scope, secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' }) };
   const app = express();
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   const saved = t.mock.method(deps.sessionRepo, 'save');
   function response() {
     const { res, capture } = createCapturingResponse();

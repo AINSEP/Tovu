@@ -469,7 +469,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
 
-  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps }, { onAdminSignIn: options.onAdminSignIn });
+  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps, reporter: failureReporter }, { onAdminSignIn: options.onAdminSignIn });
 
   mountMembersNewsletter({ app, routeDeps });
 

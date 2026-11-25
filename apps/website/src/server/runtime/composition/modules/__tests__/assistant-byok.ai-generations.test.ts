@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,7 +20,7 @@ for (const { includeAiContent, consent } of [{ includeAiContent: false, consent:
     const deps = { ...createRouteDeps(), aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
     const app = express();
     app.use(express.json());
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const providerUrl = await startStubProviderServer(t, () => ({ status: 200, body: [

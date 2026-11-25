@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -297,7 +298,7 @@ function harness() {
         if (observability) { deps.observability = observability; deps.tracker = createTracker({ observability }); }
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         app.use("/api/admin/v1/assistant/ag-ui-run", (_req, res, next) => {
           res.on("close", () => clientCloseGate?.arrive());
           next();

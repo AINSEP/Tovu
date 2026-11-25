@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -177,7 +178,7 @@ test("route-param guards: each preview handler reached without its params refuse
   };
   const bare = express();
   bare.use(express.json());
-  registerAuthRoutes({ app: bare, deps });
+  registerAuthRoutes({ app: bare, deps, errors: createRouteIncidentReporter().errors });
   bare.get("/bare-page", finalHandler("/theme-explore/:themeId/:pageId"));
   bare.get("/bare-partial", finalHandler("/theme-explore/:themeId/partial/:partialId"));
   bare.get("/bare-template", requireAdminSession(deps), finalHandler("/theme-explore/:themeId/template/:templateId"));

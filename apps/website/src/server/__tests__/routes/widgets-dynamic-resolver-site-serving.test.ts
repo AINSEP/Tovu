@@ -62,7 +62,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   deps.postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts.filter((post) => post.slug !== ROOT_SLUG) });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createWidgetsModule({ deps, errors: createRouteIncidentReporter().errors }).registerRoutes?.({ app });
   registerSiteRoutes({ app, deps });

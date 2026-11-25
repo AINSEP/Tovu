@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "../helpers/route-incident-reporter.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
@@ -99,7 +100,7 @@ async function boot(t: test.TestContext, staged: Staged) {
   deps.siteStoragePaths = { ...deps.siteStoragePaths, chatAttachmentsDir: staged.uploadDirectory };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
 
   const baseUrl = await startTestServer(app, t);

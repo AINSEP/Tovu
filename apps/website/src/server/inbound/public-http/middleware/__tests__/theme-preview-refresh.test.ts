@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
@@ -380,7 +381,7 @@ test("registered refresh remembers only the 512 most recent authenticated previe
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   const wasAuthenticated = registerThemePreviewRefresh({ app, deps });
   app.get("/preview-probe", (_req, res) => { res.send("ok"); });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

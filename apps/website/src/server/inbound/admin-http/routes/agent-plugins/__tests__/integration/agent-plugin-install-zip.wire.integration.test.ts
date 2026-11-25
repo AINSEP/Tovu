@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -45,7 +46,7 @@ async function withTempPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
 function buildTestApp(deps: ReturnType<typeof createRouteDeps>): express.Express {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAgentPluginInstallRoute({ app, deps });
   return app;

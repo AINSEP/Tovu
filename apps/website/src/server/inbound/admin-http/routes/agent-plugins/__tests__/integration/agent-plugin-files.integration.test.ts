@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -84,7 +85,7 @@ function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   // `agent-plugins-http.integration.test.ts`'s `buildTestApp` for why a second call 403s.
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginFilesRoute({ app, deps: baseDeps });
   return app;

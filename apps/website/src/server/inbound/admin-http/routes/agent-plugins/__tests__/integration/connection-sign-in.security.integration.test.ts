@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -21,7 +22,7 @@ test("F1: authenticated hosted start binds only its actor's browser; wrong brows
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   app.use("/api/admin", (req, res, next) => {
     if (req.get("x-test-credential-kind") === "api_key") res.locals.authCredentialKind = "api_key";
@@ -118,7 +119,7 @@ test("F2: the hosted start's 302 is byte-identical to the hand-written res.redir
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   app.use("/api/admin", (_req, res, next) => { res.append("Set-Cookie", "upstream=1; Path=/"); next(); });
   app.get("/api/admin/test-principal", (_req, res) => { res.json({ id: getAuthedPrincipal(res).id }); });

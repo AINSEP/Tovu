@@ -13,15 +13,18 @@ import { createPublishContentModule } from "../modules/publish-content.js";
 import type { CreateAppOptions } from "../create-app-options.js";
 import { mountRoutes } from "./module-handles.js";
 import type { MountInput, PreviewRevisionCheck } from "./module-handles.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 
-/** The core module (ops, auth, the `/api/admin` session gate), theme preview refresh, the content and publish-content modules, in registration order. */
-export function mountCoreContent({ app, routeDeps }: MountInput, options: Pick<CreateAppOptions, "onAdminSignIn"> = {}): { isAuthenticatedPreviewRevision: PreviewRevisionCheck } {
+/** The core module (ops, auth, the `/api/admin` session gate), theme preview refresh, the content and publish-content modules, in registration order.
+ * @param required.reporter - The site's one reporter (`createApp`'s); the routes these modules mount directly on http-kit record through it. */
+export function mountCoreContent({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onAdminSignIn"> = {}): { isAuthenticatedPreviewRevision: PreviewRevisionCheck } {
   // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
   // login/logout/me (ungated), then the `/api/admin` session gate, all
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // inbound/admin-http/dev-auth.ts.
-  mountRoutes({ app, mod: createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }) });
+  mountRoutes({ app, mod: createCoreModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }, { onAdminSignIn: options.onAdminSignIn }) });
   const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/

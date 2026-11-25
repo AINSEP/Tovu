@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -17,7 +18,7 @@ test("MCP proxy pins validation, explicit/param/typed correlations and authorita
   const store = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }).surfaceExchanges;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: store }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previous = process.env.JINI_AGENT_DAEMON_URL;

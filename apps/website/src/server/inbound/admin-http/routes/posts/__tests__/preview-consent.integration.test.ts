@@ -1,5 +1,6 @@
 /** Authenticated preview is separate from declared-script loading; public flags cannot suppress its runtime.
  * Real middleware, auth, renderers and native HTTP run in memory without opening a server. */
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -35,7 +36,7 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   await deps.userRepo.save({ principalId: "preview-owner", workspaceId: "w", username: "preview-owner", passwordHash: await deps.passwordHasher.hash({ password: "preview-test" }) });
   const app = express();
   // Preserve the real auth mount and consent placement; only transport is replaced.
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   deps.cookieConsent = { regionResolvers: async () => [], scriptDeclarations: async () => ({
     scripts: [{ src: '/scripts/optional-preview-fixture.js', consent: ['functional'] }], problems: [],

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
 import assert from "node:assert/strict";
@@ -61,7 +62,7 @@ function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminS
   const deps = { ...baseDeps, adminSurfaceSource: source, adminSurfaceHost: host };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   // Simulates what `requireAdminSession` records for an API-key credential (the owner's grants, a
   // machine credential kind), without minting a key through the api-keys module.

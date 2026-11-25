@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "../../assistant/credential-guidance.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -604,7 +605,7 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
 async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
   return bootAuthenticated(app, t);
 }

@@ -1,4 +1,5 @@
 /** Chart plan step 5: real authenticated bootstrap, exact retained assets and workspace isolation. */
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,7 +15,7 @@ test("step 5: metadata points only to digest-pinned admitted bytes; disable reti
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerChartProviderRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

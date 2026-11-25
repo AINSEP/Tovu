@@ -48,7 +48,7 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createAssistantSettingsModule(deps).registerRoutes?.({ app });
   registerAdminSettingsSetRoute({ app, deps });
