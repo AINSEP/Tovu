@@ -1,5 +1,5 @@
 import { themesApi } from "@/features/themes/api/themes-api";
-import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-port.hooks";
+import type { ThemeExploreFileEntry, ThemeExplorePort } from "@jini-ai/core/contracts/site/cms-admin-theme-explore";
 
 /**
  * @file The only place under `features/themes` that reaches `lib/api` for the six

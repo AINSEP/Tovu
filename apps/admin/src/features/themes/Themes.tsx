@@ -3,7 +3,8 @@ import { Icon, Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
-import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
+import { NO_THEME_ID } from "./api/themes-api.types";
+import type { PresentationSettings, ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 

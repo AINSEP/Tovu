@@ -12,12 +12,8 @@ import { THEME_FILES_RESOURCE } from "../rules";
 import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
-import type {
-  ThemeExploreFileEntry,
-  ThemeExplorePort,
-  ThemeExploreSlugCollision,
-  ThemeFileGroup,
-} from "./theme-explore-port.hooks";
+import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeExploreSlugCollision } from "@jini-ai/core/contracts/site/cms-admin-theme-explore";
+import type { ThemeFileGroup } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { isOpenFileLoaded, keepsOpenFileSelected } from "@jini-ai/cms/react/themes/hooks/theme-explore-open-file.hooks";
 import {
   resolveRequestedThemeExploreSelection,

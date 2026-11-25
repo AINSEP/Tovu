@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
+import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import {
   defaultThemeTabGroup,
   groupThemesByTabGroup,

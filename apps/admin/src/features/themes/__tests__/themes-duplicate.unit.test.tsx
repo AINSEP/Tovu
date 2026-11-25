@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-quer
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import { Themes } from "../Themes";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";

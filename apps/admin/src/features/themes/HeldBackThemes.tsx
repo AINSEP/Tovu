@@ -4,7 +4,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 
-import type { ChosenThemeHeldBack, HeldBackTheme } from "./api/held-back-themes-api";
+import type { ChosenThemeHeldBack, HeldBackTheme } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 import type { HeldBackFailure } from "./held-back-themes-failure";
 import { IDLE_ROW, type HeldBackRowState, type HeldBackThemesController } from "./hooks/use-held-back-themes.hooks";
 import { themeDisplayName } from "./rules";

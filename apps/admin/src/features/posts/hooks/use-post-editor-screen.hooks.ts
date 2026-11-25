@@ -14,7 +14,7 @@ import type { PostEditorSlugCollisionWarning } from "@jini-ai/cms/react/posts/ed
 import type { PostPreview } from "../editor/preview/PostPreview";
 import type { PostEditorTemplateModalGateProps } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
 import { TemplateSourceModal } from "@/components/TemplateSource/TemplateSourceModal";
-import type { ThemeTier } from "@/features/themes/api/themes-api.types";
+import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { VIEW_TABS, type PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "@jini-ai/cms/react/posts/PostCoverImage";
