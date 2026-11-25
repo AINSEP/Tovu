@@ -1,4 +1,4 @@
-import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import { assertVersionedWrite, RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
@@ -57,12 +57,13 @@ function runPrincipalRepoSuite(adapterName: string, makeRepo: () => PrincipalRep
 function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
   test(`[${adapterName}] UserRepoPort: login time survives an update and can be cleared`, async () => {
     const repo = makeRepo();
-    const row = { principalId: "p-login", workspaceId: WS, username: "login-user", passwordHash: "h", email: "reader@example.test", lastLoginAt: "2026-01-03T00:00:00.000Z" };
+    const row = { principalId: "p-login", workspaceId: WS, username: "login-user", passwordHash: "h", email: "reader@example.test", lastLoginAt: "2026-01-03T00:00:00.000Z", version: 1 };
     await repo.save(row);
     assert.deepEqual(await repo.findByUsername({ workspaceId: WS, username: row.username }), row);
     assert.deepEqual(await repo.list({ workspaceId: WS }), [row]);
     await repo.save({ ...row, email: undefined, lastLoginAt: undefined });
-    assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: row.principalId }), { ...row, email: undefined, lastLoginAt: undefined });
+    // Every write to an existing row advances its version, so an editor holding version 1 is now stale.
+    assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: row.principalId }), { ...row, email: undefined, lastLoginAt: undefined, version: 2 });
   });
 
   test(`[${adapterName}] UserRepoPort: recordLogin sets only lastLoginAt, never reverts a concurrent password change, and spares other users (B262)`, async () => {
@@ -367,6 +368,65 @@ for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRol
 runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo({ assertVersionedWrite }));
 for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo({ kernel, assertVersionedWrite }) })) {
   runPolicyRepoSuite(`SqlPolicyRepo [${each.name}]`, each.make);
+}
+
+interface VersionedIdentityRepos { users: UserRepoPort; roles: RoleRepoPort; policies: PolicyRepoPort }
+const isVersionConflict = (error: unknown) => error instanceof RecordVersionConflictError;
+
+/**
+ * Two people open the same editor at version 1. The repo's conditional write — not a read before
+ * it — is what refuses the second save, so these run against every adapter and both SQL dialects.
+ */
+function runVersionedEditSuite(adapterName: string, makeRepos: () => VersionedIdentityRepos) {
+  test(`[${adapterName}] the second edit from the same version is refused and the first edit remains`, async () => {
+    const { users, roles, policies } = makeRepos();
+    const role = { id: "r-cas", workspaceId: WS, name: "editors", isBuiltin: false, version: 1 };
+    await roles.save(role);
+    await roles.save({ ...role, name: "first" }, { expectedVersion: 1 });
+    await assert.rejects(roles.save({ ...role, name: "second" }, { expectedVersion: 1 }), isVersionConflict);
+    assert.deepEqual(await roles.findById({ workspaceId: WS, id: role.id }), { ...role, name: "first", version: 2 });
+
+    const policy = { id: "pol-cas", workspaceId: WS, name: "content", description: "old", isBuiltin: false, isFrozen: false, version: 1 };
+    await policies.save(policy);
+    await policies.save({ ...policy, name: "first", description: "first copy" }, { expectedVersion: 1 });
+    await assert.rejects(policies.save({ ...policy, name: "second", description: undefined }, { expectedVersion: 1 }), isVersionConflict);
+    assert.deepEqual(await policies.findById({ workspaceId: WS, id: policy.id }), { ...policy, name: "first", description: "first copy", version: 2 });
+
+    const user = { principalId: "p-cas", workspaceId: WS, username: "editor", email: "old@example.test", passwordHash: "h1", lastLoginAt: undefined, version: 1 };
+    await users.save(user);
+    await users.save({ ...user, username: "first" }, { expectedVersion: 1 });
+    await assert.rejects(users.save({ ...user, username: "second", email: undefined }, { expectedVersion: 1 }), isVersionConflict);
+    assert.deepEqual(await users.findByPrincipalId({ workspaceId: WS, principalId: user.principalId }), { ...user, username: "first", version: 2 });
+  });
+
+  test(`[${adapterName}] a stale basis for a missing record is refused and nothing is inserted`, async () => {
+    const { users, roles, policies } = makeRepos();
+    await assert.rejects(roles.save({ id: "r-gone", workspaceId: WS, name: "gone", isBuiltin: false, version: 1 }, { expectedVersion: 1 }), isVersionConflict);
+    await assert.rejects(policies.save({ id: "pol-gone", workspaceId: WS, name: "gone", isBuiltin: false, isFrozen: false, version: 1 }, { expectedVersion: 1 }), isVersionConflict);
+    await assert.rejects(users.save({ principalId: "p-gone", workspaceId: WS, username: "gone", passwordHash: "h", version: 1 }, { expectedVersion: 1 }), isVersionConflict);
+    assert.equal(await roles.findById({ workspaceId: WS, id: "r-gone" }), null);
+    assert.equal(await policies.findById({ workspaceId: WS, id: "pol-gone" }), null);
+    assert.equal(await users.findByPrincipalId({ workspaceId: WS, principalId: "p-gone" }), null);
+  });
+
+  test(`[${adapterName}] a profile save never writes the editor's old login or password snapshot over newer values`, async () => {
+    const { users } = makeRepos();
+    const opened = { principalId: "p-snap", workspaceId: WS, username: "snap", email: undefined, passwordHash: "h-old", lastLoginAt: "2026-01-01T00:00:00.000Z", version: 1 };
+    await users.save(opened);
+    await users.recordLogin({ workspaceId: WS, principalId: opened.principalId, lastLoginAt: "2026-03-01T00:00:00.000Z" });
+    await users.save({ ...opened, username: "renamed", passwordHash: "h-stale-snapshot" }, { expectedVersion: 1 });
+    assert.deepEqual(await users.findByPrincipalId({ workspaceId: WS, principalId: opened.principalId }),
+      { ...opened, username: "renamed", passwordHash: "h-old", lastLoginAt: "2026-03-01T00:00:00.000Z", version: 2 });
+  });
+}
+
+runVersionedEditSuite("InMemory identity repos", () => ({
+  users: new InMemoryUserRepo({ assertVersionedWrite }), roles: new InMemoryRoleRepo({ assertVersionedWrite }), policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
+}));
+for (const each of eachDialect({ tables: ["identity_users", "roles", "policies"], make: (kernel) => ({
+  users: new SqlUserRepo({ kernel, assertVersionedWrite }), roles: new SqlRoleRepo({ kernel, assertVersionedWrite }), policies: new SqlPolicyRepo({ kernel, assertVersionedWrite }),
+}) })) {
+  runVersionedEditSuite(`Sql identity repos [${each.name}]`, each.make);
 }
 
 runPolicyPermissionRepoSuite("InMemoryPolicyPermissionRepo", () => new InMemoryPolicyPermissionRepo({}));

@@ -1,4 +1,4 @@
-import type { Insertable, Selectable } from "kysely";
+import { sql, type Insertable, type Selectable } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { PoliciesTable, PolicyPermissionsTable, RolesTable } from "../../platform/db/content-database.generated.js";
@@ -54,15 +54,31 @@ export class SqlRoleRepo implements RoleRepoPort {
     return rows.map(toRoleRecord);
   }
 
-  async save(record: RoleRecord): Promise<void> {
+  /** Without a basis: create/seed upsert that still advances the version. With one: a rename whose
+   * conditional `WHERE version = :expectedVersion` is the lock — see `SqlUserRepo.save`. */
+  async save(record: RoleRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
+    const { expectedVersion } = optional;
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: async () => {
+      if (expectedVersion === undefined) return this.upsert(record);
+      const result = await this.kernel.run((db) => db.updateTable("roles")
+        .set({ name: record.name, version: sql<number>`version + 1` })
+        .where("workspace_id", "=", record.workspaceId).where("id", "=", record.id)
+        .where("version", "=", expectedVersion).executeTakeFirst());
+      await this.assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "role", recordId: record.id, expectedVersion,
+        readCurrentVersion: async () => (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? null });
+    } });
+  }
+
+  private async upsert(record: RoleRecord): Promise<void> {
     const row: Insertable<RolesTable> = {
       id: record.id,
       workspace_id: record.workspaceId,
       name: record.name,
       is_builtin: record.isBuiltin ? 1 : 0,
+      version: record.version,
     };
-    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
-      db.insertInto("roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
+    await this.kernel.run((db) =>
+      db.insertInto("roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet({ ...row, version: sql<number>`${sql.ref("roles.version")} + 1` })).execute());
   }
 
   async delete(required: { workspaceId: string; id: string }): Promise<void> {
@@ -128,7 +144,22 @@ export class SqlPolicyRepo implements PolicyRepoPort {
     return rows.map(toPolicyRecord);
   }
 
-  async save(record: PolicyRecord): Promise<void> {
+  /** Without a basis: create/seed upsert that still advances the version. With one: a name and
+   * description edit whose conditional `WHERE version = :expectedVersion` is the lock — see `SqlUserRepo.save`. */
+  async save(record: PolicyRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
+    const { expectedVersion } = optional;
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: async () => {
+      if (expectedVersion === undefined) return this.upsert(record);
+      const result = await this.kernel.run((db) => db.updateTable("policies")
+        .set({ name: record.name, description: record.description ?? null, version: sql<number>`version + 1` })
+        .where("workspace_id", "=", record.workspaceId).where("id", "=", record.id)
+        .where("version", "=", expectedVersion).executeTakeFirst());
+      await this.assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "policy", recordId: record.id, expectedVersion,
+        readCurrentVersion: async () => (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? null });
+    } });
+  }
+
+  private async upsert(record: PolicyRecord): Promise<void> {
     const row: Insertable<PoliciesTable> = {
       id: record.id,
       workspace_id: record.workspaceId,
@@ -136,9 +167,10 @@ export class SqlPolicyRepo implements PolicyRepoPort {
       description: record.description ?? null,
       is_builtin: record.isBuiltin ? 1 : 0,
       is_frozen: record.isFrozen ? 1 : 0,
+      version: record.version,
     };
-    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
-      db.insertInto("policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
+    await this.kernel.run((db) =>
+      db.insertInto("policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet({ ...row, version: sql<number>`${sql.ref("policies.version")} + 1` })).execute());
   }
 
   async delete(required: { workspaceId: string; id: string }): Promise<void> {
