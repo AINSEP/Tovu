@@ -4,7 +4,7 @@ import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-r
 
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
-import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
+import { PostEditorSlugCollisionWarning } from "@jini-ai/cms/react/posts/editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
 import { PostPreview } from "./editor/preview/PostPreview";
 import { PostEditorTemplateModalGate } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
@@ -14,8 +14,11 @@ import { PostEditorBody } from "./editor/PostEditorBody";
 import { PostSavedPanels } from "./editor/PostSavedPanels";
 import { useWiredPostEditor } from "./hooks/use-post-editor.hooks";
 import { usePostEditorScreen } from "./hooks/use-post-editor-screen.hooks";
-import { PostCoverImage } from "./PostCoverImage";
+import { PostCoverImage } from "@jini-ai/cms/react/posts/PostCoverImage";
 import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import { postCoverBindings, useWiredPostFeaturedImage } from "./hooks/post-cover-host.hooks";
+import { overridesThemePageFromSelectValue, overridesThemePageSelectValue } from "./rules";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import "../../styles/native-domain-dialogs.css";
 
 /**
@@ -32,6 +35,23 @@ import "../../styles/native-domain-dialogs.css";
  * Shared between posts and pages via the same `/admin/posts/{id}` route — see `Pages.tsx`'s file
  * header. `post.kind` drives the display copy and the back-link target only.
  */
+
+const slugCollisionBindings = {
+  agentHandle,
+  overridesThemePageSelectValue,
+  overridesThemePageFromSelectValue,
+  copy: {
+    warning: "This post's slug matches one of the active theme's own pages. By default, this post is shown at that URL instead of the theme's page.",
+    field: "Which page wins at this URL",
+    defaultOption: "Use the default (currently: this post)",
+    postOption: "Always show this post",
+    themeOption: "Always show the theme's page",
+    regionAgentLabel: "This post's slug is also claimed by the active theme's own page — choose which one wins",
+    fieldAgentLabel:
+      "Which page is shown at this shared URL: the default (currently this post), always this post " +
+      "regardless of future default changes, or always the active theme's own same-slug page.",
+  },
+};
 
 export interface PostEditorProps {
   /** The host composition's route-key store, the same instance `panels.tsx` keys `<PostEditor>` with. */
@@ -80,7 +100,7 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
       <PostSettingsDialog {...screen.settings} />
       {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
           contract and history this extracts. */}
-      <PostEditorSlugCollisionWarning {...screen.slugCollision} />
+      <PostEditorSlugCollisionWarning {...screen.slugCollision} {...slugCollisionBindings} />
       {view === "preview" ? (
         // `bodyJson`/`templatePreviewUrl`/`previewFormRef`/`previewFormTarget` come straight off the
         // hook now (2026-08-14) — see `use-post-editor.hooks.ts`'s own docs on each for why they
@@ -89,7 +109,7 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
         // `PostPreview`'s own doc).
         <PostPreview {...screen.preview} />
       ) : (
-        <PostEditorBody {...screen.body} cover={<PostCoverImage {...screen.cover} />} />
+        <PostEditorBody {...screen.body} cover={<PostCoverImage {...screen.cover} bindings={postCoverBindings} useFeaturedImage={useWiredPostFeaturedImage} />} />
       )}
       <PostSavedPanels {...screen.savedPanels} />
       {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button. "Save anyway"

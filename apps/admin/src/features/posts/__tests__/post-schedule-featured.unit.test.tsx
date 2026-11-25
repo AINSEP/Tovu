@@ -6,7 +6,7 @@ import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
+import { usePostFeaturedImage } from "@jini-ai/cms/react/posts/hooks/use-post-featured-image.hooks";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";

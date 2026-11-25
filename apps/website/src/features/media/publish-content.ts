@@ -10,7 +10,8 @@ import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publis
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "@jini-ai/cms/media/site/import-media-entity";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
-import { verifyPublishedMedia } from "./verify-published-media.js";
+import { verifyPublishedMedia } from "@jini-ai/cms/media/site/verify-published-media";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 
 /**
@@ -287,7 +288,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     extend: ({ deps, ports }) => ({
       verifyApplied: async ({ entities }) => {
         const p = ports();
-        return p ? verifyPublishedMedia({ ports: p, workspaceId: deps.workspaceId, entities }) : [];
+        return p ? verifyPublishedMedia({ ports: p, workspaceId: deps.workspaceId, entities, orFallback }) : [];
       },
     }),
   });

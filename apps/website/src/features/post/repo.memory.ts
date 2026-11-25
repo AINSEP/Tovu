@@ -10,7 +10,7 @@ import {
   type PostRevisionRecord,
 } from "@jini-ai/cms/posts/post";
 import { comparePostsByDisplayDate, currentIso, isLiveAt } from "@jini-ai/core/scheduled-publish";
-import { withoutHeldAgentSchedule, type AgentHoldReader } from "./agent-hold.js";
+import { withoutHeldAgentSchedule, type AgentHoldReader } from "@jini-ai/cms/posts/agent-hold";
 import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**
