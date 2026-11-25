@@ -6,7 +6,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import { disconnectDestination, PublishTrustConnectError } from "../publish-trust/connect.js";
 import { disconnectAndForgetDestination } from "./connect-destination.js";
-import { defaultProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
+import { requirePublishTrustProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
 
 /** Only the ports the admin disconnect handler uses; no HTTP handshake or secret decryption. */
 export type Deps = Pick<PublishContentToolDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "publishContentPeerRepo" | "siteAssistantSecretKeyring" | "publishTrustProvisioning" | "findPublishCandidate">;
@@ -36,7 +36,7 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
       try {
         const removed = await disconnectAndForgetDestination({
                                                                deps: { repo: deps.publishContentPeerRepo, clock: deps.clock, idGen: deps.idGen,
-            reverseGrant: () => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: deps.publishTrustProvisioning ?? defaultProvisioning(), workspaceId: deps.workspaceId } }),
+            reverseGrant: () => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: requirePublishTrustProvisioning({ deps }), workspaceId: deps.workspaceId } }),
           },
                                                                input: { workspaceId: deps.workspaceId }
                                                              });

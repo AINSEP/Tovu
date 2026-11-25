@@ -3,7 +3,6 @@ import type { PublishContentToolDeps } from "./tool-deps.js";
 import { toolMetadata } from '@jini-ai/cms/publish/content/tool-metadata';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import path from "node:path";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -33,14 +32,7 @@ import {
   PublishTrustConnectError,
 } from "../publish-trust/connect.js";
 import { PublishTrustHandshakeError } from "../publish-trust/handshake-client.js";
-import {
-  COMMITTED_JSON_CODEC,
-  createFileProvisioning,
-  PUBLISH_TRUST_CONFIG_PATH,
-  type PublishTrustProvisioningPort,
-} from "@jini-ai/cms/publish/trust/provisioning";
-import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
-import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
+import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
@@ -80,14 +72,13 @@ import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
  * as the Publish dialog. Explicit overwrite input replaces the human tick for this tool only;
  * HTTP overwrite requests keep their existing session gate. The dialog remains available.
  *
- * ## Why the provisioning port is built here
+ * ## Why the provisioning port is injected
  *
- * The assistant's deps bag is a `RouteDeps` projection and carries no provisioning port — that port
- * is composed in `server/runtime/composition/modules/publish-content.ts` for the HTTP route. A
- * feature may not import `server/**` (`.dependency-cruiser.mjs`'s `feature-no-server-or-framework-
- * imports`), so the default is composed here from the SAME three exported constants that module
- * uses, which is what stops the two drifting on path or format. The field stays optional so a test
- * substitutes a fake — the identical shape `SiteEvidenceToolDeps.siteEvidenceBrowser` already uses.
+ * The assistant's deps bag is a `RouteDeps` projection and carries no provisioning port. A feature
+ * may not import `server/**` (`.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports`)
+ * nor another feature's host settings, so the assembled port arrives as `publishTrustProvisioning`,
+ * bound once in `server/runtime/composition/tool-catalog-manifest.ts` against the same committed
+ * root the HTTP route uses. That is what stops the two drifting on path or format.
  */
 
 const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -112,17 +103,11 @@ const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: publishContentAgentToolCatalog });
 
-/** The real committed-config provisioning port — the same three constants
- *  `server/runtime/composition/modules/publish-content.ts` composes for the HTTP route, resolved
- *  against the same {@link resolveCommittedConfigRoot} so an assistant-tool connect and a dialog
- *  connect never disagree about which file they wrote.
+/** The injected committed-config port, or a plain refusal when the host never bound one.
  *  @complexity O(1). */
-export function defaultProvisioning(): PublishTrustProvisioningPort {
-  return createFileProvisioning({
-    io: nodeProvisioningFileIo,
-    codec: COMMITTED_JSON_CODEC,
-    path: path.join(resolveCommittedConfigRoot(), PUBLISH_TRUST_CONFIG_PATH),
-  });
+export function requirePublishTrustProvisioning({ deps }: { deps: Pick<PublishContentToolDeps, "publishTrustProvisioning"> }, _optional = {}): PublishTrustProvisioningPort {
+  if (deps.publishTrustProvisioning === undefined) throw new Error("Publishing settings are not set up on this computer yet.");
+  return deps.publishTrustProvisioning;
 }
 
 /** Matches a bare identifier-shaped token — `PEER_NOT_FOUND`, `publish_trust_export_not_wired`,
@@ -175,13 +160,13 @@ async function readReadiness({ deps, findCandidate }: { deps: PublishContentTool
   return { readiness, rows };
 }
 
-type PublishContentToolRoute = { routeDeps: PublishContentToolDeps; provisioning: PublishTrustProvisioningPort };
+type PublishContentToolRoute = { routeDeps: PublishContentToolDeps };
 
 async function connectPublishContentTool(
   required: PublishContentToolRoute & { ctx: ToolExecutionContext; findCandidate: () => Promise<string | null> },
   _optional = {},
 ): Promise<unknown> {
-  const { routeDeps, provisioning, ctx, findCandidate } = required;
+  const { routeDeps, ctx, findCandidate } = required;
   const input = requireInputRecord({ input: ctx.input });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
 
@@ -212,7 +197,7 @@ async function connectPublishContentTool(
       nextStep: "Add something to this site first, then come back.",
     };
   }
-  return connectWithTrust({ routeDeps, provisioning, baseUrl: normalized.baseUrl, entityTypes });
+  return connectWithTrust({ routeDeps, baseUrl: normalized.baseUrl, entityTypes });
 }
 
 /** Records the destination and its grant; a handshake or write failure becomes a plain result the model can relay. */
@@ -220,7 +205,8 @@ async function connectWithTrust(
   required: PublishContentToolRoute & { baseUrl: string; entityTypes: string[] },
   _optional = {},
 ): Promise<unknown> {
-  const { routeDeps, provisioning, baseUrl, entityTypes } = required;
+  const { routeDeps, baseUrl, entityTypes } = required;
+  const provisioning = requirePublishTrustProvisioning({ deps: routeDeps });
   try {
     const trustDeps = {
       httpClient: routeDeps.publishContentPeerHttpClient,
@@ -354,7 +340,6 @@ export function buildPublishContentRegistrations(
   _optional = {}
 ): ToolRegistration[] {
   const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
-  const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
 
   const handlers: Record<string, ToolHandler> = {
     [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary({ run: async () => {
@@ -380,7 +365,7 @@ export function buildPublishContentRegistrations(
       return readiness;
     },
 
-    [PUBLISH_CONTENT_CONNECT_TOOL_ID]: (ctx) => connectPublishContentTool({ routeDeps, provisioning, ctx, findCandidate }),
+    [PUBLISH_CONTENT_CONNECT_TOOL_ID]: (ctx) => connectPublishContentTool({ routeDeps, ctx, findCandidate }),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,
