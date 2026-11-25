@@ -28,6 +28,7 @@
   --jini-admin-r-md: var(--r-md);
   --jini-admin-r-sm: var(--r-sm);
   --jini-admin-shadow-sm: var(--shadow-sm);
+  --jini-admin-site-preview-bg: var(--tovu-site-preview-bg);
   --jini-admin-space-1: var(--space-1);
   --jini-admin-space-2: var(--space-2);
   --jini-admin-space-3: var(--space-3);
