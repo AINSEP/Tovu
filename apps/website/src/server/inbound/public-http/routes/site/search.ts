@@ -42,6 +42,7 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
     app: app as Express,
     spec: siteSearchRoute,
     deps: mounted,
+    // Express 4 does not catch a rejected async handler; answer instead of hanging the caller.
     failure: { operation: "public:search", visitorError: "The site couldn’t load the search results. Reload this page and report this error ID if it keeps happening." },
   }, {
     requestDeps: ({ req, deps: base }) => ({
