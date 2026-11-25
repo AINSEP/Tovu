@@ -1,5 +1,6 @@
 import { AGENT_PAUSE_CREATOR_KIND_STATEMENTS } from '../migrations/0044_agent_pause_creator_kind.js';
 import { MEDIA_CAPTIONS_STATEMENTS } from '../migrations/0045_media_captions.js';
+import { BLOB_GC_JOURNAL_STATEMENTS } from '../migrations/0046_blob_gc_journal.js';
 import { WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS } from '../migrations/0043_webhook_subscription_creator_kind.js';
 import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
@@ -280,6 +281,9 @@ function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonl
     },
     "0045_media_captions": () => {
       for (const statement of MEDIA_CAPTIONS_STATEMENTS) client.exec(statement);
+    },
+    "0046_blob_gc_journal": () => {
+      for (const statement of BLOB_GC_JOURNAL_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

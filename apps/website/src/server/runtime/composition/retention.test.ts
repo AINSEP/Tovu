@@ -7,6 +7,7 @@ import test from "node:test";
 import { createRetentionRunner } from "@jini-ai/platform/retention";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { createMediaBytesPolicy } from "./retention-policies/media-bytes.js";
 
 const source = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
 
@@ -89,6 +90,32 @@ test("no chat, revision, screenshot or media policy is registered", () => {
   assert.match(serving, /policiesForSignal: signal => siteRetentionPolicies\(/);
   assert.doesNotMatch(serving, /id: ["'][^"']*(chat|revision|screenshot|media)|kind: ["'](content|history)/i);
   assert.doesNotMatch(source("./retention.ts"), /id: ["'][^"']*(chat|revision|screenshot|media)|kind: ["'](content|history)/i);
+  // P11 ST-11b.T: media bytes are registered, but only on the report-only path, and the policy has no
+  // sweep at all. Enabling unlinks is a separate owner-gated change (STOP 6, OQ-11a).
+  assert.match(serving, /reportOnlyForSignal: signal => [^\n]*\[createMediaBytesPolicy\(/);
+  assert.doesNotMatch(serving.match(/policiesForSignal: signal => [^\n]*/)![0], /createMediaBytesPolicy/);
+  const media = source("./retention-policies/media-bytes.ts");
+  assert.doesNotMatch(media, /sweep\s*[:(]|unlink|kind: ["'](content|history)/);
+});
+
+test("host policy has no sweep even on a live pass", async () => {
+  const errors: unknown[] = [];
+  const media = createMediaBytesPolicy({
+    gc: { workspaceId: "ws", graceMs: 0, now: () => 10, listLegacyOrphans: async () => [{ sha256: "old", storageKey: "media/old.jpg" }] },
+    journal: { list: async () => [] }, probes: {}, stat: async () => ({ size: 5 }), signal: new AbortController().signal,
+  }, {});
+  assert.equal("sweep" in media, false);
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [], reportOnlyForSignal: () => [media],
+    clock: { now: () => 10 }, scheduler: { setTimeout, clearTimeout, setInterval, clearInterval },
+    reportError: error => errors.push(error), log: () => {},
+  });
+  const report = await lifecycle.runOnce({ dryRun: false });
+  assert.equal(report.status, "completed");
+  assert.deepEqual(report.status === "completed" && report.policies.map(({ id, status }) => ({ id, status })), [{ id: "media-bytes", status: "measured" }]);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(lifecycle.lastReport(), report);
+  await lifecycle.stop();
 });
 
 test("the serving policies are the share expiry pass (only with a share catalog) and the temp-root tidy, both old-copy classes", async () => {

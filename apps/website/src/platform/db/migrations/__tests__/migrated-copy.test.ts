@@ -26,11 +26,11 @@ test("a copied current DB rejects an old history without losing data and reopens
   const copy = openSqliteFileKernel<unknown>({ filePath: copyPath });
   try {
     const ledger = await copy.query<{ id: string; checksum: string; applied_at: string }>(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`);
-    assert.equal(ledger.length, 47);
-    assert.equal(ledger.at(-1)!.id, "0045_media_captions");
+    assert.equal(ledger.length, 48);
+    assert.equal(ledger.at(-1)!.id, "0046_blob_gc_journal");
     assert.deepEqual((await migrateContentDatabase({ kernel: copy })).applied, []);
     await assert.rejects(runMigrations({ kernel: copy, steps: CONTENT_MIGRATIONS.slice(0, -1) }),
-      error => error instanceof UnknownAppliedMigrationError && error.ids.includes("0045_media_captions"));
+      error => error instanceof UnknownAppliedMigrationError && error.ids.includes("0046_blob_gc_journal"));
     assert.deepEqual(await copy.query(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`), ledger);
     assert.deepEqual(await copy.query(sql`SELECT * FROM fixture_content`),
       [{ id: "draft", body: "keep this disposable content" }]);
@@ -40,6 +40,6 @@ test("a copied current DB rejects an old history without losing data and reopens
     assert.deepEqual(reopened.$client.prepare("SELECT * FROM fixture_content").all(),
       [{ id: "draft", body: "keep this disposable content" }]);
     assert.deepEqual(reopened.$client.prepare("SELECT id, value FROM database_write_watermark").all(), [{ id: 1, value: 0 }]);
-    assert.equal(reopened.$client.prepare("SELECT id FROM tovu_migrations").all().length, 47);
+    assert.equal(reopened.$client.prepare("SELECT id FROM tovu_migrations").all().length, 48);
   } finally { closeSqliteConnection({ source: reopened }); }
 });

@@ -1,5 +1,6 @@
 import { agentPauseCreatorKind } from './0044_agent_pause_creator_kind.js';
 import { mediaCaptions } from './0045_media_captions.js';
+import { blobGcJournal } from './0046_blob_gc_journal.js';
 import { webhookSubscriptionCreatorKind } from './0043_webhook_subscription_creator_kind.js';
 import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
 import { ownerPasskeys } from './0041_owner_passkeys.js';
@@ -127,6 +128,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]
   webhookSubscriptionCreatorKind({ checksum: pinned('0043_webhook_subscription_creator_kind') }),
   agentPauseCreatorKind({ checksum: pinned('0044_agent_pause_creator_kind') }),
   mediaCaptions({ checksum: pinned('0045_media_captions') }),
+  blobGcJournal({ checksum: pinned('0046_blob_gc_journal') }, {}),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
