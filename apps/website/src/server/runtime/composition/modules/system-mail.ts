@@ -14,7 +14,7 @@ import {
   planMailSuppressionRemoval, readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
 } from "@jini-ai/platform/mail";
 import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
-import { planMailCaptureClear } from "#src/features/mail/capture-clear";
+import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
 import { mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { readMailDnsStatus, verifyMailDnsStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
 import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
@@ -217,7 +217,7 @@ function classifyMailActivityError({ error }: { error: unknown }, _optional: Rec
  * - `GET  .../system/mail-feedback` (admin.forms.manage) -> `MailFeedbackSetupReport`.
  * - `POST .../system/mail-capture/clear` (mail.capture.clear, owner only) body `{ confirmed?: true, revision? }`:
  * previews `{ cleared: false, confirmationRequired: true, plan: { count, newestAt } }`, then with the
- * reviewed revision deletes every captured test email of this workspace (`features/mail/capture-clear.ts`).
+ * reviewed revision deletes every captured test email of this workspace (`@jini-ai/user-management/mail/site/capture-clear`).
  *
  * 400 for malformed input, 403 without the permission, 503 when this root has no activity or
  * suppression repo.
@@ -251,6 +251,7 @@ export function registerAdminMailActivityRoutes({ app, deps }: { app: Express; d
   mountAdminJsonRoute({ app, spec: mailCaptureClearRoute, deps: { ...shared,
     planCaptureClear: ({ principalId }) => {
       if (!deps.contentKernel) throw new MailActivityUnavailableError();
-      return planMailCaptureClear({ principalId, workspaceId: deps.workspaceId }, { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission: status.checkPermission });
+      return planMailCaptureClear({ principalId, workspaceId: deps.workspaceId, deps: { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission: status.checkPermission,
+        forbidden: ({ permission }) => new MailActivityForbiddenError({ permission, message: "Only the site owner can clear captured test emails." }) } });
     } } }, mount);
 }
