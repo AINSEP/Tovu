@@ -3,6 +3,7 @@ import { render, renderHook, screen } from '../../../__tests__/render-with-jini-
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/cookie-consent/react';
 import { adminKit } from '@/integrations/jini-kits';
 import { CONSENT_DICT, translate } from '@jini-ai/admin/screens/consent/consent-dictionary';
+import { consentTranslation } from '@jini-ai/admin/screens/consent/consent-i18n';
 import { useConsentTranslate } from '@/integrations/jini-admin/consent-ports';
 import { CONSENT_CONFIG } from './consent-fixtures';
 
@@ -41,8 +42,9 @@ describe('CONSENT_DICT', () => {
   });
 
   it('translates every label, legend, option, hint and button the Jini sections render', () => {
-    const dictionary = CONSENT_DICT.de;
-    const props = { value: { ...CONSENT_CONFIG, appearance: { backgroundColor: '#ffffff' } }, onChange: () => {}, dictionary };
+    // The host binds its product name into the dictionary, exactly as useConsentTranslate does.
+    const dictionary = consentTranslation({ locale: 'de', productName: 'Tovu' }).dictionary;
+    const props = { value: { ...CONSENT_CONFIG, appearance: { backgroundColor: '#ffffff' } }, onChange: () => {}, dictionary, productName: 'Tovu' };
     const { container } = render(<>
       <ConsentBannerFields {...props} bannerModes={['jini', 'headless', 'off']} />
       <ConsentLookFields {...props} lightColors={adminKit.theme.defaultAdminTheme.light} />
@@ -65,7 +67,8 @@ describe('useConsentTranslate', () => {
     locale.current = 'fr';
     const { result } = renderHook(() => useConsentTranslate());
     expect(result.current.t('Cookie Consent')).toBe('Consentement aux cookies');
-    expect(result.current.dictionary).toBe(CONSENT_DICT.fr);
+    expect(result.current.dictionary).toEqual(consentTranslation({ locale: 'fr', productName: 'Tovu' }).dictionary);
+    expect(result.current.productName).toBe('Tovu');
   });
 
   it('falls through to English, with an empty dictionary, for a locale it does not ship', () => {
