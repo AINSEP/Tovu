@@ -85,8 +85,13 @@ function rotatedToken({ patch, owned }: { patch: SourceControlCredentialPatch; o
   if (patch.label !== undefined && patch.label !== owned.label) throw new SourceControlCredentialValidationError("This shared key keeps its provider's name. Save a new key to use another name.");
   if (patch.connection === undefined) return undefined;
   if (typeof patch.connection !== 'object' || patch.connection === null || Array.isArray(patch.connection)) throw new SourceControlCredentialValidationError('connection must be an object');
-  const { providerId = owned.providerId, token, ...rest } = patch.connection as Record<string, unknown>;
-  if (providerId !== owned.providerId || Object.keys(rest).length > 0) throw new SourceControlCredentialValidationError("This shared key holds only its provider's token. Save a new key for another host.");
+  return ownedConnectionToken({ connection: patch.connection as Record<string, unknown>, ownedProviderId: owned.providerId });
+}
+
+/** The token a canonical key's connection patch carries, refusing a host move or any paired field. */
+function ownedConnectionToken({ connection, ownedProviderId }: { connection: Record<string, unknown>; ownedProviderId: string }, _optional = {}): string | undefined {
+  const { providerId = ownedProviderId, token, ...rest } = connection;
+  if (providerId !== ownedProviderId || Object.keys(rest).length > 0) throw new SourceControlCredentialValidationError("This shared key holds only its provider's token. Save a new key for another host.");
   if (token === undefined || token === '') return undefined;
   if (typeof token !== 'string') throw new SourceControlCredentialValidationError('token must be a string');
   return token;

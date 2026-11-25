@@ -506,16 +506,31 @@ function requireKnownMcpSave({ routeDeps, record, input }: {
     if (access.allowedToolNames.length + access.writeAllowedToolNames.length > 0) throw new ExternalMcpValidationError('This new connection has no verified tool listing. Save the connection with no allowed tools, then choose its allowed tools in Settings → External MCP after it connects. Nothing was saved.', 'allowedToolNames');
     return;
   }
+  const { target, previous, refusal } = mcpSaveBasis({ record, input });
+  requireKnownMcpAccess({ routeDeps, record: target, previous, access }, refusal === undefined ? {} : { refusal });
+}
+
+/** The identity and prior grants a save's proposed access is checked against: the saved row when the
+ * target is unchanged, or the edited target with no carried-over grants when the person changed it.
+ * @complexity O(b) in bounded command/argument bytes plus one strict grant parse; no I/O. */
+function mcpSaveBasis({ record, input }: { record: ExternalMcpServerRecord; input: SaveExternalMcpServerInput }, _optional = {}): {
+  target: ExternalMcpServerRecord; refusal?: string;
+  previous: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+} {
   const candidate = mcpSaveTarget({ record, input });
-  // With `npx` or `node` the arguments choose the program, so they are the target too. Credentials are not.
-  const stdioArgsChanged = candidate.transport === 'stdio' && candidate.args !== (record.args ?? '[]');
-  const targetChanged = candidate.url !== record.url || candidate.command !== record.command || stdioArgsChanged;
-  const previous = targetChanged ? { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] }
-    : { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
+  if (!mcpSaveTargetChanged({ record, candidate })) return { target: record, previous: { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) } };
   // Fixed copy per transport: the person edited this field, and its submitted value can hold a
   // credential (a capability URL, a token argument), so the refusal names the field, never the value.
-  const refusal = !targetChanged ? undefined : candidate.transport === 'stdio' ? CHANGED_COMMAND_REFUSAL : CHANGED_ADDRESS_REFUSAL;
-  requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access }, refusal === undefined ? {} : { refusal });
+  return { target: candidate, previous: { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] },
+    refusal: candidate.transport === 'stdio' ? CHANGED_COMMAND_REFUSAL : CHANGED_ADDRESS_REFUSAL };
+}
+
+/** Whether the edited form points at a different program or address than the saved row.
+ * @complexity O(b) in bounded command/argument bytes; no I/O. */
+function mcpSaveTargetChanged({ record, candidate }: { record: ExternalMcpServerRecord; candidate: ExternalMcpServerRecord }, _optional = {}): boolean {
+  // With `npx` or `node` the arguments choose the program, so they are the target too. Credentials are not.
+  const stdioArgsChanged = candidate.transport === 'stdio' && candidate.args !== (record.args ?? '[]');
+  return candidate.url !== record.url || candidate.command !== record.command || stdioArgsChanged;
 }
 
 const CHANGED_ADDRESS_REFUSAL = 'The connection address in this form differs from the saved one, so its allowed tools cannot carry over. Keep the saved address, or save the new address with no allowed tools and choose them after it connects. Nothing was saved.';
