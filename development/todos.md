@@ -2586,6 +2586,7 @@ Port exists: Jini @jini-ai/diagnostics ObservabilityPort, injected; vendors = pr
   - Trace stops at process boundaries: no traceparent passed daemon → CLI child, desktop → site server, server → daemon. One trace per user action across processes.
   - Browser side: no tracing in admin, site chat or public site (slow page loads, front-end errors, web vitals) — browser adapter behind the same port, off by default.
   - Background work (outbox worker, schedulers, trash purge): NOT CHECKED whether each run gets its own root trace; check, then wrap in trackOperation.
+- **b-g5a 2026-11-25 (cloud, integ/b-g5a-2026-11-25):** [x] tool failure counter by kind (O2.J) · [x] outbox queue-depth gauge (O2.J + O2.T) · [x] BYOK run-span usage (O2.T; AG-UI/CLI usage NOT-SHEETED) · [x] request → outbox worker trace ancestry (O4.J + O4.T) · [x] deploy observation hook in Jini (O1.J) · [ ] publish/deploy/import operations in Tovu (O1.T BLOCKED on P4 reporter) · [x] BYOK early-close stop (S3.T), media Stop (S3.J/S3.T-MEDIA) · [x] identity CAS (S2.J + S2.T) · [x] palette focus (S6.J) · [x] site update status route + notice (U2), restart hand-off split (U4.J), owner check + readiness (U3.T) · [ ] U4b.T desktop IPC (not started).
 
 ### Open owner decisions before starting
 - Exempt framework-dictated signatures from the args rule (Express handlers, React events, comparators, type guards)? (recommended yes)
