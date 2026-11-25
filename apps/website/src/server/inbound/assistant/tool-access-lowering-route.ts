@@ -3,6 +3,7 @@ import { z } from 'zod/v3';
 import type { ToolAccessStopResult } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { sendAdminFailure } from '#src/server/inbound/shared/admin-failure';
+import type { ErrorReporter } from '@jini-ai/core/errors/reporter';
 
 export const TOOL_ACCESS_LOWERING_PATH = '/api/tool-access/lower';
 const ids = z.array(z.string().min(1).max(128)).max(32).optional();
@@ -13,9 +14,11 @@ const changeSchema = z.object({ agentIds: ids, serverIds: ids, pluginIds: ids })
  * call this path. Input never selects a site or principal, only launch snapshots in this scope.
  * @complexity O(n) validated IDs, with a 1 KiB control payload cap and no polling.
  */
-export function registerToolAccessLoweringRoute({ app, lower }: {
+export function registerToolAccessLoweringRoute({ app, lower, reporter }: {
   app: Pick<Express, 'post'>;
   lower: (required: ToolAccessChange) => Promise<ToolAccessStopResult>;
+  /** The scope's composed reporter. Required: the daemon scope app never runs `createApp`, so no `res.locals.failureReporter` exists here. */
+  reporter: Pick<ErrorReporter, 'record'>;
 }, _optional = {}): void {
   app.post(TOOL_ACCESS_LOWERING_PATH, async (req, res) => {
     const parsed = changeSchema.safeParse(req.body);
@@ -26,7 +29,7 @@ export function registerToolAccessLoweringRoute({ app, lower }: {
       const result = await lower(parsed.data);
       res.status(result.failedRunIds.length === 0 ? 200 : 503).json({ ok: result.failedRunIds.length === 0, ...result });
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "tool-access:lower", message: "Couldn't stop affected answers after tool access changed." });
+      sendAdminFailure({ res, error, reporter }, { operation: "tool-access:lower", message: "Couldn't stop affected answers after tool access changed." });
     }
   });
 }

@@ -32,6 +32,7 @@ import { importErrorResponse } from "../inbound/admin-http/routes/publish-conten
 import { respondWithError } from "../inbound/admin-http/routes/publish-content/peer-transport.js";
 import { composeAssistantRoutines, ROUTINE_ROUTE_BASE, type ComposeAssistantRoutinesRequired, type MountRoutineAdminRoute } from "../runtime/composition/modules/assistant-routines.js";
 import { mkdtempSync, rmSync } from "node:fs";
+import { registerToolAccessLoweringRoute, TOOL_ACCESS_LOWERING_PATH } from "../inbound/assistant/tool-access-lowering-route.js";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -222,4 +223,15 @@ test("routines store-open: a sidecar open failure records through the injected r
   const refused = await spec.handle({ input: parsed.value, deps: {} as never, context: { id: "owner", workspaceId: "ws" } as never });
   assert.equal(refused.ok, false);
   probe.assertOneIncident({ errorId: (refused as { error: { details: { errorId: string } } }).error.details.errorId, thrown });
+});
+
+// FIX 4: the agent daemon's scope app never runs `createApp`, so no `res.locals.failureReporter` exists there.
+test("daemon tool-access lowering: a failed stop records through the injected reporter", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const app = express();
+  app.use(express.json());
+  registerToolAccessLoweringRoute({ app, lower: async () => { throw thrown; }, reporter: probe.reporter });
+  const response = await dispatchHttpRequest({ app, method: "post", url: TOOL_ACCESS_LOWERING_PATH, body: { agentIds: ["a"] } });
+  assert.equal(response.status, 500);
+  probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
 });

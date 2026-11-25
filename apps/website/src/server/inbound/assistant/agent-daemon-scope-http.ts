@@ -111,7 +111,7 @@ app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
 mountJiniRoutes({ app, routes: messageRelayRoutes({ agentExecutor, runScopedCallers: runCredentials }) });
 }
 
-function mountGuards({ app, authEnv, runCredentials, toolAccessRuns, revokedToolRuns, lifecycle, cleanupFailures, siteTools, resolveDiscoveryCaller }: Pick<MountPorts, "app" | "authEnv" | "runCredentials" | "toolAccessRuns" | "revokedToolRuns" | "lifecycle" | "cleanupFailures" | "siteTools" | "resolveDiscoveryCaller">, _optional = {}) {
+function mountGuards({ app, authEnv, runCredentials, toolAccessRuns, revokedToolRuns, lifecycle, cleanupFailures, siteTools, resolveDiscoveryCaller, reporter }: Pick<MountPorts, "reporter" | "app" | "authEnv" | "runCredentials" | "toolAccessRuns" | "revokedToolRuns" | "lifecycle" | "cleanupFailures" | "siteTools" | "resolveDiscoveryCaller">, _optional = {}) {
 // Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
 // file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
 // bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
@@ -129,7 +129,7 @@ app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials
 // caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
 // unauthenticated attack surface, only a larger authenticated one.
 app.use(express.json({ limit: "6mb" }));
-mountToolAccessLowering({ app, toolAccessRuns, revokedToolRuns, runCredentials, lifecycle, cleanupFailures });
+mountToolAccessLowering({ app, toolAccessRuns, revokedToolRuns, runCredentials, lifecycle, cleanupFailures, reporter });
 // Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
 // caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
 app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
@@ -144,8 +144,8 @@ app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res,
 app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));
 }
 
-function mountToolAccessLowering({ app, toolAccessRuns, revokedToolRuns, runCredentials, lifecycle, cleanupFailures }: Pick<MountPorts, "app" | "toolAccessRuns" | "revokedToolRuns" | "runCredentials" | "lifecycle" | "cleanupFailures">, _optional = {}) {
-registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessChange({ runs: [...toolAccessRuns.values()], change,
+function mountToolAccessLowering({ app, toolAccessRuns, revokedToolRuns, runCredentials, lifecycle, cleanupFailures, reporter }: Pick<MountPorts, "app" | "toolAccessRuns" | "revokedToolRuns" | "runCredentials" | "lifecycle" | "cleanupFailures" | "reporter">, _optional = {}) {
+registerToolAccessLoweringRoute({ app, reporter, lower: change => stopRunsForToolAccessChange({ runs: [...toolAccessRuns.values()], change,
   revoke: ({ runId }) => { revokedToolRuns.add(runId); runCredentials.revoke({ runId }); },
   cancel: async ({ runId }) => { await lifecycle.cancel({ runId }); },
   waitForCleanup: async ({ runId }) => {
