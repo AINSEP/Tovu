@@ -10,7 +10,7 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
 import { surfaceRouteHost } from "./surface-route-host.js";
-import { mountJiniPostRoutesInPlace } from "#src/server/runtime/composition/jini-routes";
+import { mountJiniPostRoutesInPlace } from "#src/platform/express/jini-routes";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer

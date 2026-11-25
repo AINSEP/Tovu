@@ -6,7 +6,7 @@ import express from "express";
 import { jsonResponse, readJsonBody, type ServerRoute } from "@jini-ai/core/contracts/server";
 import { allowAllOrigins } from "@jini-ai/core/contracts/server/testing";
 import { JINI_REQUEST_FACTS } from "@jini-ai/core/contracts/site/request-facts";
-import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
+import { captureRequestFacts } from "#src/platform/express/request-facts";
 import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */

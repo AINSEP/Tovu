@@ -5,8 +5,8 @@ import { openFetchFrontendStream } from '@jini-ai/chat/browser/frontend-session-
 import { createVisitorFrontendControl } from '../visitor-frontend-control.js';
 import { allowsVisitorRequestOrigin } from '../visitor-request-origin.js';
 import { publishVisitorPage } from '#src/features/theme/visitor-publication';
-import { requestHookInput } from '#src/server/inbound/shared/request-facts';
-import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/server/runtime/composition/jini-routes';
+import { requestHookInput } from '#src/platform/express/request-facts';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/platform/express/jini-routes';
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';

@@ -24,7 +24,7 @@ import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connecti
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { resolvePublicOriginFor } from "#src/platform/express/public-origin";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
-import { expressSendResponse, mountJiniRouteInPlace } from "./jini-routes.js";
+import { expressSendResponse, mountJiniRouteInPlace } from "../../../platform/express/jini-routes.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

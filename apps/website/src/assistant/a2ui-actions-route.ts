@@ -5,7 +5,7 @@ import { a2uiActionsRoutes } from "@jini-ai/daemon/http";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { surfaceRouteHost } from "./surface-route-host.js";
-import { mountJiniPostRoutesInPlace } from "#src/server/runtime/composition/jini-routes";
+import { mountJiniPostRoutesInPlace } from "#src/platform/express/jini-routes";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 /**

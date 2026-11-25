@@ -7,7 +7,7 @@ import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { allowsVisitorRequestOrigin } from "#src/assistant/site/visitor-request-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { requestHookInput } from "#src/server/inbound/shared/request-facts";
+import { requestHookInput } from "#src/platform/express/request-facts";
 
 export const SITE_ASSISTANT_CONFIRM_PATH = "/api/site-assistant/confirm";
 interface ConfirmRoutePorts {

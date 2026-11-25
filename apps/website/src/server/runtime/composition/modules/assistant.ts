@@ -5,7 +5,7 @@ import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake"
 import { parseRendererToAgentMessage } from '@jini-ai/protocol/a2ui';
 import { restoreSurface, a2uiNotPendingBody, deliverA2uiAction, isTypedSurfaceAnswer, readA2uiAction } from '@jini-ai/daemon/http';
 import { answerSurface } from '#src/assistant/surface-answer';
-import { nodeIntervalScheduler } from '../jini-routes.js';
+import { nodeIntervalScheduler } from '../../../../platform/express/jini-routes.js';
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon

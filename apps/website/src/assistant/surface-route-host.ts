@@ -6,7 +6,7 @@
  * `requireSameOrigin`, it would refuse every request rather than admit one nobody reviewed.
  */
 import type { DaemonRouteHost } from "@jini-ai/daemon/http";
-import { daemonRouteHost } from "#src/server/runtime/composition/jini-routes";
+import { daemonRouteHost } from "#src/platform/express/jini-routes";
 
 /** The daemon scope parses JSON bodies with a 6 MiB limit (`agent-daemon-scope-http.ts`); the routes derive theirs from it. */
 const DAEMON_JSON_PARSER_LIMIT_BYTES = 6 * 1024 * 1024;

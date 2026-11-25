@@ -10,7 +10,7 @@ import { readChatAttachmentForOwner, sniffContentType } from "#src/features/medi
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DISALLOWED_INLINE_CONTENT_TYPES, SVG_CONTENT_SECURITY_POLICY } from "@jini-ai/cms/media";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { mountJiniRouteInPlace } from "../jini-routes.js";
+import { mountJiniRouteInPlace } from "../../../../platform/express/jini-routes.js";
 
 /**
  * @file Host binding for the chat-attachment read route (`@jini-ai/cms`'s

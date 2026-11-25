@@ -3,7 +3,7 @@ import test from "node:test";
 import { createToolRegistry, type Principal } from "@jini-ai/core";
 import { toolCatalogRoutes, type ToolCatalogQuery, type ToolCatalogSearchHit } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type ServerRoute } from "@jini-ai/core/contracts/server";
-import { daemonRouteHost } from "../../server/runtime/composition/jini-routes.js";
+import { daemonRouteHost } from "../../platform/express/jini-routes.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
 

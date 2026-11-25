@@ -8,7 +8,7 @@ import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { sniffContentType as realSniffContentType, MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 import { registerDaemonAttachmentLookup, RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
-import { mountJiniRoutes, type daemonRouteHost } from "../../runtime/composition/jini-routes.js";
+import { mountJiniRoutes, type daemonRouteHost } from "../../../platform/express/jini-routes.js";
 import { agentReceivesImageAttachments as realAgentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
 import { prepareByokMessageAttachments as realPrepareByokMessageAttachments } from "./byok-message-attachments.js";
 import type { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
