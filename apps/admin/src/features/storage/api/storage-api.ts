@@ -1,0 +1,46 @@
+import type { RetentionPassResult, RetentionPolicyKind } from "@jini-ai/platform/retention";
+import { request, type AuthenticatedAdminRequestOptions } from "@/lib/admin-http/request";
+
+/**
+ * @file The admin's client for the owner-only storage routes the website mounts from
+ * `@jini-ai/platform/retention/routes` (`apps/website/src/server/runtime/composition/modules/storage-routes.ts`):
+ * `GET /api/admin/storage/report` and `POST /api/admin/storage/cleanup`. Refusals arrive in the admin
+ * refusal envelope and surface as the request layer's `ApiError`.
+ */
+
+/** The website's three classes; the screen shows `report-only` as "Shown only". */
+export type StorageClassName = "automatic" | "yours" | "report-only";
+export interface StorageAmount { bytes: number | null; knownBytes: number; files: number }
+
+/** What the report route answers: ST-14 categories and the last pass, never raw paths. */
+export interface StorageReport {
+  categories: Record<string, StorageAmount & { class: StorageClassName }>;
+  lastPass: RetentionPassResult | null;
+  unknownLocations?: number;
+}
+
+export interface StorageClient {
+  report(required: Record<string, never>, optional?: Record<string, never>): Promise<StorageReport>;
+  /** The server defaults to a dry run; only `dryRun: false` cleans, and only the given automatic kinds. */
+  cleanup(required: { dryRun: boolean; classes?: readonly RetentionPolicyKind[] }, optional?: Record<string, never>): Promise<RetentionPassResult>;
+}
+
+type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestInit } & Pick<AuthenticatedAdminRequestOptions, "basePath">) => Promise<T>;
+
+/**
+ * Builds the client over a host `request`.
+ * @complexity O(1) per call.
+ */
+export function createStorageClient({ request: send }: { request: AdminRequest }, _optional: Record<string, never> = {}): StorageClient {
+  const basePath = "/api/admin/storage" as const;
+  return {
+    report: () => send<StorageReport>({ path: "/report" }, { basePath }),
+    cleanup: ({ dryRun, classes }) => send<RetentionPassResult>({ path: "/cleanup" }, {
+      basePath,
+      init: { method: "POST", body: JSON.stringify({ dryRun, ...(classes === undefined ? {} : { classes }) }) },
+    }),
+  };
+}
+
+/** The live client over this admin's `request`. */
+export const storageClient: StorageClient = createStorageClient({ request: request as AdminRequest }, {});
