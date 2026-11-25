@@ -5,6 +5,10 @@ import { selectDatabaseCopiesToPrune } from "@jini-ai/db/sqlite";
 import { siteMigrationCopyPorts } from "#src/platform/db/sqlite/content-db";
 import { defaultDatabaseJournalDbPath } from "./site-paths.js";
 import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import fsPromises from "node:fs/promises";
+import { sweepOwnedTempRoots } from "@jini-ai/platform/fs";
+import { SITE_TEMP_ROOTS, siteTempRootLock } from "#src/platform/temp/site-temp-roots";
+import { createSiteTempRootPolicy } from "./retention-policies/temp-roots.js";
 import { createShareMutex, createShareRetention, type ShareRetentionFs } from "#src/features/site-backup/share-retention";
 import { createDatabaseCopyPolicy, type DatabaseCopyPolicyRequired } from "./retention-policies/database-copies.js";
 
@@ -52,11 +56,13 @@ export function startSiteRetention(
 }
 
 /**
- * The serving process's retention policies, both kind `old-copy` (never a content class): the share
- * expiry pass (`share-files`, only when this site has a share catalog) and the verified pre-migration
- * copy pass (`database-copies`, only when the host supplies its ports). Scheduled passes stay
- * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date and
- * copies beyond the newest five behind a verified newest copy.
+ * The serving process's retention policies, all kind `old-copy` (never a content class): the share
+ * expiry pass (`share-files`, only when this site has a share catalog), the verified pre-migration
+ * copy pass (`database-copies`, only when the host supplies its ports) and always the owned temp-root
+ * tidy (`temp-roots`) over the same resolved parent and prefixes the writers use. Scheduled passes stay
+ * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date,
+ * copies beyond the newest five behind a verified newest copy, and temporary roots whose owning
+ * process is proven dead.
  */
 export function siteRetentionPolicies(
   required: { registry: SiteShareRegistry | undefined; fs: ShareRetentionFs; clock: { now(): number }; signal: AbortSignal; reportError: (required: { error: Error; policyId?: string }, optional: Record<string, never>) => void; databaseCopies?: Omit<DatabaseCopyPolicyRequired, "signal"> },
@@ -67,6 +73,7 @@ export function siteRetentionPolicies(
   if (registry) policies.push(createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
     reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) }));
   if (databaseCopies) policies.push(createDatabaseCopyPolicy({ ...databaseCopies, signal }));
+  policies.push(createSiteTempRootPolicy({ roots: SITE_TEMP_ROOTS, sweepOwnedTempRoots, fs: fsPromises, fileLock: siteTempRootLock, signal }));
   return policies;
 }
 

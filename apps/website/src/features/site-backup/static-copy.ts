@@ -1,5 +1,5 @@
-import { mkdtemp, readdir, readFile, lstat, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir, readFile, lstat } from "node:fs/promises";
+import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import path from "node:path";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import { shareFileStem } from "./share-service.js";
@@ -158,15 +158,12 @@ async function stampedCopy({ ports, outputDir, themeId, publicUrl }: { ports: St
  * Missing render support, render/cleanup errors or zero written pages cannot block a backup.
  * @complexity O(export bytes + report entries), buffered like the existing backup ZIP.
  */
-export async function captureStaticSite(ports: StaticSitePorts, { themeId, publicUrl }: { themeId?: string; publicUrl?: string } = {}): Promise<StaticSiteCopy> {
+export async function captureStaticSite(ports: StaticSitePorts, { themeId, publicUrl, tempRoot = siteTempRoot({ prefix: SITE_TEMP_PREFIXES.staticCopy }) }: { themeId?: string; publicUrl?: string; tempRoot?: OwnedTempRootScope } = {}): Promise<StaticSiteCopy> {
   if (!ports.render) return { reason: "Static exporter is unavailable in this context." };
-  let outputDir: string | undefined;
-  let copy: StaticSiteCopy;
   try {
-    outputDir = await mkdtemp(path.join(tmpdir(), "tovu-static-copy-"));
-    copy = await stampedCopy({ ports, outputDir, themeId, publicUrl });
-  } catch (error) { copy = { reason: String(error) }; }
-  try { if (outputDir) await rm(outputDir, { recursive: true, force: true }); }
-  catch (error) { copy = { reason: `Static render cleanup failed: ${String(error)}` }; }
-  return copy;
+    // A publisher's last read is part of the writer lifetime: `stampedCopy` reads every rendered file
+    // back into memory before `work` settles, so the owned root (and its lock) outlive that read and
+    // the temp-root tidy cannot remove a folder the copy is still being read from.
+    return await tempRoot({ work: ({ root }) => stampedCopy({ ports, outputDir: root, themeId, publicUrl }).catch((error: unknown): StaticSiteCopy => ({ reason: String(error) })) });
+  } catch (error) { return { reason: `Static render folder could not be prepared: ${String(error)}` }; }
 }
