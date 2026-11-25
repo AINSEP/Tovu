@@ -1,5 +1,6 @@
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
@@ -21,6 +22,8 @@ import { removeUnreadableOwnerEntries, UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_I
 
 const DATABASE = "tovu_unreadable_owner_entries_repair_pg_fixture";
 const WS = "ws-repair";
+/** The host binding `boot-data-repairs.ts` supplies: the live Trash registrations. */
+const registeredTypes = () => buildTrashRegistry().values();
 const AT = "2026-10-04T00:00:00.000Z";
 
 const opened: ContentKernel[] = [];
@@ -53,7 +56,7 @@ test("two processes booting at once: the mismatched rows go exactly once, one ma
   await insertEntry(api!, "both-widget", "widget", { ext: { widget: { payload: "{}" }, site: { payload: "stray" } } });
   await insertEntry(api!, "recipe", "recipe", { ext: { site: { servings: 2 } } });
 
-  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: () => {} })));
+  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: () => {} })));
 
   assert.deepEqual(results.map((result) => result.ran).sort(), [false, true], "the second runner waits on the lock, then sees the marker");
   const winner = results.find((result) => result.ran)!;

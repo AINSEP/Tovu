@@ -1,6 +1,7 @@
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import { removeUnreadableOwnerEntries } from "#src/features/entries/unreadable-owner-entries-repair";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
 import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 
@@ -41,7 +42,7 @@ export async function runBootDataRepairs(
   const stampWatermark = () => kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES })();
   await footer({ kernel, stampWatermark });
   try {
-    await unreadable({ kernel, stampWatermark });
+    await unreadable({ kernel, stampWatermark, registeredTypes: () => buildTrashRegistry().values() });
   } catch (error) {
     logError(`[boot-repair] removing unreadable owner entries failed; the next boot retries: ${(error as Error).message}`);
   }
