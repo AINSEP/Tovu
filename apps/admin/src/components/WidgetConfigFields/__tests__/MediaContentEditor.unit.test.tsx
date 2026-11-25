@@ -6,7 +6,10 @@ import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPicke
 import { MediaContentEditor } from "../MediaContentEditor";
 import { useMediaContentEditor } from "../MediaContentEditor.hooks";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
-import { htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes } from "../media-content-rules";
+import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtmlAttributes } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
+import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";
+
+const isDroppedAttributeRow = (row: Parameters<typeof isDroppedRow>[0]["row"]) => isDroppedRow({ row, policy: embedPolicy });
 import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields";
 
 /**

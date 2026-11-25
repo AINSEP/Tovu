@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mediaApi } from "../../features/media/api/media-api";
 import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
-import { ChatFab } from "../ChatFab/ChatFab";
+import { ChatFab } from "@jini-ai/admin/shell/components/ChatFab/ChatFab";
 
 /**
  * @file Batch 4 of the shared `components/` pass-through `agentHandle` prop: `EmbedInsertControl`
@@ -92,12 +92,12 @@ describe("EmbedInsertControl agentHandle", () => {
 
 describe("ChatFab agentHandle", () => {
   it("omits data-agent-* when agentHandle is not passed", () => {
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
+    render(<ChatFab positionStorageKey="test-fab-position" open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
     expect(screen.getByRole("button")).not.toHaveAttribute(AGENT_ELEMENT);
   });
 
   it("publishes the FAB button directly under the caller's base handle (no suffix)", () => {
-    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} agentHandle="assistant-fab" />);
+    render(<ChatFab positionStorageKey="test-fab-position" open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} agentHandle="assistant-fab" />);
     expect(screen.getByRole("button")).toHaveAttribute(AGENT_ELEMENT, "assistant-fab");
   });
 });

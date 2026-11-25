@@ -4,7 +4,11 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import "../../styles/media-content-editor.css";
 import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
-import { htmlAttributesToRows, isDroppedAttributeRow, rowsToHtmlAttributes } from "./media-content-rules";
+import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtmlAttributes, type HtmlAttributeRow } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
+import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
+
+/** The host binds the content domain's embed policy into the shell's dropped-row rule. */
+const isDroppedAttributeRow = (row: HtmlAttributeRow) => isDroppedRow({ row, policy: embedPolicy });
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -4,7 +4,7 @@ import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { MediaContentEditor } from "../MediaContentEditor";
 import type { MediaContentEditorController, MediaItemRow } from "../MediaContentEditor.hooks";
-import type { MediaSlugProblem } from "../media-content-rules";
+import type { MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { useWidgetPreview } from "../WidgetPreview.hooks";
 
 /**
