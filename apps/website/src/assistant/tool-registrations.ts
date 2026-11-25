@@ -57,7 +57,7 @@ import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrati
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
 import type { AgentPluginSearchToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/post-tool-deps.js";
-import type { PublishContentToolDeps } from "../features/publish-content/tool-registrations.js";
+import type { PublishContentToolDeps } from "../features/publish-content/tool-deps.js";
 import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations.js";
 import type { SettingsToolDeps } from "../features/settings/tool-registrations.js";

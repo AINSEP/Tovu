@@ -1,10 +1,10 @@
-export type { PublishContentToolDeps } from "./tool-deps.js";
+import { publishContentDerivedRisk, plainSentence, acceptedPullReport, pullCounts, pullTitle, requiredPullBundleId, pullOverwriteKeys } from "@jini-ai/cms/publish/content/tool-helpers";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import { toolMetadata } from '@jini-ai/cms/publish/content/tool-metadata';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection 400 rather than redacting it into a message-stripped 500. Same import, same reason, as
@@ -83,26 +83,6 @@ import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
  * root the HTTP route uses. That is what stops the two drifting on path or format.
  */
 
-const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // External write: uploads/stages on live and confirms/executes its gateway, applying durable
-  // remote content. The registry's write classification is mutates-durable-state (no separate
-  // external-write enum); this must never be marked read-only or token-only.
-  [PUBLISH_CONTENT_PUBLISH_TOOL_ID, "mutates-durable-state"],
-  // -> a read-only projection of source audit events; no bundle, confirmation or writes.
-  [PUBLISH_BACKSTOP_GAPS_TOOL_ID, "none"],
-  // -> one peer-table read, one repo-config read. Writes nothing, contacts nothing.
-  [PUBLISH_CONTENT_STATUS_TOOL_ID, "none"],
-  // -> pullAndStageFromPeer stores blobs and a 24-hour staged row; gateway.plan reads;
-  //    the planned run row retains the source label. These are durable writes, even with a TTL.
-  [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, "mutates-durable-state"],
-  // -> human-confirmed gateway.confirm mints a token; gateway.execute captures a restore point
-  //    and applies through the existing import hooks/apply port.
-  [PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, "mutates-durable-state"],
-  // -> connectDestination(): one round trip to the destination, then a write to committed config
-  //    and one row in this workspace's destination list.
-  [PUBLISH_CONTENT_CONNECT_TOOL_ID, "mutates-durable-state"],
-]);
-
 const CATALOG_BY_ID = indexCatalogById({ catalog: publishContentAgentToolCatalog });
 
 /** The injected committed-config port, or a plain refusal when the host never bound one.
@@ -110,28 +90,6 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: publishContentAgentToolCatalog
 export function requirePublishTrustProvisioning({ deps }: { deps: Pick<PublishContentToolDeps, "publishTrustProvisioning"> }, _optional = {}): PublishTrustProvisioningPort {
   if (deps.publishTrustProvisioning === undefined) throw new Error("Publishing settings are not set up on this computer yet.");
   return deps.publishTrustProvisioning;
-}
-
-/** Matches a bare identifier-shaped token — `PEER_NOT_FOUND`, `publish_trust_export_not_wired`,
- *  `EGRESS_REFUSED`. Anchored on word boundaries so ordinary prose and a capitalised site name are
- *  untouched. */
-const MACHINE_TOKEN = /\b(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[a-z0-9]+(?:_[a-z0-9]+)+)\b/;
-
-/**
- * Returns `text` only if a person could read it, and `fallback` otherwise.
- *
- * Several errors these handlers catch carry messages that were written for a person — and several
- * carry, or interpolate, a machine code. Review cannot keep that straight for every future error
- * added upstream, so the sentence a person sees passes through one filter that can. The filter is
- * deliberately blunt: a message with an underscore-joined identifier anywhere in it is discarded
- * whole rather than patched, because a half-scrubbed sentence reads worse than the plain one.
- *
- * @complexity O(n) in the message length.
- */
-export function plainSentence({ text, fallback }: { text: string; fallback: string }, _optional = {}): string {
-  const trimmed = text.trim();
-  if (trimmed.length === 0 || MACHINE_TOKEN.test(trimmed)) return fallback;
-  return trimmed;
 }
 
 /** The live site this computer publishes to, if there is exactly one obvious answer.
@@ -264,7 +222,7 @@ async function connectWithTrust(
       const peerId = await selectPullPeer({ deps: routeDeps, supplied: input.peerId });
       const staged = await pullAndStageFromPeer({ deps: routeDeps, input: { peerId, principalId: ctx.principal.id } });
       const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks: pullHooks({ deps: routeDeps, bundleId: staged.bundleId, actorId: ctx.principal.id }) });
-      const report = acceptedPullReport(planned.details as PublishContentReport);
+      const report = acceptedPullReport({ report: planned.details as PublishContentReport });
       // The bundle table has no source-label column. An existing audit row retains this display
       // metadata across tool calls/restarts; no cached plan is trusted at execute time.
       await routeDeps.publishContentRunRepo.save({ record: {
@@ -274,8 +232,8 @@ async function connectWithTrust(
         reportJson: JSON.stringify(report), itemsJson: null,
       } });
       return { bundleId: staged.bundleId, expiresAt: staged.expiresAt, peerLabel: staged.peerLabel,
-        counts: pullCounts(report), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
-          entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), reason: row.reason,
+        counts: pullCounts({ report }), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
+          entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle({ row }), reason: row.reason,
         })), blobsUnavailable: staged.blobsUnavailable, blobsDeferred: staged.blobsDeferred };
     } });
 }
@@ -296,7 +254,7 @@ async function connectWithTrust(
         if (!audit || audit.phase !== "planned" || audit.actorId !== ctx.principal.id) throw new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
         const hooks = pullHooks({ deps: routeDeps, bundleId, actorId: ctx.principal.id }, { forcedEntityKeys: overwriteKeys });
         const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks });
-        const report = acceptedPullReport(planned.details as PublishContentReport);
+        const report = acceptedPullReport({ report: planned.details as PublishContentReport });
         const knownKeys = new Set(report.rows.map(row => entityKey({ entityType: row.entityType, entityId: row.entityId })));
         for (const key of overwriteKeys) if (!knownKeys.has(key)) throw new ToolInputError({ message: `'${key}' is not in this pull plan. Use entity keys returned by publish_content_plan_pull.` });
         return { hooks, planned, report, peerLabel: audit.peerLabel ?? "Live site" };
@@ -306,8 +264,8 @@ async function connectWithTrust(
         description: `Copy content from ${peerLabel} into this local site.`,
         details: [
           { label: "Live site", value: peerLabel },
-          ...Object.entries(pullCounts(report)).map(([key, count]) => ({ label: key.charAt(0).toUpperCase() + key.slice(1), value: String(count) })),
-          ...report.rows.filter(row => row.outcome === "applied" || row.outcome === "forced").map(row => ({ label: "Overwrite local item", value: pullTitle(row) })),
+          ...Object.entries(pullCounts({ report })).map(([key, count]) => ({ label: key.charAt(0).toUpperCase() + key.slice(1), value: String(count) })),
+          ...report.rows.filter(row => row.outcome === "applied" || row.outcome === "forced").map(row => ({ label: "Overwrite local item", value: pullTitle({ row }) })),
           ...report.rows.flatMap(row => row.retires !== null && row.writes ? [{ label: "Move to Trash", value: row.retires.entityLabel ?? row.retires.entityId }] : []),
         ],
         warning: "The listed local items will be overwritten. A restore point is captured before applying changes.",
@@ -325,7 +283,7 @@ async function connectWithTrust(
         const status = await getPublishContentRunStatus<PublishContentReport>({ repo: routeDeps.publishContentRunRepo, input: { workspaceId: routeDeps.workspaceId, runId: applied.runId } });
         if (!status?.report) throw new ToolInputError({ message: "The pull ran, but its report could not be loaded. Check import history before retrying." });
         // Use the persisted APPLY report, including any optimistic-concurrency downgrades.
-        return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
+        return { executed: true, counts: pullCounts({ report: status.report }), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle({ row }), outcome: row.outcome, reason: row.reason })) };
       } }),
     });
 }
@@ -381,7 +339,6 @@ export function buildPublishContentRegistrations(
   });
 }
 
-export { publishContentDerivedRisk };
 
 /**
  * Contributes the publishing tools to the assistant's catalog — called once by
@@ -458,40 +415,6 @@ function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; 
     restorePointsRepo: deps.restorePointsRepo, applyPort: deps.publishContentApplyPort,
     getSeedHash: deps.publishContentSeedHash, forcedEntityKeys,
   });
-}
-
-/** A refused planner result is a failure, never an empty successful plan. O(1). */
-function acceptedPullReport(report: PublishContentReport): PublishContentReport {
-  if (report.refused) throw new ToolInputError({ message: report.refusalReason ?? "The live content cannot be imported here." });
-  return report;
-}
-
-/** Stable counts for plan, dialog and apply. Conflicts are returned separately for selection.
- * @complexity O(e) time and space for e report rows, including the temporary filtered arrays. */
-function pullCounts(report: PublishContentReport): { create: number; update: number; unchanged: number; blocked: number } {
-  return {
-    create: report.rows.filter(row => row.outcome === "created").length,
-    update: report.rows.filter(row => row.outcome === "applied" || row.outcome === "forced").length,
-    unchanged: report.rows.filter(row => row.outcome === "unchanged").length,
-    blocked: report.rows.filter(row => row.outcome === "blocked").length,
-  };
-}
-/** Display label, falling back to the stable entity key when the imported entity has no title. */
-function pullTitle(row: PublishContentReport["rows"][number]): string {
-  return row.entityLabel ?? entityKey({ entityType: row.entityType, entityId: row.entityId });
-}
-/** Requires the staged bundle identifier; rejects malformed input with a model-readable error. */
-function requiredPullBundleId({ value }: { value: unknown }, _optional = {}): string {
-  if (typeof value !== "string" || value.trim() === "") throw new ToolInputError({ message: "'bundleId' must be a non-empty string." });
-  return value;
-}
-/** Snapshot a bounded selection before drawing the confirmation card. O(k), at most 1000 keys. */
-function pullOverwriteKeys({ value }: { value: unknown }, _optional = {}): ReadonlySet<string> {
-  if (value === undefined) return new Set();
-  if (!Array.isArray(value) || value.length > 1000 || !value.every(key => typeof key === "string" && key.trim() !== "")) {
-    throw new ToolInputError({ message: "'overwriteEntityKeys' must be an array of at most 1000 non-empty strings." });
-  }
-  return new Set(value as string[]);
 }
 
 /** Translate known refusals for the model; unknown failures retain the normal executor redaction. */

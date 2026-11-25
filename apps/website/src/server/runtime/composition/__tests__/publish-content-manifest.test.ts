@@ -39,7 +39,7 @@ import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/backstop-sqlite-binding";
 import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
 import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

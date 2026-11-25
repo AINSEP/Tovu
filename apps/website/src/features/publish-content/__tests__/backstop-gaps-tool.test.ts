@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { buildPublishContentRegistrations, publishContentDerivedRisk, type PublishContentToolDeps } from "../tool-registrations.js";
+import { buildPublishContentRegistrations } from "../tool-registrations.js";
+import { publishContentDerivedRisk } from "@jini-ai/cms/publish/content/tool-helpers";
+import type { PublishContentToolDeps } from "../tool-deps.js";
 import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/agent-tools";
 
 test("the assistant may read gaps but has no backstop send, confirm or undo tool", async () => {
