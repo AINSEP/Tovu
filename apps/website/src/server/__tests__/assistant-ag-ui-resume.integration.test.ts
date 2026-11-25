@@ -2,8 +2,10 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { EventEmitter, once } from "node:events";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import express from "express";
@@ -36,16 +38,30 @@ let lastEventIds: Array<string | undefined> = [];
 let openEventStreams = 0;
 /** Held (never-ending) streams, ended as a stopped run after each test so no subscriber outlives it. */
 const heldStreams = new Set<{ runId: string; res: import("node:http").ServerResponse }>();
-let mode: "approval" | "ordinary" = "approval";
+let mode: "approval" | "ordinary" | "mixed" = "approval";
 
 function frame(runId: string, id: number, kind: string, payload: unknown): string {
   return `id: ${id}\nevent: ${kind}\ndata: ${JSON.stringify({ runId, eventId: `e${id}`, opaqueCursor: String(id), protocolVersion: 1, ts: 0, kind, payload, durability: "durable" })}\n\n`;
 }
 
-function card(runId: string, actions: string[]): unknown {
-  return { type: "mcp-ui", surfaceExchange: { exchangeId: "ex-1", toolId: "posts.delete", runId },
-    resource: { type: "resource", resource: { uri: "ui://tovu/posts-delete/ex-1", mimeType: "text/html", text: "<p>Delete?</p>",
-      _meta: { [MCP_UI_ACTION_PLAN_META_KEY]: { title: "Delete the post?", actions: actions.map((id) => ({ id, label: id })) } } } } };
+function card(runId: string, actions: string[], { exchangeId = "ex-1", toolId = "posts.delete", title = "Delete the post?" } = {}): unknown {
+  return { type: "mcp-ui", surfaceExchange: { exchangeId, toolId, runId },
+    resource: { type: "resource", resource: { uri: `ui://tovu/${toolId}/${exchangeId}`, mimeType: "text/html", text: "<p>Delete?</p>",
+      _meta: { [MCP_UI_ACTION_PLAN_META_KEY]: { title, actions: actions.map((id) => ({ id, label: id })) } } } } };
+}
+
+/** The golden turn's held run: deltas, an ordinary form card (no interrupt), then the approval card.
+ *  A reconnect after the approval card's cursor continues past it. */
+function writeMixedEvents(lastEventId: string | undefined, res: import("node:http").ServerResponse, runId: string): boolean {
+  if (lastEventId === "3") {
+    res.write(frame(runId, 4, "agent", { type: "text_delta", delta: "Deleted." }));
+    res.end(frame(runId, 5, "end", { reason: "stop", status: "succeeded" }));
+    return false;
+  }
+  res.write(frame(runId, 1, "agent", { type: "text_delta", delta: "Checking." }));
+  res.write(frame(runId, 2, "agent", card(runId, ["submit"], { exchangeId: "ex-form", toolId: "forms.fill", title: "Fill in the form" })));
+  res.write(frame(runId, 3, "agent", card(runId, ["confirm", "cancel"])));
+  return true;
 }
 
 function writeEvents(req: IncomingMessage, res: import("node:http").ServerResponse, runId: string): void {
@@ -66,6 +82,8 @@ function writeEvents(req: IncomingMessage, res: import("node:http").ServerRespon
     res.end(frame(runId, 3, "end", { reason: "stop", status: "succeeded" }));
     return;
   }
+  if (mode === "mixed" && !writeMixedEvents(lastEventId, res, runId)) return;
+  if (mode === "mixed") { holdStream(runId, res); return; }
   if (lastEventId === "2") {
     res.write(frame(runId, 3, "agent", { type: "text_delta", delta: "After approval." }));
     res.end(frame(runId, 4, "end", { reason: "stop", status: "succeeded" }));
@@ -74,6 +92,10 @@ function writeEvents(req: IncomingMessage, res: import("node:http").ServerRespon
   // The held run: the card is the last frame until the human answers, so the stream stays open.
   res.write(frame(runId, 1, "agent", { type: "text_delta", delta: "Before card." }));
   res.write(frame(runId, 2, "agent", card(runId, ["confirm", "cancel"])));
+  holdStream(runId, res);
+}
+
+function holdStream(runId: string, res: import("node:http").ServerResponse): void {
   const held = { runId, res };
   heldStreams.add(held);
   res.on("close", () => { heldStreams.delete(held); });
@@ -324,4 +346,38 @@ test("Stop before the resume settles the parked admin approval: the late resume 
   assert.equal(stop.status, 200);
   const late = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
   assert.deepEqual([late.status, late.text, answers.length], [400, REFUSAL, 0], "a stopped run's approval cannot be answered afterwards");
+});
+
+/** The admin client replays these exact bytes (`assistant-transport.ag-ui.approvals.unit.test.ts`),
+ *  so this file pins them to the live route: a server change that alters the wire fails here until
+ *  the golden is regenerated (`TOVU_UPDATE_AG_UI_GOLDEN=1`), and the regenerated golden then
+ *  re-runs the client's acceptance. Random ids are numbered in order of first appearance so the
+ *  pin compares structure, not luck. */
+const GOLDEN = fileURLToPath(new URL("../../../../admin/src/lib/__tests__/fixtures/admin-ag-ui-approval-wire.golden.json", import.meta.url));
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+type Recorded = { status: number; contentType: string; body: string };
+async function record(res: Response): Promise<Recorded> {
+  return { status: res.status, contentType: (res.headers.get("content-type") ?? "").split(";")[0]!, body: await res.text() };
+}
+
+test("admin AG-UI golden wire: the segments the admin client replays are the live server's bytes", { timeout: 60_000 }, async (t) => {
+  const { baseUrl, cookie, conversationId } = await boot(t);
+  mode = "mixed";
+  const post = (body: string) => fetch(`${baseUrl}${RUN_PATH}`, { method: "POST", headers: { "content-type": "application/json", cookie }, body });
+  const firstSegment = await record(await post(JSON.stringify({ threadId: "client-thread", runId: "seg-1", messages: [{ role: "user", content: "delete it" }],
+    forwardedProps: { agentId: "claude", durableRun: { conversationId, assistantMessageId: `msg-${randomUUID()}` } } })));
+  const finished = parse(firstSegment.body).at(-1) as { runId: string; outcome?: { interrupts: Array<{ id: string }> } };
+  const body = resumeBody({ conversationId, parentRunId: finished.runId, interruptId: finished.outcome!.interrupts[0]!.id });
+  const resumeSegment = await record(await post(body));
+  const refusal = await record(await post(body));
+  const seen = new Map<string, string>();
+  const live = JSON.parse(JSON.stringify({ firstSegment, resumeSegment, refusal }).replace(UUID, (id) => {
+    if (!seen.has(id)) seen.set(id, `00000000-0000-4000-8000-${String(seen.size + 1).padStart(12, "0")}`);
+    return seen.get(id)!;
+  })) as Record<string, Recorded>;
+  if (process.env.TOVU_UPDATE_AG_UI_GOLDEN === "1") writeFileSync(GOLDEN, `${JSON.stringify(live, null, 2)}\n`);
+  assert.deepEqual(live, JSON.parse(readFileSync(GOLDEN, "utf8")), "the live wire drifted from the golden the admin client replays");
+  assert.deepEqual([firstSegment.status, resumeSegment.status, refusal.status], [200, 200, 400]);
+  assert.deepEqual(answers.map((a) => a.body), [{ toolName: "posts.delete", params: { __exchangeId: "ex-1", decision: "confirm" } }]);
 });
