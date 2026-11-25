@@ -1,5 +1,5 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
+import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import { partitionChatPackages } from "@jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
@@ -31,7 +31,8 @@ import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
 /**
  * The same limits the server enforces, read from the shared contract (`apps/admin` is a browser
  * bundle and cannot import website code) so a rejection surfaces here, before any bytes are sent.
- * One number for Library, Media, chat attachments and assistant imports (owner 2026-10-29).
+ * One source for Library, Media, chat attachments and assistant imports (owner 2026-10-29); a video gets
+ * the larger video limit, picked per file by {@link uploadLimitForFile} (owner 2026-11-24).
  */
 export const CHAT_ATTACHMENT_MAX_BYTES = MAX_UPLOAD_BYTES;
 export const CHAT_ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
@@ -41,6 +42,8 @@ export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmen
     () =>
       createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
         maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
+        maxAttachmentBytesFor: uploadLimitForFile,
+
         maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
       }),
     [],
