@@ -98,9 +98,7 @@ function collidingHeal(real: VendorCredentialSetRepoPort): VendorCredentialSetRe
   });
 }
 
-test("B231: an account-label collision does not report an unsaved key after its credential row committed", {
-  todo: "B231 verify-first: verifyAfterSave awaits healAccountLabel unguarded, so a post-commit label collision maps to 409 DUPLICATE_LABEL for a key that was saved",
-}, async (t) => {
+test("B231: an account-label collision does not report an unsaved key after its credential row committed", async (t) => {
   // Repro: POST a github-pages key whose probe returns {login}; make updateAccountLabel throw
   // PublishCredentialDuplicateLabelError; the response says 409 although the row exists.
   const deps: Deps = { ...createRouteDeps() };

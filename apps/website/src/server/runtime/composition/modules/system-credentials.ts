@@ -327,7 +327,16 @@ function buildVerifyAfterSave({ deps }: { deps: AdminPublishCredentialsDeps }, _
       { workspaceId: deps.workspaceId, id },
     );
     if (result?.accountLabel !== undefined) {
-      await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+      try {
+        await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+      } catch (err) {
+        // B231: the credential row is already committed, so a heal failure (an account-label
+        // collision with another key, a DB blip) must not reach the save/verify route's store-error
+        // mapping, where a collision reads as 409 DUPLICATE_LABEL for a key that WAS saved. The row
+        // keeps the label it was stored with. Log the error's class only: its message can carry the
+        // provider account login.
+        console.warn(`[publish-credentials] account-label heal skipped for '${id}': ${err instanceof Error ? err.constructor.name : "unknown error"}`);
+      }
     }
     return result ?? undefined;
   };
