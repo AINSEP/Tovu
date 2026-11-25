@@ -1,5 +1,5 @@
-import type { Express, Response } from "express";
-import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
+import type { Express, RequestHandler, Response } from "express";
+import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions } from "@jini-ai/http-kit";
 import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
@@ -103,11 +103,70 @@ export interface AdminJsonRouteMountOptions {
    *  request headers it declares (added to the spec's `readHeaders`, so the spec's `raw.headers` also
    *  carries them); a returned reply is written as-is, `undefined` admits the request. */
   preflight?: AdminMountPreflight;
+  /** Opt-in: the host's own body-cap 413 for a spec with `maxBodyBytes` (http-kit's `payloadTooLarge` port),
+   *  instead of the kit's core envelope. The cap still answers before the workspace 404, as a hand-written
+   *  `rejectOversizedJsonBody` middleware did. */
+  payloadTooLarge?: (args: { res: Response; maxBytes: number }) => void;
+  /** Opt-in: body parsers registered between the path and the handler of THIS route only (http-kit's
+   *  `bodyParsers`), as a hand-written route mounted its own `express.urlencoded`. A mount option, not a port. */
+  bodyParsers?: readonly RequestHandler[];
+  /** Opt-in: writes every `RouteRefusalError` (the workspace 404, the authorize 403, a spec's own refusal) instead of the
+   *  flat JSON envelope — for a route whose hand-written version answered `text/plain`. */
+  refusalWriter?: (args: { res: Response; error: RouteRefusalError }) => void;
+  /** Opt-in: writes an unexpected failure instead of `sendAdminFailure`/`adminFailureResponse`'s JSON — the host owns
+   *  the incident report and the copy (a `text/plain` 500). Refusals never reach it. */
+  failureWriter?: (args: { res: Response; error: unknown }) => void;
+  /** Opt-in: a host check answered in the workspace port RIGHT AFTER the foreign-workspace 404 and before
+   *  the principal read, authorization and the handler — for a route whose hand-written version refused on a
+   *  deployment gate (sites settings: "Local sites management is disabled.") after the workspace check but
+   *  before the session. `preflight` runs before the 404 (wrong order here) and `deferMissingPrincipal`
+   *  changes the missing-session answer. A returned reply is written as-is; `undefined` admits the request. */
+  afterWorkspace?: (args: { deps: AdminJsonRoutePortDeps }) => { status: number; body: unknown } | undefined;
+  /** Opt-in: two unexpected-failure copies by phase — `beforeAuthorize` until the spec's `authorize` has
+   *  allowed THIS request (a missing session, an authorizer that crashed), `afterAuthorize` once it has
+   *  (sites settings read "Could not read…" vs save "Could not save…"). `failureFor` still wins per error;
+   *  `failure` is the fallback for a mount that gives neither. The phase is tracked per request. */
+  failureByPhase?: { beforeAuthorize: FailureOptions; afterAuthorize: FailureOptions };
+}
+
+/** Per-request "authorize already allowed" marks behind {@link AdminJsonRouteMountOptions.failureByPhase}.
+ *  Keyed on the request's `res` and its own principal copy — never held on the mount, so one request's phase
+ *  cannot leak into another's. */
+interface AuthorizationPhaseTracker {
+  begin: (args: { res: Response; principal: OperatorPrincipalRecord }) => void;
+  markAuthorized: (args: { context: OperatorPrincipalRecord | undefined }) => void;
+  authorized: (args: { res: Response }) => boolean;
+}
+
+/** @complexity O(1) per call; one WeakMap entry per in-flight request. */
+function createAuthorizationPhaseTracker(): AuthorizationPhaseTracker {
+  const marks = new WeakMap<object, { authorized: boolean }>();
+  return {
+    begin: ({ res, principal }) => { const mark = { authorized: false }; marks.set(res, mark); marks.set(principal, mark); },
+    markAuthorized: ({ context }) => { const mark = context && marks.get(context); if (mark) mark.authorized = true; },
+    authorized: ({ res }) => marks.get(res)?.authorized ?? false,
+  };
 }
 
 /** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
  *  header has no key) and the mount's port deps. */
 export interface AdminPreflightArgs { headers: Readonly<Record<string, string>>; deps: AdminJsonRoutePortDeps }
+
+/** Per-request host deps for one mount (http-kit `RouteMountOptions.requestDeps`): the host binds the
+ *  facts only a request holds (socket addresses, a consent cookie, the failure tracker on `res.locals`)
+ *  into closures over THAT request, so the spec receives them as deps and never sees `req`. */
+export interface RequestDepsMountOption<Deps> {
+  requestDeps?: RouteMountOptions<Deps>["requestDeps"];
+}
+
+/** http-kit's mount options with only the opt-ins a mount was given, so an absent one stays absent.
+ *  @complexity O(1). */
+export function routeMountOptionsFor<Deps>(
+  { bodyParsers, requestDeps }: { bodyParsers?: readonly RequestHandler[] | undefined; requestDeps?: RouteMountOptions<Deps>["requestDeps"] | undefined },
+  _optional: Record<string, never> = {},
+): RouteMountOptions<Deps> {
+  return { ...(bodyParsers ? { bodyParsers } : {}), ...(requestDeps ? { requestDeps } : {}) };
+}
 
 /** A mount-level check evaluated before every other admin gate ({@link AdminJsonRouteMountOptions.preflight}). */
 export interface AdminMountPreflight {
@@ -227,8 +286,9 @@ async function authorizeWithPorts(
  * presentation PATCH writes `adminFailureResponse` (operation-only copy, the request's tracker).
  * @complexity The shared failure lifecycle.
  */
-function writeAdminFailure({ res, error, options }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): void {
-  const failure = options.failureFor?.(error) ?? options.failure;
+function writeAdminFailure({ res, error, options, authorized }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; authorized: boolean }, _optional: Record<string, never> = {}): void {
+  const byPhase = options.failureByPhase && (authorized ? options.failureByPhase.afterAuthorize : options.failureByPhase.beforeAuthorize);
+  const failure = options.failureFor?.(error) ?? byPhase ?? options.failure;
   if (options.failureCopy !== "operation") { sendAdminFailure({ res, error }, failure); return; }
   const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker }, failure);
   res.status(status).json(body);
@@ -252,6 +312,8 @@ export function createAdminJsonRoutePorts(
     throw new Error("an admin mount cannot set authenticateBeforeWorkspace on a same-origin spec: it would move the same-origin gate ahead of the workspace check too");
   }
   const workspaceFirst = required.workspaceScoped !== false && !required.authenticateBeforeWorkspace;
+  // Only a mount that asked for phased copy tracks anything; every other mount's ports are unchanged.
+  const phase = required.failureByPhase ? createAuthorizationPhaseTracker() : undefined;
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
@@ -260,6 +322,9 @@ export function createAdminJsonRoutePorts(
       // `preflight`: the mount's own first refusal, before the workspace 404 and every later gate.
       if (required.preflight) runPreflight({ raw, deps, preflight: required.preflight });
       if (workspaceFirst) refuseForeignWorkspace({ raw, deps, options: required });
+      // `afterWorkspace`: the host's own refusal, once the workspace is the mounted one and before the session.
+      const reply = required.afterWorkspace?.({ deps });
+      if (reply) throw new RouteRefusalError(reply);
     },
     // A missing session is deferred only on an opted-in mount (`deferMissingPrincipal`): those
     // hand-written routes validated the body before reading the principal, so their 400 must still
@@ -274,16 +339,23 @@ export function createAdminJsonRoutePorts(
       recordAdminRequestFacts({ principal, res });
       const publishTrust = mountMayUseGrant({ options: required }) ? getPublishTrustContext(res) : null;
       if (publishTrust) publishTrustByContext.set(principal, publishTrustAuthorizeFor(publishTrust));
+      phase?.begin({ res, principal });
       return principal;
     },
-    authorize: (args, scope = {}) => authorizeWithPorts({ args, scope, options: required }),
+    authorize: async (args, scope = {}) => {
+      await authorizeWithPorts({ args, scope, options: required });
+      phase?.markAuthorized({ context: args.context });
+    },
     onError: ({ res, error }) => {
-      if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
+      if (error instanceof RouteRefusalError) { (required.refusalWriter ?? writeRefusal)({ res, error }); return; }
       if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
-      writeAdminFailure({ res, error, options: required });
+      if (required.failureWriter) { required.failureWriter({ res, error }); return; }
+      writeAdminFailure({ res, error, options: required, authorized: phase?.authorized({ res }) ?? false });
     },
     onReturnedError: writeReturnedFailure,
     requestFacts: routeRequestFactsFor,
+    // Present only when the mount supplied one, so a default mount's ports carry no extra key.
+    ...(required.payloadTooLarge ? { payloadTooLarge: required.payloadTooLarge } : {}),
   };
 }
 
@@ -342,13 +414,13 @@ export function adminPortsFor(
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
-  optional: AdminJsonRouteMountOptions = {},
+  optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
-  const { forwardRejection, ...portOptions } = optional;
+  const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
@@ -359,9 +431,17 @@ function registeringThroughAsyncRoute(
   { app, method }: { app: Express; method: JsonRouteSpec<unknown, unknown, unknown>["method"] },
   _optional: Record<string, never> = {},
 ): Express {
-  const register = (path: string, handler: AsyncRouteHandler) => app[method](path, asyncRoute({ handler }));
+  // Any `bodyParsers` stay ahead of the handler, in the same registration; only the handler is wrapped.
+  const register = (path: string, ...handlers: RequestHandler[]) => {
+    const handler = handlers.pop() as unknown as AsyncRouteHandler;
+    return (app as unknown as Record<string, (path: string, ...registered: RequestHandler[]) => unknown>)[method](path, ...handlers, asyncRoute({ handler }));
+  };
   return { [method]: register } as unknown as Express;
 }
+
+/** The public mounts' options: per-request host deps, and body parsers registered on THAT route only (http-kit's
+ *  `bodyParsers`) — a webhook keeps its own `express.raw` (any content type, inflated, an empty body as an empty buffer). */
+export type PublicRouteMountOptions<Deps> = RequestDepsMountOption<Deps> & Pick<AdminJsonRouteMountOptions, "bodyParsers">;
 
 /** Mount a Jini public route spec behind the visitor ports (see `createPublicJsonRoutePorts`).
  * @returns Void; registers one endpoint.
@@ -369,9 +449,9 @@ function registeringThroughAsyncRoute(
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
-  _optional: Record<string, never> = {},
+  optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps });
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps }, routeMountOptionsFor(optional));
 }

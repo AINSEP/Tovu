@@ -185,10 +185,10 @@ test("analytics-ingest: `req.ip ?? req.socket.remoteAddress ?? \"\"` double fall
   const handler = extractHandler(app, "/_analytics/e");
   let statusCode: number | undefined;
   const res = {
-    status(code: number) {
-      statusCode = code;
-      return res;
-    },
+    on() { return res; },
+    off() { return res; },
+    setHeader() { return res; },
+    set statusCode(code: number) { statusCode = code; },
     end() {
       return res;
     },

@@ -1,43 +1,31 @@
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { listMedia } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { toAdminMediaListResponse } from "@jini-ai/cms/admin-http/http/media";
+import { mediaListRoute } from "@jini-ai/cms/admin-http/routes/media/list";
 import { resolveContentTypes } from "@jini-ai/cms/media/site/content-type-resolution";
 import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
- * GET all media in the workspace (all statuses — active + trashed; mirrors `listAdminPosts`).
- * Gated by `media.read` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
+ * GET the workspace's media library: the Jini `mediaListRoute` spec behind the admin ports, with
+ * this host's media repo and its three batch lookups injected. `media.read` is a direct decision and
+ * a missing session is deferred to `authorize`, so an invalid `?kind=` still answers its 400 first.
  */
 export const registerAdminMediaListRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-    const kind = req.query.kind ?? "media";
-    if (kind !== "media" && kind !== "document") { res.status(400).json({ error: "invalid media kind" }); return; }
-    if (kind === "document") res.set("Cache-Control", "private, no-store");
-    try {
-      const principal = getAuthedPrincipal(res);
-      const params = { principalId: principal.id, permission: "media.read", workspaceId: deps.workspaceId, entityType: "media" };
-      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
-
-      const { media } = await listMedia({
-        deps: { mediaRepo: deps.mediaRepo },
-        input: { workspaceId: deps.workspaceId, kind },
-      });
-      const visible = kind === "document" ? media.filter(row => row.status === "active") : media;
-      const [contentTypes, publicUrls, byteSizes] = await Promise.all([
-        resolveContentTypes({ deps, media: visible }),
-        resolveMediaPublicUrls({ deps, assets: visible }),
-        resolveMediaByteSizes({ deps, media: visible }),
-      ]);
-      res.json(toAdminMediaListResponse({ media: visible, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/media/list", code: "INTERNAL_ERROR", message: "The media library could not be loaded." });
-    }
+  mountAdminJsonRoute({
+    app,
+    spec: mediaListRoute,
+    deps: {
+      workspaceId: deps.workspaceId,
+      authorize: deps.authorize,
+      listMedia: async (input) => (await listMedia({ deps: { mediaRepo: deps.mediaRepo }, input })).media,
+      resolveContentTypes: ({ media }) => resolveContentTypes({ deps, media }),
+      resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }),
+      resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }),
+    },
+  }, {
+    authorization: "direct",
+    deferMissingPrincipal: true,
+    failure: { operation: "routes/media/list", code: "INTERNAL_ERROR", message: "The media library could not be loaded." },
   });
 };

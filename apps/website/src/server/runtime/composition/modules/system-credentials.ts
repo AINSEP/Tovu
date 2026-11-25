@@ -5,7 +5,7 @@ import { publishCredentialUpdateRoute } from "@jini-ai/cms/admin-http/routes/sys
 import { publishCredentialVerifyRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/verify";
 
 import {
-  customCredentialCreateRoute, customCredentialDeleteRoute, type CustomCredentialView,
+  customCredentialCreateRoute, customCredentialDeleteRoute, customCredentialListRoute, customCredentialUpdateRoute, type CustomCredentialView,
 } from "@jini-ai/cms/admin-http/routes/system/custom-credentials";
 import type { PublishCredentialView } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/shared";
 
@@ -31,6 +31,8 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
   deleteCustomCredential,
+  listCustomCredentialInventory,
+  updateCustomCredential,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
 import {
@@ -54,7 +56,7 @@ import {
   type PublishCredentialVerificationResult,
 } from "#src/features/deployments/static-publish/index";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { registerAdminCustomCredentialsListRoute, registerAdminCustomCredentialsUpdateRoute } from "#src/server/inbound/admin-http/routes/system/custom-credentials";
+import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminPublishCredentialsListRoute } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
 
@@ -237,13 +239,25 @@ export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Expre
   const readDeps = customReadDeps({ deps });
   const writeDeps = customWriteDeps({ deps });
   const base = customBase({ deps, readDeps });
-  // List and update STAY hand-written (K1 STOP): they read `res.locals.authCredentialKind`.
-  registerAdminCustomCredentialsListRoute({ app, deps });
+  // List and update decide on how THIS request authenticated: bound per request (`requestDeps`), so
+  // the specs never see `res`. The list reads it through `getAuthedCredentialKind` (throws when the
+  // session middleware attached none), the update through the bare `res.locals` field (absent = not a
+  // session), exactly as each hand-written verb did.
+  mountAdminJsonRoute({ app, spec: customCredentialListRoute, deps: {
+    ...base,
+    copy: { sessionRequired: "Use the owner's session to view Shared Keys.", ownerRequired: "Sign in as the installation owner to view Shared Keys." },
+    credentialKind: () => undefined, ownerPrincipalId: () => deps.ownerPrincipalId,
+    listInventory: () => listCustomCredentialInventory({ deps: readDeps, workspaceId: deps.workspaceId }),
+  } }, { ...options, requestDeps: ({ res, deps: mounted }) => ({ ...mounted, credentialKind: () => getAuthedCredentialKind(res) }) });
   mountAdminJsonRoute({ app, spec: customCredentialCreateRoute, deps: {
     ...base,
     createCredential: (input) => createCustomCredential(writeDeps, input as unknown as Parameters<typeof createCustomCredential>[1]),
   } }, options);
-  registerAdminCustomCredentialsUpdateRoute({ app, deps });
+  mountAdminJsonRoute({ app, spec: customCredentialUpdateRoute, deps: {
+    ...base, credentialKind: () => undefined, ownerPrincipalId: () => deps.ownerPrincipalId,
+    updateCredential: ({ allowSharedKeyReplacement, input }) =>
+      updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement }, input as unknown as Parameters<typeof updateCustomCredential>[1]),
+  } }, { ...options, requestDeps: ({ res, deps: mounted }) => ({ ...mounted, credentialKind: () => res.locals.authCredentialKind }) });
   mountAdminJsonRoute({ app, spec: customCredentialDeleteRoute, deps: {
     ...base, deleteCredential: (target) => deleteCustomCredential(readDeps, target),
   } }, options);

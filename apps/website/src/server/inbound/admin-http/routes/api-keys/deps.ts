@@ -1,10 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import type { Express, Response } from "express";
+import type { Express } from "express";
 
-import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { API_KEY_SESSION_CREDENTIAL_GATE } from "@jini-ai/user-management/admin-http/routes/api-keys/shared";
 import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyServiceDeps } from "@jini-ai/user-management/identity/api-key-service";
-import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import type { AdminJsonRouteMountOptions, AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 
@@ -22,6 +21,9 @@ import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
  * Architectural role:
  * Composition-boundary glue plus this family's shared HTTP concerns — no business logic. The
  * transitions themselves live in `identity/api-key-service.ts` and know nothing about Express.
+ *
+ * Since the K1 move the guards are the Jini specs' mount options (`API_KEY_MOUNT_OPTIONS`) and the specs
+ * live in `@jini-ai/user-management/admin-http/routes/api-keys/*`.
  */
 export type ApiKeysRouteDeps = Pick<
   RouteDeps,
@@ -75,59 +77,30 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
 }
 
 /**
- * **The no-escalation guard.** All three operations in this family are `security:
- * [{ adminSessionCookie: [] }]` in `openapi/006-identity-and-authorization.yaml`: a human admin
- * session mints, issues, and revokes keys — an API key may not. Without this, any key holding
- * `apikey.manage` could issue itself a successor, and revoking the original would not end the
- * caller's access; key issuance would be a privilege-escalation primitive rather than a delegation
- * of authority a human can withdraw.
- *
- * Runs BEFORE the request body is read and before any existence check, so an api_key caller learns
- * nothing about whether a target exists.
- *
- * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
- * @complexity O(1).
- * @overallScore 100
+ * The port fields and mount options all three api-key mounts share. The no-escalation guard (why:
+ * `API_KEY_SESSION_CREDENTIAL_GATE` in `@jini-ai/user-management/admin-http/routes/api-keys/shared`)
+ * is the mount's `sessionCredentialOnly` gate, so it still answers before the body is read; an
+ * unmapped failure is the same redacted 500 `sendApiKeyError` wrote under this operation.
  */
-export function rejectApiKeyCredential(res: Response): boolean {
-  return rejectUnlessSessionCredential({ res,
-    message: "api-key credentials may not manage api keys; use an admin session",
-    permission: "apikey.manage",
-  });
-}
+// Why the mount (not the spec) answers a gate or wiring throw, from the hand-written handler:
+// Inside the try: requireAdminSession always sets res.locals before this route runs, but
+// Express 4 doesn't catch a synchronous throw from an async handler outside try/catch (the
+// request would otherwise hang instead of 500ing).
+export const API_KEY_MOUNT_OPTIONS: AdminJsonRouteMountOptions = {
+  sessionCredentialOnly: API_KEY_SESSION_CREDENTIAL_GATE,
+  failure: { operation: "routes/api-keys/deps", code: "INTERNAL_ERROR" },
+};
 
 /**
- * Maps this family's thrown error types onto the admin error envelope. Shared by all three routes
- * because all three throw from the same service module and errors.spec.md gives them the same
- * codes (mirrors `users/attach-policy.ts`'s `sendAttachPolicyError`, one level up).
- *
+ * The deps every api-key spec reads plus the two admin port fields. The specs never call the
+ * `authorize` port — `apikey.manage` is enforced inside the identity services — so it is bound to a
+ * deny-all: a future spec that started asking would fail closed instead of silently passing.
  * @complexity O(1).
- * @overallScore 100
  */
-export function sendApiKeyError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  if (err instanceof IdentityForbiddenError) {
-    res.status(403).json({
-      error: err.message,
-      code: "FORBIDDEN",
-      details: { permission: err.permission, reason: err.reason },
-    });
-    return;
-  }
-  if (err instanceof GrantExceedsIssuerError) {
-    res.status(403).json({
-      error: err.message,
-      code: "GRANT_EXCEEDS_ISSUER",
-      details: { offendingPermissions: err.offendingPermissions },
-    });
-    return;
-  }
-  if (err instanceof IdentityValidationError) {
-    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-    return;
-  }
-  if (err instanceof IdentityNotFoundError) {
-    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-    return;
-  }
-  sendAdminFailure({ res, error: err }, { operation: "routes/api-keys/deps", code: "INTERNAL_ERROR" });
+export function apiKeyMountDeps({ deps }: { deps: ApiKeysRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps & { apiKeyServices: () => ApiKeyServiceDeps } {
+  return {
+    workspaceId: deps.workspaceId,
+    authorize: async () => ({ allowed: false, reason: "api-key routes authorize inside the identity services" }),
+    apiKeyServices: () => apiKeyServiceDepsFrom(deps),
+  };
 }

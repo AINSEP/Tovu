@@ -107,7 +107,7 @@ test("dockerfile PUT: a JSON body that is not an object is a 400 before any writ
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };
     await extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/system/dockerfile")(
-      { params: { workspaceId: WS }, body, get: (name: string) => (name === "If-Match" ? "\"etag-1\"" : undefined) }, res);
+      { params: { workspaceId: WS }, body, headers: { "if-match": "\"etag-1\"" } }, res);
     assert.deepEqual(capture, { statusCode: 400, jsonBody: { error: "request body must be a JSON object" } });
   }
 });

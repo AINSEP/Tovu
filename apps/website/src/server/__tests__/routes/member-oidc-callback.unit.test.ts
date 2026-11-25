@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
 import test from "node:test";
-import express, { type Request, type Response } from "express";
+import express from "express";
 
 import type * as memberLogin from "@jini-ai/user-management/member-login/link-service";
 import * as oidcLogin from "@jini-ai/user-management/member-login/oidc-login";
@@ -9,17 +8,15 @@ import { originFixture } from "#src/features/member-login/__tests__/fixtures";
 import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { MEMBER_OIDC_BINDING_COOKIE,
   type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
-import { lastRouteHandler } from "../helpers/last-route-handler.js";
+import { dispatchHttpRequest } from "../helpers/in-process-http.js";
 import { portFake } from "../helpers/port-fake.js";
 
 test("T44: a rate-limited OIDC email continuation redirects the browser to the sign-in error page", async t => {
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const binding = "b".repeat(43);
   const email = "person@other.example";
-  const ip = "203.0.113.20";
   let completed = 0;
   // Protocol verification is outside this HTTP test: return its verified identity contract,
   // then exercise the real link policy and HTTP limits without a provider, socket or key.
@@ -55,31 +52,19 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
   };
   const app = express();
   registerMemberOidcCallbackRoute({ app, deps });
-  const handler = lastRouteHandler(app, "get", `${MEMBER_OIDC_PATH}/callback`);
-  const req = { params: { workspaceId: "ws", providerId: "google" },
-    query: { code: "one-time-code", state: "sealed-state" },
-    headers: { cookie: `${MEMBER_OIDC_BINDING_COOKIE}=${binding}` }, ip,
-    socket: { remoteAddress: ip }, get: () => undefined } as unknown as Request;
-  const headers: Record<string, unknown> = {};
-  let body: unknown;
-  let location: string | undefined;
-  const res = Object.assign(new EventEmitter(), {
-    statusCode: 200,
-    setHeader(name: string, value: unknown) { headers[name] = value; return this; },
-    clearCookie() { return this; },
-    status(code: number) { this.statusCode = code; return this; },
-    json(value: unknown) { body = value; return this; },
-    redirect(code: number, target: string) { this.statusCode = code; location = target; },
-  });
-  await handler(req, res as unknown as Response);
+  // Real Express/native HTTP transport: the binding cookie and the query travel on the wire.
+  const response = await dispatchHttpRequest({ app, method: "GET",
+    url: "/api/members/v1/workspaces/ws/oidc/google/callback?code=one-time-code&state=sealed-state",
+    headers: { cookie: `${MEMBER_OIDC_BINDING_COOKIE}=${binding}` } });
 
   assert.equal(completed, 1);
   assert.deepEqual(limitedEmails, [email], "the email continuation limit must be reached after completion");
   assert.deepEqual((await memberRepo.list({ workspaceId: "ws" })).items, []);
   assert.deepEqual(await identities.findBySubject({ workspaceId: "ws", issuer: "https://accounts.google.com", subject: "subject" }), null);
-  assert.equal(res.statusCode, 303, "the top-level callback must redirect instead of rendering 429 JSON");
-  assert.equal(location, "/signin#oidcError=LOGIN_UNAVAILABLE");
-  assert.equal(body, undefined);
-  assert.equal(headers["Cache-Control"], "no-store");
-  assert.equal(headers["Referrer-Policy"], "no-referrer");
+  assert.equal(response.status, 303, "the top-level callback must redirect instead of rendering 429 JSON");
+  assert.equal(response.headers.location, "/signin#oidcError=LOGIN_UNAVAILABLE");
+  // No JSON was rendered (the hand-made response recorded a `res.json` call as `body`): no JSON content type.
+  assert.doesNotMatch(String(response.headers["content-type"]), /json/);
+  assert.equal(response.headers["cache-control"], "no-store");
+  assert.equal(response.headers["referrer-policy"], "no-referrer");
 });

@@ -1,5 +1,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { MailFeedbackRoute } from "@jini-ai/platform/mail";
+import { mailFeedbackRoute } from "@jini-ai/user-management/public-http/routes/mail/feedback";
+import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**
@@ -8,7 +10,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
  * parser: once body-parser has read a request a later raw parser is a no-op, and the signature is
  * over the exact bytes. Any content type is read raw, capped at the route's own body limit.
  */
-export const MAIL_FEEDBACK_PATH = "/hooks/mail/:providerId";
+export const MAIL_FEEDBACK_PATH = mailFeedbackRoute.path;
 
 /** Responds to the raw parser's own refusals (oversized, aborted) the way the ingest would. */
 function rawBody(route: MailFeedbackRoute) {
@@ -25,18 +27,17 @@ function rawBody(route: MailFeedbackRoute) {
   };
 }
 
+/** The redacted 500 of an ingest failure. */
+function writeMailFeedbackFailure({ res, error }: { res: Response; error: unknown }): void {
+  // Never echo internals to an unauthenticated caller; the provider retries a 5xx.
+  const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
+}
+
 /** @example registerMailFeedbackRoute({ app, route: createMailFeedbackRoute(deps) }) */
 export function registerMailFeedbackRoute({ app, route }: { app: Express; route: MailFeedbackRoute }, _optional: Record<string, never> = {}): void {
-  app.post(MAIL_FEEDBACK_PATH, rawBody(route), async (req: Request<{ providerId: string }>, res: Response) => {
-    try {
-      // No body at all leaves `req.body` as `{}`; an empty buffer is what the signature saw.
-      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-      const result = await route.handle({ providerId: req.params.providerId, rawBody: new Uint8Array(body), headers: req.headers });
-      res.status(result.status).json(result.body);
-    } catch (error) {
-      // Never echo internals to an unauthenticated caller; the provider retries a 5xx.
-      const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker });
-      res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
-    }
+  mountPublicRawRoute({ app, spec: mailFeedbackRoute, deps: { ingest: route, requestHeaders: {} }, failure: writeMailFeedbackFailure }, {
+    bodyParsers: [rawBody(route)],
+    requestDeps: ({ req, deps }) => ({ ...deps, requestHeaders: req.headers }),
   });
 }

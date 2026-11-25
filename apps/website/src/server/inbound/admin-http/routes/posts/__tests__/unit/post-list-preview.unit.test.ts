@@ -101,12 +101,18 @@ test("editor Preview route includes the draft listing and retains no-store and i
       set: (key: string, value: string) => { headers[key] = value; return res; },
       type: () => res,
       status: (status: number) => { assert.equal(status, 200); return res; },
-      send: (value: string) => { html = value; return res; },
+      send: (value: string | Buffer) => { html = String(value); return res; },
+      // Transport only: the route now mounts through the raw-route writer (`bufferedReply`), which
+      // writes headers with `setHeader` (lower-cased names) and listens for `close`; the double
+      // restores the canonical header case the assertions below read.
+      on: () => res, off: () => res, vary: () => res, append: () => res, getHeader: () => undefined,
+      setHeader: (key: string, value: string) => { headers[key.replace(/(^|-)([a-z])/g, (m) => m.toUpperCase())] = value; return res; },
+      set statusCode(status: number) { assert.equal(status, 200); },
     };
     // GET previews the saved draft; POST replaces its body while keeping the template's listing.
     deps.themes[0]!.pages.page = `<html><body>${MORE_LIST}<main data-embed-config='{"type":"content"}'></main></body></html>`;
     const body = method === "post" ? { bodyHtml: "<p>Unsaved route body</p>" } : {};
-    await handlers[method]!({ params: { workspaceId: "w", postId: post.id }, query: {}, body }, res);
+    await handlers[method]!({ params: { workspaceId: "w", postId: post.id }, query: {}, body, headers: {}, method: method.toUpperCase(), get: () => undefined }, res);
     assert.equal(listedSlugs(html).length, 24);
     assert.match(html, /data-jini-more-href="\/writing\/_more\/1\/24"/);
     assert.match(html, method === "post" ? /Unsaved route body/ : /Saved draft/);

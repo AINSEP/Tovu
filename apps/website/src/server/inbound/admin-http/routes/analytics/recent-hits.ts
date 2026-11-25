@@ -1,35 +1,27 @@
 import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { respondToApiError } from "#src/server/error-mapping/respond";
-// Jini owns LocalBufferSink via the host adapter.
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
+import { analyticsRecentHitsRoute } from "@jini-ai/analytics/admin-http/routes/recent-hits";
+import type { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import type { AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
-import type { DeviceClass, HitKind, NormalizedHit } from "@jini-ai/core/contracts/site/analytics";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
- * @file Admin "recent hits" read route for the `analytics` library (ADR-035, ADR-PIPE-014).
+ * @file Host binding for the admin "recent hits" read route (ADR-035, ADR-PIPE-014).
  *
  * Purpose:
- * Registers `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits` — an authenticated,
- * `analytics.read`-gated read straight over the ingest-side `AnalyticsSinkPort`'s raw hit buffer
- * (`SqliteBufferSink` in real composition, `LocalBufferSink` in hermetic composition).
- *
- * IMPORTANT — this is deliberately NOT a dashboard. Only the ingest half of ADR-035 is built
- * (beacon → normalize → `LocalBufferSink`); there is no rollup/aggregation/time-series query layer
- * yet (that is Tier-3, explicitly deferred). So this route can only ever return a raw recent-hits
- * list — no totals, no breakdowns, no charts. Do not read more into the response shape than that.
+ * Mounts Jini's `analyticsRecentHitsRoute` spec (`GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits`,
+ * `analytics.read`-gated, a raw recent-hits list over the ingest `AnalyticsSinkPort`, NOT a dashboard — see the
+ * spec's header) behind the admin ports, and owns the one thing the spec must not: the canonical analytics wire
+ * envelope `{ error: { code, message, details?, requestId? } }` for the workspace 404, the authorize 403 and the
+ * redacted 500, which Tovu's `respondToApiError` / `adminFailureResponse` write.
  *
  * How it relates to the project:
- * - Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/list.ts`'s registrar shape and workspace-guard convention.
- * - `apps/website/src/server/runtime/composition/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
- *   registrar runs (see `inbound/admin-http/dev-auth.ts`), same as every other admin route — but that only
- *   proves *authentication*. FEAT-014/ADR-PIPE-014 closes the remaining *authorization* gap: this
- *   route previously had zero per-action `authorize()` call, unlike every sibling admin route.
- *   The principal-resolution → `authorize()` → 403-on-denial → proceed block below is byte-for-byte
- *   the same shape used by `settings/get-effective.ts` and `integrations/list.ts` (workspace-id
- *   404 check first, then authorize) — see ADR-PIPE-014 Decision §1/Enforcement.
+ * - Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/list.ts`'s registrar shape; the admin session gate
+ *   (`inbound/admin-http/dev-auth.ts`) and the workspace-id 404 run before the spec asks for `analytics.read`
+ *   ("direct": this route never consulted a publishing grant — ADR-PIPE-014 Decision §1/Enforcement).
  */
 
 /** Deps this route needs: the workspace scope + authorize seam from `RouteDeps`, plus the ingest sink to read. */
@@ -37,76 +29,33 @@ export type AdminAnalyticsRecentHitsDeps = Pick<RouteDeps, "workspaceId" | "auth
   analyticsSink: AnalyticsSinkPort;
 };
 
-/** The bounded, honest subset of a `NormalizedHit` this screen shows — raw ingest fields only. */
-export interface AdminAnalyticsHitResponse {
-  occurredAt: string;
-  kind: HitKind;
-  path: string;
-  referrerHost: string | null;
-  deviceClass: DeviceClass;
-  browserFamily: string | null;
-  eventName: string | null;
+/** The two refusals the spec and the ports raise, in the canonical analytics envelope (`respondToApiError`).
+ * @complexity O(1). */
+function writeAnalyticsRefusal({ res, error }: { res: Response; error: RouteRefusalError }, _optional = {}): void {
+  const { status, body } = error.response;
+  const { error: message, details } = body as { error: string; details?: Record<string, string> };
+  respondToApiError({ res, code: status === 404 ? "NOT_FOUND" : "FORBIDDEN", message }, details === undefined ? {} : { details });
 }
 
-function toAdminAnalyticsHitResponse(hit: NormalizedHit): AdminAnalyticsHitResponse {
-  return {
-    occurredAt: hit.occurredAt,
-    kind: hit.kind,
-    path: hit.path,
-    referrerHost: hit.referrerHost,
-    deviceClass: hit.deviceClass,
-    browserFamily: hit.browserFamily,
-    eventName: hit.eventName,
-  };
-}
-
-/**
- * Parses the `?limit=` query param into a finite number, or `undefined` when absent/unparsable —
- * the sink's `list()` owns the actual clamping/default, this just guards against handing it a
- * non-numeric string.
- */
-function parseLimitParam({ raw }: { raw: unknown }, _optional = {}): number | undefined {
-  if (typeof raw !== "string" || raw.trim() === "") return undefined;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : undefined;
+/** An unexpected failure: shared redacted diagnostics without replacing the canonical analytics wire contract.
+ * @complexity O(1) plus the shared failure report. */
+function writeAnalyticsFailure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
+  const { req } = res;
+  const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker }, {
+    operation: "analytics/recent-hits", method: req.method, route: req.route.path,
+    discloseDetails: !!res.locals.principal,
+  });
+  res.status(failure.status).json({ error: {
+    code: failure.body.code, message: failure.body.error,
+    ...(res.locals.principal ? { details: { errorId: failure.body.errorId, ...failure.body.details } } : {}),
+    ...(typeof res.locals.requestId === "string" ? { requestId: res.locals.requestId } : {}),
+  } });
 }
 
 export function registerAdminAnalyticsRecentHitsRoute({ app, deps }: { app: Express; deps: AdminAnalyticsRecentHitsDeps }, _optional: Record<string, never> = {}): void {
-  app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      respondToApiError({ res, code: "NOT_FOUND", message: "workspace was not found" });
-      return;
-    }
-
-    try {
-      const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "analytics.read",
-        workspaceId: deps.workspaceId,
-        entityType: "analytics-hit",
-      });
-      if (!authResult.allowed) {
-        respondToApiError({ res, code: "FORBIDDEN", message: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})` }, {
-          details: { permission: "analytics.read", reason: authResult.reason },
-        });
-        return;
-      }
-
-      const limit = parseLimitParam({ raw: req.query.limit });
-      const hits = (await deps.analyticsSink.list({}, { limit })).map(toAdminAnalyticsHitResponse);
-      res.json({ hits });
-    } catch (err) {
-      // Keep shared redacted diagnostics without replacing the canonical analytics wire contract.
-      const failure = adminFailureResponse({ error: err, tracker: res.locals.adminFailureTracker }, {
-        operation: "analytics/recent-hits", method: req.method, route: req.route.path,
-        discloseDetails: !!res.locals.principal,
-      });
-      res.status(failure.status).json({ error: {
-        code: failure.body.code, message: failure.body.error,
-        ...(res.locals.principal ? { details: { errorId: failure.body.errorId, ...failure.body.details } } : {}),
-        ...(typeof res.locals.requestId === "string" ? { requestId: res.locals.requestId } : {}),
-      } });
-    }
-  });
+  mountAdminJsonRoute(
+    // `authorize` is read per request so a later reassignment of `deps.authorize` is honoured.
+    { app, spec: analyticsRecentHitsRoute, deps: { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), analyticsSink: deps.analyticsSink } },
+    { authorization: "direct", refusalWriter: writeAnalyticsRefusal, failureWriter: writeAnalyticsFailure },
+  );
 }

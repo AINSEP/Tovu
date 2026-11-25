@@ -14,8 +14,8 @@ import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/route
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-http/routes/members/complete-sign-in.js";
-import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
+import { registerPublicMemberCompleteSignInRoute } from "../../runtime/composition/modules/public-members.js";
+import { registerPublicMemberSignInRequestRoute } from "../../runtime/composition/modules/public-members.js";
 
 /**
  * @file FEAT-013 Phase 2 (ADR-PIPE-013 Decision §2-3) —
@@ -314,11 +314,14 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
   const { res, capture } = createCapturingResponse();
   const req = {
     params: { workspaceId: deps.workspaceId },
+    headers: {},
     body: undefined,
     get: () => undefined,
     is: () => "application/json",
   } as unknown as Parameters<typeof handler>[0];
 
+  // The raw mount watches the response for a client disconnect.
+  Object.assign(res, { on: () => res, off: () => res });
   await handler(req, res);
   assert.equal(capture.statusCode, 400);
 });

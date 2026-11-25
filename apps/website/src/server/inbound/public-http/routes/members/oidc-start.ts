@@ -1,34 +1,50 @@
-import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
+import { memberOidcStartRoute, type MemberOidcStartRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-start";
 import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError } from "@jini-ai/user-management/server";
-import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
-import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
-import { memberOidcContext, memberOidcCookie, memberOidcHeaders,
-  redirectMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
+import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
+import { MEMBER_AUTH_FAILURE } from "./complete-sign-in.js";
+import { memberOidcContext, memberOidcCookieHeader, memberOidcErrorLocation, memberOidcGetApp,
+  type MemberOidcRouteDeps } from "./oidc-deps.js";
 
-/** Plain-link entry point. Independent browser proof stays out of the authorization URL. A
- * refusal (cross-site, provider unavailable) sends the person back to /signin with its code.
- * @complexity O(1) limited protocol start; protocol owner bounds all external work.
+/**
+ * @file Tovu's binding of the PUBLIC member OIDC start route. The route itself is the Jini spec
+ * `@jini-ai/cms/public-http/routes/members/oidc-start`; this file binds the protocol start (server-controlled
+ * workspace, live member intent), the flow cookie, the `/signin` error location, the shared per-IP counter and
+ * the visitor analytics, and mounts it behind the no-store headers, failure observer and workspace gate.
+ */
+
+const boundPerRequest = (): never => { throw new Error("bound per request by requestDeps"); };
+
+/** Plain-link entry point: mounts the Jini spec. The counter is read per request, as the hand-written route did
+ * (tests swap the limiter instances on `deps` after registration). O(1) setup.
  */
 export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
-  app.get(`${MEMBER_OIDC_PATH}/start`, async (req, res) => {
-    memberOidcHeaders({ res });
-    observeMemberSignInFailure({ deps: deps.members, request: req, response: res, method: "oidc" });
-    try {
-      if (!checkMemberWorkspace({ req, res, deps: deps.members })) return;
-      if (!await checkMemberRequestLimits({ req, res, deps: deps.members, ipLimiter: deps.members.passwordSignInPerIpLimiter })) return;
-      // A GET start reads the Lax member cookie as connect intent, and Google redirects silently
-      // once consent exists: a cross-site page could otherwise relink an unlinked account or
-      // create a member. Same-origin links and typed URLs still pass; old browsers omit the header.
-      if (req.get("sec-fetch-site") === "cross-site") throw new MemberLoginError({ code: "LOGIN_INVALID" });
-      const input = await memberOidcContext({ req, deps: deps.members });
-      const callbackUrl = await memberLoginCallbackUrl({ origin: deps.protocol.origin, ...input });
-      const result = await beginOidcLogin({ deps: deps.protocol, input });
-      memberOidcCookie({ res, callbackUrl, kind: "callback", binding: result.browserBinding });
-      void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_requested", properties: { method: "oidc", realm: "member" } });
-      res.redirect(303, result.authorizationUrl);
-    } catch (error) { void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } }); redirectMemberOidcError({ res, error }); }
+  const mounted: MemberOidcStartRouteDeps = {
+    ipLimiter: { check: (input) => deps.members.passwordSignInPerIpLimiter.check(input) },
+    flowCookie: (input) => memberOidcCookieHeader(input),
+    errorLocation: ({ error }) => memberOidcErrorLocation({ error }),
+    crossSiteRefusal: () => new MemberLoginError({ code: "LOGIN_INVALID" }),
+    begin: boundPerRequest, onRequested: boundPerRequest, onFailed: boundPerRequest,
+  };
+  mountPublicRawRoute({
+    app: memberOidcGetApp({ app, deps: deps.members }),
+    spec: memberOidcStartRoute,
+    deps: mounted,
+    failure: MEMBER_AUTH_FAILURE,
+    workspaceId: deps.members.workspaceId,
+  }, {
+    requestDeps: ({ req, deps: base }) => ({
+      ...base,
+      begin: async () => {
+        const input = await memberOidcContext({ req, deps: deps.members });
+        const callbackUrl = await memberLoginCallbackUrl({ origin: deps.protocol.origin, ...input });
+        const result = await beginOidcLogin({ deps: deps.protocol, input });
+        return { authorizationUrl: result.authorizationUrl, callbackUrl, browserBinding: result.browserBinding };
+      },
+      onRequested: () => { void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_requested", properties: { method: "oidc", realm: "member" } }); },
+      onFailed: () => { void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } }); },
+    }),
   });
 }

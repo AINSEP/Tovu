@@ -5,7 +5,7 @@ import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
-import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure } from "./admin-json-route-ports.js";
+import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, routeMountOptionsFor, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure, type PublicRouteMountOptions, type RequestDepsMountOption } from "./admin-json-route-ports.js";
 
 /**
  * @file Raw (non-JSON) Jini route specs — HTML, XML/text, streams, downloads, `express.raw` uploads,
@@ -40,13 +40,14 @@ function adapterFor({ spec, origin }: { spec: { path: string; requireSameOrigin?
  */
 export function mountAdminRawRoute<Deps>(
   required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext; handlerName?: string },
-  optional: AdminJsonRouteMountOptions = {},
+  optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
+  const { bodyParsers, requestDeps, ...portOptions } = optional;
   const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
-  const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
-  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: optional.preflight });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter });
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
+  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }
 
 /** The one-method app `mountRawRoute` registers on, naming the handler it is given. `mountRawRoute`
@@ -56,7 +57,11 @@ function registeringUnderName(
   { app, method, name }: { app: Express; method: RawRouteSpec<unknown>["method"]; name: string },
   _optional: Record<string, never> = {},
 ): Express {
-  const register = (path: string, handler: RequestHandler) => app[method](path, Object.defineProperty(handler, "name", { value: name }));
+  // Any `bodyParsers` keep their own names ahead of it; the one handler is named.
+  const register = (path: string, ...handlers: RequestHandler[]) => {
+    const handler = handlers.pop() as RequestHandler;
+    return (app as unknown as Record<string, (path: string, ...registered: RequestHandler[]) => unknown>)[method](path, ...handlers, Object.defineProperty(handler, "name", { value: name }));
+  };
   return { [method]: register } as unknown as Express;
 }
 
@@ -74,7 +79,7 @@ export type PublicRawFailureWriter = (required: { res: Response; error: unknown 
  */
 export function mountPublicRawRoute<Deps extends object>(
   required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure | PublicRawFailureWriter; workspaceId?: string; origin?: RouteHostContext },
-  _optional: Record<string, never> = {},
+  optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
@@ -87,5 +92,5 @@ export function mountPublicRawRoute<Deps extends object>(
       else failure({ res, error });
     },
   };
-  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter });
+  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor(optional));
 }
