@@ -21,7 +21,7 @@ import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
 import { searchAdminPosts } from "@jini-ai/cms/posts/search";
-import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, postCommandDeps, postDerivedRisk } from "./post-tool-policy.js";
+import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, assistantPostAttribution, postCommandDeps, postDerivedRisk } from "./post-tool-policy.js";
 import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "@jini-ai/cms/posts/post-tool-errors";
 import { requirePostKind, optionalPostStatus, requireBodyJson, optionalPublishAt, resolveFeaturedImageInput } from "./post-tool-input.js";
 import { toPostToolView, toPostToolViewWithPublicUrl, toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
@@ -86,7 +86,7 @@ function executePostToolCreate({ routeDeps, ctx, kind, title, slug, bodyJson, st
       featuredMediaId,
       author,
       showAuthor,
-      actorId: ctx.principal.id,
+      ...assistantPostAttribution({ principalId: ctx.principal.id }),
       analyticsSource: "assistant",
       // Recorded at write time so the agent-pause hold can tell this post from an owner-made one.
       creatorKind: "agent",
@@ -186,7 +186,7 @@ function executePostToolUpdate({ routeDeps, ctx, id, merged, publishAt, featured
       showAuthor,
       expectedVersion: basisVersion,
       templateChoice,
-      actorId: ctx.principal.id,
+      ...assistantPostAttribution({ principalId: ctx.principal.id }),
       analyticsSource: "assistant",
       // See content_post_create's identical delegatedBy* comment just above.
       delegatedByWorkspaceId: routeDeps.workspaceId,
@@ -205,7 +205,7 @@ async function restorePostToolUpdate({ routeDeps, ctx, priorPost }: { routeDeps:
     },
     input: {
       prior: priorPost,
-      actorId: ctx.principal.id,
+      ...assistantPostAttribution({ principalId: ctx.principal.id }),
       // Same delegatedBy* attribution the forward write above records.
       delegatedByWorkspaceId: routeDeps.workspaceId,
       delegatedById: ctx.principal.id,
@@ -315,7 +315,7 @@ async function restorePostToolDelete({ routeDeps, ctx, existing }: { routeDeps: 
     },
     input: {
       prior: existing,
-      actorId: ctx.principal.id,
+      ...assistantPostAttribution({ principalId: ctx.principal.id }),
       // Same delegatedBy* attribution the forward write above records.
       delegatedByWorkspaceId: routeDeps.workspaceId,
       delegatedById: ctx.principal.id,
@@ -368,7 +368,7 @@ async function deletePostToolPost({ routeDeps, ctx }: { routeDeps: PostToolDeps;
           input: {
             workspaceId: routeDeps.workspaceId,
             id,
-            actorId: ctx.principal.id,
+            ...assistantPostAttribution({ principalId: ctx.principal.id }),
             actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
             // See content_post_create's identical delegatedBy* comment above.
             delegatedByWorkspaceId: routeDeps.workspaceId,

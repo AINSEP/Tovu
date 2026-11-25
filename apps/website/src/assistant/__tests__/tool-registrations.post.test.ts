@@ -763,3 +763,20 @@ test("content_post_search: an empty corpus returns no hits rather than failing",
   const { hits } = await search(deps, { query: "nothing has been written yet" });
   assert.deepEqual(hits, []);
 });
+
+// FIX 19 (P10-H2): an assistant tool write is attributed to the agent channel on its outbox events,
+// not just on the change set — `content.*`/`entry.*` events carry `{ id: principal, kind: "agent" }`.
+test("content_post_create: every content event it enqueues carries the agent actor kind", async () => {
+  const { deps, outbox } = fakeRouteDeps();
+  const enqueued: { name: string; actor?: unknown }[] = [];
+  const original = outbox.enqueue.bind(outbox);
+  outbox.enqueue = async (arg: Parameters<typeof outbox.enqueue>[0]) => {
+    const raw = arg as unknown as { event?: { name: string; actor?: unknown } } & { name: string; actor?: unknown };
+    enqueued.push(raw.event ?? raw);
+    return original(arg);
+  };
+  await wired("content_post_create", deps).handler(executionContext({ kind: "post", title: "My Post", status: "published" }));
+  const contentEvents = enqueued.filter((event) => /^(content|entry)\./.test(event.name));
+  assert.ok(contentEvents.length > 0, `expected content events, saw ${enqueued.map((e) => e.name).join(",")}`);
+  for (const event of contentEvents) assert.deepEqual(event.actor, { id: PRINCIPAL_ID, kind: "agent" }, event.name);
+});

@@ -10,7 +10,7 @@ import { executeCommand } from "@jini-ai/cms/core/commands";
 import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import type { DeriveDuplicateName } from "@jini-ai/cms/forms";
-import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
+import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, assistantPostAttribution, postCommandDeps } from "./post-tool-policy.js";
 import { toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
 import { postToolViewDeps } from "./post-tool-view-deps.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
@@ -154,7 +154,7 @@ async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, tit
       status,
       author: source.author ?? null,
       showAuthor: source.showAuthor ?? false,
-      actorId: input.principalId,
+      ...assistantPostAttribution({ principalId: input.principalId }),
       analyticsSource: "assistant",
       // Agent tool path: see content_post_create's identical `creatorKind` note.
       creatorKind: "agent",

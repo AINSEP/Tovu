@@ -1,3 +1,4 @@
+import type { MutationActor } from "@jini-ai/core/contracts/events";
 import { indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId } from "@jini-ai/core";
 import { postAgentToolCatalog } from "./agent-tools.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
@@ -94,6 +95,20 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
  *  imported, the same "structurally typed, no `features/trash` import" convention
  *  {@link RemovePostFn}'s own doc already follows. */
 export const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
+/**
+ * The attribution every assistant post write passes to its writer (P10-H2, FIX 19): the acting
+ * principal AND the `agent` kind together, so no assistant write can name a principal without also
+ * recording the channel it came through. The writers' own `actor` field stays optional for their
+ * other callers; this family goes through here and cannot drop it.
+ *
+ * @param required - `principalId`: the tool context's acting principal.
+ * @returns `{ actorId, actor }` with `actor.kind === "agent"`.
+ * @complexity O(1).
+ */
+export function assistantPostAttribution(required: { principalId: string }, _optional: Record<string, never> = {}): { actorId: string; actor: MutationActor & { kind: "agent" } } {
+  return { actorId: required.principalId, actor: { id: required.principalId, kind: "agent" } };
+}
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
