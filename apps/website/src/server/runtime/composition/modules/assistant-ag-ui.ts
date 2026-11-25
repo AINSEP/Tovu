@@ -237,8 +237,10 @@ async function followDaemonRun(
 
 /**
  * Drains one segment. With the resume path composed, an identified approval card parks FIRST (owner,
- * thread, this segment's run id, daemon run, exchange, stream cursor, deadline), then the segment
- * ends with the AG-UI interrupt (`RUN_FINISHED`, `outcome.type: "interrupt"`) instead of the card.
+ * thread, this segment's run id, daemon run, exchange, stream cursor, deadline); then the card itself
+ * streams exactly as on the ordinary path (the existing approval card renders unchanged), and the
+ * segment ends with the AG-UI interrupt (`RUN_FINISHED`, `outcome.type: "interrupt"`) naming that
+ * card's exchange, so the client routes THAT card's decision to the AG-UI resume.
  * Without it — or when the caps refuse the park — the card streams as an ordinary card, as before.
  * @complexity O(n) in the drained run frames. */
 async function drainAdminSegment(
@@ -257,10 +259,16 @@ async function drainAdminSegment(
     const card = approvals ? readAdminApprovalCard({ event, extensionPrefix: AG_UI_TRANSLATION.customEventNames.extensionPrefix }) : undefined;
     const cursor = tap.cursor();
     const interruptId = card ? approvals?.parkAdminApproval({ owner, threadId, runId, daemonRunId, card, ...(cursor ? { cursor } : {}) }) : undefined;
-    if (!card || !interruptId) { writeAgUiEvent(res, event); return; }
+    writeAgUiEvent(res, event);
+    if (!card || !interruptId) return;
     parked = true;
     for (const closing of closeAgUiRun({ state })) writeAgUiEvent(res, closing);
-    writeAgUiEvent(res, confirmationInterrupt({ threadId, runId, interrupt: { id: interruptId, reason: "confirmation", message: card.message } }));
+    // `metadata.exchangeId` only tells the client which rendered card this interrupt is; it is not
+    // authority. The exchange id already rides inside the card HTML today, the resume body never
+    // supplies it (the parked record does), and the daemon checks the run principal on every
+    // exchange answer — so knowing it lets nobody answer someone else's approval.
+    writeAgUiEvent(res, confirmationInterrupt({ threadId, runId,
+      interrupt: { id: interruptId, reason: "confirmation", message: card.message, metadata: { exchangeId: card.exchangeId } } }));
     // Detach, never Stop: the held tool call keeps waiting in the daemon for the resume.
     void reader.cancel().catch(() => undefined);
   };

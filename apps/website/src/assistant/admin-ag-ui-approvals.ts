@@ -128,6 +128,16 @@ export function createAdminAgUiApprovals(
       }
       return settled;
     },
+
+    /** Process shutdown: every park is forgotten and its expiry timer cleared, through the same
+     *  removal as expiry and Stop, so a late resume is refused. Nothing is answered: the daemon
+     *  shuts down with the host and its held exchanges close with it. */
+    shutdownAdminApprovals(_required: Record<string, never> = {}, _optional = {}): void {
+      for (const interruptId of [...parked.keys()]) {
+        store.remove({ interruptId });
+        release({ interruptId });
+      }
+    },
   };
 }
 

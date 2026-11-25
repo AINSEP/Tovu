@@ -31,7 +31,8 @@ let launches: string[] = [];
 let cancels: string[] = [];
 let answers: Array<{ principal: string | undefined; body: unknown }> = [];
 let lastEventIds: Array<string | undefined> = [];
-let eventsClosed = 0;
+/** Daemon event streams still held open by a subscriber (decremented on the response's own close). */
+let openEventStreams = 0;
 let mode: "approval" | "ordinary" = "approval";
 
 function frame(runId: string, id: number, kind: string, payload: unknown): string {
@@ -48,7 +49,9 @@ function writeEvents(req: IncomingMessage, res: import("node:http").ServerRespon
   const lastEventId = req.headers["last-event-id"] as string | undefined;
   lastEventIds.push(lastEventId);
   res.writeHead(200, { "content-type": "text/event-stream" });
-  req.on("close", () => { eventsClosed++; });
+  openEventStreams++;
+  // `res`, not `req`: an IncomingMessage closes once its body is read, not when the subscriber drops.
+  res.on("close", () => { openEventStreams--; });
   if (mode === "ordinary") {
     res.write(frame(runId, 1, "agent", card(runId, ["submit"])));
     res.write(frame(runId, 2, "agent", { type: "text_delta", delta: "Form shown." }));
@@ -97,6 +100,18 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
   return { origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, server };
 }
 
+/** Unref'd timers the test can see and clear: a parked approval's expiry must not hold the test
+ *  process open, and shutdown must cancel every one of them. */
+function createVisibleScheduler() {
+  const live = new Set<ReturnType<typeof setTimeout>>();
+  return { live, schedule({ delayMs, callback }: { delayMs: number; callback: () => void }) {
+    const timer = setTimeout(() => { live.delete(timer); callback(); }, delayMs);
+    timer.unref();
+    live.add(timer);
+    return () => { clearTimeout(timer); live.delete(timer); };
+  } };
+}
+
 let daemonServer: Server | null = null;
 async function boot(t: import("node:test").TestContext) {
   if (!daemonServer) {
@@ -119,7 +134,9 @@ async function boot(t: import("node:test").TestContext) {
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
   const deps: RouteDeps = createRouteDeps();
   const scheduler = createTimeoutScheduler({});
-  const approvals = createAdminAgUiApprovals({ nowMs: Date.now, scheduler, newInterruptId: randomUUID, answerExchange: answerDaemonApprovalExchange });
+  const approvalTimers = createVisibleScheduler();
+  const approvals = createAdminAgUiApprovals({ nowMs: Date.now, scheduler: approvalTimers, newInterruptId: randomUUID, answerExchange: answerDaemonApprovalExchange });
+  t.after(() => { approvals.shutdownAdminApprovals(); });
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
@@ -128,12 +145,12 @@ async function boot(t: import("node:test").TestContext) {
     byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   { approvals }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
-  launches = []; cancels = []; answers = []; lastEventIds = []; eventsClosed = 0; mode = "approval";
+  launches = []; cancels = []; answers = []; lastEventIds = []; openEventStreams = 0; mode = "approval";
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   const conversationId = `conv-${randomUUID()}`;
   await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: me.user.id }).create({ id: conversationId });
-  return { baseUrl, cookie, deps, ownerId: me.user.id, conversationId };
+  return { baseUrl, cookie, deps, ownerId: me.user.id, conversationId, approvals, approvalTimers };
 }
 
 test.after(async () => { daemonServer?.closeAllConnections(); await new Promise<void>((resolve) => daemonServer ? daemonServer.close(() => resolve()) : resolve()); });
@@ -150,7 +167,7 @@ async function startTurn({ baseUrl, cookie, conversationId }: { baseUrl: string;
       forwardedProps: { agentId: "claude", durableRun: { conversationId, assistantMessageId: `msg-${randomUUID()}` } } }) });
   assert.equal(res.status, 200);
   const events = parse(await res.text());
-  const finished = events.at(-1) as { type: string; runId: string; outcome?: { type: string; interrupts: Array<{ id: string; reason: string; message?: string }> } };
+  const finished = events.at(-1) as { type: string; runId: string; outcome?: { type: string; interrupts: Array<{ id: string; reason: string; message?: string; metadata?: unknown }> } };
   return { events, finished, runId: finished.runId };
 }
 
@@ -174,18 +191,23 @@ test("admin resume answers the parked card exactly once through the daemon's gua
   const interrupt = first.finished.outcome!.interrupts[0]!;
   assert.equal(interrupt.reason, "confirmation");
   assert.equal(interrupt.message, "Delete the post?");
-  assert.notEqual(interrupt.id, "ex-1", "the exchange id stays on the server");
-  assert.ok(!first.events.some((e) => e.type === "CUSTOM" && e.name === "tovu.ext.mcp-ui"), "the interrupt replaces the card");
+  assert.notEqual(interrupt.id, "ex-1", "the interrupt id is minted by the server, not the exchange id");
+  assert.deepEqual(interrupt.metadata, { exchangeId: "ex-1" }, "names the rendered card the decision belongs to");
+  const cards = first.events.flatMap((e, index) => (e.type === "CUSTOM" && e.name === "tovu.ext.mcp-ui" ? [index] : []));
+  assert.equal(cards.length, 1, "the existing approval card streams, exactly as on the ordinary path");
+  assert.ok(cards[0]! < first.events.length - 1, "the card comes before the interrupt");
   const second = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: interrupt.id }) });
   assert.equal(second.status, 200, second.text);
   const events = parse(second.text);
   assert.deepEqual(events[0], { type: "RUN_STARTED", threadId: conversationId, runId: "seg-2", parentRunId: first.runId });
   const text = events.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta).join("");
   assert.equal(text, "After approval.", "neither the card nor earlier deltas repeat");
+  assert.ok(!events.some((e) => e.type === "CUSTOM" && e.name === "tovu.ext.mcp-ui"), "the resumed segment does not repeat the card");
   assert.equal(events.at(-1)?.type, "RUN_FINISHED");
   assert.deepEqual(answers, [{ principal: ownerId, body: { toolName: "posts.delete", params: { __exchangeId: "ex-1", decision: "confirm" } } }]);
   assert.deepEqual(launches, [first.runId], "the same daemon run continues; nothing new starts");
-  assert.deepEqual(lastEventIds, [undefined, "2"]);
+  // Only the final reconnect is behavior; how many warm-up subscriptions preceded it is not.
+  assert.equal(lastEventIds.at(-1), "2");
 });
 
 test("admin decline runs nothing", { timeout: 60_000 }, async (t) => {
@@ -239,7 +261,7 @@ test("closing the admin interrupt response leaves the daemon run alive", { timeo
   const first = await startTurn({ baseUrl, cookie, conversationId });
   assert.equal(first.finished.outcome?.type, "interrupt");
   await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.equal(eventsClosed, 1, "the interrupt segment detached from the daemon stream");
+  assert.equal(openEventStreams, 0, "the interrupt segment detached from the daemon stream");
   assert.deepEqual(cancels, [], "the deliberate park close is not a Stop");
   const resumed = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
   assert.equal(resumed.status, 200, "the held invocation is still there to answer");
@@ -269,4 +291,14 @@ test("Stop on a parked admin approval settles it once", { timeout: 60_000 }, asy
   const after = await resume({ baseUrl, cookie, body });
   assert.deepEqual([after.status, after.text], [400, REFUSAL]);
   assert.ok(answers.length <= 1);
+});
+
+test("shutdown abandons every parked admin approval and clears its timer", { timeout: 60_000 }, async (t) => {
+  const { baseUrl, cookie, conversationId, approvals, approvalTimers } = await boot(t);
+  const first = await startTurn({ baseUrl, cookie, conversationId });
+  assert.equal(approvalTimers.live.size, 1, "the park armed its expiry");
+  approvals.shutdownAdminApprovals();
+  assert.equal(approvalTimers.live.size, 0, "no expiry timer survives shutdown");
+  const late = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
+  assert.deepEqual([late.status, late.text, answers.length], [400, REFUSAL, 0], "nothing is answered after shutdown");
 });
