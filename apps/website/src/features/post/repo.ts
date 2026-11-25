@@ -3,6 +3,7 @@ import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidenc
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
+import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
 
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort, PostRevisionAppendResult, PostRevisionInput, PostRevisionRecord } from "@jini-ai/cms/posts/post";
@@ -365,16 +366,6 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     try { return await this.kernel.transaction(fn); }
     finally { this.mediaAccessEvidence.invalidate({ owner: this }); }
   }
-}
-
-/**
- * The one fence over a post's revision stream: `appendRevision` and revision thinning
- * (`revision-thinning.ts`) both take it, so a thinning apply never runs between an append's read of
- * the latest row and its insert, and a new newest row cannot appear mid-apply.
- * @complexity O(1).
- */
-export function postRevisionLockKey({ workspaceId, postId }: { workspaceId: string; postId: string }, _optional: Record<string, never> = {}): string {
-  return `post_revisions:${workspaceId}:${postId}`;
 }
 
 /** The post repo for `kernel`, with its dialect's search projection. */

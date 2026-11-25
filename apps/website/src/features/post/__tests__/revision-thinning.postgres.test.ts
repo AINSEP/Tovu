@@ -8,7 +8,8 @@ import { freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgre
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PostRecord, PostRevisionInput } from "@jini-ai/cms/posts/post";
-import { postRepoFor, postRevisionLockKey } from "../repo.js";
+import { postRepoFor } from "../repo.js";
+import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
 import { bindRevisionThinning } from "../revision-thinning.js";
 import { postRevisionRefProbes } from "../revision-refs.js";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";

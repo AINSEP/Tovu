@@ -3,7 +3,7 @@ import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import { SqlChangeSetRepo } from "@jini-ai/db/events";
 import type { ContentDb } from "./content-db.js";
 import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai/core/contracts/events";
-import { postRevisionLockKey } from "#src/features/post/repo";
+import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
 
 /** Tovu owns the persisted names; the change-set repo's header, items and co-persisted outbox row use the same wiring. */
 export const CHANGE_SET_TABLES = { changeSets: "change_sets", changeSetItems: "change_set_items", outboxEvents: "outbox_events" } as const;
