@@ -14264,6 +14264,14 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "9920e2bda764",
+      "reason": "P10-C2.T/M4.T (b-g5b): the tab counts no longer come from the loaded media list or the fixed provider CATALOG; the grid counts are the server totals and External Providers counts the live host catalog. The rewritten comment above mediaTabCounts/tabCounts in Media.tsx states the new sources; the old claims (media-derived, fixed catalog, never stale) are false."
+    },
+    {
+      "id": "c7ecd6b03468",
+      "reason": "P10-C2.T (b-g5b): the External Providers count is now the live host catalog, not the fixed roster, so this test comment describing a fixed, not-fetched roster is false; the replaced test asserts the live-catalog count."
     }
   ]
 }
