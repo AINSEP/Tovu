@@ -19,7 +19,7 @@ import type {
   LoadedDeployTarget,
 } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
-import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
+import { renderHeadersFile } from "@jini-ai/devops/static-export/site/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { adaptInstalledTarget, publishStaticSite, type StaticPublishDeps } from "../adapter.js";
@@ -159,7 +159,7 @@ test("the REAL plugin Netlify module, fed through the adapter, uploads exactly o
 
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(manifestPaths.filter((file) => file === "/_headers").length, 1);
-  assert.equal(uploads.get("_headers"), renderHeadersFile());
+  assert.equal(uploads.get("_headers"), renderHeadersFile({ headers: publicPageSecurityHeaders({}) }));
 });
 
 test("the REAL plugin Cloudflare Pages module, fed through the adapter, sends _headers as a config form field, never an asset", async (t) => {
@@ -189,7 +189,7 @@ test("the REAL plugin Cloudflare Pages module, fed through the adapter, sends _h
   );
 
   assert.equal(result.ok, true, JSON.stringify(result));
-  assert.equal(await (deployForm?.get("_headers") as File).text(), renderHeadersFile());
+  assert.equal(await (deployForm?.get("_headers") as File).text(), renderHeadersFile({ headers: publicPageSecurityHeaders({}) }));
   assert.equal(Object.keys(JSON.parse(String(deployForm?.get("manifest")))).includes("/_headers"), false);
 });
 

@@ -716,7 +716,7 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
   // had, so until now bytes could be uploaded and never fetched again and the admin's preview
   // modal could only show attachments from the current session out of a client-side `File`
   // cache. See `@jini-ai/cms/admin-http/routes/assistant/get-chat-attachment` (bound in `assistant-attachment-read.ts`) for the security model and
-  // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
+  // `features/media/chat-attachment-reader-host.ts` for the authorization rule (owner-scoped, and an
   // attachment with no recorded owner is readable by nobody).
   //
   // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it

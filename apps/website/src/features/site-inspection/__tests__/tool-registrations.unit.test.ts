@@ -1,3 +1,5 @@
+import { MAX_PATH_LENGTH } from "@jini-ai/diagnostics/web-evidence";
+import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "@jini-ai/diagnostics/web-evidence/page-body";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -14,7 +16,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ADMIN_SCREENS } from "../admin-screens.generated.js";
-import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
+import { siteInspectionAgentToolCatalog } from "#src/features/site-inspection/catalog-host";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
 import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
@@ -407,4 +409,15 @@ test("site_describe_capabilities: the description says the tools list is not fil
 
   assert.doesNotMatch(entry.description, /registered for you/);
   assert.match(entry.description, /not filtered by your permissions/);
+});
+
+
+test("bound catalog retains all four registered names and exact site path/body limits", () => {
+  assert.deepEqual(siteInspectionAgentToolCatalog.map(tool => tool.name), ["site_get_profile", "site_describe_capabilities", "fetch_live_url", "fetch_published_page"]);
+  const definition = siteInspectionAgentToolCatalog.find(tool => tool.name === "fetch_published_page");
+  assert.ok(definition);
+  const schema = definition.inputSchema as { properties: { path: { maxLength: number }; maxBytes: { description: string; maximum: number } } };
+  assert.equal(schema.properties.path.maxLength, MAX_PATH_LENGTH);
+  assert.ok(schema.properties.maxBytes.description.includes(`Default ${DEFAULT_MAX_BODY_BYTES};`));
+  assert.equal(schema.properties.maxBytes.maximum, MAX_MAX_BODY_BYTES);
 });

@@ -1,11 +1,13 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { PageKindMismatchError, PageConcurrentEditError, PageNotFoundError } from "../html-document-store.sqlite.js";
+import { PageKindMismatchError, PageConcurrentEditError, PageNotFoundError } from "@jini-ai/cms/pages/html-document-store";
 
 /**
  * @file CIC-1 certification for `InMemoryPagesHtmlDocumentStore` — the store `pages_write_region`'s
@@ -45,7 +47,7 @@ async function harness(): Promise<{ repo: InMemoryPostRepo }> {
 
 test("write() after read() updates body_html and increments version (sanity, mirrors the sqlite test)", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
   await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();
@@ -62,7 +64,7 @@ test("write() after read() updates body_html and increments version (sanity, mir
 
 test("write() stores a canvas-serialized embed marker in the readable single-quoted form (mirrors the sqlite test)", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
   await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();
@@ -78,8 +80,8 @@ test("CIC-1 (sequential): two readers, then two SEQUENTIAL writes (read, read, w
   // fully resolved, so writerB's load()-inside-write() sees the already-bumped version and rejects.
   // It is NOT the shape that matters for two truly concurrent tool calls — see the next test.
   const { repo } = await harness();
-  const writerA = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
-  const writerB = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const writerA = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const writerB = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
   await writerA.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   const seenByA = await writerA.read();
@@ -102,8 +104,8 @@ test("BUG: two write() calls truly IN FLIGHT AT ONCE (not sequential) both succe
   // produce, and exactly the scenario `tool-registrations.write-region.test.ts`'s own file header
   // names as defect #2 this feature was supposed to close.
   const { repo } = await harness();
-  const writerA = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
-  const writerB = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const writerA = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const writerB = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
   await writerA.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   await writerA.read();
@@ -143,7 +145,7 @@ const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore i
 
 test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
@@ -155,7 +157,7 @@ test("read() rejects a trashed html-format page with the entity-liveness message
 
 test("write() rejects when the row was trashed between this instance's read() and write()", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   await store.read();
 
@@ -177,7 +179,7 @@ test("ensureHtmlFormat refuses a post without changing its body or revision ledg
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Article", kind: "post" } });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "post-1" }));
   const revisionsBefore = structuredClone(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }));
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "post-1" }), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }), revisionsBefore);
@@ -194,7 +196,7 @@ test("conversion and write append recoverable original, converted, and edited sn
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Original document" }] }] },
   };
   await repo.save(original);
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1", actorId: "editor-7" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1", actorId: "editor-7" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" });
   await store.write({ html: "<p>edited</p>" });
   const revisions = (await repo.listRevisions({ workspaceId: WS, postId: "page-1" })).filter((revision) => revision.seq >= 5);
@@ -213,7 +215,7 @@ test("conversion, replacement, and removal reindex exact HTML embed references w
   const refs = new InMemoryEntryRefsRepo();
   const sibling = { workspaceId: WS, sourceEntryId: "other-page", sourceKind: "page-html-embed" as const, targetKind: "entry" as const, targetId: "keep-widget", fieldPath: "bodyHtml[embed:widget#1]" };
   await refs.replaceForSource({ workspaceId: WS, sourceEntryId: "other-page", refs: [sibling] });
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, entryRefsRepo: refs });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, entryRefsRepo: refs, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   const expected = { workspaceId: WS, sourceEntryId: "page-1", sourceKind: "page-html-embed", targetKind: "entry", fieldPath: "bodyHtml[embed:widget#1]" };
   await store.ensureHtmlFormat({ seedHtml: `<div data-embed-config='{"type":"widget","id":"seed-widget"}'></div>` });
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), [{ ...expected, targetId: "seed-widget" }]);
@@ -228,7 +230,7 @@ test("conversion, replacement, and removal reindex exact HTML embed references w
 for (const operation of ["read", "convert"] as const) {
   test(`${operation} refuses a missing page without capturing a version`, async () => {
     const { repo } = await harness();
-    const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { repo, clock });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "missing" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await assert.rejects(operation === "read" ? store.read() : store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }),
       { message: "page 'missing' was not found" });
     assert.equal(store.capturedVersion(), null);
@@ -237,7 +239,7 @@ for (const operation of ["read", "convert"] as const) {
 
 test("read refuses an unconverted document page", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await assert.rejects(store.read(), PageNotFoundError);
   assert.equal(store.capturedVersion(), null);
 });
@@ -249,7 +251,7 @@ test("write before read refuses to change the row or ledger", async () => {
   const before = await repo.findById(page);
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
-  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await assert.rejects(store.write({ html: "<p>bad</p>" }), { message: "PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on" });
   assert.deepEqual(await repo.findById(page), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
@@ -260,7 +262,7 @@ for (const change of ["deleted", "converted-to-doc"] as const) {
     const { repo } = await harness();
     const scope = { workspaceId: WS, postId: "page-1" };
     const page = { workspaceId: WS, id: scope.postId };
-    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
     const captured = store.capturedVersion();
     const row = await repo.findById(page);
@@ -280,12 +282,12 @@ test("converting an already HTML page captures its version without reseeding or 
   const { repo } = await harness();
   const scope = { workspaceId: WS, postId: "page-1" };
   const page = { workspaceId: WS, id: scope.postId };
-  const first = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const first = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await first.ensureHtmlFormat({ seedHtml: "<p>keep</p>" });
   const before = await repo.findById(page);
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
-  const reopened = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const reopened = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await reopened.ensureHtmlFormat({ seedHtml: "<p>discard</p>" });
   assert.equal(reopened.capturedVersion(), 2);
   assert.deepEqual(await repo.findById(page), before);
@@ -300,7 +302,7 @@ test("conversion refuses a trashed document before changing the body or revision
   const before = await repo.findById(page);
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
-  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>new</p>" }), { message: TRASH_MESSAGE });
   assert.deepEqual(await repo.findById(page), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
@@ -310,7 +312,7 @@ test("a page removed after the successful CAS does not receive a phantom revisio
   const { repo } = await harness();
   const scope = { workspaceId: WS, postId: "page-1" };
   const page = { workspaceId: WS, id: scope.postId };
-  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   const save = repo.saveIfVersion.bind(repo);
   repo.saveIfVersion = async input => {
@@ -333,7 +335,7 @@ test("read refuses a stored HTML record whose body is absent", async () => {
   assert.ok(row);
   // The memory port accepts PostRecord's nullable body; unlike SQL it has no CHECK constraint.
   await repo.save({ ...row, bodyFormat: "html", bodyHtml: null });
-  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await assert.rejects(store.read(), PageNotFoundError);
   assert.equal(store.capturedVersion(), null);
 });
@@ -345,7 +347,7 @@ const SLUG_MARKER = `<div data-embed-config='{"type":"widget","slug":"contact-fo
 
 test("B224: write() stores the widget's id next to a slug-only widget marker", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, widgetSlugLookup, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();
   await store.write({ html: SLUG_MARKER });
@@ -356,14 +358,14 @@ test("B224: write() stores the widget's id next to a slug-only widget marker", a
 
 test("B224: the seed written by ensureHtmlFormat gets the widget id too", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, widgetSlugLookup, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: SLUG_MARKER });
   assert.ok(((await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml ?? "").includes(WIDGET_ID));
 });
 
 test("B224: an unknown widget slug is stored exactly as authored", async () => {
   const { repo } = await harness();
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, widgetSlugLookup });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo, clock, widgetSlugLookup, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   const unknown = `<div data-embed-config='{"type":"widget","slug":"no-such-widget"}'></div>`;
   await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();

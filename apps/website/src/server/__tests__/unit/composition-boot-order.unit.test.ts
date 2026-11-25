@@ -158,7 +158,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const kernel = indexOfAnchor(body, "composeStoragePhase(");
   indexOfAnchor(storage, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
-  const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
+  const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor({ kernel })");
   const orphanCheck = indexOfAnchor(body, "await warnCompositionChatOrphans(");
   indexOfAnchor(functionBody(deps, "async function warnCompositionChatOrphans("), "await warnOnOrphanedChatRows(");
   const firstBootPromise = indexOfAnchor(body, "composeSiteServicesPhase(");

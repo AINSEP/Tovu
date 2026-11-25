@@ -58,7 +58,7 @@ import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrati
 import type { AgentPluginSearchToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/post-tool-deps.js";
 import type { PublishContentToolDeps } from "../features/publish-content/tool-registrations.js";
-import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
+import type { PagesToolDeps } from "#src/features/pages/tool-host";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations.js";
 import type { SettingsToolDeps } from "../features/settings/tool-registrations.js";
 import type { SiteInspectionToolDeps } from "../features/site-inspection/index.js";
@@ -130,7 +130,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
     siteUpdateRuntime?: import("../features/site-update/tools.js").SiteUpdateCheckRuntime | null;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
     // Dynamically installed provider/project-key contributors consume these narrow ports too.
-    projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
+    projectKeys?: import("@jini-ai/user-management/project-keys/service").ProjectKeysPort;
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
     reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
     providerConfig?: ProviderConfigSource;
@@ -139,7 +139,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
     pluginRuntimeReady?: Promise<void>; siteTitleReady?: Promise<void>;
   } &
   AssistantHistoryHostDeps &
-  import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
+  import("@jini-ai/cms/posts/content-stats-tool").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   Pick<import("@jini-ai/platform/mail/feedback-setup").MailFeedbackSetupDeps, "listCustomCredentials" | "mailWebhookSecretLabels"> &
   Required<Pick<import("@jini-ai/platform/mail/use-readiness").MailUseReadinessDeps, "evaluateNewsletterLaunchGate">> &

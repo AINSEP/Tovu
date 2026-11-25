@@ -1,8 +1,10 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryPostRepo } from '../../post/repo.memory.js';
 import { createPost } from '../../post/index.js';
-import { InMemoryPagesHtmlDocumentStore } from '../../pages/html-document-store.memory.js';
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { createPrivacyPageCheck } from '#src/server/inbound/public-http/middleware/site-consent';
 import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
 import { consentServiceHostPorts } from '../host-bindings.js';
@@ -27,7 +29,7 @@ function fixture() {
     setUrl: async ({ url: value }) => { url = value; writes++; },
     readIdentity: async () => ({ siteTitle: 'A & B', email: 'owner@example.test', principalId: 'owner' }),
     pagesHtmlStore: scope => {
-      const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+      const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
       return { ensureHtmlFormat: async ({ seedHtml: html }) => {
         assert.equal(inTransaction, true, 'create and HTML seed share a transaction');
         seeds++;

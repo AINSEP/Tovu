@@ -1,3 +1,4 @@
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { hkdfSync, randomUUID } from "node:crypto";
@@ -17,7 +18,7 @@ import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/pe
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { buildPublishContentCatalog, listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination } from "@jini-ai/cms/publish/trust/connect";
-import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
 import { nowIso } from "@jini-ai/core/primitives";
 import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import {
@@ -262,16 +263,16 @@ test("the address to confirm comes from the deploy config the repo already carri
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
   });
-  assert.equal(await findCandidateDestination({ io, resolvePath: ({ relative: r }) => r }, { candidatePaths }), "https://tovu.example");
+  assert.equal(await findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io, resolvePath: ({ relative: r }) => r }, { candidatePaths }), "https://tovu.example");
 
   // This repo generates its config during CI; the committed workflow owns the public URL.
   const workflowIo = memoryIo({
     ".github/workflows/fly-deploy.yml": 'env:\n  TOVU_PUBLIC_URL: https://workflow.example\n',
   });
-  assert.equal(await findCandidateDestination({ io: workflowIo, resolvePath: ({ relative: r }) => r }, { candidatePaths }), "https://workflow.example");
+  assert.equal(await findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: workflowIo, resolvePath: ({ relative: r }) => r }, { candidatePaths }), "https://workflow.example");
 
   // A fresh install that has never been deployed simply has none. An empty state, not an error.
-  assert.equal(await findCandidateDestination({ io: memoryIo(), resolvePath: ({ relative: r }) => r }, { candidatePaths }), null);
+  assert.equal(await findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: memoryIo(), resolvePath: ({ relative: r }) => r }, { candidatePaths }), null);
 });
 
 test("connecting learns the destination's workspace instead of asking a human for it", async () => {
@@ -486,4 +487,13 @@ test("disconnecting removes only this computer, and leaves another computer's gr
   } finally {
     await s.teardown();
   }
+});
+
+
+test("candidate reads the committed destination rather than the current process origin", async t => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = "https://running.example";
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+  const io = memoryIo({ "app.json": 'TOVU_PUBLIC_URL=https://committed.example' });
+  assert.equal(await findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io, resolvePath: ({ relative }) => relative }), "https://committed.example");
 });

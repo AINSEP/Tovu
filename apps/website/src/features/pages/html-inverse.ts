@@ -13,7 +13,7 @@ import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed
  * doc exists nowhere else the reverter is allowed to read (the `pages_read_html` doc fallback is
  * rendered HTML, not the body).
  */
-export type PageHtmlInverse = { format: "html"; html: string } | { format: "doc"; bodyJson: JsonObject };
+
 
 /** The change-set entity type every assistant HTML write records under. */
 export const PAGE_HTML_ENTITY_TYPE = "page-html";

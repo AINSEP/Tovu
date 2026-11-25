@@ -1,7 +1,8 @@
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { notifyExternalMcpRosterChanged } from "../../assistant/external-mcp-roster-change.js";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { readPluginInstallRequest, readPluginInstallArchive } from "#src/features/plugin-runtime/install-source";
+import { createHostPluginInstallSource } from "#src/features/plugin-runtime/host-install-source";
+const { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive } = createHostPluginInstallSource({});
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "../../server/runtime/composition/agent-plugin-service-ports.js";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
@@ -69,7 +70,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
   for (const key of Object.keys(descriptors)) {
     if (key in input) delete descriptors[key];
   }
-  const context = Object.defineProperties(input, descriptors) as T & { bundledAgentPluginsSourceRoot: string; pluginInstallSource: import("../../contracts/headless/plugin-install-source.js").PluginInstallSourcePort } & Pick<RouteDeps, "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBinding" | "loadDeployOps" | "loadSourceControlProviders" | "loadAuthSchemes" | "bundledSourceRoot" | "mcp" | "preferences" | "providerFaces" | "notifyRosterChanged">;
+  const context = Object.defineProperties(input, descriptors) as T & { bundledAgentPluginsSourceRoot: string; pluginInstallSource: import("@jini-ai/core/contracts/headless/plugin-install-source").PluginInstallSourcePort } & Pick<RouteDeps, "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBinding" | "loadDeployOps" | "loadSourceControlProviders" | "loadAuthSchemes" | "bundledSourceRoot" | "mcp" | "preferences" | "providerFaces" | "notifyRosterChanged">;
   return context;
 }
 

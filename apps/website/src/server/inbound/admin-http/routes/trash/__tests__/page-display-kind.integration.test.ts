@@ -1,3 +1,4 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
@@ -10,7 +11,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, deletePost, SqlitePostRepo } from "#src/features/post/index";
-import { createPostTrashAdapter } from "#src/features/trash/adapters/post";
+import { createPostTrashAdapter } from "@jini-ai/cms/trash/site/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
@@ -36,7 +37,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
   let seq = 0;
   const trash = createTrashService({
     repo: trashRepo,
-    adapters: new Map([["post", createPostTrashAdapter(kernel)]]),
+    adapters: new Map([["post", createPostTrashAdapter({ store: kernel, tableExists })]]),
     idGen: { newId: () => `trash-${++seq}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db })(work),
     entityPolicy: ({ entityType }) => entityType === "post",

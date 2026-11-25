@@ -1,3 +1,4 @@
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -10,9 +11,8 @@ import { CHAT_ATTACHMENT_REF_PATTERN } from "@jini-ai/core/contracts/headless/ch
 import {
   chatAttachmentSidecarFileName,
   isChatAttachmentSidecarShape,
-  readChatAttachmentForOwner,
   resolveContainedAttachmentPath,
-} from "../read-chat-attachment.js";
+} from "@jini-ai/daemon/http";
 
 /**
  * @file `readChatAttachmentForOwner` — the authorization and path-safety half of the chat-attachment
@@ -101,10 +101,7 @@ async function writeSidecar(
 }
 
 async function read(staged: Staged, input: { ref?: string; ownerId?: string } = {}) {
-  return readChatAttachmentForOwner(
-    { uploadDirectory: staged.uploadDirectory },
-    { ref: input.ref ?? REF, ownerId: input.ownerId ?? OWNER }
-  );
+  return readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: input.ref ?? REF, ownerId: input.ownerId ?? OWNER }, {  });
 }
 
 // ---------------------------------------------------------------------------
@@ -138,10 +135,7 @@ for (const timestamp of ["mtimeMs", "ctimeMs"] as const) {
     await writeSidecar(staged, { [timestamp]: info[timestamp] - 1000 });
     let opened = false;
 
-    const result = await readChatAttachmentForOwner({
-      uploadDirectory: staged.uploadDirectory,
-      openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); },
-    }, { ref: REF, ownerId: OWNER });
+    const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); } });
 
     assert.deepEqual(result, { ok: false, refusal: "integrity" });
     assert.equal(opened, false);
@@ -175,10 +169,7 @@ test("read-chat-attachment: an ownerless record does not match a caller with no 
   // equal `undefined`. `ownerId` is typed `string`, so this violates the contract on purpose —
   // that is the point. A check that cannot be reached through well-typed input is still worth
   // having when the failure it prevents is "hand someone else's upload to an unidentified caller".
-  const result = await readChatAttachmentForOwner(
-    { uploadDirectory: staged.uploadDirectory },
-    { ref: REF, ownerId: undefined as unknown as string }
-  );
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: undefined as unknown as string }, {  });
 
   assert.deepEqual(result, { ok: false, refusal: "not-owner" });
 });
@@ -343,17 +334,14 @@ test("read-chat-attachment: a symlink swapped in between validation and open is 
   let opens = 0;
   let openedPath: string | undefined;
   let openedFlags: number | undefined;
-  const result = await readChatAttachmentForOwner({
-    uploadDirectory: staged.uploadDirectory,
-    openFile: async (filePath, flags) => {
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => {
       opens++;
       openedPath = filePath;
       openedFlags = flags;
       await rm(filePath);
       await symlink(secretPath, filePath);
       return open(filePath, flags);
-    },
-  }, { ref: REF, ownerId: OWNER });
+    } });
   assert.equal(opens, 1);
   assert.equal(openedPath, staged.filePath);
   assert.equal(openedFlags, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
@@ -375,17 +363,14 @@ test("read-chat-attachment: changed descriptor identity is refused before readin
     { isFile: () => false },
   ]) {
     const calls: string[] = [];
-    const result = await readChatAttachmentForOwner({
-      uploadDirectory: staged.uploadDirectory,
-      openFile: async () => {
+    const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async () => {
         calls.push("open");
         return {
           stat: async () => { calls.push("stat"); return { ...validated, isFile: () => true, ...replacement }; },
           readFile: async () => { calls.push("read"); return Buffer.from("private bytes"); },
           close: async () => { calls.push("close"); },
         };
-      },
-    }, { ref: REF, ownerId: OWNER });
+      } });
     assert.deepEqual(result, { ok: false, refusal: "integrity" });
     assert.deepEqual(calls, ["open", "stat", "close"]);
   }
@@ -397,9 +382,7 @@ test("read-chat-attachment: a path swap after fstat cannot redirect the descript
   const secretPath = resolve(staged.uploadDirectory, "secret.txt");
   await writeFile(secretPath, "private bytes");
   const calls: string[] = [];
-  const result = await readChatAttachmentForOwner({
-    uploadDirectory: staged.uploadDirectory,
-    openFile: async (filePath, flags) => {
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => {
       calls.push("open");
       const handle = await open(filePath, flags);
       return {
@@ -413,8 +396,7 @@ test("read-chat-attachment: a path swap after fstat cannot redirect the descript
         readFile: async () => { calls.push("read"); return handle.readFile(); },
         close: async () => { calls.push("close"); await handle.close(); },
       };
-    },
-  }, { ref: REF, ownerId: OWNER });
+    } });
   assert.ok(result.ok);
   assert.deepEqual(new Uint8Array(result.bytes), BYTES);
   assert.deepEqual(calls, ["open", "stat", "read", "close"]);
@@ -427,17 +409,14 @@ test("read-chat-attachment: descriptor stat and read failures still close the ha
   for (const failAt of ["stat", "read"]) {
     const failure = new Error(`${failAt} failed`);
     let closed = false;
-    await assert.rejects(readChatAttachmentForOwner({
-      uploadDirectory: staged.uploadDirectory,
-      openFile: async () => ({
+    await assert.rejects(readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async () => ({
         stat: async () => {
           if (failAt === "stat") throw failure;
           return info;
         },
         readFile: async () => { throw failure; },
         close: async () => { closed = true; },
-      }),
-    }, { ref: REF, ownerId: OWNER }), failure);
+      }) }), failure);
     assert.equal(closed, true);
   }
 });
@@ -447,14 +426,11 @@ test("read-chat-attachment: a size change during the descriptor read is refused"
   await writeSidecar(staged);
   const info = await lstat(staged.filePath);
   let closed = false;
-  const result = await readChatAttachmentForOwner({
-    uploadDirectory: staged.uploadDirectory,
-    openFile: async () => ({
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async () => ({
       stat: async () => info,
       readFile: async () => Buffer.from([...BYTES, 9]),
       close: async () => { closed = true; },
-    }),
-  }, { ref: REF, ownerId: OWNER });
+    }) });
   assert.deepEqual(result, { ok: false, refusal: "integrity" });
   assert.equal(closed, true);
 });
@@ -507,8 +483,8 @@ test("read-chat-attachment: an upload directory that does not exist is not found
 test('read-chat-attachment: the video preview size cap refuses an owned file before payload read', async t => {
   const staged = await stage(t);
   await writeSidecar(staged);
-  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: BYTES.byteLength - 1 }), { ok: false, refusal: 'too-large' });
-  const accepted = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: BYTES.byteLength });
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { maxBytes: BYTES.byteLength - 1 }), { ok: false, refusal: 'too-large' });
+  const accepted = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { maxBytes: BYTES.byteLength });
   assert.equal(accepted.ok, true);
   if (accepted.ok) assert.deepEqual(new Uint8Array(accepted.bytes), BYTES);
 });
@@ -534,14 +510,14 @@ async function writeRawSidecar({ staged, sizeLiteral }: { staged: Staged; sizeLi
 test("read-chat-attachment: the size cap refuses a recorded size that overflows to Infinity", async (t) => {
   const staged = await stage(t);
   await writeRawSidecar({ staged, sizeLiteral: "1e999" });
-  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { maxBytes: 1_000_000 }),
     { ok: false, refusal: "too-large" });
 });
 
 test("read-chat-attachment: the size cap refuses a recorded size that overflows to -Infinity", async (t) => {
   const staged = await stage(t);
   await writeRawSidecar({ staged, sizeLiteral: "-1e999" });
-  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { maxBytes: 1_000_000 }),
     { ok: false, refusal: "too-large" });
 });
 
@@ -551,14 +527,14 @@ test("read-chat-attachment: an upload root reached through a symlink is canonica
   const link = `${staged.uploadDirectory}-link`;
   await symlink(staged.uploadDirectory, link);
   t.after(() => rm(link, { force: true }));
-  const result = await readChatAttachmentForOwner({ uploadDirectory: link }, { ref: REF, ownerId: OWNER });
+  const result = await readChatAttachmentForOwner({ uploadDirectory: link, ref: REF, ownerId: OWNER }, {  });
   assert.equal(result.ok, true);
 });
 
 test("read-chat-attachment: the size cap refuses a negative recorded size", async (t) => {
   const staged = await stage(t);
   await writeSidecar(staged, { size: -1 });
-  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { maxBytes: 1_000_000 }),
     { ok: false, refusal: "too-large" });
 });
 
@@ -572,10 +548,7 @@ test("read-chat-attachment: an infinite cap cannot admit non-finite recorded met
   const staged = await stage(t);
   await writeRawSidecar({ staged, sizeLiteral: "1e999" });
   let opened = false;
-  const result = await readChatAttachmentForOwner({
-    uploadDirectory: staged.uploadDirectory,
-    openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); },
-  }, { ref: REF, ownerId: OWNER, maxBytes: Infinity });
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); }, maxBytes: Infinity });
   assert.deepEqual(result, { ok: false, refusal: "too-large" });
   assert.equal(opened, false);
 });
@@ -591,9 +564,26 @@ test("read-chat-attachment: no ref, however hostile, maps to a sidecar outside t
 test("read-chat-attachment: L033 retains the explicit sidecar-parent guard before loading records", async () => {
   // The current filename mapper makes this refusal redundant. This is a source-preservation pin,
   // not a claim of reachable branch coverage: the guard must survive future mapper changes.
-  const source = await readFile(new URL("../read-chat-attachment.ts", import.meta.url), "utf8");
-  const guard = source.indexOf('if (dirname(sidecarPath) !== sidecarDirectory) return refuse("malformed-ref");');
+  const source = await readFile(new URL(import.meta.resolve("@jini-ai/daemon/http").replace(/[^/]+$/, "attachment-owner-read.js")), "utf8");
+  const guard = source.indexOf('if (dirname(sidecarPath) !== sidecarDirectory)');
   const load = source.indexOf("const loaded = await loadSidecar(", guard);
   assert.ok(guard >= 0, "the independent sidecar-parent guard must remain explicit");
   assert.ok(load > guard, "containment must be checked before reading the sidecar");
+  assert.match(source.slice(guard, load), /return refuse\("malformed-ref"\)/);
+});
+
+
+test("production binding requests no-follow and closes the checked descriptor", async t => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  let flagsSeen: number | undefined;
+  let closed = false;
+  const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => {
+      flagsSeen = flags;
+      const handle = await open(filePath, flags);
+      return { stat: () => handle.stat(), readFile: () => handle.readFile(), close: async () => { closed = true; await handle.close(); } };
+    } });
+  assert.equal(flagsSeen, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  assert.ok(result.ok);
+  assert.equal(closed, true);
 });

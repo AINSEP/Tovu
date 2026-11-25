@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import type { SurfaceEmission, ToolRegistration } from '@jini-ai/core';
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, type SurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createFakeClock } from '#src/__tests__/support/fake-clock';
-import type { ProjectKeysPort } from '../../project-keys/service.js';
+import type { ProjectKeysPort } from "@jini-ai/user-management/project-keys/service";
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { InMemoryCustomCredentialSetRepo } from '../repo.memory.js';

@@ -46,13 +46,13 @@ import {
 } from "@jini-ai/cms/trash";
 
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
-import { POST_ENTITY_TYPE } from "./adapters/post.js";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
-import { moveToTrash } from "./move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
 /** Matches `registry.ts`'s own `entityType: "widget"` literal — kept as a local literal, not an
@@ -279,9 +279,7 @@ export function deriveTrashItemRegistrations(
         const row = await readLiveSnapshot(input, { kernel: routeDeps.db, registry: routeDeps.registry });
         return row && { version: row.version ?? null };
       },
-      moveToTrash: (input) => moveToTrash(input, {
-        registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock,
-      }),
+      moveToTrash: (input) => moveToTrash(input, { registry: routeDeps.registry, trash: routeDeps.trash, authorize: routeDeps.authorize, clock: routeDeps.clock, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: routeDeps.db, registry: routeDeps.registry }) }),
       actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
       userKind: USER_ENTITY_TYPE,
       presentation: TRASH_ITEM_PRESENTATION,

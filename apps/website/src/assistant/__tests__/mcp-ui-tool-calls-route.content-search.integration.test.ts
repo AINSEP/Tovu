@@ -1,3 +1,4 @@
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,7 +9,8 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { InMemoryPostRepo, InMemoryPostSearchIndex } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -63,7 +65,7 @@ function buildRealPostToolExecutor() {
     outbox,
     bus,
     postRepo,
-    postSearch: new InMemoryPostSearchIndex(postRepo),
+    postSearch: new InMemoryPostSearchIndex({ repo: postRepo, openScratch: openPostSearchScratch }),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as RouteDeps;
 

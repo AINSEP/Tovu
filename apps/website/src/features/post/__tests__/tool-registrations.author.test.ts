@@ -10,7 +10,7 @@ import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
-import { postAgentToolCatalog } from "../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 
 function fixture() {
   const postRepo = new InMemoryPostRepo({});

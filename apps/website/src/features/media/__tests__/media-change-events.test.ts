@@ -1,3 +1,4 @@
+import { MediaStillReferencedError } from "@jini-ai/cms/media";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -8,7 +9,7 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { SqlMediaRepo, type MediaChangeSink } from "#src/platform/db/repos/media-repo";
 import { OUTBOX_TABLES } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import { createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_CHANGED_EVENT } from "../media-search-source.js";
 
 /**
@@ -113,7 +114,7 @@ for (const each of eachDialect({ tables: ["media", "media_slug_history", "outbox
     await h.kernel.run((db) => db.deleteFrom("outbox_events").execute());
     const img = image("img-3");
     await h.repo.insertIfAbsent(img);
-    const adapter = createMediaTrashAdapter({ db: h.kernel, purgeAsset: async () => {}, changes: h.changes });
+    const adapter = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: h.kernel, purgeAsset: async () => {}, changes: h.changes });
     const baseline = (await h.events()).length;
     h.control.failAfterEnqueue = true;
     await assert.rejects(adapter.hide({ workspaceId: WS, entityId: img.id, at: "2026-11-02T00:00:00.000Z", expectedVersion: 1 }), /disk is full/);

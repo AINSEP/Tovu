@@ -1,9 +1,11 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../../pages/index.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { buildEmailTemplatesRegistrations, contributeEmailTemplatesTools, emailTemplatesAgentToolCatalog, emailTemplatesDerivedRisk } from "../tool-registrations.js";
 
 const WS = "ws-1";
@@ -19,7 +21,7 @@ function harness(granted: ReadonlySet<string>) {
     postRepo: repo,
     clock,
     idGen: { newId: () => `tpl-${++n}` },
-    pagesHtmlStore: (scope, options = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock }),
+    pagesHtmlStore: (scope, options = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
     authorize: (async (request: { permission: string }) => {
       asked.push(request.permission);
       return granted.has(request.permission) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "no grant" };

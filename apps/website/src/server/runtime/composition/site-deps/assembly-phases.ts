@@ -5,7 +5,7 @@ import type { StoreCloseRegistration } from "./open-store.js";
 import type { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import type { composeStoragePhase } from "./boot-phases.js";
 import type { resolveWorkspaceIdOverride } from "./overrides.js";
-import type { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
+import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { SiteStore } from "../open-site-store.js";
 import type { LoadedMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";
 import type { MediaProviderRegistry } from "@jini-ai/integrations/media-providers";
@@ -86,7 +86,7 @@ interface AssembleRouteDepsPhaseRequired {
   mediaIsRemoteByEnv: ReturnType<typeof composeStoragePhase>["mediaIsRemoteByEnv"];
   resolvedUploadsDir: ReturnType<typeof composeStoragePhase>["resolvedUploadsDir"];
   workspaceId: Awaited<ReturnType<typeof resolveWorkspaceIdOverride>>;
-  publishTrustRevocations: Awaited<ReturnType<typeof publishTrustRevocationStoreFor>>;
+  publishTrustRevocations: PublishTrustRevocationPort;
   chat: SiteStore["chat"];
   mediaProviders: LoadedMediaProviderRegistry<MediaProviderRegistry>;
   clock: ReturnType<typeof composeSiteServicesPhase>["clock"];

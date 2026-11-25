@@ -1,3 +1,5 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,14 +14,14 @@ import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
-import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
 import { createPostReverters } from "../reverters.js";
-import { postAgentToolCatalog } from "../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 
 
 /**
@@ -297,10 +299,7 @@ async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo, html
     deps: { repo: postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id: "page-1", title: "Pricing", kind: "page" },
   });
-  const store = new InMemoryPagesHtmlDocumentStore(
-    { workspaceId: WORKSPACE_ID, postId: "page-1" },
-    { repo: postRepo, clock: deps.clock }
-  );
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WORKSPACE_ID, postId: "page-1" }, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
   await store.write({ html });

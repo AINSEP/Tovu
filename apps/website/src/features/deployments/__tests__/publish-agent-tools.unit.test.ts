@@ -1,3 +1,4 @@
+import { attachedVaultPolicy, projectKeyCreatePolicy } from '#src/features/project-keys/vault-policy';
 import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -27,9 +28,9 @@ import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/v
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
@@ -1196,12 +1197,12 @@ test("publish card saves attach to their site and reopening updates the sole att
     module: { create: () => assert.fail("must not publish") } };
   function site(siteId: string) {
     const { deps: base } = fakeDeps();
-    const view = attachedOnlyVault({ vault, attachments, siteId });
+    const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault, attachments, siteId });
     const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project: {
       workspaceId: "project", keyring, sealer,
       repo: new VendorCredentialSetVaultRepo({ vault: view, kind: "vendor", vendor: true }),
-      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }), kind: "vendor", vendor: true }),
-      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
+      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }), kind: "vendor", vendor: true }),
+      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
     } });
     const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
       loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };

@@ -1,5 +1,6 @@
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedVaultPolicy, projectKeyCreatePolicy } from '#src/features/project-keys/vault-policy';
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -100,7 +101,7 @@ test("a granted consumer cannot rename or rotate the shared owner entry", async 
   const saved = await save(owner, SITE_A, "shared", secret("owner"));
   const attachments = fakeAttachments();
   await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: saved.id });
-  const site = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } });
+  const site = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } });
   await assert.rejects(updateCustomCredential(site, { workspaceId: SITE_A, id: saved.id, label: "changed" }), /Shared Keys/);
   assert.equal((await project.repo.findById({ workspaceId: "project", id: saved.id }))?.label, "shared");
 });
@@ -152,13 +153,13 @@ test("an aborted save never writes the project half either", async () => {
 test("custom project keys stay hidden until attached and detach immediately across label and id lookups", async () => {
   const project = projectScope(); const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const a = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) } });
+  const a = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, siteId: SITE_A, attachments }) }) } });
   const saved = await save(a, SITE_A, "attached-only", secret("attached"));
   assert.equal(await describeCredential(a, { workspaceId: SITE_A, id: saved.id }), null);
   assert.equal(await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }), null);
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
   assert.equal((await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }))?.connection.token, secret("attached"));
-  const b = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_B, attachments }) }) } });
+  const b = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, siteId: SITE_B, attachments }) }) } });
   assert.equal(await describeCredential(b, { workspaceId: SITE_B, id: saved.id }), null);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.deepEqual(await listCustomCredentials(a, { workspaceId: SITE_A }), []);
@@ -170,7 +171,7 @@ test("the trusted owner replacement port rotates only a granted shared key", asy
   const saved = await save(owner, SITE_A, "shared", secret("first"));
   const attachments = fakeAttachments();
   await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: saved.id });
-  const view = attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.repo.vault!, siteId: SITE_A, attachments });
   const site = siteDeps({ project: { ...project, createRepo: project.repo, replaceRepo: project.repo,
     repo: new CustomCredentialVaultRepo({ vault: view }) } });
   await assert.rejects(updateCustomCredential(site, { workspaceId: SITE_A, id: saved.id, connection: { token: secret("denied") } }), /Shared Keys/);
@@ -184,8 +185,8 @@ test("a projectKeyCreateVault conflict maps to CustomCredentialDuplicateLabelErr
   const project = projectScope();
   await save(siteDeps({ project }), SITE_A, "Taken", secret("first"));
   const raw = project.repo.vault!;
-  const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
   const b = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: view }),
-    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) } });
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: raw, view }) }) } });
   await assert.rejects(save(b, SITE_B, "Taken", secret("second")), CustomCredentialDuplicateLabelError);
 });

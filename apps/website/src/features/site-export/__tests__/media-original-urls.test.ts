@@ -1,3 +1,4 @@
+import { bindExportMediaUrls } from "#src/features/site-export/media-url-bindings";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
@@ -8,7 +9,7 @@ import express from "express";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { uploadMedia } from "#src/features/media/index";
 import { exportSite } from "../site-exporter.js";
-import { rewriteMediaOriginalUrls, rewriteExportMediaResponse } from "../media-original-urls.js";
+import { rewriteMediaOriginalUrls, rewriteExportMediaResponse } from "@jini-ai/devops/static-export/site/media-original-urls";
 
 const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>');
 
@@ -26,7 +27,7 @@ async function fixture() {
 // Guards rewriteMediaOriginalUrls's canonical helper call and replacement of a stale v query.
 test("export upgrades legacy originals with the current version while preserving unrelated query and fragment", async () => {
   const { deps, media, old } = await fixture();
-  assert.equal(await rewriteMediaOriginalUrls({ body: `<img src="${old}?v=old&download=1#cover">`, deps }),
+  assert.equal(await rewriteMediaOriginalUrls({ body: `<img src="${old}?v=old&download=1#cover">`, deps: bindExportMediaUrls({ deps }) }),
     `<img src="${old}.svg?v=${media.source.sha256.slice(0, 12)}&download=1#cover">`);
 });
 
@@ -40,27 +41,27 @@ test("export rewrites legacy original URLs in HTML, inline CSS, XML and JSON, pr
   const expected = `<header><img src="${canonical}#mark"></header><footer style="background:url(${canonical})"></footer>` +
     `<link rel="icon" href="${canonical}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
-  assert.equal(await rewriteMediaOriginalUrls({ body, deps }), expected);
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: bindExportMediaUrls({ deps }) }), expected);
   assert.equal((await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s: [media.source.sha256] })).get(media.source.sha256), "image/svg+xml");
-  assert.equal(await rewriteMediaOriginalUrls({ body: expected, deps }), expected);
+  assert.equal(await rewriteMediaOriginalUrls({ body: expected, deps: bindExportMediaUrls({ deps }) }), expected);
   for (const [contentType, body, expected] of [
     ['application/xml', `<urlset><image:loc>${origin}${old}</image:loc></urlset>`, `<urlset><image:loc>${origin}${canonical}</image:loc></urlset>`],
     ['application/manifest+json', `{"icons":[{"src":"${old}"}],"description":"${old}"}`, `{"icons":[{"src":"${canonical}"}],"description":"${old}"}`],
     ['text/css', `body{background:url(${old})}`, `body{background:url(${canonical})}`],
-  ] as const) assert.equal(await rewriteMediaOriginalUrls({ body, deps }, { contentType }), expected);
+  ] as const) assert.equal(await rewriteMediaOriginalUrls({ body, deps: bindExportMediaUrls({ deps }) }, { contentType }), expected);
 });
 
 test("without a verified origin, absolute and malformed references stay as written and the export continues", async () => {
   const { deps, old, canonical } = await fixture();
   const unverified = { ...deps, originRegistry: { ...deps.originRegistry, canonicalOrigin: async () => { throw new Error("no verified origin"); } } };
   const body = `<img src="${old}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`;
-  assert.equal(await rewriteMediaOriginalUrls({ body, deps: unverified as typeof deps }),
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: bindExportMediaUrls({ deps: unverified as typeof deps }) }),
     `<img src="${canonical}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`);
 });
 
 test("export response rewrite preserves MIME and security headers and leaves binary responses untouched", async () => {
   const { deps, old, canonical } = await fixture();
-  const response = await rewriteExportMediaResponse({ deps, response: new Response(`<img src="${old}">`, {
+  const response = await rewriteExportMediaResponse({ deps: bindExportMediaUrls({ deps }), response: new Response(`<img src="${old}">`, {
     headers: { "content-type": "text/html; charset=utf-8", "content-length": "1", "x-content-type-options": "nosniff" },
   }) });
   assert.equal(await response.text(), `<img src="${canonical}">`);
@@ -68,7 +69,7 @@ test("export response rewrite preserves MIME and security headers and leaves bin
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("content-length"), null);
   const binary = new Response(SVG, { headers: { "content-type": "image/svg+xml" } });
-  assert.equal(await rewriteExportMediaResponse({ response: binary, deps }), binary);
+  assert.equal(await rewriteExportMediaResponse({ response: binary, deps: bindExportMediaUrls({ deps }) }), binary);
   assert.deepEqual(Buffer.from(await binary.arrayBuffer()), SVG);
 });
 
@@ -77,9 +78,9 @@ test("export URL upgrades keep private documents, missing assets, trashed assets
   await deps.mediaRepo.save({ ...media, id: "private-document", slug: "private-document", kind: "document" });
   await deps.mediaRepo.save({ ...media, id: "trashed-asset", slug: "trashed-asset", status: "trashed" });
   const body = '<a href="/m/private-document/original">file</a><img src="/m/missing/original"><img src="/m/trashed-asset/original">';
-  assert.equal(await rewriteMediaOriginalUrls({ body, deps }), body);
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: bindExportMediaUrls({ deps }) }), body);
   const empty = new Response(null, { status: 204 });
-  assert.equal(await rewriteExportMediaResponse({ response: empty, deps }), empty);
+  assert.equal(await rewriteExportMediaResponse({ response: empty, deps: bindExportMediaUrls({ deps }) }), empty);
 });
 
 for (const basePath of [undefined, "/preview"]) {
@@ -130,7 +131,7 @@ test('export never rewrites media URLs in article text, code, scripts or non-URL
   const { deps, old, canonical } = await fixture();
   const inert = `<article><code>background:url(${old})</code><pre>src="${old}" {"src":"${old}"}</pre><p>${old}</p></article><!-- <img src="${old}"> --><script>const url="${old}";</script><meta name="description" content="${old}">`;
   const body = inert + `<img src="${old}"><style>.x{background:url(${old})}</style><meta property="og:image" content="${old}">`;
-  assert.equal(await rewriteMediaOriginalUrls({ body, deps }), inert + `<img src="${canonical}"><style>.x{background:url(${canonical})}</style><meta property="og:image" content="${canonical}">`);
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: bindExportMediaUrls({ deps }) }), inert + `<img src="${canonical}"><style>.x{background:url(${canonical})}</style><meta property="og:image" content="${canonical}">`);
   const response = new Response(old, { headers: { 'content-type': 'text/plain' } });
-  assert.equal(await rewriteExportMediaResponse({ response, deps }), response);
+  assert.equal(await rewriteExportMediaResponse({ response, deps: bindExportMediaUrls({ deps }) }), response);
 });

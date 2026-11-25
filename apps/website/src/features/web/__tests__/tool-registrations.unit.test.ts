@@ -1,3 +1,8 @@
+const clock = createSystemClock();
+import { createSystemClock } from "@jini-ai/platform/system";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { fetchWebPage, WEB_FETCH_PER_HOST } from "#src/features/web/web-page";
 /** The `web` domain's wiring: catalog -> registration, the handler's own permission gate, and the
  *  contributor shape the composition root installs. Fakes are DI ports; no module mocks. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -9,21 +14,17 @@ import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/exec
 import type { ToolExecutionContext } from "@jini-ai/core";
 import type { HttpRequest } from "#src/platform/http/index";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "../agent-tools.js";
-import { buildWebRegistrations, contributeWebTools, webDerivedRisk } from "../tool-registrations.js";
+import { buildWebRegistrations, contributeWebTools, webDerivedRisk } from "@jini-ai/platform/web/tool-registrations";
 import type { WebFetchPorts } from "../web-page.js";
 
 test("the contributor uses its supplied clock, observer and workspace-host limiter", async () => {
   const sent: HttpRequest[] = [];
   const keys: string[] = [];
   const observed: unknown[] = [];
-  const contributor = contributeWebTools({ httpClient: ports(sent).httpClient, htmlToMarkdown: () => "" }, {
-    nowMs: () => Date.parse("2026-10-08T00:00:00.000Z"),
-    observeFetch: event => observed.push(event),
-    rateLimiter: { check: async ({ key }) => {
+  const contributor = contributeWebTools({ ports: { ...{ httpClient: ports(sent).httpClient, htmlToMarkdown: () => "" }, nowMs: () => Date.parse("2026-10-08T00:00:00.000Z"), rateLimiter: { check: async ({ key }) => {
       keys.push(key);
       return keys.length === 1 ? { allowed: true } : { allowed: false, retryAfterSeconds: 7 };
-    } },
-  });
+    } }, observeFetch: event => observed.push(event) } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const [registration] = contributor.build({ workspaceId: "custom-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
   const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
   assert.deepEqual([result.content, result.fetchedAt], ["hello", "2026-10-08T00:00:00.000Z"]);
@@ -40,7 +41,7 @@ test("the contributor defaults to system time and structured fetch logging", asy
   t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T00:00:00.000Z") });
   const logs: string[] = [];
   t.mock.method(console, "info", (message: string) => logs.push(message));
-  const contributor = contributeWebTools({ httpClient: ports([]).httpClient, htmlToMarkdown: () => "" });
+  const contributor = contributeWebTools({ ports: { ...{ httpClient: ports([]).httpClient, htmlToMarkdown: () => "" }, nowMs: () => clock.nowMs(), rateLimiter: createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }), observeFetch: (event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event }))) } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const [registration] = contributor.build({ workspaceId: "defaults-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
   const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
   assert.equal(result.fetchedAt, "2026-10-08T00:00:00.000Z");
@@ -64,7 +65,7 @@ function ports(sent: HttpRequest[], bodyText = "hello"): WebFetchPorts {
 }
 
 test("web_fetch_page is wired read-only from its catalog entry, with the catalog's schema", () => {
-  const [registration, ...rest] = buildWebRegistrations({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports([]));
+  const [registration, ...rest] = buildWebRegistrations({ routeDeps: { workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports([]), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   assert.deepEqual(rest, []);
   assert.equal(registration!.descriptor.id, "web_fetch_page");
   assert.deepEqual(registration!.descriptor.inputSchema, webAgentToolCatalog[0]!.inputSchema);
@@ -75,7 +76,7 @@ test("web_fetch_page is wired read-only from its catalog entry, with the catalog
 test("the handler checks admin.assistant.use for the calling principal before any network call", async () => {
   const sent: HttpRequest[] = [];
   const asked: unknown[] = [];
-  const [registration] = buildWebRegistrations({ workspaceId: "ws-1", authorize: async request => { asked.push(request); return { allowed: false, reason: "no grant" }; } }, ports(sent));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws-1", authorize: async request => { asked.push(request); return { allowed: false, reason: "no grant" }; } }, ports: ports(sent), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   await assert.rejects(registration!.handler(ctx({ url: "https://a.example/" }, "visitor-9")), { message: `principal 'visitor-9' is not authorized for '${WEB_READ_PERMISSION}' (no grant)` });
   assert.deepEqual(sent, []);
   assert.deepEqual(asked, [{ principalId: "visitor-9", permission: "admin.assistant.use", workspaceId: "ws-1", entityType: "web-page" }]);
@@ -83,7 +84,7 @@ test("the handler checks admin.assistant.use for the calling principal before an
 
 test("an authorized call fetches and returns the untrusted page projection", async () => {
   const sent: HttpRequest[] = [];
-  const [registration] = buildWebRegistrations({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports(sent));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports(sent), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/robots.txt", format: "raw" })) as Record<string, unknown>;
   assert.deepEqual([result.content, result.finalUrl, result.untrusted, sent.length], ["hello", "https://a.example/robots.txt", true, 1]);
 });
@@ -91,14 +92,14 @@ test("an authorized call fetches and returns the untrusted page projection", asy
 test("malformed input is refused before the permission check or the network", async () => {
   const sent: HttpRequest[] = [];
   let asked = 0;
-  const [registration] = buildWebRegistrations({ workspaceId: "ws-1", authorize: async () => { asked++; return { allowed: true, reason: "matched" }; } }, ports(sent));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws-1", authorize: async () => { asked++; return { allowed: true, reason: "matched" }; } }, ports: ports(sent), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   await assert.rejects(registration!.handler(ctx({ url: "https://a.example/", format: "pdf" })), { message: "web_fetch_page: format must be one of markdown, text, html, raw." });
   assert.deepEqual([asked, sent.length], [0, 0]);
 });
 
 test("contributeWebTools contributes the 'web' domain with its risk map and a default per-host limiter", async () => {
   const sent: HttpRequest[] = [];
-  const contributor = contributeWebTools({ httpClient: ports(sent).httpClient, htmlToMarkdown: () => "" }, { observeFetch: () => {} });
+  const contributor = contributeWebTools({ ports: { ...{ httpClient: ports(sent).httpClient, htmlToMarkdown: () => "" }, nowMs: () => clock.nowMs(), rateLimiter: createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }), observeFetch: () => {} } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   assert.equal(contributor.domain, "web");
   assert.equal(contributor.risk, webDerivedRisk);
   const [registration] = contributor.build({ workspaceId: "ws-2", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
@@ -118,7 +119,7 @@ test("render schema publishes browser options on the existing tool; screenshot r
     renderedInputs.push(input);
     return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live content</p>", text: "Live content", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false, screenshot: { mimeType: "image/jpeg", data: "cG5n" } };
   };
-  const contributor = contributeWebTools({ httpClient: fake.httpClient, htmlToMarkdown: fake.htmlToMarkdown, renderPage: fake.renderPage }, { observeFetch: () => {} });
+  const contributor = contributeWebTools({ ports: { ...{ httpClient: fake.httpClient, htmlToMarkdown: fake.htmlToMarkdown, renderPage: fake.renderPage }, nowMs: () => clock.nowMs(), rateLimiter: createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }), observeFetch: () => {} } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const [registration] = contributor.build({ workspaceId: "ws-render", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
   const result = await registration!.handler(ctx({ url: "https://a.example/", render: true, waitFor: "#content", screenshot: true })) as { content: Array<{ type: string; text?: string; mimeType?: string; data?: string }> };
   assert.equal(result.content[0]!.type, "text");
@@ -137,7 +138,7 @@ test("the existing batch wrapper carries shared render options and per-item over
     inputs.push({ ...input });
     return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live</p>", text: "Live", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false };
   };
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: fake, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const wrapped = withBatchInput({ registration: registration!, tool: BATCH_TOOL_SETTINGS.find(tool => tool.toolId === "web_fetch_page")! });
   const schema = wrapped.descriptor.inputSchema as { properties: Record<string, unknown> };
   assert.deepEqual(schema.properties.render, { type: "boolean", description: (webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, { description: string }>).render!.description });
@@ -155,7 +156,7 @@ test("render filtering schema and guidance flow through single and batch registr
     data: [{ url: "https://cms.example/rows", status: 200, body: '{"rows":[]}', truncated: false }], dataTruncated: false,
     dataUnmatched: [{ url: "https://noise.example/data", status: 201, size: 20000 }],
   });
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: fake, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const properties = (registration!.descriptor.inputSchema as { properties: Record<string, unknown> }).properties;
   assert.deepEqual(properties.textMode, { type: "string", enum: ["full", "none", "summary"], description: (webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, { description: string }>).textMode!.description });
   assert.ok(properties.captureDataMatch);
@@ -177,7 +178,7 @@ test("batch render filters inherit shared fields and let each item override filt
     inputs.push({ ...input });
     return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live</p>", text: "Live summary", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false };
   };
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: fake, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const wrapped = withBatchInput({ registration: registration!, tool: BATCH_TOOL_SETTINGS.find(tool => tool.toolId === "web_fetch_page")! });
   const result = await invokeRegisteredTool(wrapped, ctx({ render: true, captureDataMatch: "/rows", textMode: "none", items: [
     { url: "https://a.example/" }, { url: "https://b.example/", captureDataMatch: ["*/records*"], textMode: "summary" },
@@ -191,7 +192,7 @@ test("batch render filters inherit shared fields and let each item override filt
 test("find returns literal case-insensitive snippets and offsets beyond the default content window", async () => {
   const body = 'x'.repeat(25_000) + ' N.e ' + 'z'.repeat(400) + ' n.E tail';
   const sent: HttpRequest[] = [];
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports(sent, body));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports(sent, body), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/", find: "n.e" })) as Record<string, unknown>;
   const offsets = [25_001, body.lastIndexOf('n.E')];
   assert.deepEqual(result.matches, offsets.map(offset => ({ offset, snippet: body.slice(offset - 160, offset + 3 + 160) })));
@@ -209,7 +210,7 @@ test("find returns literal case-insensitive snippets and offsets beyond the defa
 test("find validates the shared contract before authorization or network access", async () => {
   const sent: HttpRequest[] = [];
   let authorized = 0;
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => { authorized++; return { allowed: true, reason: "matched" }; } }, ports(sent));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => { authorized++; return { allowed: true, reason: "matched" }; } }, ports: ports(sent), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   for (const find of ['', 'a'.repeat(201), 42, null]) {
     await assert.rejects(registration!.handler(ctx({ url: "https://a.example/", find })), { message: "find must be a string of 1..200 characters." });
   }
@@ -218,7 +219,7 @@ test("find validates the shared contract before authorization or network access"
 });
 
 test("find reports no matches without returning full content", async () => {
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports([], "hello"));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports([], "hello"), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/", find: "absent" })) as Record<string, unknown>;
   assert.deepEqual([result.matches, result.matchCount, result.truncated], [[], 0, false]);
   assert.equal('content' in result, false);
@@ -226,7 +227,7 @@ test("find reports no matches without returning full content", async () => {
 
 test("find counts all matches while bounding snippets by count and the explicit output budget", async () => {
   const body = 'Needle '.repeat(25);
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports([], body));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports([], body), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/", find: "needle" })) as { matches: unknown[]; matchCount: number; truncated: boolean };
   assert.equal(result.matches.length, 20);
   assert.equal(result.matchCount, 25);
@@ -236,7 +237,7 @@ test("find counts all matches while bounding snippets by count and the explicit 
 });
 
 test("find retains truncation when the reader cannot capture the whole page", async () => {
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports([], 'Needle ' + 'x'.repeat(210_000)));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports([], 'Needle ' + 'x'.repeat(210_000)), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/", find: "needle" })) as Record<string, unknown>;
   assert.equal(result.matchCount, 1);
   assert.equal(result.truncated, true);
@@ -245,7 +246,7 @@ test("find retains truncation when the reader cannot capture the whole page", as
 
 test("single default truncates at 20000 characters while batch items retain 8000 and explicit overrides", async () => {
   const body = 'x'.repeat(30_000);
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports([], body));
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: ports([], body), host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
   assert.deepEqual([result.content, result.truncated], [body.slice(0, 20_000), true]);
   const tool = BATCH_TOOL_SETTINGS.find(tool => tool.toolId === "web_fetch_page")!;
@@ -259,11 +260,31 @@ test("rendered find keeps snippets in screenshot text without repeating page con
   const fake = ports([]);
   fake.htmlToMarkdown = () => "Live Needle";
   fake.renderPage = async ({ input }) => ({ finalUrl: input.url, status: 200, title: "Live", html: "<p>Live Needle</p>", text: "Live Needle", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false, screenshot: { mimeType: "image/jpeg", data: "cG5n" } });
-  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const [registration] = buildWebRegistrations({ routeDeps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, ports: fake, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } });
   const result = await registration!.handler(ctx({ url: "https://a.example/", render: true, find: "needle", screenshot: true })) as { content: Array<{ type: string; text?: string; mimeType?: string; data?: string }> };
   const facts = JSON.parse(result.content[0]!.text!);
   assert.deepEqual([facts.matches, facts.matchCount, facts.rendered, facts.untrusted], [[{ offset: 5, snippet: "Live Needle" }], 1, true, true]);
   assert.equal('content' in facts, false);
   assert.equal('screenshot' in facts, false);
   assert.deepEqual(result.content[1], { type: "image", mimeType: "image/jpeg", data: "cG5n" });
+});
+
+
+test("two sites use separate allowed origins and one contributor limiter", async () => {
+  const keys: string[] = [];
+  const origins: string[] = [];
+  const contributor = contributeWebTools({ ports: { ...{ httpClient: ports([]).httpClient, htmlToMarkdown: () => "" }, nowMs: () => clock.nowMs(), rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true }; } }, observeFetch: (event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event }))) } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } }, { portsForSite: ({ deps }) => ({ httpClient: { send: async request => {
+      const origin = new URL(request.url).origin;
+      if (origin !== deps.derivedPublicOrigin) throw new Error("foreign site origin");
+      origins.push(origin);
+      return { status: 200, headers: { "content-type": "text/plain" }, bodyText: "site", finalUrl: request.url };
+    } } }) });
+  const [a] = contributor.build({ workspaceId: "a", derivedPublicOrigin: "https://a.example", authorize: async () => ({ allowed: true, reason: "matched" }) }, {});
+  const [b] = contributor.build({ workspaceId: "b", derivedPublicOrigin: "https://b.example", authorize: async () => ({ allowed: true, reason: "matched" }) }, {});
+  assert.ok(a && b);
+  await a.handler(ctx({ url: "https://a.example/" }));
+  await b.handler(ctx({ url: "https://b.example/" }));
+  await assert.rejects(b.handler(ctx({ url: "https://a.example/" })));
+  assert.deepEqual(origins, ["https://a.example", "https://b.example"]);
+  assert.deepEqual(keys, ["a|a.example", "b|b.example", "b|a.example"]);
 });

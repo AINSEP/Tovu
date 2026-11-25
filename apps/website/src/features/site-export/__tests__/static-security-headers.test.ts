@@ -1,3 +1,4 @@
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { readFileSync } from "node:fs";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createPublicPageSecurityHeaders } from "#src/server/inbound/public-http/middleware/public-page-security-headers";
 
-import { renderHeadersFile, withSecurityMeta } from "../static-security-headers.js";
+import { renderHeadersFile, withSecurityMeta } from "@jini-ai/devops/static-export/site/static-security-headers";
 
 /**
  * @file A static export carries the SAME security headers the live server sends. Every expectation
@@ -49,9 +50,9 @@ test("the static header files carry exactly what the live server sends on a publ
   assert.deepEqual(live, Object.fromEntries(Object.entries(golden).map(([key, value]) => [key.toLowerCase(), value])));
   for (const name of LIVE_HEADER_NAMES) assert.notEqual(live[name], "", `live server must send ${name}`);
 
-  assert.deepEqual(parseHeadersFile(renderHeadersFile()), live);
+  assert.deepEqual(parseHeadersFile(renderHeadersFile({ headers: publicPageSecurityHeaders({}) })), live);
   assert.equal(
-    withSecurityMeta({ html: "<!doctype html><html><head><title>x</title></head><body></body></html>" }),
+    withSecurityMeta({ html: "<!doctype html><html><head><title>x</title></head><body></body></html>" , headers: publicPageSecurityHeaders({}) }),
     `<!doctype html><html><head><meta name="referrer" content="${live["referrer-policy"]}"><title>x</title></head><body></body></html>`
   );
 });
@@ -68,14 +69,21 @@ test("changing the shared header set changes the live response and every static 
   const live = await liveHeaders(await fetch(`${baseUrl}/`), names);
 
   assert.deepEqual(live, { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-test-header": "a \"quoted\" value" });
-  assert.deepEqual(parseHeadersFile(renderHeadersFile(custom)), live);
-  assert.match(withSecurityMeta({ html: "<head></head>" }, { headers: custom }), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
+  assert.deepEqual(parseHeadersFile(renderHeadersFile({ headers: custom })), live);
+  assert.match(withSecurityMeta({ html: "<head></head>" ,  headers: custom  }), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
 });
 
 test("withSecurityMeta: leaves HTML with no <head> or a set with no Referrer-Policy untouched, and escapes the value", () => {
-  assert.equal(withSecurityMeta({ html: "<p>fragment</p>" }), "<p>fragment</p>");
-  assert.equal(withSecurityMeta({ html: "<head></head>" }, { headers: { "X-Content-Type-Options": "nosniff" } }), "<head></head>");
-  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>` }, { headers: { "Referrer-Policy": `a"b` } }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
+  assert.equal(withSecurityMeta({ html: "<p>fragment</p>" , headers: publicPageSecurityHeaders({}) }), "<p>fragment</p>");
+  assert.equal(withSecurityMeta({ html: "<head></head>" ,  headers: { "X-Content-Type-Options": "nosniff" }  }), "<head></head>");
+  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>` ,  headers: { "Referrer-Policy": `a"b` }  }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
   // `<header>` is not `<head>`: only the real head element gets the tag.
-  assert.equal(withSecurityMeta({ html: "<header></header>" }), "<header></header>");
+  assert.equal(withSecurityMeta({ html: "<header></header>" , headers: publicPageSecurityHeaders({}) }), "<header></header>");
+});
+
+
+test("export headers still derive from the live public-page policy", () => {
+  const headers = publicPageSecurityHeaders({});
+  assert.ok(readFileSync(new URL("../site-exporter.ts", import.meta.url), "utf8").includes("headers: publicPageSecurityHeaders({})"));
+  assert.deepEqual(parseHeadersFile(renderHeadersFile({ headers: headers })), Object.fromEntries(Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value])));
 });

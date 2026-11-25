@@ -1,3 +1,13 @@
+import { WEB_READ_PERMISSION, webAgentToolCatalog } from "#src/features/web/agent-tools";
+import { createSystemClock } from "@jini-ai/platform/system";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { fetchWebPage, WEB_FETCH_PER_HOST } from "#src/features/web/web-page";
+import { createWebScreenshotService } from "@jini-ai/integrations/web-screenshot/web-screenshot";
+import { readWebScreenshotInput } from "@jini-ai/integrations/web-screenshot/web-screenshot";
+import { webScreenshotAgentToolCatalog, WEB_SCREENSHOT_PERMISSION } from "#src/features/web-screenshot/catalog-host";
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import { bundledAgentPluginsDir } from "./site-paths.js";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { composeAgentPluginConnectServices } from "./agent-plugin-service-ports.js";
@@ -5,10 +15,11 @@ import { createDatabaseTransferAdapters } from "./database-transfer-adapters.js"
 import { toolSearchKeywords } from "#src/assistant/tool-registrations";
 import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
-import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
+import { buildProjectKeyRegistrations } from "#src/features/project-keys/host-bindings";
+import { projectKeysRisk } from "@jini-ai/user-management/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { deployConfigGenerators } from "#src/features/deployments/index";
-import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, PUBLISH_TRUST_CONFIG_PATH, type PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
@@ -37,9 +48,10 @@ import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#sr
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
-import { readPluginInstallRequest, readPluginInstallArchive } from "#src/features/plugin-runtime/install-source";
+import { createHostPluginInstallSource } from "#src/features/plugin-runtime/host-install-source";
+const { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive } = createHostPluginInstallSource({});
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
-import type { InstallAttachmentReader } from "#src/contracts/headless/index";
+import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/plugin-install-source";
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createToolHumanConfirmer } from "#src/assistant/tool-approval-policy";
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
@@ -82,10 +94,10 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
 import { createSiteWebFetchEgressPolicy } from "#src/platform/http/egress-policies";
 import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
-import { contributeWebTools } from "#src/features/web/tool-registrations";
+import { contributeWebTools } from "@jini-ai/platform/web/tool-registrations";
 import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
-import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
+import { contributeWebScreenshotTools } from "@jini-ai/diagnostics/web-evidence/web-screenshot/tool-registrations";
 import { importPlaywrightChromium, playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
@@ -109,7 +121,7 @@ import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-too
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { bindAssetHost } from "./asset-tool-host.js";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
-import { contributePagesTools } from "#src/features/pages/tool-registrations";
+import { contributePagesTools } from "@jini-ai/cms/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
@@ -121,7 +133,7 @@ import { installFirstPartyPublishContentTypes } from "./publish-content-manifest
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { contributePostDuplicateHandlers } from "#src/features/post/post-tool-duplicate";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
-import { contributeContentStatsTools } from "#src/features/post/content-stats-tool";
+import { contributeContentStatsTools } from "@jini-ai/cms/posts/content-stats-tool";
 // Keep assistant contribution ports on the registration seam, outside the general post barrel.
 import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
@@ -441,7 +453,7 @@ export function installFirstPartyToolContributors(
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  const findPublishCandidate = () => findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
   // The assembled committed-config port, resolved against the same root as `findPublishCandidate`
   // and the HTTP route's own provisioning (`modules/publish-content.ts`), so an assistant-tool
   // connect and a dialog connect never disagree about which file they wrote.
@@ -570,7 +582,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
-  contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributePagesTools({ host: bindPagesToolHost({}) }) });
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   return bundledPluginsRoot;
 }
@@ -670,18 +682,17 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
       }),
     };
   };
-  contributions.contributors.register({ contribution: contributeWebTools(webPortsForPolicy({ policy: WEB_FETCH_EGRESS_POLICY }), {
-    portsForSite: ({ deps }) => {
+  const ports = webPortsForPolicy({ policy: WEB_FETCH_EGRESS_POLICY });
+  const clock = createSystemClock();
+  contributions.contributors.register({ contribution: contributeWebTools({ ports: { ...ports, nowMs: () => clock.nowMs(), rateLimiter: createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }), observeFetch: (event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event }))) } satisfies WebFetchPorts, host: { catalog: webAgentToolCatalog, permission: WEB_READ_PERMISSION, catalogModule: "features/web/agent-tools.ts", fetchPage: fetchWebPage, readPageBodyOptions, shapePageBody } }, { portsForSite: ({ deps }) => {
       // Resolve after site selection: one contributor serves multiple sites and must never
       // accumulate their origins into a process-wide localhost/port allowlist.
       return webPortsForPolicy({ policy: createSiteWebFetchEgressPolicy({ origin: deps.derivedPublicOrigin }) });
-    },
-  }) });
+    } }) });
   // `web_screenshot_page`: SEEING a public page (or this site's own render, through the same per-call
   // loopback server `fetch_published_page` uses) for visual parity. Every request the headless page
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
-  contributions.contributors.register({ contribution: contributeWebScreenshotTools(
-    { ports: {
+  contributions.contributors.register({ contribution: contributeWebScreenshotTools({ service: createWebScreenshotService({ ports: {
       capture: createPageCaptureForHost({
         playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }), limits: CAPTURE_LIMITS, importPlaywrightChromium,
           createCaptureError: fields => new PageCaptureError(fields), isCaptureTimeout: ({ error }) => error instanceof PageCaptureError && error.kind === "timeout" }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
@@ -691,15 +702,13 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
-    } },
-    {
+    } }), catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput }, {
       // `themeId` renders an unactivated theme copy through a `createSiteApp({ themeId })` app.
       openOwnSiteFor: (routeDeps) => createOwnSiteOpener({ themes: routeDeps.themes, openLoopback: (_required, optional) => openLoopbackSiteServer({ deps: routeDeps }, optional) }),
       // Resolved per call, not at build time: `siteBinding` is read only when a capture is saved,
       // so building the registry never depends on it (same rule as `features/sites/tool-registrations.ts`).
       saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }), lock: captureWriterFence })(request),
-    },
-  ) });
+    }) });
 }
 
 function installCredentialSaveTools(contributions: AssistantToolContributions) {

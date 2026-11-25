@@ -1,3 +1,4 @@
+import { attachedVaultPolicy, projectKeyCreatePolicy } from '#src/features/project-keys/vault-policy';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
@@ -8,10 +9,10 @@ import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-se
 import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
@@ -128,10 +129,10 @@ test("mail card saves attach the project key immediately and re-saving rotates t
   const base = createRouteDeps(), vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
   const siteId = base.workspaceId;
   // Production keeps reads behind site grants and gives owner secret forms separate write ports.
-  const view = attachedOnlyVault({ vault, attachments, siteId });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault, attachments, siteId });
   const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: view }),
-    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }) }),
-    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }) }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }) }),
+    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }, { allowReplacement: true }) }),
     sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
@@ -213,4 +214,25 @@ test("mail provider selection conflicts map to 409 with a caller-safe reason", a
   assert.equal(response.status, 409);
   assert.deepEqual(await response.json(), { code: "MAIL_PROVIDER_CHANGED", error: "The mail provider selection changed while this card was open. Nothing was changed by this call. Read the current mail providers and request a fresh approval." });
   assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
+});
+
+
+test("mail provider primary save never receives a replacement writer", async t => {
+  const base = createRouteDeps();
+  const vault = new InMemoryVaultRepo({});
+  const attachments = fakeAttachments();
+  const siteId = base.workspaceId;
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault, attachments, siteId });
+  let replacements = 0;
+  const replacement = projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }, { allowReplacement: true });
+  const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: view }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: vault, view }) }),
+    replaceRepo: new CustomCredentialVaultRepo({ vault: { ...replacement, put: async input => { replacements++; return replacement.put(input); } } }),
+    sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
+  const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
+  const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
+    providerUsage: async () => { throw new Error("mail keys are custom credentials"); }, reapply: async () => "now" });
+  const r = await rig(t, { deps: { ...base, customCredentialSetRepo: repo, projectKeys }, grants: ["custom-credentials.write"] });
+  assert.equal((await r.send("PUT", "mail-providers/fakemail/credential", { token: "fake-mail-token" })).status, 200);
+  assert.equal(replacements, 0);
 });

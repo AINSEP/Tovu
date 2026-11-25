@@ -1,3 +1,4 @@
+import { MailActivityForbiddenError } from "@jini-ai/platform/mail";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +9,7 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
 import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/core/contracts/mail";
-import { planMailCaptureClear } from "../capture-clear";
+import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
 
 /**
  * Owner decision 2026-11-23 (bt2-todos G7-6/847, G7-7/848): sent-email records are kept 30 days,
@@ -48,6 +49,15 @@ async function clearCall(db: Db, body: Record<string, unknown>, authorize: Autho
 const workspaces = async (db: Db) => { for (const w of ["w", "other"]) await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES (${w},${w},${w},${iso(NOW)})`); };
 
 describeEachDialect("mail retention windows and clear-all captured test emails", { tables: ["mail_activity_attempts", "mail_send_ledger", "mail_capture", "mail_suppression", "mail_feedback_inbox", "workspaces"], make: db => db }, make => {
+  test("a capture arriving after preview survives the confirmed clear", async () => {
+    const db = make(); await workspaces(db);
+    await seed(db, { workspaceId: "w", at: NOW - DAY, key: "reviewed" });
+    const reviewed = await planMailCaptureClear({ principalId: "owner", workspaceId: "w" , deps: { capture: createMailCaptureRepo({ db }), checkPermission: owner , forbidden: ({ permission }) => new MailActivityForbiddenError({ permission, message: "Only the site owner can clear captured test emails." }) } });
+    await seed(db, { workspaceId: "w", at: NOW, key: "late" });
+    assert.deepEqual(await reviewed.clear(), { cleared: true, deleted: 1 });
+    assert.deepEqual(await keys(db, "mail_capture"), ["w:late"]);
+  });
+
   test("sent-email records: exactly 30 days old are kept, 30 days + 1 ms are deleted", async () => {
     const db = make(); await workspaces(db);
     await seed(db, { workspaceId: "w", at: NOW - 30 * DAY, key: "edge" });
@@ -160,7 +170,7 @@ describeEachDialect("mail retention windows and clear-all captured test emails",
     assert.equal(refused.statusCode, 403);
     assert.deepEqual(asked, [MAIL_CAPTURE_CLEAR_PERMISSION]);
     assert.deepEqual(await keys(db, "mail_capture"), ["w:one"]);
-    await assert.rejects(planMailCaptureClear({ principalId: "editor", workspaceId: "w" }, { capture: createMailCaptureRepo({ db }),
-      checkPermission: async () => ({ allowed: false, reason: "no_grant" }) }), { name: "MailActivityForbiddenError" });
+    await assert.rejects(planMailCaptureClear({ principalId: "editor", workspaceId: "w" , deps: { capture: createMailCaptureRepo({ db }),
+      checkPermission: async () => ({ allowed: false, reason: "no_grant" }) , forbidden: ({ permission }) => new MailActivityForbiddenError({ permission, message: "Only the site owner can clear captured test emails." }) } }), { name: "MailActivityForbiddenError" });
   });
 });

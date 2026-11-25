@@ -26,11 +26,11 @@ import type {
   SubscriberDirectoryPort,
 } from "@jini-ai/user-management/newsletter/ports";
 import type { CampaignWriteServiceDeps } from "@jini-ai/user-management/newsletter/campaign-write-service";
-import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
+import type { ConfirmationDeps } from "@jini-ai/user-management/newsletter/confirmation";
 import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import type { ListsDeps } from "@jini-ai/user-management/newsletter/lists";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
-import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
+import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "@jini-ai/user-management/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { RouteDeps } from "#src/server/routes/types";

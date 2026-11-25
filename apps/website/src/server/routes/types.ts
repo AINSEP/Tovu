@@ -20,7 +20,8 @@ import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
-import type { TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { TrashDb } from "#src/features/trash/index";
+import type { TrashKindMover } from "@jini-ai/core/contracts/site/cms-trash";
 import type { WidgetPostWrites } from "#src/features/widgets/deps";
 import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
@@ -39,8 +40,8 @@ import type { RevertRegistry } from "@jini-ai/core/contracts/site/core-commands"
 import type { EntryRepoPort, EntryListPort, EntryPublishReadPort } from "@jini-ai/cms/entries";
 
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
-import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
-import type { RecordedHtmlWrites } from "../../features/pages/html-change-recording.js";
+import type { PagesHtmlDocumentStoreFactory } from "@jini-ai/core/contracts/site/page-html-store";
+import type { RecordedHtmlWrites } from "@jini-ai/core/contracts/site/page-html-store";
 import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 import type { ChatRunLedger } from "../../assistant/persistence/run-ledger.js";
 import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
@@ -745,7 +746,7 @@ export interface ObservabilityDeps {
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
   aiTraceSink?: import("@jini-ai/core/contracts/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
-  projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
+  projectKeys?: import("@jini-ai/user-management/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
   reapplyProvider?: (required: { pluginId: string }) => Promise<PluginProviderApplyResult>;
   providerConfig?: ProviderConfigSource;

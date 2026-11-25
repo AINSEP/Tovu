@@ -1,3 +1,4 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -7,17 +8,8 @@ import test from "node:test";
 import express from "express";
 import type Database from "better-sqlite3";
 
-import {
-  createContentDbTransactionRunner,
-  createPostTrashAdapter,
-  createRedirectTrashAdapter,
-  createTrashService,
-  POST_ENTITY_TYPE,
-  REDIRECT_ENTITY_TYPE,
-  SqliteTrashRepo,
-  type TrashAdapter,
-  type TrashPort,
-} from "#src/features/trash/index";
+import { createContentDbTransactionRunner, createRedirectTrashAdapter, createTrashService, REDIRECT_ENTITY_TYPE, SqliteTrashRepo, type TrashAdapter, type TrashPort } from "#src/features/trash/index";
+import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
@@ -193,7 +185,7 @@ function buildTrashHarness(): TrashHarness {
   const registry = buildTrashRegistry();
   const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))],
+    [POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.

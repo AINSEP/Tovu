@@ -13,7 +13,8 @@ import { EntityNotLiveError } from "@jini-ai/cms/core";
 import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
-import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
+import { PageConcurrentEditError } from "@jini-ai/cms/pages/html-document-store";
+import { type PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
 import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
 import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";

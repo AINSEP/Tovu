@@ -105,8 +105,6 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   ["features/vendor-credentials/vault-adapter.ts", new Set(["required.sealer.open(input, options)"])],
   ["server/runtime/composition/site-key-recovery.ts", new Set(["input.previous.open(required, options)"])],
   ["platform/secrets/vault-kinds.ts", new Set(["required.sealer.open(input, options)"])],
-  // b465b9bbb: the site-granted sealer re-checks the grant around a plain envelope open.
-  ["features/project-keys/site-sealer.ts", new Set(["sealer.open(input, options)"])],
   // 7f97eb6f0: owner MFA unseals its stored authenticator secret; no card or exchange is involved.
   ["server/inbound/admin-http/owner-mfa-deps.ts", new Set(["secrets().open(input)"])],
   // f82b172d6 (A04) / ab8ccf9f3: the credential stores open their injected CredentialVaultBinding,

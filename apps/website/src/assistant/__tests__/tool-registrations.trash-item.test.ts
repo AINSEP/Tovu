@@ -17,7 +17,7 @@ import {
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
 import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
-import { postAgentToolCatalog } from "#src/features/post/agent-tools";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";

@@ -1,8 +1,9 @@
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "../../../../apps/website/src/features/publish-trust/candidate-policy.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { findCandidateDestination } from "../../../../apps/website/src/features/publish-trust/connect.ts";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
 import { deployConfigGenerators } from "../../../../apps/website/src/features/deployments/deploy-config-registry.ts";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
@@ -19,8 +20,8 @@ test("Fly declares deploy candidates and its workflow as data, usable before act
   assert.deepEqual(deployConfigGenerators.readBundledDeployConfigCandidatePaths(required), ["fly.toml", "render.yaml", "railway.toml", "app.json", ".github/workflows/fly-deploy.yml"]);
   assert.equal(deployConfigGenerators.readBundledDeployWorkflowFile(required), declaration.workflowFile);
   const reads = [];
-  const candidate = await findCandidateDestination({ resolvePath: value => value, io: {
-    read: async file => { reads.push(file); return file === declaration.candidatePaths[0].path ? 'TOVU_PUBLIC_URL="https://site.example.test"' : null; },
+  const candidate = await findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, resolvePath: ({ relative }) => relative, io: {
+    read: async ({ path: file }) => { reads.push(file); return file === declaration.candidatePaths[0].path ? 'TOVU_PUBLIC_URL="https://site.example.test"' : null; },
     write: async () => { throw new Error("read only"); },
   } }, {
     // c755ab25a: the host supplies plugin candidates; core defaults to neutral app.json only.

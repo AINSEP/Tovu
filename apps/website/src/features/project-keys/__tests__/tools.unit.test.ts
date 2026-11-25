@@ -1,15 +1,16 @@
+import { attachedVaultPolicy } from '#src/features/project-keys/vault-policy';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createProjectKeys } from "../service.js";
-import { buildProjectKeyRegistrations } from "../tools.js";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
+import { buildProjectKeyRegistrations } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 import { saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
-import { attachedOnlyVault } from "../attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 
 async function fixture() {
   const vault = new InMemoryVaultRepo({}); const attachments = fakeAttachments();
@@ -170,7 +171,7 @@ for (const kind of ["publish-host", "source-control", "provider-settings", "plug
     assert.equal(result.ask, undefined);
     assert.equal(await attachments.isAttached({ siteId: inputs.siteId, keyId }), true);
     assert.equal(await attachments.isAttached({ siteId: "uuid-b", keyId }), false);
-    assert.equal((await attachedOnlyVault({ vault, attachments, siteId: inputs.siteId }).find({ workspaceId: "project", id: keyId }))?.id, keyId);
+    assert.equal((await attachedOnlyVault({ policy: attachedVaultPolicy, vault, attachments, siteId: inputs.siteId }).find({ workspaceId: "project", id: keyId }))?.id, keyId);
   });
 }
 
@@ -192,4 +193,28 @@ test("model inventory never reveals other sites using a granted key", async () =
   const rows = await keys.listGranted({});
   assert.equal(JSON.stringify(rows).includes("Private customer site"), false);
   assert.equal(rows.length, 1);
+});
+
+
+test("a key granted to another site is not listed by project_keys_list", async () => {
+  const { keys, attachments } = await fixture();
+  await attachments.attach({ siteId: "other", siteName: "Other", keyId: "key-a" });
+  const tool = buildProjectKeyRegistrations({ keys, authorize: async () => {}, loadCards: async () => [], surfaces: {} as never, restart: null }).find(tool => tool.descriptor.id === "project_keys_list");
+  assert.ok(tool);
+  assert.deepEqual(await tool.handler({ principal: { id: "owner" }, signal: new AbortController().signal, input: {} } as never), { keys: [] });
+});
+
+test("restart denied after approval never reaches the supervisor", async () => {
+  const { buildProjectKeyRegistrations: build } = await import("@jini-ai/user-management/project-keys/tools");
+  const { projectKeyToolHost } = await import("../host-bindings.js");
+  let approved = false;
+  const tools = build({ authorize: async () => { if (approved) throw new Error("grant revoked"); }, loadCards: async () => [], surfaces: {} as never,
+    restart: { requestRestart: async () => assert.fail("denied restart must not reach supervisor") },
+    host: { ...projectKeyToolHost, approvalToolHandler: spec => async (ctx, executionOptions = {}) => {
+      const prepared = await spec.prepare({ ctx }); approved = true;
+      return spec.run({ ctx, prepared, executionOptions });
+    } } });
+  const tool = tools.find(tool => tool.descriptor.id === "site_restart");
+  assert.ok(tool);
+  await assert.rejects(tool.handler({ principal: { id: "owner" }, signal: new AbortController().signal, input: {} } as never), /grant revoked/);
 });

@@ -1,3 +1,4 @@
+import { backupPushUploadPolicy, CANCELLED } from "#src/features/site-backup/push-manifest";
 import { requireShareSecretFree } from "./share-file-policy.js";
 import { readPlannedFile } from "./sources.js";
 import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
@@ -36,7 +37,7 @@ import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
-import { CANCELLED, commitBackupPlan, initialPushProgress, uploadBackupPlan } from "./push-content.js";
+import { commitBackupPlan, initialPushProgress, uploadBackupPlan } from "@jini-ai/devops/backup/site/push-content";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import { captureDatabaseSnapshot, checkSiteBackupLimits, collectSiteBackupFiles, type SiteBackupSources } from "./sources.js";
 import { formatByteSize, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_SCOPES, skipOversizedFiles, type SiteBackupHostLimit, type SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
@@ -685,7 +686,7 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
   }
 
   if (plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
-  const uploaded = await uploadBackupPlan({
+  const uploaded = await uploadBackupPlan({ ...backupPushUploadPolicy({ plan }),
     plan, signal: run.signal, progress: run.progress,
     uploadBlob: async (file, _optional = {}) => {
       const uploaded = await credential.provider.uploadBackupBlob(target, file);

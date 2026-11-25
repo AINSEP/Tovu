@@ -1,4 +1,4 @@
-import { isSharedOAuthKey, providerPluginOf } from "#src/features/project-keys/service";
+import { isSharedOAuthKey, providerPluginOf } from "@jini-ai/user-management/project-keys/service";
 import { createSharedOAuthOwnerStorage, type SharedOAuthOwnerStorage } from '#src/features/api-connections/shared-owner';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '#src/features/project-keys/shared-oauth-disconnect';
 import type { KeyAttachments } from "@jini-ai/core/contracts/site/project-key-attachments";

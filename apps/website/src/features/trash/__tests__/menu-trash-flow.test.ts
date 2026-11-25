@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -13,7 +14,7 @@ import { buildMenuTrashFollowUpHooks } from "@jini-ai/cms/navigation/site/menu-t
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 
-import { moveToTrash } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -128,16 +129,7 @@ async function trashItemId(h: Harness, entityId: string): Promise<string> {
 }
 
 async function trashMenu(h: Harness, id: string, expectedVersion = 1): Promise<void> {
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "menu", entityId: id, actor: ACTOR },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: createFakeClock({ startIso: AT2 }),
-    }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "menu", entityId: id, actor: ACTOR }, { registry: h.registry, trash: h.trash, authorize: async () => ({ allowed: true, reason: "matched" }), clock: createFakeClock({ startIso: AT2 }), readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: true, version: expectedVersion + 1 });
 }
 

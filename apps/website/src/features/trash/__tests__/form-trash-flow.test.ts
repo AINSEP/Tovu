@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { formDefinitionRepoFor, formSubmissionRepoFor, type SqlFormDefinitionRepo, type SqlFormSubmissionRepo } from "@jini-ai/cms/forms/sql";
 import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -11,7 +12,7 @@ import { FormDefinitionNotFoundError } from "@jini-ai/cms/forms";
 import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
 
-import { moveToTrash } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -94,16 +95,7 @@ function submissionRowCount(h: Harness, formId: string): number {
 }
 
 async function trashForm(h: Harness, id: string): Promise<void> {
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: id, actor: ACTOR },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowIso: () => AT },
-    }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: id, actor: ACTOR }, { registry: h.registry, trash: h.trash, authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: true, version: 2 });
 }
 
@@ -213,19 +205,10 @@ test("a form_submission moved to the Trash shows the form's name and the time, n
   seedFormWithSubmissions(h, "f1", 2);
   h.db.$client.prepare(`UPDATE form_submissions SET data_json = '{"email":"ada@example.com"}'`).run();
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async (params) =>
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR }, { registry: h.registry, trash: h.trash, authorize: async (params) =>
         params.permission === "admin.forms.submissions.delete"
           ? { allowed: true, reason: "matched" }
-          : { allowed: false, reason: `missing ${params.permission}` },
-      clock: { nowIso: () => AT },
-    }
-  );
+          : { allowed: false, reason: `missing ${params.permission}` }, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: true, version: 2 });
 
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
@@ -247,16 +230,7 @@ test("purge of a form removes the Trash row of a submission that was independent
   const h = harness();
   seedFormWithSubmissions(h, "f1", 1);
 
-  const subOutcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowIso: () => AT },
-    }
-  );
+  const subOutcome = await moveToTrash({ workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR }, { registry: h.registry, trash: h.trash, authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(subOutcome, { ok: true, version: 2 });
   assert.ok(await trashItemId(h, "f1-sub-0"), "the submission's own Trash row must exist before the form is purged");
 

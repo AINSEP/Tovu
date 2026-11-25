@@ -17,7 +17,7 @@ import { contentKernel } from '#src/platform/db/content-kernel';
 import { registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createPostRevertRegistry } from "#src/features/post/index";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
-import { POST_ENTITY_TYPE } from "#src/features/trash/index";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createSite } from "../../site-dir.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";

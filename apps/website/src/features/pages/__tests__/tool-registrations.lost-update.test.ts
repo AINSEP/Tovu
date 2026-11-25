@@ -1,10 +1,13 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPost, InMemoryPostRepo } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { buildPagesRegistrations } from "../tool-registrations.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 
 const workspaceId = "ws-s7b";
 const id = "page-s7b";
@@ -14,12 +17,12 @@ async function harness() {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => 0 };
   await createPost({ deps: { repo, clock }, input: { workspaceId, id, kind: "page", title: "Page" } });
-  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat({ seedHtml: html });
-  const registrations = buildPagesRegistrations({
+  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: id }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: html });
+  const registrations = buildPagesRegistrations({ deps: {
     workspaceId, postRepo: repo, authorize: async () => ({ allowed: true, reason: "matched" }),
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
-  });
+    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+  }, host: bindPagesToolHost({}) });
   const call = (toolId: string, input: Record<string, unknown>) => {
     const registration = registrations.find(entry => entry.descriptor.id === toolId)!;
     return registration.handler({ executionId: crypto.randomUUID(), principal: { id: "editor", kind: "user" }, signal: new AbortController().signal, input } as never);
@@ -50,3 +53,14 @@ for (const [toolId, patch] of [
     assert.ok(schema.required.includes("expectedVersion"));
   });
 }
+
+
+test("bound recorder refuses an overlapped edit without claiming undo", async () => {
+  const { call } = await harness();
+  const before = await call("pages_read_html", { id }) as { version: number };
+  const committed = await call("pages_write_html", { id, html: html.replace(">A<", ">Winner<"), expectedVersion: before.version }) as { changeSetId?: string };
+  assert.equal(typeof committed.changeSetId, "string");
+  const winner = await call("pages_read_html", { id });
+  await assert.rejects(call("pages_write_region", { id, regionId: "a", html: "Stale", expectedVersion: before.version }), /VERSION_CONFLICT/);
+  assert.deepEqual(await call("pages_read_html", { id }), winner);
+});

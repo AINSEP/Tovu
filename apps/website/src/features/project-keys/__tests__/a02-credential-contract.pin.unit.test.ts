@@ -1,3 +1,4 @@
+import { attachedVaultPolicy } from '#src/features/project-keys/vault-policy';
 // A02 first pin: the credential/OAuth contract seams that the type-edge move must not change.
 // (1) a site's grant check gates every vault read, and the read goes to the caller's workspace;
 // (2) an ungranted site never reaches the owner vault at all (M-unscoped-vault-reader goes red here);
@@ -8,7 +9,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import type { ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
-import { attachedOnlyVault } from '../attached-vault.js';
+import { attachedOnlyVault } from '@jini-ai/user-management/project-keys/attached-vault';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect,
   type SharedOAuthDisconnectContext, type SharedOAuthDisconnectStorage } from '../shared-oauth-disconnect.js';
 import { fakeAttachments, vaultRow } from './helpers.js';
@@ -33,7 +34,7 @@ test('A02 pin: a granted lookup checks the grant for this site and reads only th
   const f = await grantedVaultFixture();
   await f.attachments.attach({ siteId: 'site-granted', siteName: 'Granted', keyId: 'key-a' });
   const reads = t.mock.method(f.vault, 'find');
-  const view = attachedOnlyVault({ vault: f.vault, siteId: 'site-granted', attachments: f.attachments });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: f.vault, siteId: 'site-granted', attachments: f.attachments });
 
   assert.equal((await view.find({ workspaceId: PROJECT, id: 'key-a' }))?.label, 'Project copy');
   assert.equal((await view.find({ workspaceId: OTHER, id: 'key-a' }))?.label, 'Other workspace copy');
@@ -54,7 +55,7 @@ test('A02 pin: an ungranted site never reads the owner vault, even through a sta
   await f.attachments.attach({ siteId: 'site-granted', siteName: 'Granted', keyId: 'key-a' });
   const reads = t.mock.method(f.vault, 'find');
   const lists = t.mock.method(f.vault, 'list');
-  const view = attachedOnlyVault({ vault: f.vault, siteId: 'site-ungranted', attachments: f.attachments });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: f.vault, siteId: 'site-ungranted', attachments: f.attachments });
   const query = { workspaceId: PROJECT, kind: 'vendor' as const, ownerKey: 'tovu', principalId: null, provider: 'host' };
 
   assert.equal(await view.find({ workspaceId: PROJECT, id: 'key-a' }), null);

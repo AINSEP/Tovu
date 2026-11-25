@@ -1,3 +1,6 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
@@ -11,11 +14,13 @@ import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { VERSION_CONFLICT_CODE } from "@jini-ai/cms/posts/expected-version";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { discoverAllBuiltInThemes, type DiscoveredTheme } from "../../theme/index.js";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
-import { PageConcurrentEditError, PageNotFoundError, type PagesHtmlDocumentStorePort } from "../html-document-store.sqlite.js";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
+import { type PagesToolDeps } from "#src/features/pages/tool-host";
+import { PageConcurrentEditError, PageNotFoundError } from "@jini-ai/cms/pages/html-document-store";
+import { type PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
 
 /**
  * @file The Pages agent tools — the surface the assistant actually authors pages through.
@@ -35,7 +40,7 @@ function harness(
   storeFactory?: PagesToolDeps["pagesHtmlStore"],
 ) {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
-  const registrations = buildPagesRegistrations({
+  const registrations = buildPagesRegistrations({ deps: {
     ...themeDeps,
     workspaceId: WS,
     // Permission checks are exercised by the domain's own route tests; this harness grants, so the
@@ -43,8 +48,8 @@ function harness(
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock })),
-  });
+    pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } })),
+  }, host: bindPagesToolHost({}) });
   // Keyed by `descriptor.id` — the registry's own key (`ToolRegistry.register` throws on a
   // duplicate id), which is what the catalog's `name` becomes once wired.
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
@@ -439,7 +444,7 @@ test("reading a post through the page tool does not advertise an empty page to a
 
 test("a page trashed between the HTML read and fallback lookup is not reported as authorable", async () => {
   const h = harness({}, scope => {
-    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     const read = store.read.bind(store);
     store.read = async () => {
       try {
@@ -551,7 +556,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
   const { repo, call } = harness();
   await seedPage(repo, "legacy", "Legacy");
   // Legacy markup enters through the store: the tools correctly refuse to author untagged HTML.
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "legacy" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "legacy" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>Keep this legacy copy.</p>" });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
 
@@ -570,7 +575,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
 test("an unclosed region is refused with repair guidance and its stored HTML survives", async () => {
   const { repo, call } = harness();
   await seedPage(repo, "unclosed", "Unclosed");
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "unclosed" }, { repo, clock });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "unclosed" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: '<section data-agent-element="hero"><p>Keep the unclosed section.</p>' });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
 

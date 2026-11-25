@@ -204,7 +204,7 @@ export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "works
   tracker?: import('@jini-ai/core/contracts/site/diagnostics-observability').Tracker;
   providerConfig?: ProviderConfigSource;
   ownerPrincipalId?: Promise<string>;
-  projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
+  projectKeys?: import("@jini-ai/user-management/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart" | "failed";
   reapplyProvider?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   /** Whether a key was saved the retired way (an API credential labelled `plugin:<id>`), read by label

@@ -1,9 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
-import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
+import type { SiteKeyReferences } from "@jini-ai/core/contracts/site/project-key-attachments";
 import { migrateProviderSettings } from "@jini-ai/plugins/host";
 import { type PluginProviderDeclaration } from "@jini-ai/core/contracts/plugin-sdk";
-import { providerKeyId } from "#src/features/project-keys/service";
+import { providerKeyId } from "@jini-ai/user-management/project-keys/service";
 import type { ProviderConfigSource, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";

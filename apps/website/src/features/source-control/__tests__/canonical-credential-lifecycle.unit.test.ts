@@ -1,3 +1,4 @@
+import { attachedVaultPolicy } from '#src/features/project-keys/vault-policy';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -5,7 +6,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { sourceControlKeyBinding } from "#src/server/runtime/composition/source-control-key-binding";
@@ -109,7 +110,7 @@ test("a foreign or ungranted canonical key is neither listed nor edited", async 
   const foreign = await createCustomCredential(owner, { workspaceId: SITE_B, label: "github", category: "source-control", baseUrl: "https://api.github.com", connection: { token: secret("foreign") }, worksFor: ["github"] });
   assert.equal(foreign.scope, "project");
   const attachments = fakeAttachments();
-  const view = new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) });
+  const view = new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.repo.vault!, siteId: SITE_A, attachments }) });
   const siteA = customDeps({ opens }, { project: { ...project, repo: view, createRepo: project.repo, inventoryRepo: project.repo } });
   // Site A's own generic API key is not a Source Control key, even with a source-control category.
   const hosting = await createCustomCredential(siteA, { workspaceId: SITE_A, scope: "site", label: "hosting", category: "source-control", baseUrl: "https://api.example.test", connection: { token: secret("hosting") } });

@@ -38,8 +38,6 @@ export {
 } from "@jini-ai/cms/trash";
 export type { TrashChangeEvent, TrashServiceDeps } from "@jini-ai/cms/trash";
 
-export { moveToTrash } from "./move-to-trash.js";
-export type { MoveToTrashOutcome, TrashKindMover } from "./move-to-trash.js";
 
 
 export type { TrashDb } from "./db-port.js";
@@ -70,10 +68,7 @@ export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite
 export { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 export { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";
 
-export { createPostTrashAdapter, POST_ENTITY_TYPE } from "./adapters/post.js";
 export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";
-export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";

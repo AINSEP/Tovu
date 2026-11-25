@@ -1,8 +1,9 @@
+import { loginCredentialPorts } from "../bindings.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
-import { hasLoginCredentials, resolveLoginCredentials } from "../credentials.js";
+import { hasLoginCredentials, resolveLoginCredentials } from "@jini-ai/user-management/member-login/credentials";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, provider } from "./fixtures.js";
 
@@ -11,7 +12,7 @@ function fixture() {
   const deps = { ...cryptoFixture(), repo: new InMemoryCustomCredentialSetRepo(), idGen: { newId: () => { sequence++; return `credential-${sequence}`; } } };
   const save = (label = provider.credentialLabel, baseUrl = provider.tokenEndpoint, username: string | undefined = "client-id") => createCustomCredential(deps,
     { workspaceId: "ws", label, category: "general", baseUrl, connection: { token: "sealed-client-secret", username } });
-  return { deps, save, input: { deps, workspaceId: "ws", provider } };
+  return { deps, save, input: { deps: loginCredentialPorts({ credentials: deps }), workspaceId: "ws", provider } };
 }
 
 test("client card resolves username/client ID and sealed token/client secret through vault owner", async () => {
@@ -28,8 +29,8 @@ test("provider listing does not decrypt; credential payload never falls back to 
   await assert.rejects(resolveLoginCredentials(f.input), MemberLoginError);
   await f.save();
   const noOpen = { ...f.deps, sealer: { ...f.deps.sealer, seal: f.deps.sealer.seal.bind(f.deps.sealer), open: async () => { throw new Error("secret canary"); } } };
-  assert.equal(await hasLoginCredentials({ ...f.input, deps: noOpen }), true);
-  await assert.rejects(resolveLoginCredentials({ ...f.input, deps: noOpen }), error => error instanceof MemberLoginError && error.message === "LOGIN_UNAVAILABLE" && !error.cause);
+  assert.equal(await hasLoginCredentials({ ...f.input, deps: loginCredentialPorts({ credentials: noOpen }) }), true);
+  await assert.rejects(resolveLoginCredentials({ ...f.input, deps: loginCredentialPorts({ credentials: noOpen }) }), error => error instanceof MemberLoginError && error.message === "LOGIN_UNAVAILABLE" && !error.cause);
 });
 test("wrong token URL and missing client ID are unavailable", async () => {
   const f = fixture();

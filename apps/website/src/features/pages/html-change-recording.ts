@@ -1,14 +1,15 @@
+import type { PageHtmlOperation, PageHtmlWriteOutcome, RecordedHtmlWrites } from "@jini-ai/core/contracts/site/page-html-store";
 import type { ChangeSetRepoPort, ExecuteCommandFn, OutboxPort, AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator, JsonObject } from "@jini-ai/core/primitives";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { ToolInputError } from "@jini-ai/core";
 
-import { PageConcurrentEditError } from "./html-document-store.js";
+import { PageConcurrentEditError } from "@jini-ai/cms/pages/html-document-store";
 import { PAGE_HTML_ENTITY_TYPE, pageHtmlInverseOf } from "./html-inverse.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 
 /** The assistant tools whose real HTML changes earn a recorded Undo. */
-export type PageHtmlOperation = "pages_write_html" | "pages_write_region" | "pages_move_region";
+
 
 /** Short, HTML-free summaries: change-set summaries are listed to the model and to History. */
 const SUMMARY: Readonly<Record<PageHtmlOperation, string>> = {
@@ -23,7 +24,7 @@ const SUMMARY: Readonly<Record<PageHtmlOperation, string>> = {
  * postgres). The in-memory composition binds `disabled`: its post snapshot does not cover the
  * change-set repo or the outbox, so a late failure would orphan the Undo record.
  */
-export type RecordedHtmlWrites = "enabled" | "disabled";
+
 
 /** The collaborators recording needs beyond the page store the write itself closes over. */
 export interface PageHtmlRecordingDeps {
@@ -39,11 +40,7 @@ export interface PageHtmlRecordingDeps {
 }
 
 /** What one store operation did: `changed: false` covers refusals and unchanged normalized writes. */
-export interface PageHtmlWriteOutcome<T> {
-  changed: boolean;
-  version: number | null;
-  value: T;
-}
+
 
 /** Carries an unchanged or refused outcome out of the command so it never reaches the record step. */
 class UnrecordedPageHtmlWrite<T> extends Error {

@@ -30,7 +30,7 @@ import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases'
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { createSettingsPrincipalLookup } from '#src/features/settings/index';
 import { createPost, SqlitePostRepo } from '#src/features/post/index';
-import { PagesHtmlDocumentStore } from '#src/features/pages/index';
+import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 import { LocalFsBlobStore } from '#src/features/media/index';
 import { SqliteToolAttemptAuditSink } from '#src/features/tool-audit/repo.sqlite';
 import { installCommentsDataModule } from '@jini-ai/cms/comments/site/data-module-install';

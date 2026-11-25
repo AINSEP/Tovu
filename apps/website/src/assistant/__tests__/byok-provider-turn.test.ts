@@ -5,7 +5,7 @@ import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import type { ToolDescriptor } from "@jini-ai/core";
 
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
-import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
 import {
   coerceNumericEnumStringsToNumbers,

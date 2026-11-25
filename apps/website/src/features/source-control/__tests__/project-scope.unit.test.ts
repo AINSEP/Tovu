@@ -1,11 +1,12 @@
+import { attachedVaultPolicy, projectKeyCreatePolicy } from '#src/features/project-keys/vault-policy';
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -117,7 +118,7 @@ test('local source-control keys remain independently owned after shared revocati
   await save(old, SITE_A, 'default', secret('old'));
   const shared = await save(site(project), SITE_A, 'default', secret('owner'));
   const attachments = fakeAttachments();
-  const a = { ...old, repo: new InMemorySourceControlCredentialSetRepo({ vault: old.repo.vault! }, { project: { ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } }) };
+  const a = { ...old, repo: new InMemorySourceControlCredentialSetRepo({ vault: old.repo.vault! }, { project: { ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } }) };
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: shared.id });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
   assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('old'));
@@ -138,7 +139,7 @@ test("no project store (Fly): tokens stay in the site vault and summaries carry 
 test("git-host defaults, descriptions and lists only expose attached project rows", async () => {
   const project = projectHalf(); const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, siteId: SITE_A, attachments }) }) });
   const saved = await save(a, SITE_A, "attached-only", secret("git"));
   const input = { workspaceId: SITE_A, providerId: "example-git" };
   assert.equal(await findDefaultSourceControlCredential(a, input), null);
@@ -157,7 +158,7 @@ test('a sole attached nondefault opens through the vault; multiple attached nond
   const second = await save(writer, SITE_A, 'attached', secret('second'));
   const third = await save(writer, SITE_A, 'another', secret('third'));
   const raw = project.repo.vault!;
-  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, siteId: SITE_A, attachments }) }) });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: second.id });
   assert.deepEqual(await resolveDefaultForSourceControl(a, input), { id: second.id, label: 'attached', connection: { providerId: 'example-git', token: secret('second') } });
@@ -176,7 +177,7 @@ test('a Source control-page save is visible after reload on this site only; site
   const project = projectHalf();
   const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const forSite = (siteId: string) => site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments }) }) });
+  const forSite = (siteId: string) => site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, siteId, attachments }) }) });
   const a = forSite(SITE_A), b = forSite(SITE_B);
   const keys = createProjectKeys({ vault: raw, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
@@ -227,9 +228,9 @@ test('a create-only owner conflict stays a source-control duplicate with safe gu
   const project = projectHalf();
   await save(site(project), SITE_A, 'existing', secret('first'));
   const raw = project.repo.vault!;
-  const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
   const b = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: view }),
-    createRepo: new InMemorySourceControlCredentialSetRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) });
+    createRepo: new InMemorySourceControlCredentialSetRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: raw, view }) }) });
   await assert.rejects(save(b, SITE_B, 'existing', secret('second')), error =>
     error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key') && error.message.includes('P25_KEY_CREATE_CONFLICT'));
 });

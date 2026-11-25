@@ -2199,7 +2199,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/project-keys/tools.ts",
+        "path": "apps/website/src/features/project-keys/host-bindings.ts",
         "ids": [
           "credential_copy_from_project"
         ]
@@ -2302,7 +2302,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/site-inspection/agent-tools.ts",
+        "path": "apps/website/src/features/site-inspection/catalog-host.ts",
         "ids": [
           "fetch_published_page",
           "pages_read_html",
@@ -2472,7 +2472,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/web-screenshot/agent-tools.ts",
+        "path": "apps/website/src/features/web-screenshot/catalog-host.ts",
         "ids": [
           "web_fetch_page"
         ]

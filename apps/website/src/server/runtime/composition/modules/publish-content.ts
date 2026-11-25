@@ -1,3 +1,4 @@
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import { deployConfigGenerators } from "#src/features/deployments/index";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import path from "node:path";
@@ -9,7 +10,7 @@ import { registerPublishContentBundleCreateRoute, registerPublishContentCapabili
 import { registerPublishContentImportRoutes } from "./publish-content-import.js";
 import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes, registerPublishContentPeerTransportRoutes } from "./publish-content-transport.js";
 import { registerPublishBackstopRoutes } from "./publish-content-backstop.js";
-import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
@@ -63,7 +64,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
   });
   const candidatePaths = deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot: bundledAgentPluginsDir() });
   const findCandidate = () =>
-    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(repoRoot, relative) }, { candidatePaths });
+    findCandidateDestination({ publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(repoRoot, relative) }, { candidatePaths });
 
   return {
     name: "publish-content",

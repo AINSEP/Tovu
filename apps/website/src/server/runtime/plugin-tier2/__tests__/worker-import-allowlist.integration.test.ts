@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -160,4 +161,18 @@ test("a malformed entry file URL is a structured import-stage reply, not a crash
   const reply = await runner(probe("file:///plugins/%2Fbad/server/index.mjs", "/plugins"));
   assert.equal(reply.ok, false);
   if (!reply.ok) assert.equal(reply.stage, "import");
+});
+
+
+test("installed built-in entry loads the neutral SDK and the same analysis when enabled, without granting analysis imports to a different entry", async () => {
+  assert.deepEqual(await runner(probe(CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, CONTENT_ANALYZER_RUNTIME_SOURCE.sourceDir)), { ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] });
+  await withPluginPackage('import { analyzeContentWithSiteSlug } from "@jini-ai/cms/seo/content-analysis";\n' + PLUGIN_BODY,
+    async (entryUrl, packageRoot) => assertRefused(await runner(probe(entryUrl, packageRoot)), "@jini-ai/cms/seo/content-analysis"));
+});
+
+test("host registrar resolves the installed path without evaluating the worker executable", () => {
+  const registrar = new URL("../../../../features/plugin-runtime/built-ins/content-analyzer/index.ts", import.meta.url).href;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `const { CONTENT_ANALYZER_RUNTIME_SOURCE } = await import(${JSON.stringify(registrar)}); console.log(CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath);`], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath);
 });

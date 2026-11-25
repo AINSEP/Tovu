@@ -6,7 +6,8 @@ import test from 'node:test';
 import { buildRegistrations } from '../../install-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { listInstalledPlugins, readBundledAgentPluginDigests } from '../../lifecycle.js';
-import { readPluginInstallRequest, readPluginInstallArchive } from '../../../plugin-runtime/install-source.js';
+import { createHostPluginInstallSource } from "#src/features/plugin-runtime/host-install-source";
+const { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive } = createHostPluginInstallSource({});
 import { forceRemove } from '../fixtures/force-remove.js';
 
 const context = (input: unknown) => ({ executionId: 'customize', principal: { id: 'owner' }, run: { id: 'chat' }, input, signal: new AbortController().signal });

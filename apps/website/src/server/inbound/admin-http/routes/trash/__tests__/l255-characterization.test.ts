@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { MoveToTrashOutcome } from "#src/features/trash/index";
+import type { MoveToTrashOutcome } from "@jini-ai/core/contracts/site/cms-trash";
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import { registerAdminTrashMoveToTrashRoute } from "#src/server/runtime/composition/modules/trash";
 import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/modules/trash";

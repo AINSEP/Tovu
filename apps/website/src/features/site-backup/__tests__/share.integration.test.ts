@@ -1,3 +1,4 @@
+import { backupPushUploadPolicy } from "#src/features/site-backup/push-manifest";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -11,7 +12,7 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareShareContent } from "../share-preparation.js";
 import { createRuntimeShareDelivery } from "../share-hosting.js";
-import { uploadBackupPlan, initialPushProgress } from "../push-content.js";
+import { uploadBackupPlan, initialPushProgress } from "@jini-ai/devops/backup/site/push-content";
 import express from "express";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -94,7 +95,7 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
   assert.equal(taken.ok, true);
   if (taken.ok) {
     assert.equal(taken.plan.repository.branch, "main");
-    const uploaded = await uploadBackupPlan({ plan: taken.plan, signal: new AbortController().signal,
+    const uploaded = await uploadBackupPlan({ ...backupPushUploadPolicy({ plan: taken.plan }),  plan: taken.plan, signal: new AbortController().signal,
       progress: initialPushProgress({ plan: taken.plan }), uploadBlob: async () => assert.fail("fixture content must stay inline"),
     }, { inlineTextMaxBytes: 1_000_000 });
     assert.equal(uploaded.ok, true);
@@ -287,4 +288,19 @@ test("credential-looking setting values remain without changing their safe defin
   t.after(() => shared.close());
   assert.equal((shared.prepare("SELECT count(*) AS n FROM setting_values_workspace WHERE setting_id = 'title'").get() as { n: number }).n, 1);
   assert.equal((shared.prepare("SELECT default_json FROM setting_definitions WHERE setting_id = 'title'").get() as { default_json: string }).default_json, '"Default title"');
+});
+
+
+test("repository push manifest remains last and keeps its host name", async () => {
+  const store = new SiteBackupPlanStore<SiteBackupPlanContent>({});
+  const saved = store.save({ principalId: "owner", workspaceId: "ws", content: { ...common(Buffer.from("database")), credentialLabel: "private", owner: "owner", repo: "repo", folder: "site", commitMessage: "backup",
+    repository: { branch: "main", parentCommitSha: "parent", baseTreeSha: "tree", htmlUrl: "https://example.test/repo", folderExists: false } } });
+  const taken = store.take({ planId: saved.planId, principalId: "owner", workspaceId: "ws" });
+  assert.ok(taken.ok);
+  const plan = taken.plan;
+  const uploaded = await uploadBackupPlan({ ...backupPushUploadPolicy({ plan }),  plan, signal: new AbortController().signal,
+    progress: initialPushProgress({ plan }), uploadBlob: async () => assert.fail("fixture must stay inline") }, { inlineTextMaxBytes: 1_000_000 });
+  assert.ok(uploaded.ok);
+  assert.equal(uploaded.entries[0]?.path, "database/content.db");
+  assert.equal(uploaded.entries.at(-1)?.path, "tovu-backup.json");
 });

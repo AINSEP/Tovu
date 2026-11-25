@@ -32,7 +32,7 @@ interface RouterLayer { name: string; route?: { path: unknown; methods: Record<s
 function buildApp(): express.Express {
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
-  registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory: "/unused", readChatAttachmentForOwner: async (_deps, { ref }) => (
+  registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory: "/unused", readChatAttachmentForOwner: async ({ ref }) => (
     ref === "png" ? { ok: true, bytes: PNG } : { ok: false, reason: "not-found" }
   ) as Awaited<ReturnType<NonNullable<Parameters<typeof registerAdminChatAttachmentReadRoute>[0]["deps"]["readChatAttachmentForOwner"]>>> } });
   return app;

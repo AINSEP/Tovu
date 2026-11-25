@@ -4,7 +4,7 @@ import { validateAgentPluginExportProps } from "@jini-ai/agent-plugins/manifest"
 import type { PluginExportPackage } from "./source.js";
 import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
-export interface PluginEmbedDiagnostic { readonly code: string; readonly message: string }
+import type { PluginEmbedDiagnostic } from "@jini-ai/core/contracts/site/page-html-store";
 export interface SelectedPluginExport { readonly owner: PluginExportPackage; readonly component: string; readonly definition: AgentPluginExport }
 export type PluginExportSelection = { readonly selected: SelectedPluginExport } | { readonly diagnostic: PluginEmbedDiagnostic };
 

@@ -5,7 +5,7 @@ import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import type { KeyAttachments } from '@jini-ai/core/contracts/site/project-key-attachments';
-import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import { createSharedOAuthLabels, createSharedOAuthOwnerStorage } from '../shared-owner.js';
 import { createApiConnectionVault } from '../vault-stores.js';

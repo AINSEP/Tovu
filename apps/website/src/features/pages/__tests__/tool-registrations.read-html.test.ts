@@ -1,3 +1,6 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -10,8 +13,9 @@ import { withContentTargets } from "../../../assistant/__tests__/fixtures/conten
 import { createPost, InMemoryPostRepo } from "../../post/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
+import { type PagesToolDeps } from "#src/features/pages/tool-host";
 import { renderDocBodyAsPageHtml } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 
 const workspaceId = "page-reader-workspace";
@@ -37,11 +41,11 @@ function readerHarness(_required: Record<string, never>, { authorize, docBodyAsP
   const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
+    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
     themes: [theme], resolveActiveThemeId: async () => "ink",
     ...(docBodyAsPageHtml ? { docBodyAsPageHtml } : {}),
   };
-  const registrations = withContentTargets({ registrations: buildPagesRegistrations(deps), deps });
+  const registrations = withContentTargets({ registrations: buildPagesRegistrations({ deps: deps, host: bindPagesToolHost({}) }), deps });
   const reader = applyBatchInputs({ registrations }).find(entry => entry.descriptor.id === "pages_read_html")!;
   const call = (input: Record<string, unknown>) => invokeRegisteredTool(reader, {
     executionId: "read", run: { id: "run" }, principal: { id: "owner" }, input, signal: new AbortController().signal,
@@ -54,7 +58,7 @@ async function seed(
   _optional: Record<string, never> = {},
 ) {
   await createPost({ deps: { repo, clock }, input: { workspaceId, id, slug, title: id, kind: "page" } });
-  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat({ seedHtml: body });
+  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: id }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: body });
   return (await repo.findById({ workspaceId, id }))!;
 }
 

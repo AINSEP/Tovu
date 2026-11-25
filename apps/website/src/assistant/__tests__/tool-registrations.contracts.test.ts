@@ -1,9 +1,10 @@
+import { TIPTAP_DOC_SCHEMA } from "#src/features/post/tiptap-doc-schema";
 // Before any catalog module: the hosting plugins ship from @jini-ai/agent-plugins (see the fixture).
 import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
 import { consentAgentToolCatalog } from '@jini-ai/cookie-consent/site/tool-registrations';
 import { createObservabilityAgentToolCatalog } from '@jini-ai/diagnostics/observability/tool-registrations';
 import { TELEMETRY_TEST_ERROR_MESSAGE } from '#src/features/observability/test-error-message';
-import { projectKeysCatalog } from '#src/features/project-keys/tools';
+import { projectKeysCatalog } from "#src/features/project-keys/host-bindings";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { serverLogsAgentToolCatalog } from "@jini-ai/diagnostics/server-logs/agent-tools";
@@ -71,20 +72,20 @@ import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops
 import { deploymentsAgentToolCatalog } from "@jini-ai/devops/deploy/site/agent-tools";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
-import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 import { pluginAgentToolCatalog, pluginsInstallCatalog, pluginSourceAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { catalog as skillsInstallCatalog } from "@jini-ai/agentic/skills/site/install-tool";
-import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { recoveryAgentToolCatalog } from "../../features/recovery/tool-registrations.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
 import { uiLocalesAgentToolCatalog } from "@jini-ai/cms/settings/site/ui-locales-tool";
-import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
+import { siteInspectionAgentToolCatalog } from "#src/features/site-inspection/catalog-host";
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
 import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { siteEvidenceAgentToolCatalog } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
-import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
+import { webScreenshotAgentToolCatalog } from "#src/features/web-screenshot/catalog-host";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
 import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
@@ -113,7 +114,7 @@ const mediaGenerationAgentToolCatalog = () => buildMediaGenerationAgentToolCatal
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { buildMediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
-import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
+import { contentStatsAgentToolCatalog } from "@jini-ai/cms/posts/content-stats-tool";
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
@@ -1016,5 +1017,16 @@ test("every theme file tool says content_read.theme is where theme ids come from
     assert.ok(registration, `${id} is registered`);
     const declared = obtainFromDeclarations({ schema: registration.descriptor.inputSchema }).filter(({ path }) => path === "themeId");
     assert.deepEqual(declared, [{ path: "themeId", toolId: "content_read.theme" }], id);
+  }
+});
+
+
+test("published and normalization catalogs share the same six IDs and authoring shape", () => {
+  assert.deepEqual(postAgentToolCatalog.map(tool => tool.name), ["content_post_search", "content_post_list", "content_post_get", "content_post_create", "content_post_update", "content_post_delete"]);
+  for (const definition of postAgentToolCatalog) {
+    const schema = wiredRegistration(definition.name).descriptor.inputSchema as { properties: Record<string, unknown> };
+    const expected = definition.inputSchema as { properties: Record<string, unknown> };
+    assert.deepEqual(schema.properties.bodyJson, expected.properties.bodyJson);
+    if (expected.properties.bodyJson) assert.deepEqual({ ...expected.properties.bodyJson as object, description: TIPTAP_DOC_SCHEMA.description }, TIPTAP_DOC_SCHEMA);
   }
 });

@@ -1,3 +1,5 @@
+import { MediaStillReferencedError } from "@jini-ai/cms/media";
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,7 +14,7 @@ import { createPost } from "#src/features/post/index";
 import { createApp } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
-import { POST_ENTITY_TYPE } from "../adapters/post.js";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 
 /**
  * @file The real SQLite composition: Trash flips `posts.deleted_at` through the kernel, past the
@@ -71,4 +73,20 @@ test("a post save through the composed repo is seen by the public media-renditio
   assert.equal(cache.size, 1, "the rendition reader recorded its reference index in the composition's evidence instance");
   await deps.postRepo.save({ workspaceId, id: "gated", slug: "gated", title: "T", bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: "2026-10-20T00:00:00.000Z", version: 1, featuredMediaId: media.id, memberAccessJson: JSON.stringify({ visibility: "members" }) } as Parameters<typeof deps.postRepo.save>[0]);
   assert.equal(cache.size, 0, "the save cleared the very instance the reader holds, so the gate re-evaluates on the next request");
+});
+
+
+test("a restore wins over a stale purge without deleting blobs", async t => {
+  const { deps, workspaceId } = await bootComposedSite(t);
+  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    input: { workspaceId, filename: "photo.svg", contentType: "image/svg+xml", bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>'), createdByPrincipal: "owner" } });
+  let purges = 0;
+  const adapter = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: deps.contentKernel!, purgeAsset: async () => { purges++; } });
+  const hidden = await adapter.hide({ workspaceId, entityId: media.id, at: "2026-11-25T10:00:00.000Z", expectedVersion: null });
+  assert.ok(hidden.ok);
+  const restored = await adapter.unhide({ workspaceId, entityId: media.id, at: "2026-11-25T11:00:00.000Z", expectedVersion: hidden.version });
+  assert.ok(restored.ok);
+  assert.equal(await adapter.purge({ workspaceId, entityId: media.id, expectedVersion: hidden.version }), "version-changed");
+  assert.equal(purges, 0);
+  assert.ok(await deps.mediaRepo.findById({ workspaceId, id: media.id }));
 });

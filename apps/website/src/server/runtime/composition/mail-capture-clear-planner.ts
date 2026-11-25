@@ -1,6 +1,7 @@
+import { MailActivityForbiddenError } from "@jini-ai/platform/mail";
 import { MailActivityUnavailableError } from "@jini-ai/platform/mail";
 import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
-import { planMailCaptureClear } from "#src/features/mail/capture-clear";
+import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
 import type { CaptureClearPlan, MailCaptureClearPlanner } from "#src/features/mail-status/delivery-tool-registrations";
 
 /**
@@ -14,5 +15,5 @@ import type { CaptureClearPlan, MailCaptureClearPlanner } from "#src/features/ma
 export function planMailDeliveryCaptureClear({ deps, ctx }: Parameters<MailCaptureClearPlanner>[0], _optional: Record<string, never> = {}): Promise<CaptureClearPlan> {
   if (!deps.contentKernel) throw new MailActivityUnavailableError();
   const checkPermission = ({ principalId, permission: name }: { principalId: string; permission: string }) => deps.authorize({ principalId, permission: name, workspaceId: deps.workspaceId, entityType: "mail" });
-  return planMailCaptureClear({ principalId: ctx.principal.id, workspaceId: deps.workspaceId }, { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission });
+  return planMailCaptureClear({ principalId: ctx.principal.id, workspaceId: deps.workspaceId , deps: { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission , forbidden: ({ permission }) => new MailActivityForbiddenError({ permission, message: "Only the site owner can clear captured test emails." }) } });
 }

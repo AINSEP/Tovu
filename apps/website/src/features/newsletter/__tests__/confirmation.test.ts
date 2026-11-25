@@ -1,3 +1,6 @@
+import { buildConfirmationDeps } from "../deps-builders.js";
+import { mailSenderIdentityFor } from "#src/platform/mail/index";
+import { createHash } from "node:crypto";
 /**
  * @file T023 — failing-first tests for `confirmation.ts` (REQ-11/12/13/32, INV-03, AC-14/15/16/17, EC-02).
  */
@@ -6,7 +9,7 @@ import test from "node:test";
 
 import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
-import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
+import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "@jini-ai/user-management/newsletter/confirmation";
 import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import type { MembersConsentCapability } from "@jini-ai/user-management/newsletter/ports";
@@ -79,6 +82,9 @@ function makeDeps(consentCapability: MembersConsentCapability | null) {
   const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: [baseSubscription()] });
   const mailer = makeMailer();
   const deps: ConfirmationDeps = {
+    resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer: deps.mailer }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }),
+    mintRawToken: () => (++counter).toString(16).padStart(64, "0"),
+    hashToken: ({ raw }) => createHash("sha256").update(raw).digest("hex"),
     tokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     subscriptionRepo,
     mailer,
@@ -343,7 +349,7 @@ function makeRecordingMailer(driver: string): { mailer: MailerPort; sends: { mes
 test("issueConfirmationToken sends as transactional mail on the interactive lane", async () => {
   const { mailer, sends } = makeRecordingMailer("console");
   const { deps } = makeDeps(null);
-  await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  await issueConfirmationToken({ deps: { ...deps, mailer, resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }) }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.equal(sends.length, 1);
   assert.equal(sends[0]!.options.purpose, "transactional");
   assert.equal(sends[0]!.options.lane, "interactive");
@@ -352,7 +358,7 @@ test("issueConfirmationToken sends as transactional mail on the interactive lane
 test("issueConfirmationToken keeps the no-reply@newsletter.local placeholder while the mailer is non-delivering", async () => {
   const { mailer, sends } = makeRecordingMailer("console");
   const { deps } = makeDeps(null);
-  await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  await issueConfirmationToken({ deps: { ...deps, mailer, resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }) }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.deepEqual(sends[0]!.message.from, { email: "no-reply@newsletter.local", name: "Newsletter" });
 });
 
@@ -362,7 +368,7 @@ test("issueConfirmationToken sends from the site's configured sender through the
     readConfiguredSender: async ({ workspaceId }) => (workspaceId === WS ? { email: "news@example.com" } : null),
   });
   const { deps } = makeDeps(null);
-  await issueConfirmationToken({ deps: { ...deps, mailer, senderIdentity }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  await issueConfirmationToken({ deps: { ...deps, mailer, resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer }, { senderIdentity }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }) }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.deepEqual(sends[0]!.message.from, { email: "news@example.com", name: "Newsletter" });
 });
 
@@ -373,10 +379,40 @@ test("issueConfirmationToken on a delivering mailer with no sender refuses befor
   assert.ok(prior);
   const { mailer, sends } = makeRecordingMailer("smtp");
   await assert.rejects(
-    issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } }),
+    issueConfirmationToken({ deps: { ...deps, mailer, resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }) }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } }),
     (error: unknown) => error instanceof SenderIdentityNotConfiguredError && error.code === "mail_sender_not_configured"
   );
   assert.equal(sends.length, 0);
   const unconsumed = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
   assert.deepEqual(unconsumed.map((token) => token.id), [prior.id], "the subscriber's last working link survives");
+});
+
+
+test("minted URL still resolves through the public confirmer with the same scoped digest", async () => {
+  const { deps } = makeDeps(null);
+  const bound = buildConfirmationDeps({ deps: { newsletterConfirmationTokenRepo: deps.tokenRepo, newsletterSubscriptionRepo: deps.subscriptionRepo,
+    mailer: deps.mailer, membersConsentCapability: deps.consentCapability, originRegistry: deps.originRegistry, clock: deps.clock, idGen: deps.ids } });
+  bound.mintRawToken = () => "ab".repeat(32);
+  const raw = await issueRawToken(bound);
+  const [stored] = await bound.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+  assert.equal(stored?.tokenHash, createHash("sha256").update(raw).digest("hex"));
+  const result = await consumeConfirmationToken({ deps: bound, input: { workspaceId: WS, rawToken: raw } });
+  assert.equal(result.subscription.status, "subscribed");
+});
+
+test("static fallback sender is not used for configured delivery", async () => {
+  const { mailer, sends } = makeRecordingMailer("smtp");
+  const { deps } = makeDeps(null);
+  const senderIdentity = createMailSenderIdentityResolver({ mailer }, { readConfiguredSender: async () => ({ email: "configured@example.com" }) });
+  const bound = buildConfirmationDeps({ deps: { newsletterConfirmationTokenRepo: deps.tokenRepo, newsletterSubscriptionRepo: deps.subscriptionRepo,
+    mailer, mailSenderIdentity: senderIdentity, membersConsentCapability: deps.consentCapability, originRegistry: deps.originRegistry, clock: deps.clock, idGen: deps.ids } });
+  await issueConfirmationToken({ deps: bound, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  assert.equal(sends[0]?.message.from.email, "configured@example.com");
+});
+
+test("the production-bound token is 64 lowercase hex", async () => {
+  const { deps } = makeDeps(null);
+  const bound = buildConfirmationDeps({ deps: { newsletterConfirmationTokenRepo: deps.tokenRepo, newsletterSubscriptionRepo: deps.subscriptionRepo,
+    mailer: deps.mailer, membersConsentCapability: deps.consentCapability, originRegistry: deps.originRegistry, clock: deps.clock, idGen: deps.ids } });
+  assert.match(bound.mintRawToken({}), /^[0-9a-f]{64}$/);
 });

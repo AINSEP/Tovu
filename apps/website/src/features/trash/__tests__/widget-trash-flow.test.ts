@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
@@ -17,7 +18,7 @@ import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "@jini
 import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStatus, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
 
 
-import { moveToTrash } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -206,16 +207,7 @@ test("the widget entry's scope: moveToTrash on a non-widget entries row reads no
     )
     .run(WS, AT, AT);
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "widget", entityId: "c1", actor: { principalId: "admin-1", pluginId: null } },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowIso: () => AT },
-    }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "widget", entityId: "c1", actor: { principalId: "admin-1", pluginId: null } }, { registry: h.registry, trash: h.trash, authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });
   assert.equal(rawRow(h, "c1")!.deleted_at, null);
 });

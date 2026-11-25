@@ -1,6 +1,6 @@
 import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
 import { createCustomCredential, describeCredential, updateCustomCredential, type CustomCredentialSummary, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import type { ProjectKeysPort } from "#src/features/project-keys/service";
+import type { ProjectKeysPort } from "@jini-ai/user-management/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
 

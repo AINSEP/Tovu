@@ -9,7 +9,7 @@ import { checkShareLimits } from "./share-policy.js";
 import { shareFileStem } from "@jini-ai/devops/backup/site/share-service";
 import { allocateStaticExportThemes } from "./static-export-selection.js";
 import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
-import { staticLandingPage } from "./static-download-landing.js";
+import { staticLandingPage } from "@jini-ai/devops/backup/site/static-download-landing";
 
 /** @file Binds Jini's static copy and portable layout to this host's parse5 edits, share path policy and limits, theme-folder allocator, landing-page template, file-stem rule and scratch-folder name. */
 

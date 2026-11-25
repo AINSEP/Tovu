@@ -1,5 +1,6 @@
-import { readChatAttachmentForOwner } from "#src/features/media/index";
-import type { InstallAttachmentReader } from '#src/contracts/headless/index';
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
+import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/plugin-install-source";
+
 
 /** BYOK uses the same principal-owned sidecar reader as video. The daemon additionally binds
  * refs to its accepted message: another pending upload owned by this principal is not this run's input.
@@ -14,6 +15,6 @@ export function createPluginInstallAttachmentReader(
   return async ({ ref, ownerId, runId }, { maxBytes }) => {
     if (optional.getMessageAttachmentRefs && !optional.getMessageAttachmentRefs({ runId }).includes(ref)) return { ok: false, refusal: "no-record" };
     if (optional.uploadDirectory === undefined) return { ok: false, refusal: "no-record" };
-    return readChatAttachmentForOwner({ uploadDirectory: optional.uploadDirectory }, { ref, ownerId, maxBytes });
+    return readChatAttachmentForOwner({ uploadDirectory: optional.uploadDirectory, ref, ownerId }, { maxBytes });
   };
 }

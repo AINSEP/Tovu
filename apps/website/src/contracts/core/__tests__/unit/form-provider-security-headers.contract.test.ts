@@ -5,7 +5,7 @@ import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
 import { createPublicPageSecurityHeaderSet } from '@jini-ai/cms/public-http/middleware/public-page-security-headers';
 import { publicPageSecurityHeaders } from '../../../../features/theme/public-page-security-headers.js';
 import { createPublicPageSecurityHeaders } from '../../../../server/inbound/public-http/middleware/public-page-security-headers.js';
-import { renderHeadersFile } from '../../../../features/site-export/static-security-headers.js';
+import { renderHeadersFile } from '@jini-ai/devops/static-export/site/static-security-headers';
 
 const resources = { scripts: [], styles: [], fonts: [], fontPreconnects: {} };
 test('provider frame declarations extend only frame-src and reject malformed origins', () => {
@@ -37,7 +37,7 @@ test('current provider declarations reach live middleware and static headers wit
   } } });
   const live = capture();
   assert.match(live['Content-Security-Policy-Report-Only']!, /frame-src [^;]* https:\/\/frames.example.test(?:;|$)/);
-  assert.ok(renderHeadersFile(readHeaders()).includes(`  Content-Security-Policy-Report-Only: ${live['Content-Security-Policy-Report-Only']}\n`));
+  assert.ok(renderHeadersFile({ headers: readHeaders() }).includes(`  Content-Security-Policy-Report-Only: ${live['Content-Security-Policy-Report-Only']}\n`));
   active = false;
   assert.doesNotMatch(capture()['Content-Security-Policy-Report-Only']!, /frames.example.test/, 'a retired or broken provider must not keep cached origins');
   assert.doesNotMatch(publicPageSecurityHeaders({})['Content-Security-Policy-Report-Only']!, /frames.example.test/, 'one registry must not leak into another app');

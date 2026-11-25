@@ -4,7 +4,7 @@ import test from "node:test";
 import type { BatchResult } from "@jini-ai/core";
 import { peerFixture } from "../../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
 import { createPost } from "../../post/index.js";
-import { PagesHtmlDocumentStore } from "../html-document-store.sqlite.js";
+import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 
 test("pages_read_html resolves the same slug on the selected site for single reads and mixed batches", async t => {
   const f = await peerFixture(t);

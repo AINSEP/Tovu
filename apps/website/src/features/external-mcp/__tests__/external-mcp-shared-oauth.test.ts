@@ -6,7 +6,7 @@ import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { createApiConnectionVault } from '../../api-connections/vault-stores.js';
 import { createSharedOAuthOwnerStorage } from '../../api-connections/shared-owner.js';
-import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments } from '../../project-keys/__tests__/helpers.js';
 import { createExternalMcpOAuthService } from '../external-mcp-oauth.js';
 import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";

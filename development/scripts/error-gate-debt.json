@@ -590,17 +590,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/media/read-chat-attachment.ts",
-    "rule": "catch-reads-error",
-    "value": 4
-  },
-  {
     "file": "apps/website/src/features/media/view-image-tool.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/member-login/credentials.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -640,16 +630,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/plugin-runtime/install-source.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/plugin-runtime/install-source.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/post/go-live-sweep.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -661,11 +641,6 @@
   },
   {
     "file": "apps/website/src/features/presentation/set-active-theme.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/project-keys/attached-vault.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -683,11 +658,6 @@
     "file": "apps/website/src/features/publish-trust/keys.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-trust/publish-trust-revocations.ts",
-    "rule": "no-generic-failure-text",
-    "value": 4
   },
   {
     "file": "apps/website/src/features/settings/settings-write-policies.ts",
@@ -721,16 +691,6 @@
   },
   {
     "file": "apps/website/src/features/site-backup/static-export-selection.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-export/export-html-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-export/media-original-urls.ts",
     "rule": "catch-reads-error",
     "value": 1
   },

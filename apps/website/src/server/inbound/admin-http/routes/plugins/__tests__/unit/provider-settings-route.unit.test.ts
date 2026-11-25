@@ -7,7 +7,7 @@ import express from "express";
 import { createNoopTracker } from '@jini-ai/diagnostics/observability';
 import { ToolInputError } from '@jini-ai/core';
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 

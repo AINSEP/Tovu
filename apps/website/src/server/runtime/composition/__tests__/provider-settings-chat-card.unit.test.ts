@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";

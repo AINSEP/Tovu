@@ -1,3 +1,7 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -7,7 +11,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
+import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
 import { buildTrashRegistry } from "../registry.js";
@@ -15,7 +19,7 @@ import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { moveToTrash } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { filterVisibleTrashItems, mayActOnEntityType } from "../permissions.js";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
@@ -34,7 +38,7 @@ function harness(_required = {}, _options = {}) {
   let sequence = 0;
   const deps: EmailTemplateDeps = {
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },
-    pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
+    pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
   };
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });
@@ -47,7 +51,7 @@ function harness(_required = {}, _options = {}) {
   const granted = new Set(["pages.edit_html"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
   const routeDeps = { workspaceId: WS, registry, trash, db: trashDb, authorize, clock };
-  const move = ({ id, workspaceId = WS }: { id: string; workspaceId?: string }, _optional = {}) => moveToTrash({ workspaceId, entityType: "email-template", entityId: id, actor: ACTOR }, routeDeps);
+  const move = ({ id, workspaceId = WS }: { id: string; workspaceId?: string }, _optional = {}) => moveToTrash({ workspaceId, entityType: "email-template", entityId: id, actor: ACTOR }, { ...routeDeps, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: routeDeps.db, registry: routeDeps.registry }) });
   return { db, deps, routeDeps, trash, granted, move };
 }
 

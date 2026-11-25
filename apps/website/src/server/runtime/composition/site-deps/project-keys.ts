@@ -6,7 +6,7 @@ import type { composeProviderConfig } from "./provider-identity.js";
 import type { composeProviderConfigSource } from "./provider-config.js";
 import type { providerPluginBoot } from "./provider-identity.js";
 import { createOtherSiteKeys } from "../other-site-keys.js";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { isLocalTovuHost } from "../registered-sites.js";
 import { sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";

@@ -1,7 +1,8 @@
+import { attachedVaultPolicy } from '#src/features/project-keys/vault-policy';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { attachedOnlyVault } from "../attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 
 const query = { workspaceId: "project", kind: "vendor" as const, ownerKey: "tovu", principalId: null, provider: "host" };
@@ -10,7 +11,7 @@ test("attached inventory includes nondefaults while the vault default remains th
   await vault.put({ record: vaultRow(), expectedRevision: null });
   await vault.put({ record: { ...vaultRow({ id: "key-b" }), label: "B", isDefault: false }, expectedRevision: null });
   await attachments.attach({ siteId: "site-a", siteName: "A", keyId: "key-b" });
-  const view = attachedOnlyVault({ vault, attachments, siteId: "site-a" });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault, attachments, siteId: "site-a" });
   assert.deepEqual((await view.list(query)).map(row => row.id), ['key-b']);
   assert.equal((await view.findDefault!(query))?.id, "key-b");
   assert.equal((await vault.findDefault(query))?.id, "key-a", "selection never mutates project defaults");
@@ -24,8 +25,8 @@ test("attached inventory includes nondefaults while the vault default remains th
 test("unattached writes stay hidden; attachment, isolation and detach apply to every read immediately", async () => {
   const vault = new InMemoryVaultRepo({});
   const attachments = fakeAttachments();
-  const a = attachedOnlyVault({ vault, siteId: "site-a", attachments });
-  const b = attachedOnlyVault({ vault, siteId: "site-b", attachments });
+  const a = attachedOnlyVault({ policy: attachedVaultPolicy, vault, siteId: "site-a", attachments });
+  const b = attachedOnlyVault({ policy: attachedVaultPolicy, vault, siteId: "site-b", attachments });
   await assert.rejects(a.put({ record: vaultRow(), expectedRevision: null }));
   const record = await vault.put({ record: vaultRow(), expectedRevision: null });
   assert.equal(record.id, "key-a");
@@ -45,7 +46,7 @@ test("unattached writes stay hidden; attachment, isolation and detach apply to e
   assert.equal(await a.findDefault!(query), null);
   assert.equal(await a.findOne!(query), null);
   assert.deepEqual(await a.list(query), []);
-  const missing = attachedOnlyVault({ vault, siteId: "", attachments });
+  const missing = attachedOnlyVault({ policy: attachedVaultPolicy, vault, siteId: "", attachments });
   assert.equal(await missing.find(key), null);
 });
 
@@ -54,7 +55,7 @@ test("failed shared-key reads keep class and code while withholding secret messa
   t.mock.method(console, "warn", (...args: unknown[]) => { logs.push(args); });
   const failure = () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); };
   const attachments = { ...fakeAttachments(), isAttached: async () => failure(), keyForLabel: async () => failure() };
-  const view = attachedOnlyVault({ vault: new InMemoryVaultRepo({}), siteId: "site-a", attachments });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: new InMemoryVaultRepo({}), siteId: "site-a", attachments });
   assert.equal(await view.find({ workspaceId: "project", id: "key-a" }), null);
   assert.ok(view.findByLabel);
   assert.equal(await view.findByLabel({ workspaceId: "project", label: "name" }), null);

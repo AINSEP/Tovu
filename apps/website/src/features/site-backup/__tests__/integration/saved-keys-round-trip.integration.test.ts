@@ -2,7 +2,7 @@ import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
 import { createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from '../../../api-connections/vault-stores.js';
-import { createSiteOAuthBindings } from '../../../project-keys/site-references.js';
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { createSavedKeysStore } from './saved-keys-store.fixture.js';
 /** k1 T1–T4: real SQL vaults, project attachments, envelope, ZIP, isolated worker and site creation. */
 import assert from "node:assert/strict";
@@ -28,7 +28,7 @@ import { readTemplate } from "../../../../platform/site-dir/read-template.js";
 import { FixedSiteKeyKeyring, EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-sources.js";
-import { attachedOnlyVault } from "../../../project-keys/attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { openProjectStore } from "../../../../server/runtime/composition/project-store.js";
 import { composeSiteSavedKeys, sanitizeShareDatabase, rewriteArchiveMedia, restoreStagedImport } from "../../../../server/runtime/composition/site-portability.js";

@@ -1,3 +1,4 @@
+import { withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,7 +9,7 @@ import express from "express";
 import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { uploadMedia } from "@jini-ai/cms/media";
-import { saveLibraryDocument } from "../../media/library-save-attachment.js";
+import { saveLibraryDocument } from "@jini-ai/cms/media/site/library-save-attachment";
 import { buildStaticSiteZip } from "../../site-backup/share-zip.js";
 import { createShareArchiveReader } from "../../site-backup/import-archive-reader.js";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -18,7 +19,7 @@ import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
 import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static-export/site/public-origin-policy";
-import { exportHtml } from "../export-html-policy.js";
+import { exportHtml } from "@jini-ai/cms/html/site/export-html-policy";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
 import * as sourceEdits from "@jini-ai/cms/html/site/source-edits";
 
@@ -180,7 +181,7 @@ test("download form edits preserve external and mailto actions, theme attributes
 
 test("fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML", () => {
   const html = '<html><head><meta name="og:url" content="/about"><meta property="og:image" content="https://external.example/image.webp"><script type="application/ld+json">[{"@id":"/site","nested":{"url":"/about","name":"Keep"}}]</script><script type="application/ld+json">invalid</script></head><body><a  href="/about">About</a></body></html>';
-  const actual = exportHtml({ html });
+  const actual = exportHtml({ stripNativeFormTools: withoutNativeFormTools, html });
   assert.doesNotMatch(actual, /og:url|og:image|@id|"url"|invalid/);
   assert.match(actual, /\[{"nested":{"name":"Keep"}}\]/);
   assert.match(actual, /<a  href="\/about">About<\/a>/);

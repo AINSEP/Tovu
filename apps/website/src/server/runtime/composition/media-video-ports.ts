@@ -1,7 +1,7 @@
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
 import { createFfmpegVideoCodecProbe, createFfmpegVideoFrameExtractor, createVideoExtractionLock, findVideoBinaries, runLowPriorityVideoProcess } from "@jini-ai/cms/media/node";
 import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, sniffContentType } from "@jini-ai/cms/media";
-import { readChatAttachmentForOwner } from "#src/features/media/index";
 import type { MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 import type { MediaConversionPorts } from "#src/features/media/tool-registrations";
 
@@ -19,7 +19,7 @@ export function createMediaVideoToolPorts(
     extractor: createFfmpegVideoFrameExtractor({}, {}),
     readAttachment: async (input, { maxBytes }) => uploadDirectory === undefined
       ? { ok: false, refusal: "no-record" }
-      : readChatAttachmentForOwner({ uploadDirectory }, { ...input, maxBytes }),
+      : readChatAttachmentForOwner({ uploadDirectory, ...input }, { maxBytes }),
   };
 }
 

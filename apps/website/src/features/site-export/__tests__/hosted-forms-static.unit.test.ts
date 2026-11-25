@@ -1,3 +1,4 @@
+import { withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
@@ -9,7 +10,7 @@ import type { FormCollectionProvider } from '@jini-ai/core/contracts/forms';
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
-import { exportHtml } from '../export-html-policy.js';
+import { exportHtml } from '@jini-ai/cms/html/site/export-html-policy';
 import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
 import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';
@@ -34,7 +35,7 @@ test('the packaged hosted form keeps the same consent and fallback markup throug
   const plan = (await provider()).plan({ slug: 'contact', config: { url: publicUrl } });
   assert.equal(plan.kind, 'embed');
   const live = widget(plan);
-  const html = exportHtml({ html: `<!doctype html><html><head></head><body>${live}</body></html>` });
+  const html = exportHtml({ stripNativeFormTools: withoutNativeFormTools, html: `<!doctype html><html><head></head><body>${live}</body></html>` });
   const download = downloadForms({ html, page: '/contact', sourceEdits });
   assert.deepEqual(download.removed, []);
   assert.ok(download.html.includes(live));
@@ -78,7 +79,7 @@ test('two static form exports agree when time and occurrence identifiers are con
     const native = renderWidgetIr({ componentId: 'contact-form', props: { slug: 'native', fields: [
       { id: 'message', type: 'textarea', label: 'Message', required: true },
     ] } });
-    const html = downloadForms({ html: exportHtml({ html: `<!doctype html><html><head></head><body>${native}${widget(plan)}</body></html>` }), page: '/contact', sourceEdits }).html;
+    const html = downloadForms({ html: exportHtml({ stripNativeFormTools: withoutNativeFormTools, html: `<!doctype html><html><head></head><body>${native}${widget(plan)}</body></html>` }), page: '/contact', sourceEdits }).html;
     const archive = await buildStaticSiteZip({ copy: {
       filename: 'repeat-static.zip', siteSlug: 'fixture',
       metadata: { exportedAt: new Date().toISOString(), theme: 'fixture', routes: ['/contact'], failed: { routes: [], assets: [] }, skipped: { routes: [], assets: [], references: [] } },

@@ -1,11 +1,14 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { buildPagesRegistrations } from "../tool-registrations.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 
 /**
  * @file Markup copied from another site that stays invisible because the script that revealed it
@@ -20,13 +23,13 @@ const WS = "ws-1";
 
 function harness() {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
-  const registrations = buildPagesRegistrations({
+  const registrations = buildPagesRegistrations({ deps: {
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
-  });
+    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+  }, host: bindPagesToolHost({}) });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
   const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
   async function call(name: string, input: Record<string, unknown>) {

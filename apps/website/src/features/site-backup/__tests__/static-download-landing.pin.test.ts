@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import { prepareStaticReport, STATIC_DOWNLOAD_HOST, staticDownloadLayout } from "../static-download-host.js";
-import { staticLandingPage } from "../static-download-landing.js";
+import { staticLandingPage } from "@jini-ai/devops/backup/site/static-download-landing";
 
 const LEGACY_LANDING_SHA256 = "a94ee7003d9c0e25bd0ff4bda7dbca46958341678fec4cedc01c402fd316728d";
 
@@ -40,4 +40,10 @@ test("the exported landing page keeps its legacy bytes through the composed host
   const landing = exportedLanding();
   assert.equal(createHash("sha256").update(landing).digest("hex"), LEGACY_LANDING_SHA256);
   assert.match(landing.toString(), /<article class="card active"><div class="card-head"><h2>summer<\/h2><span class="badge">Active theme<\/span>/);
+});
+
+
+test("host chooses the same byte-pinned landing", () => {
+  assert.equal(STATIC_DOWNLOAD_HOST.renderLanding, staticLandingPage);
+  assert.equal(createHash("sha256").update(exportedLanding()).digest("hex"), LEGACY_LANDING_SHA256);
 });

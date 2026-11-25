@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
@@ -8,10 +9,9 @@ import { trashRestoreRoute } from "@jini-ai/cms/admin-http/routes/trash/restore"
 import type { TrashEntryGateFn, TrashKindGateFn } from "@jini-ai/cms/admin-http/routes/trash/shared";
 import type { TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import {
-  filterVisibleTrashItems, mayActOnEntityType, moveToTrash, TRASH_READ_PERMISSION,
-  type TrashAuthorizeFn, type TrashDb, type TrashKindMover,
-} from "#src/features/trash/index";
+import { filterVisibleTrashItems, mayActOnEntityType, TRASH_READ_PERMISSION, type TrashAuthorizeFn, type TrashDb } from "#src/features/trash/index";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
+import { type TrashKindMover } from "@jini-ai/core/contracts/site/cms-trash";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
@@ -143,9 +143,7 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ errors, app,
 
 export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute({ errors, app, spec: trashMoveRoute, deps: trashMountDeps({ deps, own: {
-    moveToTrash: (input: Parameters<TrashMoveFn>[0]) => moveToTrash(input, {
-      registry: deps.registry, trash: deps.trash, db: deps.db, authorize: deps.authorize, clock: deps.clock, movers: deps.movers,
-    }),
+    moveToTrash: (input: Parameters<TrashMoveFn>[0]) => moveToTrash(input, { registry: deps.registry, trash: deps.trash, authorize: deps.authorize, clock: deps.clock, ...(deps.movers ? { movers: deps.movers } : {}), readLiveSnapshot: input => readLiveSnapshot(input, { kernel: deps.db, registry: deps.registry }) }),
   } }) }, mountOptions("routes/trash/items"));
 };
 

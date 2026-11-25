@@ -1,5 +1,5 @@
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
-import { createReadyLoginProviderList } from "#src/features/member-login/index";
+import { createTovuReadyLoginProviderList, loginCredentialPorts } from "#src/features/member-login/bindings";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";
@@ -35,7 +35,7 @@ import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 // Now: the `members` barrel is gone; each Members module is a leaf subpath of `@jini-ai/user-management/members/*`,
 // and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
-import { resolveLoginCredentials } from "#src/features/member-login/index";
+import { resolveLoginCredentials } from "@jini-ai/user-management/member-login/credentials";
 import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
 import { trashMember } from "@jini-ai/user-management/members/trash-member";
 import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
@@ -150,14 +150,14 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
   const kernel = admin.contentKernel;
   if (!kernel || !members.origin) return undefined;
   const credentials = { repo: admin.customCredentialSetRepo, sealer: admin.siteAssistantSecretSealer };
-  const listProviders = createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(),
+  const listProviders = createTovuReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(),
     loadContributions: admin.agentPluginLifecycle.loadPluginContributions, credentials });
   return { members, listProviders,
     protocol: { clock: members.clock, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
       httpPorts: createTovuOAuthHttpPorts({ http: admin.mediaGenerationHttpClient }),
       sealer: admin.siteAssistantSecretSealer, keyring: admin.siteAssistantSecretKeyring, origin: members.origin,
       resolveProvider: async ({ workspaceId, providerId }) => (await listProviders({ workspaceId })).find(provider => provider.id === providerId) ?? null,
-      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }),
+      resolveClient: input => resolveLoginCredentials({ deps: loginCredentialPorts({ credentials }), ...input }),
       appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
       beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
     links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })),

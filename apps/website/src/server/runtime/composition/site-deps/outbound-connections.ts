@@ -13,7 +13,7 @@ import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
-import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";

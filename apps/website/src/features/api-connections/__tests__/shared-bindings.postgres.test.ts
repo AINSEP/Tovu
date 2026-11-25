@@ -8,7 +8,7 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secr
 import { createSharedOAuthConsumer, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
 import { freshPostgresContentDatabase, dropDatabase } from '../../../platform/db/__tests__/postgres-database.js';
 import { openPostgresKernel } from '../../../platform/db/kernel/drivers/postgres.js';
-import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
 import { createApiConnectionVault } from '../vault-stores.js';
 

@@ -1,3 +1,4 @@
+import { MediaStillReferencedError } from "@jini-ai/cms/media";
 /** Library L1 step 2: actual adapters, Trash marker and restart. RED: kind/name never persisted. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -8,7 +9,7 @@ import { eachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/platform/db/repos/media-repo';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } from '#src/platform/db/sqlite/media-repo.sqlite';
-import { createMediaTrashAdapter } from '#src/features/trash/adapters/media';
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import { uploadMedia, updateMediaMetadata, readDocumentText, LocalFsBlobStore } from '../index.js';
 import { InMemoryBlobGcJournalRepo } from '@jini-ai/cms/media';
 import { libraryFixture } from './library.fixture.js';
@@ -28,7 +29,7 @@ for (const adapter of eachDialect({ tables: ['media_slug_history', 'asset_rendit
       assert.equal(persisted?.kind, 'document'); assert.equal(persisted?.originalFilename, 'plan.md');
       assert.equal(persisted?.createdBy, 'uploader'); assert.equal(persisted?.source.sha256, media.source.sha256);
       assert.equal((await readDocumentText({ deps, input: { workspaceId: 'site-a', id: media.id } })).text, '# Plan');
-      const trash = createMediaTrashAdapter({ db: kernel, purgeAsset: async ({ workspaceId, entityId }) => {
+      const trash = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: kernel, purgeAsset: async ({ workspaceId, entityId }) => {
         const { purgeMedia: sharedPurge } = await import('@jini-ai/cms/media');
         await sharedPurge({ deps: { ...deps, referenceCheck: { findReferences: async () => [] } }, input: { workspaceId, id: entityId } });
       } });

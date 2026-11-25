@@ -5,7 +5,7 @@ import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
 import { loadBundledLoginProviders } from "../providers.js";
-import { createReadyLoginProviderList } from "../ready-providers.js";
+import { createTovuReadyLoginProviderList } from "../bindings.js";
 import { cryptoFixture } from "./fixtures.js";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 
@@ -23,15 +23,16 @@ async function fixture(options: { installedPluginId?: string } = {}) {
   assert.ok(google, "the google-login bundled preset must exist");
   let sequence = 0;
   const credentials = { ...cryptoFixture(), repo: new InMemoryCustomCredentialSetRepo(), idGen: { newId: () => `credential-${++sequence}` } };
+  let installed = true;
   const loadContributions = createPluginContributionLoader({
-    findPackages: async () => [{ trusted: { pluginId: options.installedPluginId ?? "google-login", packageRoot: "/unused" } }],
+    findPackages: async () => installed ? [{ trusted: { pluginId: options.installedPluginId ?? "google-login", packageRoot: "/unused" } }] : [],
     readFile: async () => JSON.stringify({ schemaVersion: 1, providers: [google] }),
     importModule: async () => { throw new Error("data contributions must never execute plugin code"); },
   }).loadPluginContributions;
-  const list = createReadyLoginProviderList({ sourceRoot, loadContributions, credentials });
+  const list = createTovuReadyLoginProviderList({ sourceRoot, loadContributions, credentials });
   const save = (workspaceId: string, baseUrl = google.tokenEndpoint) => createCustomCredential(credentials,
     { workspaceId, label: google.credentialLabel, category: "general", baseUrl, connection: { token: "client-secret", username: "client-id" } });
-  return { google, list, save };
+  return { google, list, save, remove: () => { installed = false; } };
 }
 
 test("an admitted provider without a client card is not ready; saving one makes it ready on the next call", async () => {
@@ -56,5 +57,14 @@ test("a client card bound to a foreign token URL is not ready", async () => {
 test("a configured card cannot ready a provider shipped by a non-bundled plugin", async () => {
   const f = await fixture({ installedPluginId: "rogue" });
   await f.save("ws");
+  assert.deepEqual(await f.list({ workspaceId: "ws" }), []);
+});
+
+
+test("a second host readiness call re-admits the installed provider", async () => {
+  const f = await fixture();
+  await f.save("ws");
+  assert.deepEqual((await f.list({ workspaceId: "ws" })).map(provider => provider.id), ["google"]);
+  f.remove();
   assert.deepEqual(await f.list({ workspaceId: "ws" }), []);
 });

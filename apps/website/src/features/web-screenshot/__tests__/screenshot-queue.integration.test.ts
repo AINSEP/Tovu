@@ -1,9 +1,11 @@
+import { webScreenshotAgentToolCatalog, WEB_SCREENSHOT_PERMISSION } from "#src/features/web-screenshot/catalog-host";
+import { readFileSync } from "node:fs";
 /** Queue regressions through single-call viewers and delegated HTTP transport (F5 decision). */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { delegatedText, executeDelegatedRegisteredTool, invokeRegisteredTool } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
-import { buildWebScreenshotRegistrations } from '../tool-registrations.js';
+import { buildWebScreenshotRegistrations, contributeWebScreenshotTools } from '@jini-ai/diagnostics/web-evidence/web-screenshot/tool-registrations';
 import type { PageCaptureRequest } from '@jini-ai/core/contracts/site/web-screenshot';
 import { createWebScreenshotService, readWebScreenshotInput, type WebScreenshotPorts } from '@jini-ai/integrations/web-screenshot/web-screenshot';
 
@@ -38,7 +40,7 @@ function fixture({ holdFirst = false }: { holdFirst?: boolean } = {}) {
     } },
   };
   const service = createWebScreenshotService({ ports });
-  const registrations = buildWebScreenshotRegistrations({ routeDeps: { workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'matched' }) }, service });
+  const registrations = buildWebScreenshotRegistrations({catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput,  routeDeps: { workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'matched' }) }, service });
   return { registration: applyBatchInputs({ registrations })[0]!, service, entered, release, timers, requests };
 }
 
@@ -113,4 +115,26 @@ test('queue deadline configuration cannot exceed sixty seconds', () => {
   for (const maxQueueWaitMs of [-1, 60_001, 0.5, Infinity, NaN]) {
     assert.throws(() => createWebScreenshotService({ ports: {} as WebScreenshotPorts }, { maxQueueWaitMs }), /integer from 0 to 60000/);
   }
+});
+
+
+test('two site builds share the capture queue and resolve only their own writer at save time', async () => {
+  const h = fixture({ holdFirst: true });
+  const saved: string[] = [];
+  const contributor = contributeWebScreenshotTools({ service: h.service, catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput }, {
+    openOwnSiteFor: () => async () => ({ origin: 'http://127.0.0.1:1', close: async () => {} }),
+    saveCaptureFilesFor: deps => async ({ files }) => { saved.push(deps.workspaceId); return files.map(file => `${deps.workspaceId}/${file.relPath}`); },
+  });
+  const [a] = contributor.build({ workspaceId: 'a', authorize: async () => ({ allowed: true, reason: 'matched' }) }, {});
+  const [b] = contributor.build({ workspaceId: 'b', authorize: async () => ({ allowed: true, reason: 'matched' }) }, {});
+  assert.ok(a && b);
+  assert.deepEqual(saved, []);
+  const pendingA = invokeRegisteredTool(a, { executionId: 'a', principal: { id: 'owner' }, run: { id: 'run' }, input: { sitePath: '/' }, signal: new AbortController().signal });
+  await h.entered.promise;
+  const pendingB = invokeRegisteredTool(b, { executionId: 'b', principal: { id: 'owner' }, run: { id: 'run' }, input: { sitePath: '/' }, signal: new AbortController().signal });
+  try { assert.equal(h.requests.length, 1); assert.deepEqual(saved, []); }
+  finally { h.release.resolve(); await Promise.all([pendingA, pendingB]); }
+  assert.deepEqual(saved, ['a', 'b']);
+  const source = readFileSync(new URL('../../../server/runtime/composition/tool-catalog-manifest.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes('saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter'));
 });

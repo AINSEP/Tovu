@@ -140,7 +140,7 @@ test("T-FROZEN: the history row kind already saved for a publish to a peer site"
 });
 
 test("T-FROZEN: the deploy-config key that names a site's public address", () => {
-  assert.deepEqual(linesMatching(/const PUBLIC_URL_KEY = /), ['publish-trust/connect.ts: const PUBLIC_URL_KEY = "TOVU_PUBLIC_URL";']);
+  assert.deepEqual(linesMatching(/const PUBLIC_URL_KEY = /), ['publish-trust/candidate-policy.ts: const PUBLIC_URL_KEY = "TOVU_PUBLIC_URL";']);
 });
 
 /**

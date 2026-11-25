@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pagesAgentToolCatalog } from "../agent-tools.js";
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 
 test("both page writers teach the owner-approved WebMCP form and non-form conventions", () => {
   for (const name of ["pages_write_html", "pages_write_region"]) {

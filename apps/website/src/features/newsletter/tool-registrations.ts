@@ -36,7 +36,7 @@ import {
   saveCampaign,
   type CampaignWriteServiceDeps,
 } from "@jini-ai/user-management/newsletter/campaign-write-service";
-import { issueConfirmationToken } from "./confirmation.js";
+import { issueConfirmationToken } from "@jini-ai/user-management/newsletter/confirmation";
 import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
 import {
   NewsletterCampaignNotEditableError,
@@ -66,7 +66,7 @@ import {
   saveSubscription,
   unsubscribeSubscription,
   type UnsubscribeSubscriptionDeps,
-} from "./subscriptions.js";
+} from "@jini-ai/user-management/newsletter/subscriptions";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;

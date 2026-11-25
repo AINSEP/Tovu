@@ -9,7 +9,7 @@ import { createExpiringSurfaces } from '../../__tests__/support/expiring-surface
 import { widgetsCapabilityCard as widgets } from '../../features/site-guide/cms-capability-cards.js';
 import { capabilityCard as plugins } from '../../features/plugin-runtime/plugin-host-copy.js';
 import type { GuideTopic as CapabilityCard } from '@jini-ai/agentic/core';
-import { postAgentToolCatalog } from '../../features/post/agent-tools.js';
+import { postAgentToolCatalog } from '#src/features/post/post-catalog-host';
 import { context, harness } from '../../features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.js';
 import { buildPluginsRegistrations } from '../../features/plugin-runtime/tool-registrations.js';
 import { resolveSiteGuideEngine } from '../../server/runtime/composition/site-guide.js';

@@ -1,33 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
-
-import type { ContentEntryDraft, ExtPatch, HookContext, PluginSdk } from "@tovu/sdk";
-
-import contentAnalyzerPlugin, { buildContentAnalyzerPatch, readMetaDescription } from "../../plugin.js";
+import type { ContentEntryDraft } from "@tovu/sdk";
 import { analyzeContentWithSiteSlug as analyzeContent, summarizeReport, tiptapToBlocks } from "@jini-ai/cms/seo/content-analysis";
-
-/**
- * @file `content-analyzer`'s worker-side entry module (`plugin.ts`) end to end through a tiny fake
- * `PluginSdk` that only captures `addFilter` — the same surface a Tier-2 worker hands the module.
- */
-
-type Captured = { hookName: string; filter: (entry: Readonly<ContentEntryDraft>, ctx: HookContext) => ExtPatch | Promise<ExtPatch> };
-
-function fakeSdk(): { sdk: PluginSdk; captured: Captured[] } {
-  const captured: Captured[] = [];
-  const unused = () => {
-    throw new Error("content-analyzer must only call addFilter");
-  };
-  const sdk = {
-    content: { read: unused, extend: unused },
-    addFilter: (hookName: string, filter: Captured["filter"]) => {
-      captured.push({ hookName, filter });
-    },
-    addAction: unused,
-    addContribution: unused,
-  } as unknown as PluginSdk;
-  return { sdk, captured };
-}
 
 const BODY = {
   type: "doc",
@@ -51,19 +26,37 @@ function entry(extra: Record<string, unknown> = {}): Readonly<ContentEntryDraft>
   } as Readonly<ContentEntryDraft>;
 }
 
+
+const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
+  const { registerPluginSdkResolver } = await import(${JSON.stringify(new URL("../../../../sdk-resolver.ts", import.meta.url).href)});
+  registerPluginSdkResolver();
+  const { default: plugin, buildContentAnalyzerPatch, readMetaDescription } = await import("@jini-ai/cms/seo/content-analyzer-plugin/plugin");
+  const analysis = await import("@jini-ai/cms/seo/content-analysis");
+  const base = ${JSON.stringify(entry())};
+  const hooks = [];
+  plugin.definition.setup({ addFilter: (hookName, filter) => hooks.push({ hookName, filter }) });
+  const patch = await hooks[0].filter(base, { pluginId: "content-analyzer", workspaceId: "ws-1" });
+  const accented = { ...base, bodyJson: { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Café Münster" }] }] } };
+  console.log(JSON.stringify({ hooks: hooks.map(h => h.hookName), patch,
+    meta: [base, { ...base, metaDescription: 12 }, { ...base, metaDescription: "A description" }].map(entry => readMetaDescription({ entry })),
+    withMeta: buildContentAnalyzerPatch({ entry: { ...base, metaDescription: "m".repeat(100) }, analysis }),
+    without: buildContentAnalyzerPatch({ entry: base, analysis }),
+    accented: buildContentAnalyzerPatch({ entry: accented, analysis }),
+    filterMeta: await hooks[0].filter({ ...base, metaDescription: "m".repeat(100) }, { pluginId: "content-analyzer", workspaceId: "ws-1" }) }));
+`], { encoding: "utf8" });
+assert.equal(result.status, 0, result.stderr);
+const output = JSON.parse(result.stdout);
+
+
 test("setup attaches exactly one content.entry.beforeSave filter and nothing else", async () => {
-  const { sdk, captured } = fakeSdk();
-  await contentAnalyzerPlugin.definition.setup(sdk);
   assert.deepEqual(
-    captured.map((c) => c.hookName),
+    output.hooks,
     ["content.entry.beforeSave"],
   );
 });
 
 test("the filter returns the 6-field patch (un-prefixed keys) computed from title + bodyJson", async () => {
-  const { sdk, captured } = fakeSdk();
-  await contentAnalyzerPlugin.definition.setup(sdk);
-  const patch = await captured[0]!.filter(entry(), { pluginId: "content-analyzer", workspaceId: "ws-1" });
+  const patch = output.patch;
 
   const expected = analyzeContent({ title: entry().title, blocks: tiptapToBlocks({ bodyJson: BODY }) });
   assert.deepEqual(Object.keys(patch).sort(), ["readability", "readingTimeMinutes", "report", "score", "summary", "wordCount"]);
@@ -77,31 +70,27 @@ test("the filter returns the 6-field patch (un-prefixed keys) computed from titl
 });
 
 test("metaDescription hook point: read from the entry only when it is a string, forwarded into the analysis", () => {
-  assert.equal(readMetaDescription(entry()), undefined);
-  assert.equal(readMetaDescription(entry({ metaDescription: 12 })), undefined);
-  assert.equal(readMetaDescription(entry({ metaDescription: "A description" })), "A description");
+  assert.equal(output.meta[0] ?? undefined, undefined);
+  assert.equal(output.meta[1] ?? undefined, undefined);
+  assert.equal(output.meta[2], "A description");
 
-  const withMeta = buildContentAnalyzerPatch(entry({ metaDescription: "m".repeat(100) }));
+  const withMeta = output.withMeta;
   const report = JSON.parse(String(withMeta.report)) as { checks: Array<{ id: string; status: string }> };
   assert.equal(report.checks.find((c) => c.id === "meta-description-length")?.status, "pass");
 
-  const without = JSON.parse(String(buildContentAnalyzerPatch(entry()).report)) as typeof report;
+  const without = JSON.parse(String(output.without.report)) as typeof report;
   assert.equal(without.checks.find((c) => c.id === "meta-description-length")?.status, "skip");
 });
 
 test("an accented heading's TOC anchor is the renderer's transliterated fragment id", () => {
   // TOC links must match the fragment ids the site renderer emits (AW-7 Tier 2), so the worker's
   // projection has to anchor through the renderer's `toSlug`, not an ASCII-only rule.
-  const bodyJson = { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Café Münster" }] }] };
-  const report = JSON.parse(String(buildContentAnalyzerPatch(entry({ bodyJson })).report)) as { toc: Array<{ anchor: string }> };
+  const report = JSON.parse(String(output.accented.report)) as { toc: Array<{ anchor: string }> };
   assert.deepEqual(report.toc.map((row) => row.anchor), ["cafe-muenster"]);
 });
 
 test("the SDK-typed preview description reaches the installed beforeSave filter", async () => {
-  const { sdk, captured } = fakeSdk();
-  await contentAnalyzerPlugin.definition.setup(sdk);
-  const draft: ContentEntryDraft = { ...entry(), metaDescription: "m".repeat(100) };
-  const patch = await captured[0]!.filter(draft, { pluginId: "content-analyzer", workspaceId: draft.workspaceId });
+  const patch = output.filterMeta;
   const report = JSON.parse(String(patch.report)) as { checks: Array<{ id: string; status: string }> };
   assert.equal(report.checks.find(check => check.id === "meta-description-length")?.status, "pass");
 });

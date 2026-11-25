@@ -1,3 +1,4 @@
+import { attachedVaultPolicy } from '#src/features/project-keys/vault-policy';
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,8 +7,8 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
@@ -25,7 +26,7 @@ function inventoryFixture(_required = {}, _optional = {}) {
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   const project = { workspaceId: "project", keyring, sealer,
-    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id" }) }),
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: guarded, attachments, siteId: "shop-id" }) }),
     inventoryRepo: new CustomCredentialVaultRepo({ vault: guarded }), createRepo: new CustomCredentialVaultRepo({ vault: guarded }) };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const keys = createProjectKeys({ vault, attachments, siteId: "shop-id", siteName: "Shop", transaction, providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => "now" });

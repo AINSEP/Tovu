@@ -1,3 +1,4 @@
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
@@ -17,7 +18,8 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
+import { InMemoryPostRepo, createPostRevertRegistry } from "#src/features/post/index";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
@@ -87,7 +89,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
     outbox,
     bus,
     postRepo,
-    postSearch: new InMemoryPostSearchIndex(postRepo),
+    postSearch: new InMemoryPostSearchIndex({ repo: postRepo, openScratch: openPostSearchScratch }),
     revertRegistry: createPostRevertRegistry({
       postRepo,
       clock: createFakeClock({ startIso: NOW }),

@@ -25,11 +25,11 @@ import { newsletterSendCampaignRoute, type NewsletterSendPipeline } from "@jini-
 import { newsletterSendTestCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/send-test-campaign";
 import { newsletterUpdateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/update-campaign";
 import { cancelCampaign, saveCampaign, scheduleCampaign } from "@jini-ai/user-management/newsletter/campaign-write-service";
-import { issueConfirmationToken } from "#src/features/newsletter/confirmation";
-import { newsletterErrorResponse } from "#src/features/newsletter/http-error-responses";
+import { issueConfirmationToken } from "@jini-ai/user-management/newsletter/confirmation";
+import { newsletterErrorResponse } from "@jini-ai/user-management/newsletter/http-error-responses";
 import { archiveList, saveList } from "@jini-ai/user-management/newsletter/lists";
 import { authorizeSend, claimBatch, freezeAudience, pauseCampaign, resumeCampaign, sendTestCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
-import { importSubscriptions, saveSubscription, unsubscribeSubscription } from "#src/features/newsletter/subscriptions";
+import { importSubscriptions, saveSubscription, unsubscribeSubscription } from "@jini-ai/user-management/newsletter/subscriptions";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toCampaignWriteServiceDeps, toConfirmationDeps, toListsDeps, toSendPipelineDeps, toSubscriptionsDeps, toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { RouteRegistrar } from "#src/server/routes/types";

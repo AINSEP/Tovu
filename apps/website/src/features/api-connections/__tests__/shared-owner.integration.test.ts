@@ -15,7 +15,7 @@ import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { type VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { openProjectStore } from '../../../server/runtime/composition/project-store.js';
-import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import { createSharedOAuthOwnerStorage, type SharedOAuthIssuingContext } from '../shared-owner.js';
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';

@@ -31,7 +31,7 @@ import type { composeProviderConfigSource } from "./provider-config.js";
 import type { providerPluginBoot } from "./provider-identity.js";
 import { compositionProjectKeys } from "./project-keys.js";
 import { watchProviderRevisions } from "@jini-ai/plugins/host";
-import { providerPluginOf } from "#src/features/project-keys/service";
+import { providerPluginOf } from "@jini-ai/user-management/project-keys/service";
 import { siteProviderRevisions } from "../provider-revision-watch.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { instrumentStorageKernel } from "@jini-ai/diagnostics/observability";

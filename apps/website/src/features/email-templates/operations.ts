@@ -11,7 +11,8 @@ import { type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 // Not from the barrel: it re-exports a fixed list, and this kind is not part of the Post API.
 import { EMAIL_TEMPLATE_KIND } from "@jini-ai/cms/posts/post";
-import { PageConcurrentEditError, type PagesHtmlDocumentStoreFactory } from "../pages/index.js";
+import { PageConcurrentEditError } from "@jini-ai/cms/pages/html-document-store";
+import { type PagesHtmlDocumentStoreFactory } from "@jini-ai/core/contracts/site/page-html-store";
 
 /**
  * @file Tovu's storage binding for the email-template operations in

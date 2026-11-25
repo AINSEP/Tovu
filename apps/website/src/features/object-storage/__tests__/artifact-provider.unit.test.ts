@@ -4,7 +4,7 @@ import test from "node:test";
 import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
 import { providerOk } from "@jini-ai/core/provider-registry";
 
-import { artifactStoreBinding, selectArtifactStoreProvider } from "../artifact-provider.js";
+import { artifactStoreBinding, selectArtifactStoreProvider } from "@jini-ai/platform/object-store/site/artifact-provider";
 import type { LoadedObjectStoreRegistry } from "@jini-ai/platform/object-store/site/registry";
 import type { ObjectStoreHost, TovuObjectStoreProvider } from "../media-store.js";
 
@@ -81,4 +81,13 @@ test("a provider's artifact credential refusal skips it and still honors the sav
   assert.equal((await selectArtifactStoreProvider(required))?.id, "fallback");
   assert.equal(await selectArtifactStoreProvider(required, { savedProvider: "preferred" }), undefined);
   assert.equal((await selectArtifactStoreProvider({ ...required, resolveCredential: async () => "ready" }))?.id, "preferred");
+});
+
+
+test("a newly configured store cannot revoke a share saved on another binding", async () => {
+  const entries: Array<[string, TovuObjectStoreProvider]> = [["new-store", capable("new")], ["saved-store", capable("saved")]];
+  const lookup = credentials(["new-store"]);
+  const selected = await selectArtifactStoreProvider({ loaded: loaded(entries), preferredId: "new-store", resolveCredential: lookup.resolveCredential }, { savedProvider: "saved-store" });
+  assert.equal(selected, undefined);
+  assert.deepEqual(lookup.asked, ["saved-store"]);
 });

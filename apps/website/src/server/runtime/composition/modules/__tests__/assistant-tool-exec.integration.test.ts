@@ -12,7 +12,7 @@ import { ALL_CHAT_DELETE_TOOLS } from "../../../../../assistant/permanent-delete
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../../../../contracts/headless/index.js";
 import { set as setSiteSetting } from "../../../../../features/settings/index.js";
 import { toWriteServiceDeps } from "../../../../inbound/admin-http/routes/settings/shared.js";
-import { POST_ENTITY_TYPE } from "../../../../../features/trash/adapters/post.js";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";

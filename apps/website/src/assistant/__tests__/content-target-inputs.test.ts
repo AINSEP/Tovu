@@ -1,12 +1,15 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMediaRepo, buildMediaRegistrations, type MediaRecord } from "@jini-ai/cms/media";
 import { bareDeps, barePost } from "../../server/inbound/admin-http/routes/posts/__tests__/preview-fixtures.js";
 import { buildPostPreviewRegistrations } from "../../features/post/preview-tool.js";
-import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
-import { buildPagesRegistrations } from "../../features/pages/tool-registrations.js";
-import { InMemoryPagesHtmlDocumentStore } from "../../features/pages/html-document-store.memory.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
 import { applyBatchInputs } from "../batch-tool-inputs.js";
 import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
@@ -120,8 +123,8 @@ test("page writes use the shared root resolver and still validate page kind and 
   const { deps, repo } = bareDeps([{ ...barePost, slug: "/" }, { ...barePost, id: "ordinary-post", slug: "news", kind: "post" }]);
   const clock = { nowMs: () => 0 };
   // A narrow handler fixture, not a composition: recording is enabled here (the in-memory composition binds it disabled, FIX 11).
-  const site = { ...deps, recordedHtmlWrites: "enabled" as const, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }) };
-  const registrations = withContentTargets({ deps: site, registrations: buildPagesRegistrations(site) });
+  const site = { ...deps, recordedHtmlWrites: "enabled" as const, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) };
+  const registrations = withContentTargets({ deps: site, registrations: buildPagesRegistrations({ deps: site, host: bindPagesToolHost({}) }) });
   const registration = registrations.find(tool => tool.descriptor.id === "pages_write_html")!;
   const html = '<main data-agent-element="home">Updated</main>';
   const result = await executeRegisteredTool({ registration, input: { id: "/", html, expectedVersion: barePost.version } });

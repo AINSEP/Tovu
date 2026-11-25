@@ -1,3 +1,4 @@
+import { findSealCallsInSource, type SealViolation } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -84,7 +85,7 @@ const DEFAULT_SCAN_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
 
 // These Jini plugin lifecycle calls seal source versions/contributions, never credentials.
 // Exact arguments also prevent a SecretSealerPort call on `port` or `capture` from being exempted.
-const NON_SECRET_SEAL_CALLS: Readonly<Record<string, string>> = {
+export const NON_SECRET_SEAL_CALLS: Readonly<Record<string, string>> = {
   "apps/website/src/features/plugin-runtime/source-tools.ts": "port.seal({ id: pluginId }, {})",
   "apps/website/src/server/runtime/composition/plugin-runtime.ts": "capture.seal({ sdk: scopedSdk })",
 };
@@ -109,103 +110,6 @@ function collectTsFiles({ dir }: { dir: string }, _optional = {}): string[] {
   return out;
 }
 
-export interface SealViolation {
-  /** Repo-root-relative path (real-scan mode) or the caller-supplied display path (unit-test mode). */
-  file: string;
-  /** 1-based line number of the call expression's start. */
-  line: number;
-  /** The call expression's source text, whitespace-collapsed to one line for reporting. */
-  text: string;
-  reason: "missing-aad" | "aad-literally-undefined" | "unresolved-argument-shape";
-}
-
-/**
- * Core per-file scanner, unit-testable directly against synthetic source text (no filesystem, no
- * `ts.Program`). Finds every `<expr>.seal(...)` call and checks its argument shape.
- *
- * @complexity O(n) single AST walk, n = node count in the parsed file.
- */
-export function findSealCallsInSource(
-  { sourceText, displayPath }: { sourceText: string; displayPath: string },
-  _optional = {}
-): SealViolation[] {
-  const scriptKind = displayPath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const source = ts.createSourceFile(displayPath, sourceText, ts.ScriptTarget.Latest, true, scriptKind);
-  const violations: SealViolation[] = [];
-
-  function lineOf({ pos }: { pos: number }, _optional = {}): number {
-    return source.getLineAndCharacterOfPosition(pos).line + 1;
-  }
-
-  function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "seal") {
-      const violation = checkSealCallArguments({ call: node, source, displayPath, lineOf });
-      if (violation) violations.push(violation);
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
-
-  return violations;
-}
-
-function buildSealViolation(
-  { reason, displayPath, line, text }: { reason: SealViolation["reason"]; displayPath: string; line: number; text: string },
-  _optional = {}
-): SealViolation {
-  return { file: displayPath, line, text, reason };
-}
-
-/** Finds the `aad` property among a `.seal()` call's object-literal properties. Returns
- *  `"unresolved"` when a spread makes it impossible to statically know whether `aad` is
- *  included (fail-closed — see file header), or `null` when no `aad` property is present. */
-function findAadProperty(
-  properties: ts.NodeArray<ts.ObjectLiteralElementLike>,
-): ts.ObjectLiteralElementLike | "unresolved" | null {
-  for (const prop of properties) {
-    if (ts.isSpreadAssignment(prop)) return "unresolved";
-    if (prop.name && ts.isIdentifier(prop.name) && prop.name.text === "aad") return prop;
-  }
-  return null;
-}
-
-function isLiterallyUndefined(prop: ts.ObjectLiteralElementLike): boolean {
-  return (
-    ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.initializer) && prop.initializer.text === "undefined"
-  );
-}
-
-function checkSealCallArguments(
-  {
-    call,
-    source,
-    displayPath,
-    lineOf,
-  }: {
-    call: ts.CallExpression;
-    source: ts.SourceFile;
-    displayPath: string;
-    lineOf: ({ pos }: { pos: number }) => number;
-  },
-  _optional = {}
-): SealViolation | null {
-  const line = lineOf({ pos: call.getStart(source) });
-  const text = call.getText(source).replace(/\s+/g, " ").trim();
-
-  if (NON_SECRET_SEAL_CALLS[displayPath] === text) return null;
-
-  if (call.arguments.length !== 1 || !ts.isObjectLiteralExpression(call.arguments[0])) {
-    return buildSealViolation({ reason: "unresolved-argument-shape", displayPath, line, text });
-  }
-
-  const aadProp = findAadProperty(call.arguments[0].properties);
-  if (aadProp === "unresolved") return buildSealViolation({ reason: "unresolved-argument-shape", displayPath, line, text });
-  if (aadProp === null) return buildSealViolation({ reason: "missing-aad", displayPath, line, text });
-  if (isLiterallyUndefined(aadProp)) return buildSealViolation({ reason: "aad-literally-undefined", displayPath, line, text });
-
-  return null; // `aad` present with a real value, or shorthand `{ aad }` — compliant.
-}
-
 /** Real-repo scan: every non-test `.ts`/`.tsx` file under `scanRoot`, reported paths relative to
  * the repo root. Defaults to `apps/website/src` — the only surface `SecretSealerPort.seal()` is
  * called from today. */
@@ -216,7 +120,7 @@ export function findSealCallsWithoutAad(
   const violations: SealViolation[] = [];
   for (const file of collectTsFiles({ dir: scanRoot })) {
     const sourceText = fs.readFileSync(file, "utf8");
-    violations.push(...findSealCallsInSource({ sourceText, displayPath: path.relative(REPO_ROOT, file) }));
+    violations.push(...findSealCallsInSource({ sourceText, displayPath: path.relative(REPO_ROOT, file), ast: ts, isExempt: ({ displayPath, text }) => NON_SECRET_SEAL_CALLS[displayPath] === text }));
   }
   return violations;
 }
@@ -241,6 +145,7 @@ function main(): void {
 // exported functions are imported directly by `__tests__/seal-aad-invariant.test.ts`, and an
 // unguarded `main()` would scan the real repo (and `process.exit(1)` if it ever regresses) as a
 // side effect of that import.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+const entry = process.argv[1];
+if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
   main();
 }

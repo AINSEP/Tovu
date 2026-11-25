@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import type { MoveToTrashOutcome } from "../move-to-trash.js";
+import type { MoveToTrashOutcome } from "@jini-ai/core/contracts/site/cms-trash";
 import { moveToTrashOutcomeToError } from "@jini-ai/cms/trash";
 
 /** @file Every non-ok moveToTrash outcome maps to one ToolInputError whose message names what to do. */

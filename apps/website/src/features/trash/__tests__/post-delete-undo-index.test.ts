@@ -1,3 +1,4 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
@@ -10,7 +11,7 @@ import { createPost, createPostReverters, deletePost, restorePostForward, Sqlite
 import type { RemovePostFn } from "#src/platform/publish-contracts";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 
-import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
+import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
@@ -71,7 +72,7 @@ function harness(): Harness {
 
   const trashRepo = new SqliteTrashRepo({ store: client });
   let seq = 0;
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })]]);
   const trash = createTrashService({
     repo: trashRepo,
     adapters,

@@ -1,3 +1,5 @@
+import { readWebScreenshotInput } from "@jini-ai/integrations/web-screenshot/web-screenshot";
+import { webScreenshotAgentToolCatalog, WEB_SCREENSHOT_PERMISSION } from "#src/features/web-screenshot/catalog-host";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -13,7 +15,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
-import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "../tool-registrations.js";
+import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "@jini-ai/diagnostics/web-evidence/web-screenshot/tool-registrations";
 import type { PageCapturePort } from "@jini-ai/core/contracts/site/web-screenshot";
 import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type WebScreenshotPorts } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
@@ -51,7 +53,7 @@ function deps(checked: string[], allowed = true): WebScreenshotToolDeps {
 
 async function tool(checked: string[], allowed = true): Promise<ToolRegistration> {
   const service = createWebScreenshotService({ ports: await fakePorts() });
-  const [registration] = buildWebScreenshotRegistrations({ routeDeps: deps(checked, allowed), service });
+  const [registration] = buildWebScreenshotRegistrations({catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput,  routeDeps: deps(checked, allowed), service });
   return registration!;
 }
 
@@ -108,7 +110,7 @@ test("BYOK path: execute_delegated_tool hands the provider image content blocks,
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
   };
-  contributions.contributors.register({ contribution: contributeWebScreenshotTools({ ports: await fakePorts() }) });
+  contributions.contributors.register({ contribution: contributeWebScreenshotTools({ service: createWebScreenshotService({ ports: await fakePorts() }), catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput }) });
   const routeDeps = {
     workspaceId: WORKSPACE_ID,
     // No stored grant: the real settings resolver keeps permanent deletes off.
@@ -139,7 +141,7 @@ test("the contributor hands each built registration its site's opener and captur
   const opened: Array<{ themeId?: string }> = [];
   const savedFor: unknown[] = [];
   const routeDeps = { ...deps([]), marker: "this-site" };
-  const contributor = contributeWebScreenshotTools({ ports: await fakePorts() }, {
+  const contributor = contributeWebScreenshotTools({ service: createWebScreenshotService({ ports: await fakePorts() }), catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput }, {
     openOwnSiteFor: () => async (_required = {}, optional = {}) => { opened.push(optional); return { origin: "http://127.0.0.1:1", close: async () => {} }; },
     saveCaptureFilesFor: (built) => { savedFor.push((built as unknown as { marker: string }).marker); return async ({ files }) => files.map((file) => `/sites/demo/.captures/${file.relPath}`); },
   });
@@ -159,7 +161,7 @@ test("a cancelled tool call rejects with its abort reason before capturing a pag
     captures += 1;
     return capture(required, optional);
   };
-  const contributor = contributeWebScreenshotTools({ ports });
+  const contributor = contributeWebScreenshotTools({ service: createWebScreenshotService({ ports }), catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput });
   const [registration] = contributor.build(deps([]) as never, {} as never);
   const controller = new AbortController();
   const reason = new Error("screenshot cancelled by the caller");
@@ -178,7 +180,7 @@ test("a live cancellation signal reaches the capture adapter through the registe
     observedSignal = optional?.signal;
     return capture(required, optional);
   };
-  const [registration] = buildWebScreenshotRegistrations({ routeDeps: deps([]), service: createWebScreenshotService({ ports }) });
+  const [registration] = buildWebScreenshotRegistrations({catalog: webScreenshotAgentToolCatalog, permission: WEB_SCREENSHOT_PERMISSION, readInput: readWebScreenshotInput,  routeDeps: deps([]), service: createWebScreenshotService({ ports }) });
   const output = blocksOf(await registration!.handler({ ...ctx({ url: "https://example.com/" }), signal: controller.signal }));
 
   assert.equal(observedSignal, controller.signal);

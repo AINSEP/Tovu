@@ -1,16 +1,22 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import { sanitizeShareDatabase } from "../../site-portability.js";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { seededWorkspace } from "../../../configuration/seed.js";
-import { type TrashKindMover, POST_ENTITY_TYPE, COMMENT_ENTITY_TYPE, MEDIA_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { type TrashKindMover } from "@jini-ai/core/contracts/site/cms-trash";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
+import { COMMENT_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
 import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";
 import { createInMemoryRevocations } from "@jini-ai/cms/publish/trust/revocations";
-import { InMemoryPostSearchIndex } from "#src/features/post/index";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { getSlugChangeCapture } from "#src/platform/routing/adapter";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
-import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { createInMemoryAgentSessionStore, createInMemoryConversationToolApprovalStore, resolvePublicAssistantAvailability } from "../../../../../assistant/index.js";
 import { getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -149,7 +155,7 @@ export function memoryPostChatDeps(required: MemoryRootContext, _optional = {}) 
     // `features/post/search-index.memory.ts` for why that is right for this root and wrong for
     // `deps.ts`'s. Constructed eagerly, but its scratch database is not opened until the first
     // search, so the many tests that call `createRouteDeps()` without searching pay nothing.
-    postSearch: new InMemoryPostSearchIndex(postRepo),
+    postSearch: new InMemoryPostSearchIndex({ repo: postRepo, openScratch: openPostSearchScratch }),
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
     // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
     slugChangeCapture: () => getSlugChangeCapture({}),
@@ -162,7 +168,7 @@ export function memoryPostChatDeps(required: MemoryRootContext, _optional = {}) 
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
     // FIX 11: no shared rollback boundary over the page write and its change-set record here (the
     // post snapshot does not cover the change-set repo or the outbox), so recorded HTML writes refuse.
     recordedHtmlWrites: "disabled",

@@ -1,3 +1,6 @@
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -7,7 +10,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
-import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -61,10 +64,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
   test("ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions", async () => {
     const { db, repo } = harness();
     await insertPage(db, { id: "page-1" });
-    const store = new SqlPagesHtmlDocumentStore(
-      { workspaceId: WS, postId: "page-1", actorId: "tester-1" },
-      { kernel: db, clock, revisions: repo }
-    );
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1", actorId: "tester-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
     await store.ensureHtmlFormat({ seedHtml: '<section data-region="a"></section>' });
     await store.write({ html: '<section data-region="a">x</section>' });
@@ -86,7 +86,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
   test("ensureHtmlFormat() on an already-html page appends no pre-conversion snapshot — it never converts anything", async () => {
     const { db, repo } = harness();
     await insertPage(db, { id: "page-2", html: "<p>seed</p>" });
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { kernel: db, clock, revisions: repo });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-2" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
     await store.ensureHtmlFormat({ seedHtml: "<p>ignored, already born</p>" });
 
@@ -97,7 +97,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
   test("without deps.revisions, write() and ensureHtmlFormat() behave exactly as before — no ledger, no error", async () => {
     const { db } = harness();
     await insertPage(db, { id: "page-3" });
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { kernel: db, clock });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-3" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
 
     await store.ensureHtmlFormat({ seedHtml: '<section data-region="a"></section>' });
     await store.write({ html: '<section data-region="a">x</section>' });
@@ -124,7 +124,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
           return appended;
         },
       };
-      const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+      const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
       if (operation === "write") await store.read();
       await assert.rejects(
         operation === "write" ? store.write({ html: "<p>new</p>" }) : store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" }),
@@ -140,8 +140,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await insertPage(db, { id: "stale-write", html: "<p>base</p>" });
     const scope = { workspaceId: WS, postId: "stale-write" };
     const deps = { kernel: db, clock, revisions: repo };
-    const winner = new SqlPagesHtmlDocumentStore(scope, deps);
-    const stale = new SqlPagesHtmlDocumentStore(scope, deps);
+    const winner = new SqlPagesHtmlDocumentStore({ scope, deps: { ...deps, statements: createPageHtmlStatements({ kernel: deps.kernel }), reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const stale = new SqlPagesHtmlDocumentStore({ scope, deps: { ...deps, statements: createPageHtmlStatements({ kernel: deps.kernel }), reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await winner.read();
     await stale.read();
     await winner.write({ html: "<p>winner</p>" });
@@ -167,7 +167,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
         return repo.transaction({ fn });
       },
     };
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>loser</p>" }), PageConcurrentEditError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), winningRow);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
@@ -182,7 +182,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await repo.appendRevision({ workspaceId: WS, postId: id, seq: 1, op: "update", stateJson: original,
       actorId: "original-editor", recordedAt: "2026-09-01T00:00:00.000Z" });
     const before = await repo.listRevisions({ workspaceId: WS, postId: id });
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions: repo });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" });
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: id });
     assert.equal(revisions.length, 2);
@@ -204,7 +204,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
         return repo.transaction({ fn });
       },
     };
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>cannot land</p>" }), PageConcurrentEditError);
     assert.equal(await repo.findById({ workspaceId: WS, id }), null);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);

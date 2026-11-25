@@ -10,7 +10,7 @@
  * (`server/__tests__/admin-media-routes.test.ts`, `features/trash/__tests__/`). Keeping the two
  * apart is what stops a drifting second Trash appearing in the media suites.
  */
-import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 

@@ -7,7 +7,7 @@ import path from "node:path";
 import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { siteProviderRevisions } from "../provider-revision-watch.js";
 import { watchProviderRevisions } from "@jini-ai/plugins/host";
-import { providerPluginOf } from "#src/features/project-keys/service";
+import { providerPluginOf } from "@jini-ai/user-management/project-keys/service";
 
 test("independent API and daemon connections observe site saves without a project store or restart", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "provider-revisions-"));

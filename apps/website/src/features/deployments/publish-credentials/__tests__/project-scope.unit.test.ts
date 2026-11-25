@@ -1,12 +1,13 @@
+import { attachedVaultPolicy, projectKeyCreatePolicy } from '#src/features/project-keys/vault-policy';
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -83,11 +84,11 @@ test("publish replacement requires the trusted card port and rechecks its grant 
   const project = projectStore(), attachments = fakeAttachments();
   const saved = await saveVercel(site(project).deps, SITE_A, "Shared", secret("original"));
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
-  const view = attachedOnlyVault({ vault: project.vault, attachments, siteId: SITE_A });
-  const a = site({ ...project, vault: view, createVault: projectKeyCreateVault({ owner: project.vault, view }) });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, attachments, siteId: SITE_A });
+  const a = site({ ...project, vault: view, createVault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: project.vault, view }) });
   const half = a.deps.repo.project!;
   const deps = { ...a.deps, repo: new VendorCredentialSetVaultRepo({ vault: a.deps.repo.vault!, kind: "vendor", vendor: true }, { project: {
-    ...half, replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: project.vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
+    ...half, replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: project.vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
   } }) };
   const before = await project.vault.find({ workspaceId: "project", id: saved.id });
   const input = { workspaceId: SITE_A, id: saved.id, connection: { providerId: "vercel", token: secret("rotated") } };
@@ -160,7 +161,7 @@ test("invalid publish scopes do not persist a key", async () => {
 test("readiness honors an attached project key among non-default peers and refuses an unattached key", async () => {
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_A, attachments }) });
   const saved = [];
   for (const label of ["Chosen", "Peer", "Unattached"]) {
     saved.push(await createPublishCredential(a.deps, { workspaceId: SITE_A, label,
@@ -172,7 +173,7 @@ test("readiness honors an attached project key among non-default peers and refus
   assert.deepEqual(await a.source.isConfigured(input), { configured: true });
   assert.deepEqual(await a.source.resolve(input), { ok: true, token: secret("Chosen"), credentialId: saved[0]!.id });
   assert.equal((await a.source.isConfigured({ ...input, credentialId: saved[2]!.id })).configured, false);
-  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_B, attachments }) });
   assert.equal((await b.source.isConfigured({ ...input, workspaceId: SITE_B })).configured, false);
 });
 
@@ -187,7 +188,7 @@ test("a site-copy request cannot alter an existing shared publish key", async ()
 test("create and rename translate hidden project label conflicts without attaching or changing either row", async t => {
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_A, attachments }) });
   const half = a.deps.repo.project!;
   const rawRepo = new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true });
   const deps = { ...a.deps, repo: new VendorCredentialSetVaultRepo({ vault: a.deps.repo.vault!, kind: "vendor", vendor: true },
@@ -248,14 +249,14 @@ test("no project store (Fly): saves stay in the site vault and summaries carry n
 
 test("deploy inventory and default selection see attached keys only; create returns its hidden saved row", async () => {
   const project = projectStore(); const attachments = fakeAttachments();
-  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_A, attachments }) });
   const saved = await saveVercel(a.deps, SITE_A, "attached-only", secret("publish"));
   assert.equal(saved.scope, "project");
   assert.equal(await findPublishCredentialRecord(a.deps, { workspaceId: SITE_A, id: saved.id }), null);
   assert.equal(await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }), null);
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
   assert.equal((await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }))?.connection.token, secret("publish"));
-  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_B, attachments }) });
   assert.deepEqual(await listPublishCredentials(b.deps, { workspaceId: SITE_B }), []);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.deepEqual(await listPublishCredentials(a.deps, { workspaceId: SITE_A }), []);
@@ -267,8 +268,8 @@ test('a Deployments-page save attaches its project key to this site and survives
   t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
-  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_A, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, siteId: SITE_B, attachments }) });
   const keys = createProjectKeys({ vault: project.vault, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
@@ -318,8 +319,8 @@ test('a Deployments-page save attaches its project key to this site and survives
 test("a projectKeyCreateVault conflict maps to PublishCredentialDuplicateLabelError", async () => {
   const project = projectStore();
   await saveVercel(site(project).deps, SITE_A, "Taken", secret("first"));
-  const view = attachedOnlyVault({ vault: project.vault, attachments: fakeAttachments(), siteId: SITE_B });
-  const b = site({ ...project, vault: view, createVault: projectKeyCreateVault({ owner: project.vault, view }) });
+  const view = attachedOnlyVault({ policy: attachedVaultPolicy, vault: project.vault, attachments: fakeAttachments(), siteId: SITE_B });
+  const b = site({ ...project, vault: view, createVault: projectKeyCreateVault({ ...projectKeyCreatePolicy, owner: project.vault, view }) });
   await assert.rejects(saveVercel(b.deps, SITE_B, "Taken", secret("second")), error =>
     error instanceof PublishCredentialDuplicateLabelError && error.message.includes("P25_KEY_CREATE_CONFLICT"));
 });

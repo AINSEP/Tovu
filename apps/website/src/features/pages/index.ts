@@ -13,17 +13,6 @@
  * of `"html"`-format rows anywhere in the codebase. Splitting the table itself is a migration this
  * feature does not need and has not asked for.
  */
-export {
-  PageConcurrentEditError,
-  PageKindMismatchError,
-  PageNotFoundError,
-  PagesHtmlDocumentStore,
-  type PagesHtmlDocumentStoreDeps,
-  type PagesHtmlDocumentStoreFactory,
-  type PagesHtmlDocumentStorePort,
-  type PagesHtmlDocumentStoreScope,
-} from "./html-document-store.sqlite.js";
-export { InMemoryPagesHtmlDocumentStore } from "./html-document-store.memory.js";
 export { DEFAULT_PAGE_SKELETON, PAGE_SKELETON_REGIONS, type PageSkeletonRegion } from "./skeleton.js";
 /**
  * SPEC-047 REQ-9. Importing this name is also what registers the permission-migration pair that
