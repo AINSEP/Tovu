@@ -118,6 +118,19 @@ async function resumeParked(
   }
 }
 
+/** The top-level segment's RUN_STARTED names the turn's canonical run; the first one wins.
+ * @complexity O(1). */
+function noteCanonicalRun({ turn, event, input }: { turn: LogicalTurn; event: unknown; input: RunAgentInput }, _optional: Record<string, never> = {}): void {
+  const started = event as { type?: unknown; runId?: unknown };
+  if (started?.type === "RUN_STARTED" && typeof started.runId === "string" && !input.parentRunId) turn.canonicalRunId ??= started.runId;
+}
+
+/** @complexity O(1). */
+function releaseAnsweredPause({ turn, input }: { turn: LogicalTurn; input: RunAgentInput }, _optional: Record<string, never> = {}): void {
+  // The resumed segment answers the claimed pause; from its first frame the turn waits on it.
+  if (turn.pending?.claimed && input.parentRunId === turn.pending.parentRunId) turn.pending = undefined;
+}
+
 /** @complexity O(1) per callback; O(n) once at settle. */
 export function createAgUiApprovalRelay({ ports }: { ports: AgUiApprovalRelayPorts }, _optional: Record<string, never> = {}): AgUiApprovalRelay {
   const turns = new Map<string, LogicalTurn>();
@@ -167,10 +180,8 @@ export function createAgUiApprovalRelay({ ports }: { ports: AgUiApprovalRelayPor
     observe: ({ threadId, event, input }) => {
       const turn = turns.get(threadId);
       if (!turn || turn.settled) return;
-      const started = event as { type?: unknown; runId?: unknown };
-      if (started?.type === "RUN_STARTED" && typeof started.runId === "string" && !input.parentRunId) turn.canonicalRunId ??= started.runId;
-      // The resumed segment answers the claimed pause; from its first frame the turn waits on it.
-      if (turn.pending?.claimed && input.parentRunId === turn.pending.parentRunId) turn.pending = undefined;
+      noteCanonicalRun({ turn, event, input }, {});
+      releaseAnsweredPause({ turn, input }, {});
       const interrupt = readConfirmationInterrupt({ event });
       if (!interrupt) return;
       const parked: ParkedInterrupt = { ...interrupt, claimed: false };
