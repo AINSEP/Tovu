@@ -11,12 +11,21 @@ import {
 
 import { applyRequestTracking, captureRouteError } from "../observability-middleware.js";
 import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
+import { reportServerFailure } from "../admin-failure.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 
 /**
  * @file The request's error report (provider wave 2): a 5xx response is reported ONCE to
  * `ObservabilityPort.reportError` with the route template, method, status, request id and principal
  * id — and nothing from the request itself (headers, cookies, query, body).
+ *
+ * Error-report ownership candidates (P4-T5), and what proves each:
+ * - The legacy `reportServerFailure` console + tracker arm (`admin-failure.ts`) is mutually exclusive with
+ *   reporter mode: a bound reporter never falls back to it, so a bound request logs 0 `console.error`.
+ * - The unreported-5xx `http.request` marker (`observability-middleware.ts`) and browser telemetry
+ *   (`browser-telemetry.unit.test.ts`) have independent owners: each is the one tracker report of its own
+ *   request and writes no host log, so neither is a duplicate of the reporter.
+ * - The cookie-consent `diagnostic-unavailable` catches are NOT proven duplicates and are not asserted here.
  */
 
 function recording(): { port: ObservabilityPort; reports: ErrorReport[] } {
@@ -202,7 +211,11 @@ async function bootWithReporter(t: test.TestContext, routes: (app: express.Expre
   applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   routes(app, tracker);
   app.use(captureRouteError);
-  return { baseUrl: await startTestServer(app, t), reports, hostRecords };
+  // A host-only control: the same host logger, a tracker that records nothing. Recording through it
+  // establishes the one expected logger call without touching the tracker path under measurement.
+  const hostControl = createTovuErrorReporter({ logger: { warn: () => {}, error: (...args: unknown[]) => { hostRecords.push(args); } }, tracker: { error: () => {} },
+    clock: { nowMs: () => Date.UTC(2026, 10, 25) }, versions: { app: "1.2.3", jini: "0.7.3" } });
+  return { baseUrl: await startTestServer(app, t), reports, hostRecords, hostControl };
 }
 
 test("an admin 500 produces one tracker report, not also the http.request 5xx marker", async t => {
@@ -255,4 +268,45 @@ test("an unrelated earlier report in the request does not skip this failure's tr
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(reports.map(report => report.context.operation), ["pages.prefetch", "admin-route.uncaught"]);
   assert.equal(reports[1]!.context.attributes?.incidentId, body.errorId);
+});
+
+test("a public route failure is reported once", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { baseUrl, reports, hostRecords } = await bootWithReporter(t, app => {
+    app.get("/api/public/things", (_req, res) => {
+      const { errorId } = reportServerFailure({ error: new Error("PRIVATE_BACKEND password=SECRET_CANARY"), operation: "public:things" }, { reporter: res.locals.failureReporter });
+      res.status(500).json({ errorId });
+    });
+  });
+  const response = await fetch(`${baseUrl}/api/public/things`);
+  assert.equal(response.status, 500);
+  const body = await response.json() as any;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(logged.mock.callCount(), 0);
+  assert.equal(hostRecords.length, 1);
+  assert.ok(JSON.stringify(hostRecords[0]).includes(body.errorId));
+  // One incident, and request completion added no `http.request` marker.
+  assert.deepEqual(reports.map(report => report.context.operation), ["public:things"]);
+  assert.equal(reports[0]!.context.attributes?.incidentId, body.errorId);
+  assert.equal(JSON.stringify(reports.map(r => [(r.error as Error).message, (r.error as Error).stack, r.context])).includes("SECRET_CANARY"), false);
+});
+
+test("an unreported 5xx still produces the http.request marker", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { baseUrl, reports, hostRecords, hostControl } = await bootWithReporter(t, app => {
+    app.get("/api/public/down", (_req, res) => { res.status(503).json({ error: "down" }); });
+  });
+  hostControl.record({ error: new Error("control"), step: "control", operation: "control" });
+  const before = { host: hostRecords.length, tracker: reports.length, console: logged.mock.callCount() };
+  assert.deepEqual(before, { host: 1, tracker: 0, console: 0 });
+  assert.equal((await fetch(`${baseUrl}/api/public/down`)).status, 503);
+  await new Promise(resolve => setImmediate(resolve));
+  // The marker is the one tracker report; it is an independent owner and adds no host log.
+  assert.equal(reports.length - before.tracker, 1);
+  assert.equal(hostRecords.length - before.host, 0);
+  assert.equal(logged.mock.callCount() - before.console, 0);
+  assert.equal(reports[0]!.context.operation, "http.request");
+  assert.equal((reports[0]!.error as Error).name, "ServerErrorResponse");
+  assert.equal((reports[0]!.error as Error).message, "HTTP 503 from GET /api/public/down");
+  assert.deepEqual([logged.mock.callCount(), hostRecords.length, reports.length], [0, 1, 1]);
 });
