@@ -10,6 +10,7 @@ import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart"
 import { deployConfigGenerators } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { COMMITTED_JSON_CODEC, createFileProvisioning, PUBLISH_TRUST_CONFIG_PATH, type PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
@@ -404,9 +405,9 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
-  installStatusAndAgentTools(contributions, () => findPublishCandidate);
+  installStatusAndAgentTools(contributions, () => findPublishCandidate, () => publishTrustProvisioning);
   const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
-  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate });
+  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate, getPublishTrustProvisioning: () => publishTrustProvisioning });
   installWebReadTools(contributions, { createHttpClient, observability });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
@@ -419,11 +420,15 @@ export function installFirstPartyToolContributors(
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
   const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  // The assembled committed-config port, resolved against the same root as `findPublishCandidate`
+  // and the HTTP route's own provisioning (`modules/publish-content.ts`), so an assistant-tool
+  // connect and a dialog connect never disagree about which file they wrote.
+  const publishTrustProvisioning = createFileProvisioning({ io: nodeProvisioningFileIo, codec: COMMITTED_JSON_CODEC, path: path.join(committedRoot, PUBLISH_TRUST_CONFIG_PATH) });
   installCredentialSaveTools(contributions);
   installWorkspaceToolContributors(contributions);
 }
 
-function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>) {
+function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>, getPublishTrustProvisioning: () => PublishTrustProvisioningPort) {
 
   toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
@@ -460,7 +465,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   // header for why the two halves use different wiring seams.
   contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
-  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate(), publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
@@ -533,7 +538,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   return bundledPluginsRoot;
 }
 
-function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination> }) {
+function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate, getPublishTrustProvisioning }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>; getPublishTrustProvisioning: () => PublishTrustProvisioningPort }) {
 
   const plugins = contributePluginsTools();
   contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
@@ -565,7 +570,8 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Publish dialog — see that feature's `tool-registrations.ts` header.
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
-  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) }) });
+  const publishContentContributor = contributePublishContentTools<AssistantToolRegistryDeps>({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) });
+  contributions.contributors.register({ contribution: { ...publishContentContributor, build: (deps, surfaces) => publishContentContributor.build({ ...deps, publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
