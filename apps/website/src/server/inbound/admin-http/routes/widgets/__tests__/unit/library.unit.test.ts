@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,6 +8,7 @@ import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAdminWidgetListRoute, registerAdminWidgetGetRoute, registerAdminWidgetCreateRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionMutatePlacementsRoute, registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute, registerAdminWidgetAgentToolsRoutes } from "#src/server/runtime/composition/modules/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { bindWidgetArea } from "@jini-ai/cms/widgets";
@@ -27,14 +29,14 @@ function harness(overrides: Record<string, unknown> = {}) {
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides,
   };
   const app = express();
-  registerAdminWidgetListRoute({ app, deps: deps as any });
-  registerAdminWidgetGetRoute({ app, deps: deps as any });
-  registerAdminWidgetCreateRoute({ app, deps: deps as any });
-  registerAdminWidgetAgentToolsRoutes({ app, deps: deps as any });
-  registerAdminWidgetRegionGetRoute({ app, deps: deps as any });
-  registerAdminWidgetRegionsListRoute({ app, deps: deps as any });
-  registerAdminWidgetRegionMutatePlacementsRoute({ app, deps: deps as any });
-  registerAdminWidgetTrashRoute({ app, deps: deps as any });
+  registerAdminWidgetListRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetGetRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetCreateRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetAgentToolsRoutes({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetRegionGetRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetRegionsListRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetRegionMutatePlacementsRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetTrashRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
   return { deps, invoke: async (method: "get" | "post" | "put", suffix = "", request: Record<string, unknown> = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -238,4 +240,27 @@ test("remove tool returns WIDGETS_AREA_NOT_FOUND for a binding whose area no lon
   assertAdminResponse({ actual: await deps.widgetBindingRepo.findByRegion({ workspaceId: "ws-7", regionKey: "footer" }), expected: binding });
   assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget_area" }), []);
   assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }), [], "a missing area must leave no entries of any type");
+});
+
+test("widgets list: mounted in reporter mode, a failed answer write is one site incident whose ID the 500 carries", async () => {
+  const incidents = createRouteIncidentReporter();
+  const app = express();
+  // The route's own answer is the first `res.json`; refusing it is a write the transport could not take.
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: "principal-1" };
+    const json = res.json.bind(res);
+    let refused = false;
+    res.json = (body: unknown) => { if (!refused) { refused = true; throw new Error("socket refused the body"); } return json(body); };
+    next();
+  });
+  let authorizations = 0;
+  const authorize = async () => { authorizations++; return { allowed: true, reason: "matched" }; };
+  registerAdminWidgetListRoute({ app, deps: { workspaceId: "ws-1", entryRepo: new InMemoryEntryRepo(), authorize } as any, errors: incidents.errors });
+  const result = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws-1/widgets");
+  const { error } = result.body as { error: { code: string; requestId: string } };
+  assert.deepEqual({ status: result.status, code: error.code }, { status: 500, code: "INTERNAL_ERROR" });
+  assert.equal(incidents.entries.length, 1, "exactly one record: the failed write, never a second route operation");
+  assert.match(error.requestId, /^ERR-7E57-/);
+  assert.ok(JSON.stringify(incidents.entries[0]).includes(error.requestId), "the reply names the recorded incident");
+  assert.equal(authorizations, 1, "the route ran once; a failed write never runs the handler again");
 });

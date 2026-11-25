@@ -3,6 +3,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { registerAdminWidgetEmbedInsertRoute } from "#src/server/runtime/composition/modules/widgets";
 
 const path = "/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds";
@@ -21,7 +22,7 @@ async function harness() {
   registerAdminWidgetEmbedInsertRoute({ app, deps: {
     workspaceId: "ws-7", entryRepo,
     authorize: async () => { authorizations++; return { allowed: true, reason: "matched" }; },
-  } as any });
+  } as any, errors: createRouteIncidentReporter().errors });
   return {
     entryRepo,
     authorizations: () => authorizations,

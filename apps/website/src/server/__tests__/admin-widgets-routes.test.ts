@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -31,7 +32,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createWidgetsModule(deps).registerRoutes?.({ app });
+  createWidgetsModule({ deps, errors: createRouteIncidentReporter().errors }).registerRoutes?.({ app });
   return { app, deps };
 }
 

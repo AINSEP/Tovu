@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -24,8 +25,8 @@ function harness() {
     outbox: { async enqueue() {} },
   };
   const app = express();
-  registerAdminWidgetCreateRoute({ app, deps: deps as unknown as RouteDeps });
-  registerAdminWidgetGetRoute({ app, deps: deps as unknown as RouteDeps });
+  registerAdminWidgetCreateRoute({ app, deps: deps as unknown as RouteDeps, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetGetRoute({ app, deps: deps as unknown as RouteDeps, errors: createRouteIncidentReporter().errors });
   async function invoke(method: "post" | "get", body?: unknown, id?: string) {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "operator-b07" };

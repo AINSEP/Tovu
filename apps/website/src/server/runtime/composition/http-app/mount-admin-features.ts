@@ -46,7 +46,7 @@ export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { 
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
   // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
   // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
-  mountRoutes({ app, mod: createWidgetsModule(routeDeps) });
+  mountRoutes({ app, mod: createWidgetsModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }) });
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
   mountRoutes({ app, mod: createPluginsModule(routeDeps) });
   // 2026-09-09 — the `agent-plugins` server module: AGENT_PLUGINS_LIST, the admin Agent Plugins

@@ -25,6 +25,7 @@ import { widgetPreviewRoute } from "@jini-ai/cms/admin-http/routes/widgets/previ
 import { renderWidgetPreview } from "#src/server/inbound/admin-http/routes/widgets/preview-render";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 
 /**
  * @file The `widgets` server module (SPEC-043, ADR-047) — ADR-046 Phase 3 server-module
@@ -39,8 +40,9 @@ import type { ServerModuleHandle } from "./types.js";
  * surface — matches the base implementation-outline's own dependency sequencing note (instance
  * CRUD must exist before region/embed placement can reference real instances).
  */
-/** A widgets registrar: reads `RouteDeps` at registration and passes each route only its own fields. */
-export type WidgetRouteRegistrar = (required: { app: Express; deps: RouteDeps }, optional?: Record<string, never>) => void;
+/** A widgets registrar: reads `RouteDeps` at registration and passes each route only its own fields.
+ * `errors` are the owning site's route error ports (`createApp`'s one site reporter), bound to every spec it mounts. */
+export type WidgetRouteRegistrar = (required: { app: Express; deps: RouteDeps; errors: RouteErrorPorts }, optional?: Record<string, never>) => void;
 
 /**
  * The admin ports, with the widgets error port. The widgets routes never consulted the
@@ -68,12 +70,17 @@ const widgetJsonRoutePorts: JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrinc
 };
 
 /** Mount one Jini widgets spec behind {@link widgetJsonRoutePorts}.
+ * @param required.errors - The owning site's route error ports. They put this mount in reporter mode:
+ *   {@link widgetJsonRoutePorts}' `onError` still answers a failure first; a broken answer or write is one record.
  * @complexity O(1) setup. */
 function mountWidgetJsonRoute<Input, Output, Deps>(
-  { app, spec, deps }: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
+  { app, spec, deps, errors }: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; errors: RouteErrorPorts },
   _optional: Record<string, never> = {},
 ): void {
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...spec, ports: widgetJsonRoutePorts }, deps });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...spec, ports: widgetJsonRoutePorts }, deps,
+    // No widgets spec asks for `requireSameOrigin`, so this policy is never consulted; it exists only
+    // because a reporter-mode host context carries one, and it refuses (fails closed) if a later spec asks.
+    adapter: { originPolicy: { isSameOrigin: () => false }, errors } });
 }
 
 /** The admin surface's outward copy for a classified domain error is that error's own message. */
@@ -86,61 +93,62 @@ function widgetPortDeps({ deps }: { deps: RouteDeps }, _options: Record<string, 
   return { workspaceId: deps.workspaceId, authorize, outwardErrorMessage };
 }
 
-export const registerAdminWidgetListRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetListRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo } });
+export const registerAdminWidgetListRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetListRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo } });
 };
 
-export const registerAdminWidgetGetRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetGetRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, entryRefsRepo: deps.entryRefsRepo } });
+export const registerAdminWidgetGetRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetGetRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, entryRefsRepo: deps.entryRefsRepo } });
 };
 
-export const registerAdminWidgetCreateRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetCreateRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetCreateRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetCreateRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
-export const registerAdminWidgetUpdateRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetUpdateRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetUpdateRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetUpdateRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
-export const registerAdminWidgetTrashRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetTrashRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetTrashRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetTrashRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
-export const registerAdminWidgetRegionsListRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetRegionsListRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, widgetBindingRepo: deps.widgetBindingRepo } });
+export const registerAdminWidgetRegionsListRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetRegionsListRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, widgetBindingRepo: deps.widgetBindingRepo } });
 };
 
-export const registerAdminWidgetRegionGetRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetRegionGetRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, widgetBindingRepo: deps.widgetBindingRepo } });
+export const registerAdminWidgetRegionGetRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetRegionGetRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, widgetBindingRepo: deps.widgetBindingRepo } });
 };
 
-export const registerAdminWidgetRegionBindRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetRegionBindRoute, deps: { ...widgetPortDeps({ deps }), regionDeps: () => buildWidgetsRegionDeps(deps) } });
+export const registerAdminWidgetRegionBindRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetRegionBindRoute, deps: { ...widgetPortDeps({ deps }), regionDeps: () => buildWidgetsRegionDeps(deps) } });
 };
 
-export const registerAdminWidgetRegionMutatePlacementsRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminWidgetRegionMutatePlacementsRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   mountWidgetJsonRoute({
     app,
+    errors,
     spec: widgetRegionMutatePlacementsRoute,
     deps: { ...widgetPortDeps({ deps }), widgetBindingRepo: deps.widgetBindingRepo, regionDeps: () => buildWidgetsRegionDeps(deps) },
   });
 };
 
-export const registerAdminWidgetEmbedInsertRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetEmbedInsertRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetEmbedInsertRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetEmbedInsertRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
-export const registerAdminWidgetEmbedRemoveRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetEmbedRemoveRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetEmbedRemoveRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetEmbedRemoveRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
-export const registerAdminWidgetEmbedReorderRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountWidgetJsonRoute({ app, spec: widgetEmbedReorderRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+export const registerAdminWidgetEmbedReorderRoute: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountWidgetJsonRoute({ app, errors, spec: widgetEmbedReorderRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
 /** The four AI tool routes (`widgets.place` / `.create` / `.remove` / `.diagnose`), registered in
  *  that order. The placement deps are built per request, as the hand-written routes built them. */
-export const registerAdminWidgetAgentToolsRoutes: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminWidgetAgentToolsRoutes: WidgetRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const placement = {
     ...widgetPortDeps({ deps }),
     widgetBindingRepo: deps.widgetBindingRepo,
@@ -148,10 +156,10 @@ export const registerAdminWidgetAgentToolsRoutes: WidgetRouteRegistrar = ({ app,
     widgetsDeps: () => buildWidgetsDeps(deps),
     regionDeps: () => buildWidgetsRegionDeps(deps),
   };
-  mountWidgetJsonRoute({ app, spec: widgetPlaceToolRoute, deps: { ...placement, idGen: deps.idGen } });
-  mountWidgetJsonRoute({ app, spec: widgetCreateToolRoute, deps: { ...placement, idGen: deps.idGen } });
-  mountWidgetJsonRoute({ app, spec: widgetRemoveToolRoute, deps: placement });
-  mountWidgetJsonRoute({ app, spec: widgetDiagnoseToolRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, entryRefsRepo: deps.entryRefsRepo } });
+  mountWidgetJsonRoute({ app, errors, spec: widgetPlaceToolRoute, deps: { ...placement, idGen: deps.idGen } });
+  mountWidgetJsonRoute({ app, errors, spec: widgetCreateToolRoute, deps: { ...placement, idGen: deps.idGen } });
+  mountWidgetJsonRoute({ app, errors, spec: widgetRemoveToolRoute, deps: placement });
+  mountWidgetJsonRoute({ app, errors, spec: widgetDiagnoseToolRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, entryRefsRepo: deps.entryRefsRepo } });
 };
 
 /**
@@ -182,7 +190,11 @@ export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; d
   );
 }
 
-export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
+/**
+ * @param required.deps - The widgets routes' deps.
+ * @param required.errors - The owning site's route error ports, bound to the routes mounted directly on http-kit.
+ */
+export function createWidgetsModule({ deps, errors }: { deps: RouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): ServerModuleHandle {
   return {
     name: "widgets",
     registerRoutes: ({ app }, _options = {}) => {
@@ -191,20 +203,20 @@ export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
       // string "regions") — every `/widgets/regions*` registrar (literal path) MUST be registered
       // BEFORE `get-by-id.ts`/`update.ts`'s `/widgets/:id` (param path). The AI tool routes
       // (`/widgets/tools/*`) have the same shape and MUST also precede them for the same reason.
-      registerAdminWidgetListRoute({ app, deps });
+      registerAdminWidgetListRoute({ app, deps, errors });
       registerAdminWidgetPreviewRoute({ app, deps });
-      registerAdminWidgetRegionsListRoute({ app, deps });
-      registerAdminWidgetRegionBindRoute({ app, deps });
-      registerAdminWidgetRegionGetRoute({ app, deps });
-      registerAdminWidgetRegionMutatePlacementsRoute({ app, deps });
-      registerAdminWidgetAgentToolsRoutes({ app, deps });
-      registerAdminWidgetGetRoute({ app, deps });
-      registerAdminWidgetCreateRoute({ app, deps });
-      registerAdminWidgetUpdateRoute({ app, deps });
-      registerAdminWidgetTrashRoute({ app, deps });
-      registerAdminWidgetEmbedInsertRoute({ app, deps });
-      registerAdminWidgetEmbedRemoveRoute({ app, deps });
-      registerAdminWidgetEmbedReorderRoute({ app, deps });
+      registerAdminWidgetRegionsListRoute({ app, deps, errors });
+      registerAdminWidgetRegionBindRoute({ app, deps, errors });
+      registerAdminWidgetRegionGetRoute({ app, deps, errors });
+      registerAdminWidgetRegionMutatePlacementsRoute({ app, deps, errors });
+      registerAdminWidgetAgentToolsRoutes({ app, deps, errors });
+      registerAdminWidgetGetRoute({ app, deps, errors });
+      registerAdminWidgetCreateRoute({ app, deps, errors });
+      registerAdminWidgetUpdateRoute({ app, deps, errors });
+      registerAdminWidgetTrashRoute({ app, deps, errors });
+      registerAdminWidgetEmbedInsertRoute({ app, deps, errors });
+      registerAdminWidgetEmbedRemoveRoute({ app, deps, errors });
+      registerAdminWidgetEmbedReorderRoute({ app, deps, errors });
     },
   };
 }
