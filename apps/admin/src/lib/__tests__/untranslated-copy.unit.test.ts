@@ -54,10 +54,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */
-const MODULES_WITHOUT_DICTIONARY = new Set([
-  // Reads a descriptor's own `i18n` map; carries no copy of its own.
-  "../descriptor-i18n.ts",
-]);
+const MODULES_WITHOUT_DICTIONARY = new Set<string>([]);
 
 const NON_ENGLISH_LOCALES = ADMIN_LOCALES.map((option) => option.code).filter((code) => code !== "en");
 

@@ -1,31 +1,18 @@
-import { useCallback as useQueryFetchCallback } from "react";
-import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useEffect } from "react";
-
-import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
-import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-
 /**
- * @file Settings → User Interface's preferences, read live for the admin shell. `App.tsx` turns them
- * into classes on `.admin-layout` that gate CSS rules:
- *
- * - "Hide the chat button while the chat is open" (owner, 2026-10-06) → `hides-fab-while-open`,
- *   which gates the hide-while-open rules (`styles/assistant.css` for desktop, `styles.css` for the
- *   phone sheet), so the FAB either hides while the dock is open (default, the ✕ closes it) or
- *   stays on top of it and toggles it closed.
- * - "Wrap tabs instead of scrolling" (owner, 2026-10-07) → `wraps-tabs`, which turns the phone's
- *   one-row swipeable tab strips (`styles.css`, mobile catalog P-2) back into wrapping rows.
- *
- * Same load-then-follow-refreshes shape as `useAdminLocale`: the Settings tab's own save echoes
- * back over the settings-changed feed, so flipping a toggle updates the shell without a reload.
- * One read covers every preference in the namespace.
+ * @file Host binding of the shared interface-preferences hook (Settings -> User Interface): supplies
+ * the live port over `lib/settings-tabs`, the namespace, the defaults and the host's fetch-query
+ * hooks. The load-then-follow-refreshes behaviour and `resolveAdminLayoutClassName` live in
+ * `@jini-ai/admin/shell/hooks/use-interface-preferences.hooks`.
  */
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import {
+  useInterfacePreferences as useSharedInterfacePreferences,
+  type InterfacePreferencesPort as SharedInterfacePreferencesPort,
+} from "@jini-ai/admin/shell/hooks/use-interface-preferences.hooks";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
 
-export interface InterfacePreferencesPort {
-  loadInterface(): Promise<InterfaceConfig>;
-  subscribeToSettingsRefresh(required: { listener: () => void }): () => void;
-}
+export type InterfacePreferencesPort = SharedInterfacePreferencesPort<InterfaceConfig>;
 
 export const defaultInterfacePreferencesPort: InterfacePreferencesPort = {
   loadInterface,
@@ -35,26 +22,7 @@ export const defaultInterfacePreferencesPort: InterfacePreferencesPort = {
     }),
 };
 
-/**
- * {@link DEFAULT_INTERFACE} until the stored values arrive, so the default behaviour never flickers
- * in. A failed read keeps the last values rather than flipping the shell on a network error.
- *
- * @complexity O(1) per load.
- */
+/** {@link DEFAULT_INTERFACE} until the stored values arrive; a failed read keeps the last values. */
 export function useInterfacePreferences(port: InterfacePreferencesPort = defaultInterfacePreferencesPort): InterfaceConfig {
-  const { queryScope, checking } = useAdminBootScope();
-  const queryFetch = useQueryFetchCallback(() => port.loadInterface(), [port]);
-  const query = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE, queryScope], fetch: queryFetch }, { enabled: !checking, staleTime: Infinity });
-  const invalidate = useInvalidate();
-  useEffect(() => port.subscribeToSettingsRefresh({ listener: () => invalidate({ key: ["settings", INTERFACE_NAMESPACE] }) }), [port, invalidate]);
-  return query.data ?? DEFAULT_INTERFACE;
-}
-
-/** `.admin-layout`'s class list: each preference's CSS rules apply only under its class. */
-export function resolveAdminLayoutClassName(preferences: InterfaceConfig): string {
-  return [
-    "admin-layout",
-    preferences.hideChatFabWhileOpen ? "hides-fab-while-open" : null,
-    preferences.wrapTabs ? "wraps-tabs" : null,
-  ].filter(Boolean).join(" ");
+  return useSharedInterfacePreferences<InterfaceConfig>({ port, namespace: INTERFACE_NAMESPACE, defaultPreferences: DEFAULT_INTERFACE, useFetchQuery, useInvalidate });
 }

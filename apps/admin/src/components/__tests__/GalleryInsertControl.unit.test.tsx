@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { act, renderHook, render, screen, fireEvent } from '@/__tests__/fetch-query-render';
 import { EmbedInsertControl } from '../EmbedInsertControl/EmbedInsertControl';
 import { useEmbedInsertControl, type EmbedEditor } from '../EmbedInsertControl/EmbedInsertControl.hooks';
-import type { WidgetPickerPort } from '../WidgetPickerDialog/widget-picker-port.hooks';
+import type { WidgetPickerPort } from '@jini-ai/admin/shell/components/WidgetPickerDialog/widget-picker-port.hooks';
 
 describe('Insert Gallery', () => {
   it('adds Gallery to the existing Insert menu and opens the pinned gallery control', () => {

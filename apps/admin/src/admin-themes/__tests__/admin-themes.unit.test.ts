@@ -164,7 +164,7 @@ describe("admin theme cascade", () => {
     const values: Record<string, Record<string, string>> = {};
     parse(bridge).walkRules((rule) => {
       rule.walkDecls((decl) => {
-        if (!decl.prop.startsWith("--tovu-admin-")) return;
+        if (!decl.prop.startsWith("--tovu-admin-") && !decl.prop.startsWith("--jini-admin-settings-control-")) return;
         for (const selector of rule.selectors) (values[selector] ??= {})[decl.prop] = decl.value;
       });
     });
@@ -190,16 +190,16 @@ describe("admin theme cascade", () => {
       ":root:not([data-admin-theme])": classicRoot,
       ':root[data-admin-theme="classic"]': classicRoot,
       [panels]: {
-        "--tovu-admin-settings-control-bg": "var(--jini-control-bg)",
-        "--tovu-admin-settings-control-border": "var(--jini-control-border)",
+        "--jini-admin-settings-control-bg": "var(--jini-control-bg)",
+        "--jini-admin-settings-control-border": "var(--jini-control-border)",
       },
       ".jini-select-menu": {
         "--tovu-admin-select-menu-bg": "var(--jini-bg-elevated)",
         "--tovu-admin-select-menu-shadow": "var(--jini-overlay-shadow)",
       },
       [`${classicScope} ${panels}`]: {
-        "--tovu-admin-settings-control-bg": "var(--jini-bg-panel)",
-        "--tovu-admin-settings-control-border": "var(--jini-border)",
+        "--jini-admin-settings-control-bg": "var(--jini-bg-panel)",
+        "--jini-admin-settings-control-border": "var(--jini-border)",
       },
       [`${classicScope} .jini-select-menu`]: {
         "--tovu-admin-select-menu-bg": "var(--jini-bg-panel)",

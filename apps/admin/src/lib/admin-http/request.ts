@@ -6,7 +6,7 @@ import type { AdminHttpOptions } from "@jini-ai/core/admin-runtime";
 import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "../admin-failure-channel";
 import { isPageUnloading } from "@jini-ai/admin/shell/lib/page-lifecycle";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE } from "../server-reconnect";
-import { BASE } from "./config";
+import { BASE } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 
 export class ApiError extends Error {

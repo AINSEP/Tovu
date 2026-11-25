@@ -5,7 +5,7 @@ import {
   describePushToTalkIndicator,
   nextPushToTalkState,
   type PushToTalkState,
-} from "../push-to-talk-state.hooks";
+} from "@jini-ai/admin/screens/voice-input/hooks/push-to-talk-state.hooks";
 import { describeCaptureError } from "../use-push-to-talk.hooks";
 
 describe("nextPushToTalkState", () => {

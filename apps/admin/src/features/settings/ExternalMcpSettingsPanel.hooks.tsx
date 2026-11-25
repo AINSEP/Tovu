@@ -12,7 +12,7 @@ import {
   externalMcpNeedsSignIn,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
-} from "./rules";
+} from "@jini-ai/admin/screens/settings/rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

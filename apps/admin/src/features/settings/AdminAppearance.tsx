@@ -1,3 +1,4 @@
+import { ACCENT_SWATCH_PRESETS } from "@jini-ai/ui/core";
 import { ACCENT_SWATCHES, I18nProvider, resolveAccentColor, SETTINGS_DIALOG_DICTIONARIES, useT } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import {
@@ -12,7 +13,7 @@ import { adminThemeAccent, withAdminThemeAccent } from "../../lib/settings-tabs"
 import { AdminThemeSchemeControl } from "../admin-themes";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { useAdminAppearanceSettings } from "./hooks/use-admin-appearance-settings.hooks";
-import { accentSwatchName, describeSaveStatus } from "./rules";
+import { accentSwatchName, buildAccentSwatchNames, describeSaveStatus } from "@jini-ai/admin/screens/settings/rules";
 import { t as settingsT } from "@jini-ai/admin/screens/settings/settings-i18n";
 
 /** Admin UI composes the compact scheme picker and Jini-backed accent fields.
@@ -68,6 +69,8 @@ function AdminAppearanceContent({ locale, port, env, boundary, state, appearance
 
 /** Tovu's own presets, after Jini's generic palette: the stock tovu-theme `--gold`. */
 const TOVU_ACCENT_SWATCHES = ["#ffba3e"] as const;
+/** Swatch accessible names: the shared presets' own name keys, plus the host's extra gold preset. */
+const ACCENT_SWATCH_NAMES = buildAccentSwatchNames({ presets: ACCENT_SWATCH_PRESETS, extraNames: { "#ffba3e": "Gold" } });
 
 /** Host composition of Jini's palette/validation. Default clears the override; CSS is preview-only. */
 function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange, locale,
@@ -83,7 +86,7 @@ function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, on
       <div className="jini-accent-swatches" role="radiogroup" aria-label={t("Accent color")}>
         {swatches.map((color, index) => {
           // A colour name, not the hex (owner bug 11-01); the hex stays in the tooltip below.
-          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName({ color }) });
+          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName({ color, names: ACCENT_SWATCH_NAMES }) });
           const selected = color === defaultAccent ? accentColor === undefined : accentColor !== undefined && resolvedAccent === color;
           return (
             <button

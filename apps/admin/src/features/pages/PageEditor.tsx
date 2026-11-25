@@ -18,8 +18,8 @@ import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placehol
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
-import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
+import { DevicePreviewToggle } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewToggle";
 
 import { siteUrl } from "../../lib/site-url";
 import type {

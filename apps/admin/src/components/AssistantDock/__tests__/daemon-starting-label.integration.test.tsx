@@ -5,7 +5,7 @@ import type { ChatPane, FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
 import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
-import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@/lib/assistant-daemon-activation";
+import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@jini-ai/admin/shell/lib/assistant-daemon-activation";
 import { resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { AssistantDock } from "../AssistantDock";

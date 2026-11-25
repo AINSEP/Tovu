@@ -1,4 +1,4 @@
-import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { createPostsTranslator } from "@jini-ai/admin/posts/Posts.hooks";
 import { t as translateForPosts } from "./posts-i18n";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
@@ -84,7 +84,7 @@ export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLoc
   // ever active at a time. Migrated onto `DataTable`'s own shared sort mechanism the same day: this
   // state and its setter are now passed straight through as `sort`/`onSortChange` below, and
   // `DataTable` itself applies each column's comparator, computes the next click's state, and
-  // renders the caret/`aria-sort` — see `lib/admin-post-list-sort.ts` for what's left here.
+  // renders the caret/`aria-sort` — see `@jini-ai/admin/shell/lib/admin-post-list-sort` for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_ADMIN_POST_SORT);
 
   // `postsListNotice` answers non-null exactly when `posts` is null, so gating on `!posts` returns
@@ -133,7 +133,7 @@ export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLoc
             // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02;
             // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
-            // domain-specific comparator and label wording live in `lib/admin-post-list-sort.ts`.
+            // domain-specific comparator and label wording live in `@jini-ai/admin/shell/lib/admin-post-list-sort`.
             sort: { compare: compareAdminPostsByTitle, label: (direction) => columnSortLabel({ t: t, columnName: t("Title"), direction: direction }) },
             cell: (post) => (
               <a

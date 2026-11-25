@@ -1,14 +1,15 @@
-import { createEmailProviderLabel, createEmailProviderSelect } from "./EmailProviderTab.hooks";
+import { createEmailProviderLabel, createEmailProviderSelect } from "@jini-ai/admin/screens/email/EmailProviderTab.hooks";
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "@jini-ai/admin/screens/email/email-api.types";
-import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
+import { Chip, Loaded, Section, when, type Tone } from "@jini-ai/admin/screens/email/EmailParts";
+import { Segments } from "./EmailSegments";
 import { isFullyActive, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 
 /**

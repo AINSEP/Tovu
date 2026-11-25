@@ -17,7 +17,8 @@ vi.mock("../../../features/plugins/composer-capabilities", async (importOriginal
   };
 });
 
-import { buildAssistantMcpUiSandboxProxyUrl } from "../hooks/assistant-mcp-ui";
+import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildAssistantMcpUiSandboxProxyUrl } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-mcp-ui";
 import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
 import { extractResumeCapableAgentIds, getResumeCapableAgentIds, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
 import { useRuntimeAccess } from "../hooks/runtime-access.hooks";
@@ -274,12 +275,12 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
   const hostOrigin = "https://admin.example.com";
 
   it("returns a data: URL, not a same-origin http(s) route — a data: URL's origin is always opaque", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin, buildSandboxProxyDataUrl });
     expect(url.protocol).toBe("data:");
   });
 
   it("bakes the given host origin into the served script instead of trusting window.location.origin", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin, buildSandboxProxyDataUrl });
     const encoded = url.href.slice(url.href.indexOf(",") + 1);
     const html = decodeURIComponent(encoded);
     expect(html).toContain(`var hostOrigin = ${JSON.stringify(hostOrigin)};`);
@@ -287,7 +288,7 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
   });
 
   it("executes the proxy handshake with an exact host origin and ignores foreign senders", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin, buildSandboxProxyDataUrl });
     const html = decodeURIComponent(url.href.slice(url.href.indexOf(",") + 1));
     const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
     const host = { postMessage: vi.fn() };

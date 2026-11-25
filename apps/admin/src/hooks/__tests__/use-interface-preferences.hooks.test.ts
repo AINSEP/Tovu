@@ -3,11 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InterfaceConfig } from "../../lib/settings-tabs";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import {
-  resolveAdminLayoutClassName,
-  useInterfacePreferences,
-  type InterfacePreferencesPort,
-} from "../use-interface-preferences.hooks";
+import { resolveAdminLayoutClassName } from "@jini-ai/admin/shell/hooks/use-interface-preferences.hooks";
+import { useInterfacePreferences, type InterfacePreferencesPort } from "../use-interface-preferences.hooks";
 
 /**
  * @file Settings → User Interface's preferences ("Hide the chat button while the chat is open",

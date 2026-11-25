@@ -7,19 +7,33 @@
  * theme's value.
  */
 :root {
+  --jini-admin-accent: var(--accent);
   --jini-admin-border: var(--border);
+  --jini-admin-border-strong: var(--border-strong);
   --jini-admin-danger: var(--danger);
+  --jini-admin-danger-bg: var(--danger-bg);
   --jini-admin-faint: var(--faint);
   --jini-admin-fg: var(--fg);
   --jini-admin-fg-2: var(--fg-2);
+  --jini-admin-focus-ring: var(--focus-ring);
   --jini-admin-font-display: var(--font-display);
+  --jini-admin-font-mono: var(--font-mono);
+  --jini-admin-form-measure: var(--form-measure);
   --jini-admin-link: var(--link);
   --jini-admin-muted: var(--muted);
+  --jini-admin-ok: var(--ok);
+  --jini-admin-ok-bg: var(--ok-bg);
   --jini-admin-primary: var(--primary);
   --jini-admin-r-lg: var(--r-lg);
   --jini-admin-r-md: var(--r-md);
   --jini-admin-r-sm: var(--r-sm);
   --jini-admin-shadow-sm: var(--shadow-sm);
+  --jini-admin-site-preview-bg: var(--tovu-site-preview-bg);
+  --jini-admin-space-1: var(--space-1);
+  --jini-admin-space-2: var(--space-2);
+  --jini-admin-space-3: var(--space-3);
+  --jini-admin-space-4: var(--space-4);
+  --jini-admin-space-5: var(--space-5);
   --jini-admin-surface: var(--surface);
   --jini-admin-surface-2: var(--surface-2);
   --jini-admin-surface-3: var(--surface-3);
@@ -30,3 +44,7 @@
   --jini-admin-warning: var(--warning);
   --jini-admin-warning-bg: var(--warning-bg);
 }
+/* `--row-text-min` is declared on the shared plugin/agent-plugin row (styles.css), not on `:root`, so
+   its binding is declared on that same row and inherited by the Skills summary inside it. */
+.agent-plugin-row-main,
+.plugin-row-main { --jini-admin-row-text-min: var(--row-text-min); }

@@ -1,4 +1,4 @@
-import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../lib/assistant-daemon-activation";
+import { activateAssistantDaemon, prepareAssistantPageBinding } from "@jini-ai/admin/shell/lib/assistant-daemon-activation";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type ChatPaneAgentSelection, type FrontendSessionBridge } from "@jini-ai/chat/react";

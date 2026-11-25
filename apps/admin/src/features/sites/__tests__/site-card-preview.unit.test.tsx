@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
-import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
+import { adminSitePreviewUrl } from "@jini-ai/admin/shell/lib/admin-http/urls";
 import { AllSitesTab, type AllSitesTabProps } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 

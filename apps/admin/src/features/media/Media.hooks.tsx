@@ -1,6 +1,6 @@
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { Icon } from "@jini-ai/ui";
-import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
+import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 
 /**
  * @file `Media.tsx`'s own derived-value logic for its tab strip, split out per the

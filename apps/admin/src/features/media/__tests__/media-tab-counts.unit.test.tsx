@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import { resolveMediaTabs } from "../Media.hooks";
-import { mediaContentTabCounts } from "../rules";
+import { mediaContentTabCounts } from "@jini-ai/admin/screens/media/rules";
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { defaultMediaPickerPort } from "@/components/MediaPickerDialog/media-picker-dependencies.hooks";
-import type { MediaPickerPort } from "@/components/MediaPickerDialog/media-picker-port.hooks";
+import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 import { defaultFeaturedImageRenditionUrl } from "./post-editor-dependencies.hooks";
 
 /**

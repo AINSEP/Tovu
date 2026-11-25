@@ -4,7 +4,7 @@ import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary, type LibraryController } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { readFileAsBase64 } from "../../media/rules";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
 import { t as translate } from "../library-i18n";
 import { defaultLibraryPort } from "./library-dependencies.hooks";
 

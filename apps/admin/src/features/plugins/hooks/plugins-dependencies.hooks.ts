@@ -3,7 +3,7 @@ import type { AdminPluginDto, AdminPluginFilesEnvelope } from "@jini-ai/core/con
 import { pluginsApi } from "@/features/plugins/plugins-host-ports";
 import { providersApi } from "@/features/providers/providers-host-ports";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
 import type { PluginsPort } from "@jini-ai/admin/screens/plugins/hooks/plugins-port.hooks";
 

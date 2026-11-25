@@ -23,7 +23,11 @@ const PLUGIN_GUIDANCE_PIN = path.join(repoRoot, "apps/website/src/features/agent
 const VENDOR_VOCABULARY = /google|googleapis|gsheets|spreadsheet|drive\.file|picker/i;
 const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".mjs", ".js", ".json", ".md", ".html"]);
 
-/** The generic seam files and folders (repo-relative). Folders are scanned recursively. */
+/**
+ * The generic seam files and folders (repo-relative). Folders are scanned recursively. The admin's
+ * `AgentPluginSurfaceFrame` and `use-agent-plugin-surfaces` hook moved into `@jini-ai/admin`
+ * (`screens/plugins`) with the admin extraction, so they are no longer Tovu files to scan here.
+ */
 const SEAMS = [
   "apps/website/src/features/agent-plugins",
   "apps/website/src/features/api-connections",
@@ -34,10 +38,8 @@ const SEAMS = [
   "apps/website/src/server/runtime/composition/agent-plugin-connections.ts",
   "apps/website/src/server/runtime/composition/modules/agent-plugins.ts",
   "apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts",
-  "apps/admin/src/features/plugins/AgentPluginSurfaceFrame.tsx",
   "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
-  "apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts",
-  "apps/admin/src/features/plugins/hooks/use-agent-plugin-surfaces.hooks.ts",
+  "apps/admin/src/features/plugins/hooks/use-host-admin-surface-frame.hooks.ts",
   "apps/admin/src/features/plugins/hooks/agent-plugin-surfaces-dependencies.hooks.ts",
   "apps/admin/src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx",
 ];

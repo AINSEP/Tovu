@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import ts from "typescript";
 import { COMMON_I18N, tProviders as t } from "../../../lib/i18n-common";
 
@@ -55,9 +55,12 @@ describe("PROVIDERS_DICT: cross-locale key parity", () => {
 
   // Parse actual calls, excluding comments and strings that only look like calls.
   const CALL_SITE_KEYS = new Set<string>();
+  // The Always allow panel lives in `@jini-ai/admin` now; its built output is what the host ships.
+  const jiniPanel = ["node_modules", "../../node_modules"].map((root) => `${root}/@jini-ai/admin/dist/screens/providers/AlwaysAllowPanel.js`).find((path) => existsSync(path));
+  expect(jiniPanel, "built @jini-ai/admin AlwaysAllowPanel").toBeTruthy();
   for (const file of ["Providers.tsx", "AlwaysAllowPanel.tsx"]) {
-    const source = readFileSync(`src/features/providers/${file}`, "utf8");
-    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const source = readFileSync(file === "AlwaysAllowPanel.tsx" ? (jiniPanel as string) : `src/features/providers/${file}`, "utf8");
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file === "AlwaysAllowPanel.tsx" ? ts.ScriptKind.JS : ts.ScriptKind.TSX);
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
         const input = node.arguments[0];

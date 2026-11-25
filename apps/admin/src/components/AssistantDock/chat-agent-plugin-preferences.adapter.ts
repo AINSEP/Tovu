@@ -2,7 +2,7 @@
 import { useFetchQuery, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
 import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
-import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
+import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from '@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences';
 import { loadChatAgentPlugins, saveChatAgentPlugins, type ChatAgentPlugins } from '@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences';
 import { useChatAgentPlugins, type ChatAgentPluginsController, type ChatAgentPluginsPort } from '@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks';
 

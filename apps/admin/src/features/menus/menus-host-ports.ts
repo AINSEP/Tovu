@@ -1,6 +1,6 @@
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { ApiError, request } from "@/lib/admin-http/request";
 import type { MenusHostKit } from "@jini-ai/admin/screens/menus/menus-host-kit";
 import { createMenusApi } from "@jini-ai/admin/screens/menus/api/menus-api";

@@ -3,7 +3,6 @@ import { act, renderHook } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FAB_EDGE_MARGIN, useFabPosition, type FabPositionResult } from "@jini-ai/admin/shell/components/ChatFab/ChatFab.hooks";
-import { FAB_POSITION_STORAGE_KEY } from "../ChatFab/ChatFab";
 
 /**
  * @file `useFabPosition` — pins the free-drag fix (MSG-09 follow-up): a drop anywhere on screen
@@ -67,14 +66,14 @@ afterEach(() => {
 
 describe("default position", () => {
   it("rests bottom-right, flush against the edge margin, before any drag", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
     expect(result.current.style).toEqual({ right: FAB_EDGE_MARGIN, bottom: FAB_EDGE_MARGIN });
   });
 });
 
 describe("click vs. drag threshold", () => {
   it("movement under the threshold is a tap: no position change, nothing persisted, drag flag stays clear", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
     const rect = { left: 924, top: 724, right: 980, bottom: 780 };
 
     act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
@@ -92,7 +91,7 @@ describe("free-form drag (no edge-snap)", () => {
     const addListener = vi.spyOn(document, "addEventListener");
     const removeListener = vi.spyOn(document, "removeEventListener");
     try {
-      const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+      const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
       const rect = { left: 924, top: 724, right: 980, bottom: 780 };
       act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
       act(() => pointerMove(552, 402));
@@ -119,7 +118,7 @@ describe("free-form drag (no edge-snap)", () => {
   });
 
   it("a drop in the middle of the screen stays in the middle of the screen", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
     // Starts at the default bottom-right resting spot (right=20, bottom=20 at this 1000x800
     // viewport) and drags 400px left, 350px up — well past the drag threshold, and nowhere near
     // either vertical edge on release.
@@ -149,7 +148,7 @@ describe("free-form drag (no edge-snap)", () => {
 describe("legacy shape migration", () => {
   it("migrates a legacy right-side value to a rightFraction flush against the right edge", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "right", bottomFraction: 0.3 }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     // side: "right" always rested exactly FAB_EDGE_MARGIN from the right edge — the migration
     // should reproduce that same resting spot, not the default corner.
@@ -158,7 +157,7 @@ describe("legacy shape migration", () => {
 
   it("migrates a legacy left-side value to a rightFraction flush against the left edge", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "left", bottomFraction: 0.75 }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     // side: "left" rested FAB_EDGE_MARGIN from the LEFT edge, i.e. innerWidth - margin - size
     // from the right edge (1000 - 20 - 56 = 924) — same physical spot, expressed the new way.
@@ -167,7 +166,7 @@ describe("legacy shape migration", () => {
 
   it("falls back to the default position for a malformed stored value, without throwing or producing NaN", () => {
     localStorage.setItem(STORAGE_KEY, "{not json");
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     expect(result.current.style).toEqual({ right: FAB_EDGE_MARGIN, bottom: FAB_EDGE_MARGIN });
     expect(Number.isNaN(result.current.style.right)).toBe(false);
@@ -176,7 +175,7 @@ describe("legacy shape migration", () => {
 
   it("falls back to the default position for a well-formed but unrecognized shape", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ foo: "bar" }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     expect(result.current.style).toEqual({ right: FAB_EDGE_MARGIN, bottom: FAB_EDGE_MARGIN });
   });
@@ -186,7 +185,7 @@ describe("resize re-clamp", () => {
   it("recomputes pixels from the stored fraction on resize rather than holding a stale value", () => {
     setViewport(2000, 1500);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ rightFraction: 0.5, bottomFraction: 0.5 }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     expect(result.current.style).toEqual({ right: 1000, bottom: 750 });
 
@@ -201,7 +200,7 @@ describe("resize re-clamp", () => {
   it("keeps the FAB on-screen after a drastic shrink, even when fraction*width would land it off-screen", () => {
     setViewport(2000, 1500);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ rightFraction: 0.9, bottomFraction: 0.9 }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0 }));
 
     act(() => {
       setViewport(300, 300);
@@ -217,7 +216,7 @@ describe("resize re-clamp", () => {
 
 describe("dock-open bottom clearance", () => {
   it("still holds above the mobile sheet while the dock is open, independent of the horizontal axis", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 300 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 300 }));
     // Default resting bottom (20) is below the sheet's clearance requirement (300 + 20 = 320),
     // so the dock-open floor wins; the right offset is untouched by dockOpen.
     expect(result.current.style).toEqual({ right: FAB_EDGE_MARGIN, bottom: 320 });
@@ -229,7 +228,7 @@ describe("dock-open bottom clearance", () => {
     // Math.max outright and set `bottom` past the viewport, putting the FAB above the top edge
     // where it cannot be seen or clicked. Every other position here is clamped; this one was not.
     setViewport(1500, 800);
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 900 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 900 }));
 
     const maxBottom = 800 - FAB_EDGE_MARGIN - FAB_SIZE_PX;
     expect(result.current.style.bottom).toBe(maxBottom);
@@ -240,7 +239,7 @@ describe("dock-open bottom clearance", () => {
 
   it("keeps the margin as a floor when the sheet reports zero height", () => {
     setViewport(1500, 800);
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0 }));
     expect(result.current.style.bottom).toBe(FAB_EDGE_MARGIN);
   });
 });
@@ -254,18 +253,18 @@ describe("dock-open bottom clearance", () => {
  */
 describe("avoidRightPx — holding clear of the desktop dock", () => {
   it("with the dock open, the FAB is pushed left of the dock's measured width plus the edge margin", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
     expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
   });
 
   it("with the dock CLOSED the same clearance is ignored — the FAB returns to its resting spot", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: false, avoidBottomPx: 0, avoidRightPx: 380 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: false, avoidBottomPx: 0, avoidRightPx: 380 }));
     expect(result.current.style.right).toBe(FAB_EDGE_MARGIN);
   });
 
   it("a dock wider than the viewport cannot push the FAB off the left edge, where it would look simply missing", () => {
     const { result } = renderHook(() =>
-      useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: window.innerWidth * 4 }),
+      useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: window.innerWidth * 4 }),
     );
     expect(result.current.style.right).toBeLessThanOrEqual(window.innerWidth - FAB_EDGE_MARGIN);
     expect(result.current.style.right + FAB_SIZE_PX + FAB_EDGE_MARGIN).toBeLessThanOrEqual(window.innerWidth);
@@ -273,12 +272,12 @@ describe("avoidRightPx — holding clear of the desktop dock", () => {
   });
 
   it("omitting avoidRightPx entirely behaves exactly as before — the option is additive", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0 }));
     expect(result.current.style.right).toBe(FAB_EDGE_MARGIN);
   });
 
   it("raises the untouched default to the required dock clearance", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 10 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 10 }));
     // The resting right (FAB_EDGE_MARGIN) vs. the required clearance (10 + margin): the larger wins,
     // so clearance can only ever move the FAB further from the dock, never toward it.
     expect(result.current.style.right).toBe(10 + FAB_EDGE_MARGIN);
@@ -287,7 +286,7 @@ describe("avoidRightPx — holding clear of the desktop dock", () => {
   it("preserves a migrated left-side resting offset that already clears the dock when it opens", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "left", bottomFraction: 0.3 }));
     const { result, rerender } = renderHook(
-      ({ dockOpen }) => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
+      ({ dockOpen }) => useFabPosition({ storageKey: STORAGE_KEY, dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
       { initialProps: { dockOpen: false } },
     );
     const restingRight = window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX;
@@ -309,7 +308,7 @@ describe("pinnedByUser — a deliberate drop onto the open dock is respected", (
   const rect = { left: 924, top: 724, right: 980, bottom: 780 };
 
   it("a drag dropped inside the dock's avoidance band stays there instead of snapping back onto the page", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
 
     // Drags from the default resting spot (right=20) to right=200 — well inside the dock's
     // avoidance band (right < 380 + FAB_EDGE_MARGIN = 400) — and releases there.
@@ -325,7 +324,7 @@ describe("pinnedByUser — a deliberate drop onto the open dock is respected", (
 
   it("stays pinned across a dock close/reopen, not just for the render immediately after the drop", () => {
     const { result, rerender } = renderHook(
-      ({ dockOpen }: { dockOpen: boolean }) => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
+      ({ dockOpen }: { dockOpen: boolean }) => useFabPosition({ storageKey: STORAGE_KEY, dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
       { initialProps: { dockOpen: true } },
     );
     act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
@@ -340,7 +339,7 @@ describe("pinnedByUser — a deliberate drop onto the open dock is respected", (
   });
 
   it("the untouched default position still avoids the dock — preserves the composer click-eating fix", () => {
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
     // No drag at all — contrasts directly with the pinned-drop case above: same options, opposite
     // outcome, because nothing has been dropped yet.
     expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
@@ -348,7 +347,7 @@ describe("pinnedByUser — a deliberate drop onto the open dock is respected", (
 
   it("a migrated legacy position still avoids the dock — no unearned pass for a pre-free-drag value", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "right", bottomFraction: 0.3 }));
-    const { result } = renderHook(() => useFabPosition({ storageKey: FAB_POSITION_STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    const { result } = renderHook(() => useFabPosition({ storageKey: STORAGE_KEY, dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
     expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
   });
 });

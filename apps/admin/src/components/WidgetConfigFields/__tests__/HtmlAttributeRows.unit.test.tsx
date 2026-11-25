@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it } from "vitest";
 import { HtmlAttributeRows } from "../HtmlAttributeRows";
 import type { HtmlAttributeRowsController } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";

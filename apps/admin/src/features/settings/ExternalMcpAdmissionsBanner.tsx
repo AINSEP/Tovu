@@ -5,7 +5,7 @@ import { type AdmissionDriftConnection, type AdmissionDriftEntry } from "@jini-a
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
-import { EXTERNAL_MCP_DRIFT_COPY } from "./external-mcp-drift-copy";
+import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
 /**
  * @file "What the assistant is actually running" — the operator half of the refusal channel.
  *

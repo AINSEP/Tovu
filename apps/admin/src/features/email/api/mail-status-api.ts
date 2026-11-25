@@ -1,9 +1,6 @@
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import { request } from "../../../lib/admin-http/request";
-import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { request } from "@/lib/admin-http/request";
+import { createMailStatusApi } from "@jini-ai/admin/screens/email/api/mail-status-api";
 
-/** The admin API calls of the email feature. */
-export const mailStatusApi = {
-  /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
-  getMailStatus: () => request<AdminMailStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/mail-status` }),
-};
+/** The admin API calls of the mail-status feature, over this host's `request`. */
+export const mailStatusApi = createMailStatusApi({ request, workspaceId: WORKSPACE_ID });

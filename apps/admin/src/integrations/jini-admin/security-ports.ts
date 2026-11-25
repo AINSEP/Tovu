@@ -5,7 +5,7 @@ import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { interpolate } from '@jini-ai/core/text';
 import { contentRefreshApplies, publishContentRefresh, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { translateCredentialMessage } from '@tovu/contracts/credential-copy';
-import { WORKSPACE_ID } from '../../lib/admin-http/config';
+import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
 import { describeApiError } from '../../lib/admin-http/request';
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import { tSecurity as translateSecurity } from "../../lib/i18n-common";

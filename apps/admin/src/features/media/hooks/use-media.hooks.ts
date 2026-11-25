@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
+import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "@jini-ai/admin/screens/media/rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../media-i18n";
@@ -298,6 +298,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     listError: list.error,
     listFallback: translate({ locale: locale, key: "failed to load media" }),
     hasMedia: media !== null,
+    describeApiError,
   });
 
   return {

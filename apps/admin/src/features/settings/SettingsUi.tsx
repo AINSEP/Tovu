@@ -116,7 +116,8 @@ import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { Workspace } from "../workspace";
 import { t as tWorkspace } from "../workspace/workspace-i18n";
-import { describeSaveStatus, resolveByokConfig } from "./rules";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { describeSaveStatus, resolveByokConfig } from "@jini-ai/admin/screens/settings/rules";
 import { useWiredSettingsLocaleSync } from "../../integrations/jini-admin/settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { useSettingsActiveTabScroll } from "@jini-ai/admin/screens/settings/hooks/use-settings-active-tab-scroll.hooks";
@@ -311,7 +312,7 @@ export function SettingsUi({
   // press, and the tab this feeds isn't rendered until past the gate anyway. Pulled out to `rules.ts`
   // (2026-09-04, complexity-ceiling pass) — see `resolveByokConfig`'s own doc comment.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: resolveByokConfig({ executionConfig: s.execution.value as ExecutionConfig | null }),
+    byok: resolveByokConfig({ executionConfig: s.execution.value as ExecutionConfig | null, defaultByok: DEFAULT_EXECUTION_CONFIG.byok }),
     onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
   });
 

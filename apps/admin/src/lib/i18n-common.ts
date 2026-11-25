@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createCommonDictionary } from "@jini-ai/admin/shell/lib/i18n-common";
 import { createPluginsDictionary } from "@jini-ai/admin/screens/plugins/plugins-i18n";
 import { createSecurityDictionary } from "@jini-ai/admin/security/security-i18n";
 import { createIntegrationsDictionary } from "@jini-ai/admin/screens/integrations/integrations-i18n";
@@ -64,16 +65,13 @@ const OLDER_DESTINATION_I18N: Record<string, string> = {
   bn: "পুরনো Tovu সংস্করণে আছে এবং এখনো এগুলো ওভাররাইট করতে পারে না। এটি আপডেট করুন, তারপর আবার প্রকাশ করুন।",
 };
 
-/** Per Tovu locale row: the matching Jini locale spread first, the branded entry last, so the
- *  branded entry wins a key collision. Built inline rather than through an exported helper: the
- *  merge rule itself is product-neutral, and a neutral helper belongs in Jini, not in a host. */
-export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(OLDER_DESTINATION_I18N).map(([locale, olderDestination]) => {
-    const jiniEntries = ADMIN_COMMON_I18N[locale];
-    if (jiniEntries === undefined) throw new Error(`common dictionary ${locale} is missing from @jini-ai/admin`);
-    return [locale, { ...jiniEntries, [OLDER_DESTINATION_KEY]: olderDestination }];
-  }),
-);
+/** Per Tovu locale row: the matching Jini locale first, the branded entry last, so the branded
+ *  entry wins a key collision. The merge rule is product-neutral and lives in Jini
+ *  (`createCommonDictionary`); a Tovu locale missing from Jini throws at module load. */
+export const COMMON_I18N: Record<string, Record<string, string>> = createCommonDictionary({
+  baseDictionary: ADMIN_COMMON_I18N,
+  hostEntries: Object.fromEntries(Object.entries(OLDER_DESTINATION_I18N).map(([locale, olderDestination]) => [locale, { [OLDER_DESTINATION_KEY]: olderDestination }])),
+});
 
 /** The Settings dialog's "no backend yet" capability notes. They name this product (and the product
  *  its Skills note contrasts with), so Jini keeps the words with placeholders and this app binds

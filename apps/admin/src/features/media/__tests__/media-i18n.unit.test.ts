@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
-import { MEDIA_ORDER_OPTIONS } from "../rules";
+import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
@@ -146,7 +146,7 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
   it("translates every literal t() key in Media.tsx and rules.ts, plus the order-option labels, in every locale", () => {
     const keys = new Set(MEDIA_ORDER_OPTIONS.map((option) => option.label));
     for (const filename of ["Media.tsx", "rules.ts"]) {
-      const source = ts.createSourceFile(filename, readFileSync(resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
+      const source = ts.createSourceFile(filename, readFileSync(filename === "rules.ts" ? resolve(process.cwd(), "node_modules/@jini-ai/admin/src/screens/media/rules.ts") : resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
       function visit(node: ts.Node) {
         if (ts.isCallExpression(node)) {
           const callee = node.expression;

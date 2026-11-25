@@ -11,7 +11,7 @@ import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { useWiredLibrary } from "../hooks/use-wired-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
-import { readFileAsBase64 } from "@/features/media/rules";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
 import { LIBRARY_MAX_BYTES } from "@jini-ai/admin/screens/library/rules";
 
 /**

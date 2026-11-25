@@ -1,10 +1,11 @@
 import "@jini-ai/ui/settings-dialog.css";
-import "./skills.css";
+import "@jini-ai/admin/screens/skills/skills.css";
 import { Skills as SkillsScreen } from "@jini-ai/admin/screens/skills/Skills";
 import { useSkillsTranslator } from "@jini-ai/admin/screens/skills/Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { PlainTextBlocks } from "@/components/PlainTextBlocks";
-import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
+import { PlainTextBlocks } from "@jini-ai/admin/shell/components/PlainTextBlocks";
+import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
 import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "./skill-install-confirmation-host";

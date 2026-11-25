@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { createWidgetsApi } from "@jini-ai/admin/screens/widgets/api/widgets-api";
 

@@ -102,7 +102,7 @@ import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useM
 import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantDock/hooks/dock-chrome.hooks";
 import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
 import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
-import { useSelectedAgentPlugins, useSelectedPluginChips } from "../AssistantDock/hooks/selected-agent-plugins.hooks";
+import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
 import { useAssistantTransport, useLocalCliDaemonPrewarm } from "../AssistantDock/hooks/assistant-transport.hooks";
 import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
 import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";

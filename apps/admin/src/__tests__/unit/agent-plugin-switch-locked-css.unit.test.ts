@@ -18,6 +18,6 @@ describe("locked agent-plugin switch", () => {
   });
 
   it("shares the 38px lock slot with the linked padlock", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ".agent-plugin-linked-lock")).toMatch(/width:\s*38px;/);
+    expect(effectiveDeclarationsFor(stylesheet, ".jini-agent-plugin-linked-lock")).toMatch(/width:\s*38px;/);
   });
 });

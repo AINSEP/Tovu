@@ -5,7 +5,7 @@ import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import type { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
-import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
 import { closePublishRequest, type usePublishRequest } from "./features/publish-content/hooks/publish-request.store";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";

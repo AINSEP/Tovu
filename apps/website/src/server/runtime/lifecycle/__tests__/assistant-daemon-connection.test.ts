@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventEmitter } from "node:events";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import type { Serializable } from "node:child_process";
 import type { Request, Response } from "express";
 import { fetchAgentDaemon } from "../../composition/modules/assistant-daemon-client.js";
-import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
 import { createHttpRunDaemonClient } from "../../composition/modules/run-daemon-http-client.js";
@@ -12,6 +13,10 @@ import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observabili
 import { assistantDaemonToken, delegatedAssistantDaemonConnection, previousAssistantDaemonConnection, setAssistantDaemonConnection } from "../assistant-daemon-connection.js";
 import { ensureAssistantDaemonReady, isAssistantDaemonReady, resetAssistantDaemonSingletonForTests, registerSiteIdleStopHook, shutdownAssistantDaemon, startAssistantDaemon } from "../daemon-supervisor.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";
+
+// apps/website declares no @jini-ai/admin dependency of its own: resolve it from the admin app's
+// package (its declared owner) so the test loads the same public export the host uses.
+const { activateAssistantDaemon, prepareAssistantPageBinding } = await import(pathToFileURL(createRequire(new URL("../../../../../../admin/package.json", import.meta.url)).resolve("@jini-ai/admin/shell/lib/assistant-daemon-activation")).href);
 
 test("recovery snapshots retain the previous endpoint and site credential together", () => {
   const first = { url: "http://127.0.0.1:1/s/a", pid: 1, token: "first-site" };

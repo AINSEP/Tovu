@@ -13,7 +13,7 @@ import { registerAdminPageWebMcpTools } from "@jini-ai/agentic/dom/admin-page-to
 import { directPageAction } from "@tovu/headless";
 import { browserAgentSettingsPort, useAdminBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
-import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
+import { prepareAssistantPageBinding } from "@jini-ai/admin/shell/lib/assistant-daemon-activation";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -27,7 +27,7 @@ import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation 
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
-import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/owner-clients";
