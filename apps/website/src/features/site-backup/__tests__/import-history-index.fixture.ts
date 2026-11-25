@@ -8,6 +8,7 @@ import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops
 import { sweepExpired } from "@jini-ai/devops/backup/site/import-index/sweep";
 import { IMPORT_INDEX_STATE_SCHEMA, indexStatePaths, type ImportIndexState } from "@jini-ai/devops/backup/site/import-index/mode";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
+import { bindSiteImportIndexState } from "#src/server/runtime/composition/site-import-index-state";
 import { SiteImportRegistry } from "../import-registry.js";
 import { createSiteImportBackend } from "../import-backend.js";
 import { importFixture } from "./import.fixture.js";
@@ -70,4 +71,29 @@ export async function importHistoryIndexFixture({ t }: { t: TestContext }, _opti
     seedIndexState: (state: Omit<Parameters<typeof seedIndexState>[0], "root">, _optional: Record<string, never> = {}) => seedIndexState({ root, ...state }),
     seedWitness: (_required: Record<string, never>, _optional: Record<string, never> = {}) => seedWitness({ root }),
     backendPorts, backend: createSiteImportBackend(backendPorts), db, store, policy, clock, file, openCandidate };
+}
+
+/**
+ * The production authority binding (`bindSiteImportIndexState`) over an import fixture's directory, with a
+ * real registry and backend in front: what `composeSiteImportBackend` wires, minus the network. Tests may
+ * pass `cutoverPolicy: "enable"` to reach cutover/indexed; production stays on rollback.
+ */
+export function hostBoundBackend({ h, cutoverPolicy = "rollback", clock = h.payload.clock }: { h: Awaited<ReturnType<typeof importFixture>>; cutoverPolicy?: ImportHistoryPolicy["cutoverPolicy"]; clock?: { nowMs(): number } }, _optional: Record<string, never> = {}) {
+  const directory = h.registry.directory;
+  const policy: ImportHistoryPolicy = { cutoverPolicy, historyVisibleMs: 2_592_000_000, replayFenceMs: 31_536_000_000, legacyRetireMs: 2_592_000_000, sweepOnClockRollback: false };
+  const file = path.join(directory, "site-imports.db");
+  const open = ({ file, options }: { file: string; options: { readonly?: boolean; fileMustExist?: boolean } }, _optional: Record<string, never> = {}) => openNativeSqlite(file, options);
+  const checkIntegrity = ({ db }: { db: ReturnType<typeof openNativeSqlite>; file: string }, _optional: Record<string, never> = {}) => {
+    if (db.pragma("quick_check(1)", { simple: true }) !== "ok") throw Object.assign(new Error("Import history failed integrity check."), { code: "SQLITE_CORRUPT" });
+  };
+  const integrityMemo = createImportIndexIntegrityMemo({});
+  const backfill = bindSiteImportBackfill({ directory, fs: h.payload.fs, clock, policy, log: () => {},
+    openCandidate: (_required, _optional = {}) => {
+      if (!fs.existsSync(file)) fs.closeSync(fs.openSync(file, "wx", 0o600));
+      return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy, integrityMemo, checkIntegrity });
+    } });
+  const authority = bindSiteImportIndexState({ directory, policy, clock, fs, open, checkIntegrity, backfill, log: () => {} });
+  const registry = new SiteImportRegistry({ directory, payload: { ...h.payload, clock }, history: authority.history });
+  const backend = createSiteImportBackend({ ...h.backendPorts, registry, authority });
+  return { authority, registry, backend, policy, directory };
 }

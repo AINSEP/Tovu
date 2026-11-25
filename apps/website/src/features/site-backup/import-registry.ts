@@ -41,7 +41,7 @@ export class SiteImportRegistry {
   readonly directory: string;
   readonly history?: {
     read<T>(required: { run: (session: { kind: "legacy" } | { kind: "index"; db: SqliteSyncClient; store: ImportIndexStore; policy: ImportHistoryPolicy }, optional?: Record<string, never>) => T }, optional?: Record<string, never>): T;
-    locked<T>(required: { run: (session: { kind: "legacy" } | { kind: "index"; db: SqliteSyncClient; store: ImportIndexStore; policy: ImportHistoryPolicy; beforeWrite: (required: Record<string, never>, optional?: Record<string, never>) => void; expireHistory: (required: Record<string, never>, optional?: Record<string, never>) => void; sweep: (required: Record<string, never>, optional?: Record<string, never>) => void }, optional?: Record<string, never>) => Promise<T> }, optional?: Record<string, never>): Promise<T>;
+    locked<T>(required: { run: (session: { kind: "legacy"; confirm?: (required: Record<string, never>, optional?: Record<string, never>) => void } | { kind: "index"; db: SqliteSyncClient; store: ImportIndexStore; policy: ImportHistoryPolicy; beforeWrite: (required: Record<string, never>, optional?: Record<string, never>) => void; expireHistory: (required: Record<string, never>, optional?: Record<string, never>) => void; sweep: (required: Record<string, never>, optional?: Record<string, never>) => void }, optional?: Record<string, never>) => Promise<T> }, optional?: Record<string, never>): Promise<T>;
   };
   session: Parameters<Parameters<NonNullable<SiteImportRegistry["history"]>["locked"]>[0]["run"]>[0] = { kind: "legacy" };
   readonly payloadDirectory: string;
@@ -89,10 +89,19 @@ export class SiteImportRegistry {
       this.session.store.put({ row: required.row, beforeWrite: this.session.beforeWrite });
       return;
     }
+    this.confirmLegacyAuthority({});
     // History is kept for good; a finished import no longer needs the share link's path or query.
     const row = required.row.status === "ready" || required.row.status === "failed" ? { ...required.row, source: withoutQuery({ source: required.row.source }) } : required.row;
     this.payload.writeJsonAt({ file: this.file({ id: required.row.importId, suffix: ".json" }), value: row });
     fs.chmodSync(this.file({ id: required.row.importId, suffix: ".json" }), 0o600);
+  }
+  /** Before a legacy JSON put, confirm under the held lock that the snapshot is still the authority. */
+  private confirmLegacyAuthority(_required: Record<string, never>): void {
+    if (!this.history) return;
+    // Another process may have moved authority to the index since this lock's resolution; a stale JSON
+    // write then could let a pre-index reader create the same site twice.
+    if (this.session.kind !== "legacy" || !this.session.confirm) throw new Error("Legacy import history writes need the import lock.");
+    this.session.confirm({});
   }
   list(required: { principalId?: string }, _options: Record<string, never> = {}): SiteImportRecord[] {
     return fs.readdirSync(this.directory).map(name => recordIdOf({ name })).filter(id => id !== undefined).flatMap(importId => {
@@ -113,6 +122,8 @@ export class SiteImportRegistry {
   async exclusive<T>(required: { run: () => Promise<T> }, _options: Record<string, never> = {}): Promise<T> {
     return this.payload.lock.withFileLock({ lockPath: path.join(this.directory, ".import.lock"), run: async () => {
       if (!this.ready) {
+        // Nonmutating refusal check first: a refused workspace must not create or move payload directories.
+        this.history?.read({ run: (_session, _optional = {}) => undefined });
         ensurePayloadNamespace({ root: this.directory, paths: this.paths, fs: this.payload.fs });
         this.ready = true;
       }

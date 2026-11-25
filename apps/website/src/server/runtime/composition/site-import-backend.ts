@@ -78,7 +78,7 @@ export function composeSiteImportBackend(
     writeJsonAt: ({ file, value }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
   } });
   const args: Parameters<typeof createSiteImportBackend>[0] & { backfill: ReturnType<typeof bindSiteImportBackfill> } = {
-    registry, backfill,
+    registry, backfill, authority,
     workspace, createSite, startSite,
     restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options),
     reader: createShareArchiveReader({ yauzl }),

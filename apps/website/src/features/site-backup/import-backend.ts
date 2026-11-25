@@ -1,3 +1,4 @@
+import type { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-index/errors";
 import type { SiteImportRecord, SiteImportSource, SiteImportView, SiteImportPage, SiteImportPageInput } from "@jini-ai/core/contracts/site/site-import-history";
 import { admitImport } from "@jini-ai/devops/backup/site/import-index/admission";
 import { listPage, listAll, decodeCursor, encodeCursor } from "@jini-ai/devops/backup/site/import-index/paging";
@@ -40,7 +41,13 @@ export function parseSiteImportInput(required: { input: unknown }, _options: Rec
   return parseImportInput(required);
 }
 
+/** Import-history authority bound by the host (`bindSiteImportIndexState`): latched refusal, tidy-only retirement. */
+export interface SiteImportAuthority {
+  refusal(required: Record<string, never>, optional?: Record<string, never>): ImportHistoryUnavailable | undefined;
+  retire(required: Record<string, never>, optional?: Record<string, never>): { removed: number; finished: boolean };
+}
 type ImportBackendRequired = {
+  authority: SiteImportAuthority;
   registry: SiteImportRegistry; workspace: SitesWorkspace; reader: AgentPluginArchiveReaderPort; http: HttpClientPort;
   sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string };
   startSite: (required: { name: string }) => Promise<{ adminUrl: string | null; status: string }>;
@@ -251,11 +258,14 @@ async function completeImportOwner({ ctx, input, options }: { ctx: ImportBackend
 export function createSiteImportBackend(required: ImportBackendRequired, optional: ImportBackendOptional = {}): SiteImportBackend {
   const ctx = createImportContext({ required, optional });
   const { registry } = ctx;
+  // Once indexed history is refused, failing closed is what prevents a second site: every method stops here.
+  const available = () => { const error = required.authority.refusal({}); if (error) throw error; };
   const backend: SiteImportBackend = {
-    upload: (input) => uploadImportArchive({ ctx, input }),
-    importBackup: (input, options = {}) => startImportFromSource({ ctx, input, options }),
-    completeOwner: (input, options = {}) => completeImportOwner({ ctx, input, options }),
+    upload: async (input) => { available(); return uploadImportArchive({ ctx, input }); },
+    importBackup: async (input, options = {}) => { available(); return startImportFromSource({ ctx, input, options }); },
+    completeOwner: async (input, options = {}) => { available(); return completeImportOwner({ ctx, input, options }); },
     async list(input) {
+      available();
       const indexed = registry.history?.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return undefined;
         return listAll({ readPage: (page, _optional = {}) => listPage({ ...input, ...page, db: session.db, clock: registry.clock, policy: session.policy }) }).map(ctx.indexedView);
@@ -264,6 +274,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
       return ctx.exclusive({ run: async () => { registry.expire({}); return registry.list(input).map(ctx.view); } });
     },
     async listPage(input, _optional = {}) {
+      available();
       const indexed = registry.history?.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return undefined;
         const page = listPage({ ...input, db: session.db, clock: registry.clock, policy: session.policy });
@@ -283,6 +294,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
       } });
     },
     get(input) {
+      available();
       const row = registry.get(input);
       if (registry.history) return registry.history.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return ctx.view(row);
@@ -290,7 +302,16 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
       } });
       return ctx.view(row);
     },
-    async tidy() { await ctx.exclusive({ run: async () => { registry.expire({}); if (registry.session.kind === "index") registry.session.sweep({}); await tidyImportDatabases({}); } }); },
+    async tidy() {
+      available();
+      await ctx.exclusive({ run: async () => {
+        registry.expire({});
+        if (registry.session.kind === "index") registry.session.sweep({});
+        await tidyImportDatabases({});
+        // Snapshot retirement is tidy-only (no timer) and acts only once the index is the authority.
+        if (registry.session.kind === "index") required.authority.retire({});
+      } });
+    },
   };
   return backend;
 }

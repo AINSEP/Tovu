@@ -7,7 +7,7 @@ import { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-ind
 import { payloadPaths } from "@jini-ai/devops/backup/site/import-index/payload-namespace";
 import { sweepExpired } from "@jini-ai/devops/backup/site/import-index/sweep";
 import {
-  indexStatePaths, markIndexedWrite, readIndexState, resolveMode, retireLegacySnapshot, writeIndexState, writeIndexedWitness,
+  confirmLegacyAuthority, indexStatePaths, markIndexedWrite, readIndexState, resolveMode, retireLegacySnapshot, writeIndexState, writeIndexedWitness,
   type ImportIndexState, type IndexedWitnessFs, type LegacyRetireFs, type ResolveModeArgs, type RetryReason,
 } from "@jini-ai/devops/backup/site/import-index/mode";
 import { createDurableJsonFile, createNodeAtomicFilesystem, createNodeDurableJsonPorts, syncDirectoryBestEffort, writeJsonFileAtomic, type AtomicNativeFilesystem } from "@jini-ai/platform/fs";
@@ -214,7 +214,7 @@ export function bindSiteImportIndexState(required: Required, _optional: Record<s
       read: ({ run }, _optional = {}) => readHistory({ ports, required, latch, run }),
       locked: async ({ run }, _optional = {}) => {
         const { resolved } = resolveFor({ ports, required, access: "locked", latch });
-        if (resolved.mode === "legacy") return run({ kind: "legacy" }, {});
+        if (resolved.mode === "legacy") return run({ kind: "legacy", confirm: (_required, _optional = {}) => confirmLegacyAuthority({ state: ports.readState(), evidence: ports.evidence() }) }, {});
         try { return await run(indexSession({ ports, required, resolved }), {}); } finally { resolved.handle.close({}, {}); }
       },
     },

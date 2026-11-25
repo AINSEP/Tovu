@@ -147,7 +147,9 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const registry = new SiteImportRegistry({ directory: path.join(root, "private"), payload });
   fs.mkdirSync(registry.payloadDirectory, { mode: 0o700 });
   const started: string[] = [];
-  const backendPorts = { registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+  // No index authority here: nothing is ever refused and there is no snapshot to retire.
+  const authority = { refusal: () => undefined, retire: () => ({ removed: 0, finished: true }) };
+  const backendPorts = { authority, registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
     http: { send: async () => { throw new Error("unexpected network"); } },
     startSite: async ({ name }: { name: string }) => { started.push(name); return { adminUrl: "http://localhost:3101/admin", status: "running" }; },
     creationOptions: options,

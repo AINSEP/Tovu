@@ -6,6 +6,7 @@ import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { parseRequestObject, readStdinRequestLine, type RequestLineStream } from "@jini-ai/cli";
 import { leaveSavedKeysOut } from "@jini-ai/devops/backup/site/saved-keys";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-index/errors";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { createSitesWorkspace, ValidationError, type SitesWorkspace } from "#src/platform/site-dir/index";
@@ -61,7 +62,7 @@ export async function runImportLocalCommand(
     // The desktop starts the new site itself once it has the result.
     startSite: async () => ({ adminUrl: null, status: "stopped" }),
   });
-  if (request.tidy) { await backend.tidy({}); return null; }
+  if (request.tidy) { await inPlainWords({ run: () => backend.tidy({}) }); return null; }
   const signal = optional.signal ?? terminationSignal({ stop });
   const done = await inPlainWords({ run: async () => {
     const source = await resolveSource({ request, backend });
@@ -143,6 +144,8 @@ async function inPlainWords<T>({ run }: { run: () => Promise<T> }, _options = {}
   try { return await run(); }
   catch (error) {
     if (error instanceof SiteShareRefusal) throw new ValidationError({ message: error.message });
+    // Import-history refusals (missing, damaged, newer, busy) already carry a plain sentence and an error ID.
+    if (error instanceof ImportHistoryUnavailable) throw new ValidationError({ message: error.message });
     // A second app window importing at the same time waits on the first one's lock, then gives up.
     if (error instanceof FileLockTimeoutError) throw new ValidationError({ message: IMPORT_BUSY });
     // The zip reader's own sentence for a file that is not a zip; the person gets words they can act on.
