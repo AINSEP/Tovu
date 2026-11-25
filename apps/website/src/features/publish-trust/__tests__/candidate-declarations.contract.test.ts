@@ -33,10 +33,12 @@ test("candidate declarations preserve order across packages, with the core app.j
   assert.deepEqual(candidatePaths, ["example-first.toml", "example-second.yaml", "app.json", "example-late.yml"]);
   assert.equal(deployConfigGenerators.readBundledDeployWorkflowFile({ sourceRoot }), "example-deploy.yml");
   const reads: string[] = [];
-  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: {
-    read: async ({ path: file }) => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
+  // The neutral scan only needs `read`; the `write` that throws keeps proving the host io it is handed stays read-only.
+  const readOnlyIo = {
+    read: async ({ path: file }: { path: string }) => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
     write: async () => { throw new Error("read only"); },
-  } }, { candidatePaths }), "https://destination.example");
+  };
+  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: readOnlyIo }, { candidatePaths }), "https://destination.example");
   assert.deepEqual(reads, ["/repo/example-first.toml", "/repo/example-second.yaml"]);
 });
 
@@ -48,7 +50,8 @@ test("escaping candidates are refused before resolution or IO, including injecte
   }
   const sourceRoot = sources(t, { "example-bad": [{ ...entry, candidatePaths: [{ path: "../outside", order: 1 }] }] });
   assert.deepEqual(deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot }), ["app.json"]);
-  assert.equal(await findCandidateDestination({ resolvePath: () => { throw new Error("must not resolve"); }, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: { read: async () => { throw new Error("must not read"); }, write: async () => {} } }, { candidatePaths: invalid.filter((value): value is string => typeof value === "string") }), null);
+  const neverReadIo = { read: async (): Promise<string | null> => { throw new Error("must not read"); }, write: async () => {} };
+  assert.equal(await findCandidateDestination({ resolvePath: () => { throw new Error("must not resolve"); }, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: neverReadIo }, { candidatePaths: invalid.filter((value): value is string => typeof value === "string") }), null);
 });
 
 test("data discovery drops unreadable, invalid and ambiguous generator ids without importing code", t => {
