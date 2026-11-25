@@ -7,7 +7,7 @@ import type { InstanceAuthorizeFn } from '@jini-ai/core/gated-mutations';
 
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 
-import type { ProjectKeysPort } from '../project-keys/service.js';
+import type { CredentialCopyProjectKeysPort } from '@jini-ai/integrations/credentialed-http/tools';
 import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import type { CredentialCopyToolHost } from '@jini-ai/integrations/credentialed-http/tools';
 import { tovuCredentialCardIdentity } from './tovu-credential-card-identity.js';
@@ -21,7 +21,8 @@ export interface CredentialCopyToolDeps {
   readonly ownerPrincipalId: Promise<string>;
   readonly authorize: AuthorizeFn;
   readonly gatedMutations: { gatewayDeps: { authorizeInstance?: InstanceAuthorizeFn } };
-  readonly projectKeys?: ProjectKeysPort;
+  /** Only the project-keys members the neutral copy tool calls; the host binds its full Project Keys service. */
+  readonly projectKeys?: CredentialCopyProjectKeysPort;
 }
 export const catalog: AgentToolDefinition[] = [{ name: CREDENTIAL_COPY_TOOL_ID,
   description: 'Use a saved key or OAuth connection on this site. Opens the owner-only picker of Shared Keys and keys saved on other sites of this install, with one approval card. ' +

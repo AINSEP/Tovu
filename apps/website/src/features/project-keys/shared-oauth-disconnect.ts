@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ApiConnectionError, disconnectApiConnection, type ApiConnectionHooks } from '@jini-ai/integrations/api-connections';
 import type { Clock } from '@jini-ai/core/primitives';
-import type { SharedOAuthOwnerStorage } from '../api-connections/shared-owner.js';
 import type { KeyAttachments, ProjectKeyTransaction } from './attachments.js';
 
 export interface SharedOAuthDisconnectReport {
@@ -9,7 +8,20 @@ export interface SharedOAuthDisconnectReport {
   applied: boolean; status: string; remoteRevocation: 'confirmed' | 'pending' | 'not-needed';
 }
 
-type DisconnectOwner = { storage: SharedOAuthOwnerStorage; attachments: KeyAttachments; transaction: ProjectKeyTransaction; clock: Clock };
+type DisconnectDeps = Parameters<typeof disconnectApiConnection>[0]['deps'];
+/** The selected issuing context disconnect reads: the owner identity it re-checks and the descriptor revocation uses. */
+export interface SharedOAuthDisconnectContext {
+  readonly identity: { readonly pluginId: string; readonly connectionId: string };
+  readonly descriptor: DisconnectDeps['descriptor'];
+}
+/** Explicit owner-storage contract at the disconnect seam (the host binds the shared-owner storage). Method syntax keeps the
+ * context the storage returned flowing back into `tokensFor` unchanged. */
+export interface SharedOAuthDisconnectStorage {
+  readContext(input: { credentialId: string }): Promise<SharedOAuthDisconnectContext | null>;
+  readonly records: DisconnectDeps['records'];
+  tokensFor(input: { context: SharedOAuthDisconnectContext }): DisconnectDeps['tokens'];
+}
+type DisconnectOwner = { storage: SharedOAuthDisconnectStorage; attachments: KeyAttachments; transaction: ProjectKeyTransaction; clock: Clock };
 const changed = () => new ApiConnectionError({ code: 'storage-conflict', message: 'This saved connection or its site grants changed. Review the disconnect confirmation again.' });
 
 /** Review only the selected owner connection and its current grants.
