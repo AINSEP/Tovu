@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifest";
-import { parseLoginProviders as parseLoginProviderPresets } from "@jini-ai/user-management/server";
+import { parseLoginProviders } from "@jini-ai/user-management/server";
+import { loadLoginProviders as admitLoginProviders } from "@jini-ai/user-management/member-login/providers";
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { loadPluginContributionsFromSource, type LoadPluginContributions,
   type PluginContributionDefinition } from "../agent-plugins/lifecycle.js";
@@ -11,15 +12,6 @@ import type { LoginProviderPreset } from "@jini-ai/user-management/server";
 import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 
 export const LOGIN_PROVIDERS_FILENAME = "jini-login-providers.json";
-
-/** Parse a bounded v1 preset file. Failure exposes a fixed code, never raw plugin JSON.
- * The parser lives in `@jini-ai/user-management/server`; this keeps the host's name and signature.
- * @complexity O(bytes + p), bounded to 32 KiB and eight providers per package.
- */
-export function parseLoginProviders(required: { raw: string }, _options = {}):
-  { ok: true; descriptors: readonly LoginProviderPreset[] } | { ok: false; reason: string } {
-  return parseLoginProviderPresets({ raw: required.raw });
-}
 
 function fingerprint(value: LoginProviderPreset): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -49,18 +41,15 @@ export async function loadBundledLoginProviders(required: { sourceRoot: string }
 
 /** Reload activation/digest admission on start AND callback; compare the entire preset with the
  * shipped one. A trusted-looking installed id alone must never select an issuer or JWKS URL.
+ * Admission and duplicate refusal live in `@jini-ai/user-management`; this supplies the candidates.
  * @returns Unique admitted providers only; duplicated ids are refused in full.
  * @complexity O(p + b), installed and bundled provider counts; no per-member queries.
  */
 export async function loadLoginProviders(required: {
   workspaceId: string; loadContributions: LoadPluginContributions; bundledProviders: readonly LoginProvider[];
 }, _options = {}): Promise<readonly LoginProvider[]> {
-  const pins = new Map(required.bundledProviders.map(provider => [`${provider.pluginId}:${provider.id}`, provider]));
-  const pluginIds = new Set(required.bundledProviders.map(provider => provider.pluginId));
-  const loaded = await required.loadContributions({ workspaceId: required.workspaceId, definition: contribution }, { requireActive: true, orderByPluginId: true,
-    packageRefusal: ({ plugin }) => pluginIds.has(plugin.pluginId) ? undefined : "LOGIN_PROVIDER_UNTRUSTED" });
-  const admitted = loaded.items.filter(provider => pins.get(`${provider.pluginId}:${provider.id}`)?.configurationVersion === provider.configurationVersion);
-  const counts = new Map<string, number>();
-  for (const provider of admitted) counts.set(provider.id, (counts.get(provider.id) ?? 0) + 1);
-  return admitted.filter(provider => counts.get(provider.id) === 1);
+  return admitLoginProviders({ workspaceId: required.workspaceId, bundledProviders: required.bundledProviders,
+    loadCandidates: async ({ workspaceId, trustedPluginIds }) => (await required.loadContributions({ workspaceId, definition: contribution },
+      { requireActive: true, orderByPluginId: true,
+        packageRefusal: ({ plugin }) => trustedPluginIds.has(plugin.pluginId) ? undefined : "LOGIN_PROVIDER_UNTRUSTED" })).items });
 }

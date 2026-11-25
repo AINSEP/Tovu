@@ -20,7 +20,7 @@ import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composeAgentPluginMcp } from "../agent-plugin-service-ports.js";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
-import { createReadyLoginProviderList } from "#src/features/member-login/index";
+import { createTovuReadyLoginProviderList } from "#src/features/member-login/bindings";
 import { createSeoDeps } from "#src/features/seo/index";
 import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
 import { reportPrivacyDefaultsFailure } from "#src/features/consent/privacy-defaults-reporter";
@@ -71,7 +71,7 @@ export function composePreAssembly(required: ComposePreAssemblyRequired, _option
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
     reportPrivacyDefaultsFailure,
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps().cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
+  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps().cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createTovuReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.
   const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });
   return { adminSurfaceHandlersReady, siteAppBootWork, seoDeps, sitemapService, resolveRouteDeps, siteConsentReady, pluginExports, agentPluginMcp };

@@ -610,11 +610,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/member-login/credentials.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/member-login/oidc-login.ts",
     "rule": "catch-reads-error",
     "value": 4
