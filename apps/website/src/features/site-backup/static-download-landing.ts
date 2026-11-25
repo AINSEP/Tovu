@@ -1,53 +1,10 @@
 import { escapeHtml } from "@jini-ai/core/text";
-import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
+import type { LandingPageInput, LandingTheme } from "@jini-ai/devops/backup/site/static-download-landing";
 
-/** One delivered page of one exported theme, as the landing page lists it. */
-export interface LandingPage { href: string; title: string; label: string }
-/** One exported theme folder (`sites/<folder>/`) and its delivered pages. */
-export interface LandingTheme { title: string; folder: string; active: boolean; pages: readonly LandingPage[] }
-
-const TITLE_LIMIT = 120;
-
-/** The page's own <title>, decoded to plain text; falls back to its path label. */
-function pageTitle({ html, label }: { html: string; label: string }, _options = {}): string {
-  // Comments first: a theme template comment may mention a <title> tag (the privacy template does).
-  const raw = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html.replace(/<!--[\s\S]*?-->/g, ""))?.[1] ?? "";
-  const text = extractPlainTextFromHtml({ html: raw }).replace(/\s+/g, " ").trim();
-  if (!text) return label;
-  return text.length > TITLE_LIMIT ? text.slice(0, TITLE_LIMIT - 1) + "…" : text;
-}
-
-/** "sites/x/about/index.html" → "/about/"; a theme's home is "/". */
-function pageLabel({ file, folder }: { file: string; folder: string }, _options = {}): string {
-  const relative = file.slice(`sites/${folder}/`.length);
-  return "/" + relative.replace(/(?:^|\/)index\.html$/i, match => (match.startsWith("/") ? "/" : ""));
-}
-
-/** Relative hrefs survive spaces, `#` and `?` in delivered names; folders stay plain segments. */
-function relativeHref({ file }: { file: string }, _options = {}): string {
-  return file.split("/").map(segment => encodeURIComponent(segment)).join("/");
-}
-
-/**
- * The delivered pages of one theme, home first, then by path. Skips the error page and redirect stubs.
- * @complexity O(pages log pages + page bytes scanned for <title>), no effects.
- */
-export function landingPages({ files, folder, skip }: { files: readonly { path: string; content: Buffer }[]; folder: string; skip: ReadonlySet<string> }, _options = {}): LandingPage[] {
-  const root = `sites/${folder}/`;
-  const pages = files.filter(file => file.path.startsWith(root) && /\.html$/i.test(file.path)
-    && file.path !== root + "404.html" && !skip.has(file.path)).map(file => {
-    const label = pageLabel({ file: file.path, folder });
-    return { href: relativeHref({ file: file.path }), label, title: pageTitle({ html: file.content.toString(), label }) };
-  });
-  return withoutSharedSuffix({ pages }).sort((a, b) => (a.label === "/" ? -1 : b.label === "/" ? 1 : a.label.localeCompare(b.label)));
-}
-
-/** "About | Studio", "Blog | Studio" → "About", "Blog": a suffix every page repeats is noise in a list. */
-function withoutSharedSuffix({ pages }: { pages: LandingPage[] }, _options = {}): LandingPage[] {
-  const suffix = /\s[|–—-]\s[^|–—]+$/.exec(pages[0]?.title ?? "")?.[0];
-  if (!suffix || pages.length < 2 || pages.some(page => !page.title.endsWith(suffix) || page.title.length === suffix.length)) return pages;
-  return pages.map(page => ({ ...page, title: page.title.slice(0, -suffix.length) }));
-}
+/** @file This host's exported landing page: the root `index.html` of every static download and repository commit.
+ * The markup, CSS and unprefixed class names (`card`, `badge`, `open`, ...) are the shipped static-site HTML and are
+ * byte-pinned (`__tests__/static-download-landing.pin.test.ts`); renaming them would change every new export.
+ * Jini's portable layout builds the page list and calls this through the injected `renderLanding` port. */
 
 const STYLE = `
 :root{color-scheme:light dark;--bg:#f6f5f2;--card:#fff;--ink:#1c1b19;--muted:#6b6760;--line:#e4e1da;--accent:#2d5bd7;--badge:#e7efff}
@@ -94,7 +51,7 @@ function themeCard({ theme }: { theme: LandingTheme }, _options = {}): string {
  * @complexity O(total listed pages), no effects.
  * @example staticLandingPage({ siteName: "My Site", themes });
  */
-export function staticLandingPage({ siteName, exportedWords, themes }: { siteName: string; exportedWords?: string; themes: readonly LandingTheme[] }, _options = {}): Buffer {
+export function staticLandingPage({ siteName, exportedWords, themes }: LandingPageInput, _options = {}): Buffer {
   const site = escapeHtml({ text: siteName });
   const meta = [exportedWords ? `Exported ${exportedWords}` : "", `${themes.length} ${themes.length === 1 ? "theme" : "themes"}`].filter(Boolean).join(" · ");
   return Buffer.from(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
@@ -103,6 +60,3 @@ export function staticLandingPage({ siteName, exportedWords, themes }: { siteNam
     + `<p class="note">Quick Look can't follow links — open this file in your browser.</p></header>`
     + `<section class="themes">${themes.map(theme => themeCard({ theme })).join("")}</section></main></body></html>\n`);
 }
-
-/** Root entry file of every static download and repository commit (formerly "Open website.html"). */
-export const LANDING_FILE = "index.html";

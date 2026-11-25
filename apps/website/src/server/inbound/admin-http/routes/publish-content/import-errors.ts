@@ -3,7 +3,7 @@ import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutati
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
-import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
+import { PublishContentBundleNotFoundError } from "@jini-ai/cms/publish/content/gated-hooks";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 
 /**

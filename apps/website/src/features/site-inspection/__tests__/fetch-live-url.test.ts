@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { EgressRefusedError, type HttpRequest, type HttpResponse } from "#src/platform/http/index";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "@jini-ai/diagnostics/web-evidence/live-url";
-import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";

@@ -14,7 +14,7 @@ import { contributeThemeFilesPublish } from '#src/features/theme/publish-content
 import { createRawFileSitePort } from '@jini-ai/cms/publish/content/publish-backstop-file';
 import { BACKSTOP_RAW_FILE_POLICY } from '#src/features/publish-content/backstop-policy';
 import { contentHash } from '@jini-ai/cms/publish/content/content-hash';
-import { MAX_SECRET_SCAN_BYTES } from '#src/features/publish-content/file-tree-policy';
+import { MAX_SECRET_SCAN_BYTES } from '@jini-ai/cms/publish/content/file-tree-policy';
 import type { PackedEntity, PublishContentDeps } from '#src/features/publish-content/type-registry';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { createFileBlobIndex } from '@jini-ai/cms/publish/transfer';

@@ -17,13 +17,14 @@ import type { ToolContributor } from "@jini-ai/core";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
-import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
+import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "@jini-ai/cms/publish/content/gated-hooks";
+import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import { entityKey, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
-import { PublishContentPeerTransportError } from "./peer-transport.js";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { toModelFacingPluginHookError } from "@jini-ai/plugins/host/hook-refusals";
@@ -44,13 +45,13 @@ import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-set
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
-import { connectAndRecordDestination } from "./connect-destination.js";
+import { connectAndRecordDestination } from "@jini-ai/cms/publish/content/connect-destination";
 // Both pulls and autonomous publishes resolve the same saved destination credential.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
-import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
-import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
+import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
+import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "@jini-ai/cms/publish/content/permissions";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { PUBLISH_READINESS_COPY } from "./publish-readiness-copy.js";
@@ -59,7 +60,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { publishContentFromTool } from "./publish-tool.js";
 import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 
-import { listPublishContentContributors } from "./type-registry.js";
+import { buildPublishContentCatalog, listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
@@ -461,6 +462,7 @@ function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; 
   };
   return buildPublishContentImportHooks({
     workspaceId: deps.workspaceId, bundleId, actorId, clock: deps.clock, idGen: deps.idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { ...contentDeps, authorize: deps.authorize }, bundleRepo: deps.publishContentBundleRepo,
     baselineRepo: deps.publishContentBaselineRepo, blobStore: deps.blobStore, dbOps: deps.dbOps,
     restorePointsRepo: deps.restorePointsRepo, applyPort: deps.publishContentApplyPort,

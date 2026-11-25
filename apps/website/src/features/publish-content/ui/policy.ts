@@ -25,7 +25,7 @@ import { PUBLISH_SECTIONS } from "./sections.js";
 const MISSING_REASON = "No reason recorded.";
 
 /** The one reason prefix that is already final, operator-facing copy — `file-tree-policy.ts`'s
- *  {@link import("../file-tree-policy.js").wrapTreePolicyReason}. {@link friendlyPublishReason}
+ *  {@link import("@jini-ai/cms/publish/content/file-tree-policy").wrapTreePolicyReason}. {@link friendlyPublishReason}
  *  must never rewrite it a second time. */
 const ALREADY_FINAL_PREFIX = "Can't publish:";
 

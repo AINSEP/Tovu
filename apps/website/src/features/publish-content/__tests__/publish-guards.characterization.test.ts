@@ -4,7 +4,7 @@ import test from "node:test";
 import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { runAuditedBackstop } from "../backstop-service.js";
 import { PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
-import { PUBLISH_CONTENT_PULL_MAX_BLOBS } from "../peer-transport.js";
+import { PUBLISH_CONTENT_PULL_MAX_BLOBS } from "@jini-ai/cms/publish/content/peer-transport";
 
 /**
  * @file Guards of the publish engine that no other suite could see being changed (publish-engine

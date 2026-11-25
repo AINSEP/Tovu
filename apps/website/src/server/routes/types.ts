@@ -109,9 +109,9 @@ import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
 import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
-import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
+import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
-import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
+import type { PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**
@@ -1284,8 +1284,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   siteBackupSources?: SiteBackupSources;
   /** Site-bound export operation shared by tools and authenticated routes. */
-  siteShareBackend?: import("#src/features/site-backup/share-backend").SiteShareBackend;
-  siteImportBackend?: import("#src/features/site-backup/import-backend").SiteImportBackend;
+  siteShareBackend?: import("#src/features/site-backup/share-backend").HostSiteShareBackend;
+  siteImportBackend?: import("@jini-ai/devops/backup/site/import-backend").SiteImportBackend;
   /**
    * Plugin-facing host seams over one shared connection port, built by
    * `server/runtime/composition/agent-plugin-connections.ts` in both composition roots: the

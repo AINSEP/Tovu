@@ -13,7 +13,7 @@ import { buildStaticSiteZip } from "../../site-backup/share-zip.js";
 import { createShareArchiveReader } from "../../site-backup/import-archive-reader.js";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "../site-exporter.js";
-import { captureStaticSite } from "../../site-backup/static-copy.js";
+import { captureStaticSite } from "../../site-backup/static-download-host.js";
 import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
 import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";

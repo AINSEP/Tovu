@@ -4,10 +4,11 @@ import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
 import { plan, confirm, execute, PlanStaleError } from "../../../contracts/core/gated-mutations/gateway.js";
 import { importErrorResponse } from "../../../server/inbound/admin-http/routes/publish-content/import-errors.js";
 import { stageBundle } from "@jini-ai/cms/publish/transfer";
-import { buildPublishContentImportHooks } from "../gated-hooks.js";
+import { buildPublishContentImportHooks } from "@jini-ai/cms/publish/content/gated-hooks";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { contributePublishContentTools } from "../tool-registrations.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { planHashOf, resolveActorClassIdentity } from "../../../contracts/core/gated-mutations/composition.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { fixture as pullFixture, context, tool, OWNER } from "./pull-tool-fixture.js";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
@@ -49,6 +50,7 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
   f.deps.blobStore.get = async () => new Uint8Array();
   const hooks = (bundleId: string, overwrite?: string[]) => buildPublishContentImportHooks({
     workspaceId: "local", bundleId, actorId: OWNER, clock: f.deps.clock, idGen: f.deps.idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { workspaceId: "local", clock: f.deps.clock, idGen: f.deps.idGen, ports: {} },
     bundleRepo: f.bundleRepo, baselineRepo: f.baselineRepo, blobStore: f.deps.blobStore,
     dbOps: f.deps.dbOps, restorePointsRepo: f.deps.restorePointsRepo,

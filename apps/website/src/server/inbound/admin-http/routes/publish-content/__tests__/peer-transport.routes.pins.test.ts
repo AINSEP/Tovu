@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { PublishContentPeerTransportError } from "#src/features/publish-content/peer-transport";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
@@ -43,7 +43,7 @@ const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
   [new PublishTrustHandshakeError({ message: "live.example does not accept publishes from this computer yet", failure: "not-connected" }), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
   [new PublishContentPeerCredentialMissingError({ message: "peer 'peer-1' has no saved credential" }), 409, "PEER_CREDENTIAL_MISSING"],
   [new PublishContentPeerSecretStoreUnconfiguredError({ message: "peer 'Live' credential could not be opened" }), 503, "SECRET_STORE_UNCONFIGURED"],
-  [new PublishContentPeerTransportError({ message: "peer answered 401", code: "PEER_REJECTED" }, { peerStatus: 401 }), 502, "PEER_REJECTED"],
+  [new PublishContentPeerTransportError({ message: "peer answered 401", code: "PEER_REJECTED", redact: ({ text }) => ({ text }) }, { peerStatus: 401 }), 502, "PEER_REJECTED"],
 ];
 
 for (const [route, body] of Object.entries(SEND_BODIES)) {

@@ -1,70 +1,50 @@
+import { verifySiteImport as verifyEngineSiteImport, type SiteImportVerifierHost, type VerifiedSiteImport } from "@jini-ai/devops/backup/site/import-verifier";
+import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
+import type { PackageFileInventory } from "@jini-ai/devops/backup/site/share-file-policy";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import {
+  buildManifestInventory as buildJiniManifestInventory, checkArchiveMatchesInventory, parseShareManifest as parseJiniShareManifest, readListedFiles as readJiniListedFiles,
+  refuseArchive, scanArchiveMetadata as scanJiniArchiveMetadata, sha256Hex, type ImportInventoryHost,
+} from "@jini-ai/devops/backup/site/import-verifier-inventory";
 import { checkShareLimits, SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, type ArchivePlugin } from "./archive-manifest.js";
-import { archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js";
-import { sha256Hex } from "./import-verifier-inventory.js";
-import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";
+import { archiveCodeUnit, archiveSecretScanPath, archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js";
+import { parseArchiveManifest } from "./archive-manifest.js";
+import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "./share-file-policy.js";
 import { applyShareProjection } from "./import-verifier-projection.js";
 import { readBundledPackageFiles } from "./package-file-inventory.js";
-import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
-import { addCredentialWarning, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import type { PackageFileInventory } from "./share-file-policy.js";
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
-export interface VerifiedSiteImport {
-  encryptedKeys?: Buffer;
-  name: string;
-  database: Buffer;
-  files: Map<string, Buffer>;
-  warnings: string[];
-  credentialWarnings?: readonly CredentialWarning[];
-  modified: ReadonlySet<string>;
-  plugins: readonly ArchivePlugin[];
-  trustedPlugins: readonly ArchivePlugin[];
+/** Tovu's archive inventory host: the share caps, path/secret rules, manifest codec, portable roots and changed-file sentence. */
+const INVENTORY_HOST: ImportInventoryHost = {
+  limits: SHARE_LIMITS,
+  inventoryRoots: /^(?:media|themes|plugins|agent-plugins|skills)\/.+/,
+  settingsFiles: ["settings.json"],
+  /** Same plain sentence the desktop shows for a file whose contents no longer match what was exported. */
+  changedArchiveMessage: "That file looks damaged or changed since it was exported. No website was created. Export it again and import the fresh copy.",
+  checkShareLimits, validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, parseArchiveManifest, archiveCodeUnit, archiveSecretScanPath,
+};
+
+/** Binds a Jini inventory operation to {@link INVENTORY_HOST}. */
+function withInventoryHost<R extends { host: ImportInventoryHost }, A extends unknown[], T>(operation: (required: R, ...rest: A) => T) {
+  return (required: Omit<R, "host">, ...rest: A): T => operation({ ...required, host: INVENTORY_HOST } as R, ...rest);
 }
+export const scanArchiveMetadata = withInventoryHost(scanJiniArchiveMetadata);
+export const parseShareManifest = withInventoryHost(parseJiniShareManifest);
+export const buildManifestInventory = withInventoryHost(buildJiniManifestInventory);
+export const readListedFiles = withInventoryHost(readJiniListedFiles);
 
-/** Read the bounded root manifest in a metadata-only first pass; never trust ZIP ordering.
- * Then verify the exact inventory and hashes, count actual expanded bytes, and ask the isolated
- * database adapter to rebuild through A's SAME sanitizer. No extraction occurs before success.
- * @throws SiteShareRefusal for malformed, unsupported, incomplete or oversized archives.
- * @complexity O(payload bytes + paths²), at most 2,000 paths/300 MiB; buffered archive.
- */
-export async function verifySiteImport(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string } }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<VerifiedSiteImport & { credentialWarnings: readonly CredentialWarning[] }> {
-  const { archive, reader } = required;
-  if (archive.length > SHARE_LIMITS.maxArchiveBytes) refuseArchive({ message: "Import exceeds the 300 MiB archive cap." });
-  optional.signal?.throwIfAborted();
-  const scan = await scanArchiveMetadata({ archive, reader }, optional);
-  const manifest = parseShareManifest({ manifestBytes: scan.manifestBytes, schema: required.schema });
-  const inventory = buildManifestInventory({ files: manifest.files });
-  checkArchiveMatchesInventory({ inventory, fileAliases: scan.fileAliases, directories: scan.directories });
-  // Byte identity still controls execution trust. Scan classification alone tolerates build skew.
-  const packageFiles = optional.packageFiles ?? await readBundledPackageFiles();
-  const modified = new Set<string>();
-  const credentialWarnings: CredentialWarning[] = [];
-  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified }, { ...optional, packageFiles, credentialWarnings });
-  const encryptedKeys = files.get(SAVED_KEYS_PATH);
-  files.delete(SAVED_KEYS_PATH);
-  const plugins = manifest.plugins;
-  const trustedPlugins = plugins.filter(plugin => bundledIdentical({ plugin, files, packageFiles, modified }));
-  const snapshot = files.get(SITE_BACKUP_DATABASE_PATH);
-  if (snapshot === undefined) refuseArchive({ message: "Import archive has no content database." });
-  const projection = await required.sanitize({ snapshot }, { signal: optional.signal });
-  for (const warning of projection.credentialWarnings ?? []) addCredentialWarning({ ...warning, credentialWarnings, redactSecretShapes });
-  await applyShareProjection({ files, projection, manifest }, optional);
-  files.delete(SITE_BACKUP_DATABASE_PATH);
-  checkShareLimits({ files: [...files].map(([path, content]) => ({ path, bytes: content.length })).concat({ path: SITE_BACKUP_DATABASE_PATH, bytes: projection.bytes.length }) });
-  const runtimeFiles = new Map([...files].map(([path, bytes]) => [archiveToRuntimePath({ path, files }), bytes]));
-  const warnings = [...new Set([...(projection.notices ?? []), ...editedArchiveWarnings({ units: modified })])];
-  return { name: manifest.site.name.trim(), database: projection.bytes, files: runtimeFiles, warnings, credentialWarnings, modified, plugins, trustedPlugins, ...(encryptedKeys ? { encryptedKeys } : {}) };
-}
+/** Tovu's archive inventory, path mapping, share limits and secret shapes for the engine import verifier. */
+export const IMPORT_VERIFIER_HOST: SiteImportVerifierHost = {
+  redactSecretShapes, checkShareLimits, refuseArchive, scanArchiveMetadata, parseShareManifest, buildManifestInventory, checkArchiveMatchesInventory,
+  sha256Hex,
+  // The inventory/manifest values are this host's own, handed back unchanged by the engine.
+  readListedFiles: (required, optional) => readListedFiles(required as Parameters<typeof readListedFiles>[0], optional), applyShareProjection, archiveToRuntimePath, editedArchiveWarnings,
+  maxArchiveBytes: SHARE_LIMITS.maxArchiveBytes,
+  archiveTooLargeMessage: "Import exceeds the 300 MiB archive cap.",
+  readBundledPackageFiles: () => readBundledPackageFiles(),
+};
 
-/** A manifest digest alone grants nothing: compare the entire shipped package to this build. */
-function bundledIdentical(required: { plugin: ArchivePlugin; files: ReadonlyMap<string, Buffer>; packageFiles: PackageFileInventory; modified: ReadonlySet<string> }): boolean {
-  const { plugin } = required;
-  if (plugin.kind !== "agent" || required.modified.has("agent-plugins/" + plugin.id)) return false;
-  const expected = required.packageFiles.get(plugin.digest);
-  if (!expected) return false;
-  const prefix = `agent-plugins/${plugin.id}/package/`;
-  const actual = [...required.files].filter(([path]) => path.startsWith(prefix));
-  return actual.length === expected.size && actual.every(([path, bytes]) => expected.get(path.slice(prefix.length)) === sha256Hex({ bytes }));
+/** Verifies a share ZIP with this host's collaborators; see `IMPORT_VERIFIER_HOST`. */
+export function verifySiteImport(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string } }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<VerifiedSiteImport & { credentialWarnings: readonly CredentialWarning[] }> {
+  return verifyEngineSiteImport({ ...required, host: IMPORT_VERIFIER_HOST }, optional);
 }

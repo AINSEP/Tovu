@@ -6,7 +6,7 @@ import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpRequest } from "#src/platform/http/index";
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
-import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
+import type { PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 
 let resolvedAddress = "8.8.8.8";
 let dnsLookups = 0;

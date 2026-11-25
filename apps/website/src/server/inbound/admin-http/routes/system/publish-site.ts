@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
-import { listPublishContentPeers } from "#src/features/publish-content/peers";
+import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express, Request, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";

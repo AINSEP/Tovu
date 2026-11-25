@@ -6,10 +6,11 @@ import path from "node:path";
 
 import { executeCommand } from "@jini-ai/cms/core";
 
-import { computeBlobStorageKey, isDocumentOnlyBlob } from "#src/features/media/index";
+import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { checkTreeFiles, checkTreePath, isIgnoredTreeFileName, MAX_SECRET_SCAN_BYTES, normalizeMode, resolveTreeRelativePath, wrapTreePolicyReason, type FileTreeFileInput } from "#src/features/publish-content/file-tree-policy";
+import { checkTreeFiles, checkTreePath, isIgnoredTreeFileName, MAX_SECRET_SCAN_BYTES, normalizeMode, resolveTreeRelativePath, wrapTreePolicyReason, type FileTreeFileInput } from "@jini-ai/cms/publish/content/file-tree-policy";
+import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type {
   PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity,
@@ -310,7 +311,7 @@ async function packOneThemeTree(input: {
     mode: file.mode,
     textSample: file.textSample,
   }));
-  const blockReason = checkTreeFiles({ kind: THEME_FILES_KIND, files: policyInputs });
+  const blockReason = checkTreeFiles({ scanTextForSecrets, maxFileBytes: MAX_DOCUMENT_BYTES, kind: THEME_FILES_KIND, files: policyInputs });
   if (blockReason) {
     return { skippedTree: { treeKey, reason: wrapTreePolicyReason({ title, reason: blockReason }), ...(label ? { label } : {}) } };
   }
@@ -661,7 +662,7 @@ function swapPaths({ themesDir, address, keyHash }: { themesDir: string; address
 
     const policy = await incomingPolicyInputs({ deps, files: incoming.files });
     if ("reason" in policy) return policy;
-    const policyReason = checkTreeFiles({ kind: THEME_FILES_KIND, files: policy.inputs });
+    const policyReason = checkTreeFiles({ scanTextForSecrets, maxFileBytes: MAX_DOCUMENT_BYTES, kind: THEME_FILES_KIND, files: policy.inputs });
     return policyReason ? { reason: wrapTreePolicyReason({ title, reason: policyReason }) } : incoming;
   }
 

@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { SHARE_DOWNLOAD_HEADERS } from "#src/features/site-backup/share-service";
+import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
 import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 
 /**

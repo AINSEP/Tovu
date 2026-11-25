@@ -1,8 +1,10 @@
 import { bufferArchiveMedia as bufferMedia, type ArchiveMediaCopy, type ArchiveMediaHost } from "@jini-ai/devops/backup/site/archive-media";
 import { sniffContentType, sanitizeSvg, computeBlobStorageKey, mimeForTransformFormat, type BlobStorePort, type ImageTransformerPort } from "#src/features/media/index";
 import type { ArchiveMediaSource } from "./share-policy.js";
-import { sharePathAlias, validateSharePath } from "./share-file-policy.js";
-import { addBuffered, reportedBlobSize, fetchVerifiedBlob, type ShareLedger } from "./share-preparation-steps.js";
+import { sharePathAlias } from "@jini-ai/devops/backup/site/share-file-policy";
+import { validateSharePath } from "./share-file-policy.js";
+import { shareSteps } from "./share-steps.js";
+import type { ShareLedger } from "@jini-ai/devops/backup/site/share-preparation-steps";
 
 type ShareBlobStore = Pick<BlobStorePort, "get" | "sizeOf">;
 
@@ -10,7 +12,7 @@ type ShareBlobStore = Pick<BlobStorePort, "get" | "sizeOf">;
 const host: ArchiveMediaHost<ShareLedger, ShareBlobStore> = {
   operations: { sniffContentType, sanitizeSvg, computeBlobStorageKey, mimeForTransformFormat },
   paths: { validateSharePath, sharePathAlias },
-  sharePolicy: { addBuffered, reportedBlobSize, fetchVerifiedBlob },
+  sharePolicy: shareSteps,
 };
 
 /** Picks exactly one public copy per item, in id order, without writing to the source site.

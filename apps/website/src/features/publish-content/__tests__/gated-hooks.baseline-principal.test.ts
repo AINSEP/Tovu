@@ -18,10 +18,11 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { buildPublishContentImportHooks } from "../gated-hooks.js";
+import { buildPublishContentImportHooks } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { planHashOf, resolveActorClassIdentity } from "../../../contracts/core/gated-mutations/composition.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
 import { plan } from "../../../contracts/core/gated-mutations/gateway.js";
@@ -74,6 +75,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
     workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ADMIN_ID, clock, idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } } },
     bundleRepo, baselineRepo, blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-1", watermarkAtCapture: 1 }) },

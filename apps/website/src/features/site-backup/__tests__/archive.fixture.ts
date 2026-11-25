@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { buildShareZip } from "../share-zip.js";
 import { runtimeToArchivePath } from "../archive-paths.js";
-import { buildArchiveManifest, type ArchiveMedia, type ArchivePlugin } from "../archive-manifest.js";
+import { buildArchiveManifest } from "../archive-manifest.js";
+import { type ArchiveMedia, type ArchivePlugin } from "@jini-ai/devops/backup/site/archive-manifest";
 import type { SiteSharePlanContent } from "../plan-content.js";
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 

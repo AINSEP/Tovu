@@ -10,7 +10,8 @@ import path from "node:path";
 import test from "node:test";
 import { isReadOnlyTool, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryPublishContentPeerRepo, saveConnectedDestination } from "../../publish-content/peers.js";
+import { InMemoryPublishContentPeerRepo } from "../../publish-content/peers.js";
+import { saveConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { discoverAllBuiltInThemes, isStandaloneThemePage } from "../../theme/index.js";
 
 const ws = "n07-workspace";

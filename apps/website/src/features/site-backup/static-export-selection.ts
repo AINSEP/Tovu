@@ -1,6 +1,7 @@
 import { allocateStaticExportThemes as allocateThemes, parseStaticExportInput as parseInput, type StaticExportInput, type StaticExportTheme } from "@jini-ai/devops/backup/site/static-export-selection";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { sharePathAlias, validateSharePath } from "./share-file-policy.js";
+import { sharePathAlias } from "@jini-ai/devops/backup/site/share-file-policy";
+import { validateSharePath } from "./share-file-policy.js";
 
 /** Tovu's refusal for malformed selection input: the copy and the refusal type are the host's. */
 function invalidInput(): never {

@@ -1,7 +1,7 @@
 /** Approved round17 B. Baseline RED: import/list tools and their source-union schema absent. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseSiteImportInput, type SiteImportBackend } from "../import-backend.js";
+import { parseSiteImportInput, type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
 import { buildSiteBackupRegistrations, type SiteBackupToolDeps } from "../tool-registrations.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 

@@ -10,7 +10,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { SHARE_TOKEN, SHARE_TOKEN_ALPHABET, SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "../share-registry.js";
+import { SiteShareRegistry } from "../share-registry.js";
+import { SHARE_TOKEN, SHARE_TOKEN_ALPHABET, newShareIdentity, type SiteShareRecord } from "@jini-ai/devops/backup/site/share-registry";
 
 const SHARE_ID = "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e";
 

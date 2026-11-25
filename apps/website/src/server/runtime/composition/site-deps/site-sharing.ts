@@ -27,7 +27,7 @@ import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-
 import { rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { selectArtifactStoreProvider } from "#src/features/object-storage/artifact-provider";
-import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { tmpdir } from "node:os";
 import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";

@@ -700,36 +700,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/publish-content/connect-destination.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/website/src/features/publish-content/disconnect-tool.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-content/peer-transport.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-content/peers.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-content/peers.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 3
-  },
-  {
-    "file": "apps/website/src/features/publish-content/publish-tool.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/publish-trust/handshake-client.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -773,61 +743,6 @@
     "file": "apps/website/src/features/site-backup/backup-service.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/bundled-export-file-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/import-restore-placement.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-backend.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-hosting.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-preparation-steps.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-registry.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-service.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-service.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/share-zip.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-backup/sources.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/website/src/features/site-backup/static-download-layout.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/website/src/features/site-backup/static-export-selection.ts",

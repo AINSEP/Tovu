@@ -7,8 +7,8 @@ import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildArchiveManifest } from "../archive-manifest.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";
-import { verifySiteImport } from "../import-verifier.js";
-import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, scanArchiveMetadata } from "../import-verifier-inventory.js";
+import { checkArchiveMatchesInventory } from "@jini-ai/devops/backup/site/import-verifier-inventory";
+import { buildManifestInventory, parseShareManifest, readListedFiles, scanArchiveMetadata, verifySiteImport } from "../import-verifier.js";
 import { readBundledImportPluginIds } from "../package-file-inventory.js";
 import { requireShareSecretFree } from "../share-file-policy.js";
 

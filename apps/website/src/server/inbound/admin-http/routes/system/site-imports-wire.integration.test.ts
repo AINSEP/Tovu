@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSiteImportRoutes } from "./site-imports.js";
-import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
+import { type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
 
 /**
  * @file Pins the exact status and body of every refusal and gate answer on the site-import routes

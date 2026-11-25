@@ -2,14 +2,8 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  InMemoryPublishContentPeerRepo,
-  PublishContentPeerCredentialMissingError,
-  PublishContentPeerDuplicateLabelError,
-  PublishContentPeerNotFoundError,
-  PublishContentPeerSecretStoreUnconfiguredError,
-  PublishContentPeerValidationError,
-} from "#src/features/publish-content/peers";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
+import { PublishContentPeerCredentialMissingError, PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";

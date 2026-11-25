@@ -8,7 +8,10 @@ import { mapErrorToCliOutcome } from "../../../cli/errors.js";
 import { FetchHttpTransportAdapter } from "@jini-ai/platform/http/guarded";
 import { createHttpClient } from "../../../platform/http/client.js";
 import { SITE_IMPORT_EGRESS_POLICY } from "../../../platform/http/egress-policies.js";
-import { downloadShareArchive } from "../import-backend-steps.js";
+import { downloadShareArchive as engineDownload } from "@jini-ai/devops/backup/site/import-backend-steps";
+import { SITE_IMPORT_HOST } from "../import-backend.js";
+
+const downloadShareArchive = (required: Omit<Parameters<typeof engineDownload>[0], "host">) => engineDownload({ ...required, host: SITE_IMPORT_HOST });
 
 test("share download retains a complete 101 MiB response under the existing 300 MiB policy", async () => {
   const chunk = Buffer.alloc(1024 * 1024, 255);
