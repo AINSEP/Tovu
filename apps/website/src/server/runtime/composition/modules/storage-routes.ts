@@ -3,6 +3,7 @@ import type { Express } from "express";
 
 import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/server";
 import { ok } from "@jini-ai/core/contracts/server";
+import { ToolInputError } from "@jini-ai/core";
 import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import type { RetentionPassResult, RetentionPolicyOutcome } from "@jini-ai/platform/retention";
 import { createStorageRoutes } from "@jini-ai/platform/retention/routes";
@@ -86,7 +87,9 @@ function reportView({ report, last }: { report: SiteStorageReport; last: Retenti
   };
 }
 
-const notServing = (): never => rejectRoute({ status: 503, code: "NOT_SERVING", error: "Storage cleanup runs only in the app that is serving this site. Start the site and try again." });
+const NOT_SERVING_MESSAGE = "Storage cleanup runs only in the app that is serving this site. Start the site and try again.";
+const OWNER_ONLY_MESSAGE = "Only the site owner can see or clean up this site's storage.";
+const notServing = (): never => rejectRoute({ status: 503, code: "NOT_SERVING", error: NOT_SERVING_MESSAGE });
 
 /**
  * Wraps a Jini storage spec so its `authorize` is the strict owner check and the storage port is
@@ -101,14 +104,37 @@ function ownerOnly<Input, Deps>(
   } };
 }
 
-function storageDeps({ storage }: { storage: SiteStoragePort | undefined }) {
+/** The port's two reads as the wire shows them; `missing` refuses when this process serves no site. */
+function storageViews({ storage, missing }: { storage: SiteStoragePort | undefined; missing: () => never }) {
   return {
     measure: async () => {
-      const port = storage ?? notServing();
+      const port = storage ?? missing();
       return reportView({ report: await port.measure({}, {}), last: port.lastPass() });
     },
-    runOnce: async ({ dryRun }: { dryRun: boolean; classes?: string[] }) => passView({ pass: await (storage ?? notServing()).runOnce({ dryRun }) }),
-    copy: { invalidClass: INVALID_CLASS_MESSAGE },
+    runOnce: async ({ dryRun }: { dryRun: boolean; classes?: string[] }) => passView({ pass: await (storage ?? missing()).runOnce({ dryRun }) }),
+  };
+}
+
+function storageDeps({ storage }: { storage: SiteStoragePort | undefined }) {
+  return { ...storageViews({ storage, missing: notServing }), copy: { invalidClass: INVALID_CLASS_MESSAGE } };
+}
+
+/**
+ * The assistant tools' view of the SAME port the routes mount: identical report and pass shapes (no
+ * raw path), the same strict owner-id check, and plain-word refusals instead of HTTP ones. Outside
+ * the serving process `storage` is absent and every call says so rather than failing.
+ * @complexity O(1); per call one measurement walk or one retention pass.
+ */
+export function storageToolPorts(
+  { storage, ownerPrincipalId }: { storage: SiteStoragePort | undefined; ownerPrincipalId: () => Promise<string> },
+  _optional: Record<string, never> = {},
+) {
+  const refuse = (message: string): never => { throw new ToolInputError({ message }); };
+  return {
+    ...storageViews({ storage, missing: () => refuse(NOT_SERVING_MESSAGE) }),
+    authorizeOwner: async ({ principalId }: { principalId: string }, _options: Record<string, never> = {}) => {
+      if (!principalId || principalId !== await ownerPrincipalId()) refuse(OWNER_ONLY_MESSAGE);
+    },
   };
 }
 
@@ -135,7 +161,7 @@ export function mountStorageRoutes({ app, storage, authorizeOwner, adminPorts }:
  */
 export function storageOwnerFrom({ ownerPrincipalId }: { ownerPrincipalId: () => Promise<string> }, _optional: Record<string, never> = {}): StorageOwnerCheck {
   return async ({ context }) => {
-    if (!context?.id || context.id !== await ownerPrincipalId()) rejectRoute({ status: 403, code: "OWNER_ONLY", error: "Only the site owner can see or clean up this site's storage." });
+    if (!context?.id || context.id !== await ownerPrincipalId()) rejectRoute({ status: 403, code: "OWNER_ONLY", error: OWNER_ONLY_MESSAGE });
     return { principal: context.id };
   };
 }

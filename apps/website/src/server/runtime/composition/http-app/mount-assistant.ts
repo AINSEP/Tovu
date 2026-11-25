@@ -19,7 +19,7 @@ import type { MountInput } from "./module-handles.js";
 
 /** Builds the BYOK assistant module once, tracks its boot pass, and mounts the admin/BYOK assistant surfaces and the daemon-facing router, in registration order. */
 export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps },
-  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "onBootWork"> = {}): void {
+  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "onBootWork" | "siteStorage"> = {}): void {
   // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
   // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
   // — never folded into `routeDeps` (that bag already carries 53 back-edges into this file, a
@@ -30,7 +30,7 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface });
+  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface, siteStorage: options.siteStorage });
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });

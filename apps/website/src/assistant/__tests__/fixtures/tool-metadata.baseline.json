@@ -367,7 +367,9 @@
     "site_export_static": "export static site html css javascript assets zip download",
     "forms_list_providers": "forms collection provider providers settings external embedded public answers validation",
     "site_update_check": "update upgrade new version available latest release check outdated",
-    "site_update_apply": "update upgrade install new version latest release apply software"
+    "site_update_apply": "update upgrade install new version latest release apply software",
+    "site_storage_report": "storage disk space usage size bytes how much room databases uploads screenshots shares old copies logs cleanup report",
+    "site_storage_cleanup": "storage cleanup clean up free disk space delete old copies expired shares temporary files reclaim bytes prune"
   },
   "queries": {
     "library_save_attachment": [
@@ -2094,6 +2096,14 @@
     "site_update_apply": [
       "Update the site to the latest version.",
       "Install the new version."
+    ],
+    "site_storage_report": [
+      "How much disk space is my site using?",
+      "What is taking up storage on this site?"
+    ],
+    "site_storage_cleanup": [
+      "Free up some disk space on my site.",
+      "Clean up old copies and temporary files."
     ]
   },
   "approvals": {
@@ -3758,6 +3768,14 @@
     "site_update_apply": {
       "class": "publish",
       "confirmation": "policy"
+    },
+    "site_storage_report": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_storage_cleanup": {
+      "class": "delete",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3823,7 +3841,8 @@
     "files_copy",
     "theme_duplicate",
     "commerce_resolve_unknown",
-    "site_update_apply"
+    "site_update_apply",
+    "site_storage_cleanup"
   ],
   "secretForms": {
     "credential_save": {
@@ -3926,7 +3945,8 @@
     "files_copy",
     "theme_duplicate",
     "commerce_resolve_unknown",
-    "site_update_apply"
+    "site_update_apply",
+    "site_storage_cleanup"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3996,7 +4016,8 @@
     "files_copy",
     "theme_duplicate",
     "commerce_resolve_unknown",
-    "site_update_apply"
+    "site_update_apply",
+    "site_storage_cleanup"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,
