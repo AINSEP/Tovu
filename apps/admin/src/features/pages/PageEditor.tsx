@@ -1,8 +1,8 @@
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
-import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
+import { useThemePreviewFrame, useThemePreviewReloadButton } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
-import { ConfirmDialog } from "@jini-ai/admin/react";
+import { ConfirmDialog, ThemePreviewReloadControl } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { PageExternalChangeBanner } from "@jini-ai/cms/react/pages/PageExternalChangeBanner";
@@ -594,7 +594,7 @@ function PageEditorToolbarEnd({
   const pickerValue = pagePickerValue({ templateChoice, availableTemplates });
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} /> : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
           <ViewTemplateButton

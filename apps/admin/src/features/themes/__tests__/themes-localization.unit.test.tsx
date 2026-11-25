@@ -2,7 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-q
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { Themes } from "../Themes";
-import { WiredThemePreviewReloadButton } from "../ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
+import { ThemePreviewReloadControl } from "@jini-ai/admin/react";
+import { useThemePreviewReloadButton } from "../hooks/use-theme-preview-refresh.hooks";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes } from "../hooks/use-themes.hooks";
 import { THEMES_DICT, t } from "../themes-i18n";
@@ -113,7 +115,7 @@ describe("Themes localization: rendered copy and locale-independent severity", (
 
     it(`translates a non-Error preview reload failure in ${copy.locale}`, async () => {
       vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue(copy.locale);
-      render(<WiredThemePreviewReloadButton reloadPreviews={async () => { throw null; }} />);
+      render(<WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} reloadPreviews={async () => { throw null; }} />);
       fireEvent.click(await screen.findByRole("button", { name: copy.reload }));
       await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(copy.reloadError));
     });
