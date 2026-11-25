@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { MediaProviderRowsPort } from "@jini-ai/ui";
 
 /**
  * @file Coverage for `media-providers-port.ts` (0/2 funcs) — Tovu's real `MediaProvidersPort`.
@@ -6,19 +7,26 @@ import { describe, expect, it, vi } from "vitest";
  * The two functions' error-handling contracts are opposite by design (the file's own header spells
  * out why): `fetchMediaProviders` swallows every failure into `null` — never `{}` — so a transient
  * network blip can never read as "the server manages nothing" and wipe local edits;
- * `saveMediaProviders` rejects on failure, since the tab renders that rejection as its own
+ * the per-provider writes reject on failure, since the tab renders that rejection as its own
  * `save-error` state. Both branches of that asymmetry are asserted here.
  */
 
-const { getMediaProviders, saveMediaProviders } = vi.hoisted(() => ({
+const { getMediaProviders, request } = vi.hoisted(() => ({
   getMediaProviders: vi.fn(),
-  saveMediaProviders: vi.fn(),
+  request: vi.fn(),
 }));
+
+vi.mock("../../../lib/admin-http/request", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../lib/admin-http/request")>();
+  return { ...actual, request };
+});
 
 vi.mock("../api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/media-api")>();
-  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders } };
 });
+
+const { WORKSPACE_ID } = await import("@jini-ai/admin/shell/lib/admin-http/config");
 
 const { mediaProvidersPort } = await import("../media-providers-port");
 
@@ -40,17 +48,48 @@ describe("mediaProvidersPort.fetchMediaProviders", () => {
   });
 });
 
-describe("mediaProvidersPort.saveMediaProviders", () => {
-  it("persists the whole map and returns the server's authoritative copy", async () => {
-    const map = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "1234" } };
-    const authoritative = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "9876" } };
-    saveMediaProviders.mockResolvedValue(authoritative);
-    await expect(mediaProvidersPort.saveMediaProviders(map)).resolves.toEqual(authoritative);
-    expect(saveMediaProviders).toHaveBeenCalledWith(map);
+/**
+ * The writes go through the real `mediaApi` down to the `request` seam, so these pin what actually
+ * travels: one provider's fields to its own row, never a whole map whose omissions would delete.
+ */
+describe("mediaProvidersPort per-provider writes", () => {
+  const authoritative = { openai: { apiKeyConfigured: true, apiKeyTail: "0001" }, grok: { apiKeyConfigured: true, apiKeyTail: "0002" } };
+  const rowPath = (providerId: string) => `/workspaces/${WORKSPACE_ID}/media/providers/${encodeURIComponent(providerId)}`;
+
+  it("is the per-provider port: there is no whole-map save left to infer deletion from omission", () => {
+    expect("saveMediaProviders" in mediaProvidersPort).toBe(false);
+    expect(typeof (mediaProvidersPort as MediaProviderRowsPort).patchProvider).toBe("function");
+  });
+
+  it("saving one provider does not wipe a built-in key saved in another window", async () => {
+    request.mockReset();
+    request.mockResolvedValue(authoritative);
+    const port = mediaProvidersPort as MediaProviderRowsPort;
+    await expect(port.patchProvider({ providerId: "grok", fields: { apiKey: "xai-window-b" } })).resolves.toEqual(authoritative);
+    expect(request).toHaveBeenCalledTimes(1);
+    const [target, options] = request.mock.calls[0]!;
+    expect(target).toEqual({ path: rowPath("grok") });
+    expect(options.init.method).toBe("PATCH");
+    // Only grok's own fields travel; openai (saved elsewhere, unknown to this tab) is never named.
+    expect(JSON.parse(options.init.body)).toEqual({ apiKey: "xai-window-b" });
+  });
+
+  it("Remove on a plugin-vendor key deletes that key and nothing else", async () => {
+    request.mockReset();
+    request.mockResolvedValue(authoritative);
+    const port = mediaProvidersPort as MediaProviderRowsPort;
+    await expect(port.removeProvider({ providerId: "acme/media" })).resolves.toEqual(authoritative);
+    expect(request).toHaveBeenCalledTimes(1);
+    const [target, options] = request.mock.calls[0]!;
+    expect(target).toEqual({ path: rowPath("acme/media") });
+    expect(options.init).toEqual({ method: "DELETE" });
   });
 
   it("REJECTS on failure, unlike fetchMediaProviders — the tab renders this as its save-error state", async () => {
-    saveMediaProviders.mockRejectedValue(new Error("no site key"));
-    await expect(mediaProvidersPort.saveMediaProviders({})).rejects.toThrow("no site key");
+    request.mockReset();
+    request.mockRejectedValue(new Error("no site key"));
+    const port = mediaProvidersPort as MediaProviderRowsPort;
+    await expect(port.patchProvider({ providerId: "openai", fields: { model: "m" } })).rejects.toThrow("no site key");
+    await expect(port.removeProvider({ providerId: "openai" })).rejects.toThrow("no site key");
   });
 });

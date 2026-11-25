@@ -1,10 +1,10 @@
-import type { MediaProviderMap, MediaProvidersPort } from "@jini-ai/ui";
+import type { MediaProviderFields, MediaProviderMap, MediaProviderRowsPort } from "@jini-ai/ui";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { mediaApi } from "./api/media-api";
 
 /**
- * @file The real `MediaProvidersPort` — Tovu's own implementation of the transport
+ * @file The real media-providers port — Tovu's own implementation of the transport
  * `@jini-ai/ui`'s Media providers tab declares but deliberately does not ship (same convention as
  * `ProjectLocationsPort`/`SkillsPort`; the package ships only a fake).
  *
@@ -33,17 +33,28 @@ async function fetchMediaProviders(): Promise<MediaProviderMap | null> {
 }
 
 /**
- * Persists the whole provider map and resolves the server's authoritative copy.
+ * Saves ONE provider's fields (PATCH to its own row) and resolves the server's authoritative map.
  *
- * REJECTS on failure, unlike {@link fetchMediaProviders} — the port models a save as having only
- * two outcomes, and the tab renders the rejection as its `save-error` state. Callers must not
- * overlap two of these; `useMediaProvidersTab`'s `persist`/`flushNow` already serializes them.
+ * Per-provider rather than the whole-map `saveMediaProviders`: a whole map from this tab omits any key
+ * another window saved since it loaded, and omission deleted it. Naming one provider can never undo a
+ * write to another. REJECTS on failure, unlike {@link fetchMediaProviders} — the tab renders the
+ * rejection as its `save-error` state; `useMediaProvidersTab` issues one write at a time.
  *
  * @complexity O(1) plus one request.
- * @overallScore 100
  */
-async function saveMediaProviders(providers: MediaProviderMap): Promise<MediaProviderMap> {
-  return mediaApi.saveMediaProviders(providers);
+async function patchProvider({ providerId, fields }: { providerId: string; fields: MediaProviderFields }, _optional: Record<string, never> = {}): Promise<MediaProviderMap> {
+  return mediaApi.patchMediaProvider({ providerId, fields });
+}
+
+/**
+ * Removes exactly one provider's stored credentials (DELETE on its own row) — including a plugin
+ * vendor's key whose plugin is no longer in the catalog — and resolves the authoritative map.
+ * Rejects on failure, like {@link patchProvider}.
+ *
+ * @complexity O(1) plus one request.
+ */
+async function removeProvider({ providerId }: { providerId: string }, _optional: Record<string, never> = {}): Promise<MediaProviderMap> {
+  return mediaApi.removeMediaProvider({ providerId });
 }
 
 /**
@@ -51,4 +62,4 @@ async function saveMediaProviders(providers: MediaProviderMap): Promise<MediaPro
  * every call site can share one object and no component needs a `useRef` to keep it stable across
  * renders the way the fake did (the fake had to be ref-held because each call built a fresh store).
  */
-export const mediaProvidersPort: MediaProvidersPort = { fetchMediaProviders, saveMediaProviders };
+export const mediaProvidersPort: MediaProviderRowsPort = { fetchMediaProviders, patchProvider, removeProvider };
