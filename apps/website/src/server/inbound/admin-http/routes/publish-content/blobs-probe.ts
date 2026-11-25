@@ -1,5 +1,6 @@
 import { blobsProbeRoute } from "@jini-ai/cms/admin-http/routes/publish-content/blobs-probe";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
@@ -15,7 +16,7 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  */
 export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: blobsProbeRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, blobStore: deps.blobStore } },
+    { app, spec: blobsProbeRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, blobStore: deps.blobStore, computeBlobStorageKey } },
     {
       authorization: "guarded",
       failure: { operation: "routes/publish-content/blobs-probe", code: "INTERNAL_ERROR" },

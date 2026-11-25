@@ -2,6 +2,7 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express } from "express";
 
 import { contentPostGetRoute, type ContentPostGetRouteDeps } from "@jini-ai/cms/public-http/routes/content/posts/get-by-slug";
+import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -39,7 +40,8 @@ export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _opti
   const mounted: ContentPostGetRouteDeps = {
     workspaceId: deps.workspaceId,
     postRepo: deps.postRepo,
-    presentationRepo: deps.presentationRepo,
+    readPresentationSettings: ({ workspaceId }) => getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId } }),
+    isPresentationSettingsNotFound: (error): error is Error => error instanceof PresentationSettingsNotFoundError,
     sessionToken: boundPerRequest,
     memberAccess: () => {
       const resolver = createMemberAccessResolver(deps);

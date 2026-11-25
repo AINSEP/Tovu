@@ -40,7 +40,12 @@ export function uniqueMemberCookie(required: { req: Pick<Request, "headers">; na
 export function memberOidcCookie(required: {
   res: Response; callbackUrl: string; kind: "callback" | "proof"; binding?: string;
 }, _options = {}): void {
-  required.res.append("Set-Cookie", memberOidcCookieHeader(required));
+  const path = new URL(required.callbackUrl).pathname;
+  const name = required.kind === "callback" ? MEMBER_OIDC_BINDING_COOKIE : MEMBER_OIDC_PROOF_COOKIE;
+  const scope = required.kind === "callback" ? path : path.replace(/\/callback$/, "/verify-email");
+  if (required.binding === undefined) { required.res.clearCookie(name, { ...COOKIE_OPTIONS, path: scope }); return; }
+  if (!/^[A-Za-z0-9_-]{43}$/.test(required.binding)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
+  required.res.cookie(name, required.binding, { ...COOKIE_OPTIONS, path: scope, maxAge: 600000 });
 }
 
 /** The `Set-Cookie` value {@link memberOidcCookie} writes, exactly as Express 4's `res.cookie(name, binding,
@@ -101,11 +106,6 @@ export class MemberOidcCancelled extends Error {}
  * with one fixed code in the fragment (never the query: no Referer/log copy) for the page script
  * to show in plain words. Same fixed codes as the JSON routes; nothing upstream is echoed. O(1).
  */
-export function redirectMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
-  res.redirect(303, memberOidcErrorLocation({ error }));
-}
-
-/** The fixed `/signin#oidcError=<CODE>` location {@link redirectMemberOidcError} answers. O(1). */
 export function memberOidcErrorLocation({ error }: { error: unknown }, _options = {}): string {
   let code: MemberLoginOutcomeCode | "LOGIN_CANCELLED" = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
   if (error instanceof MemberOidcCancelled) code = "LOGIN_CANCELLED";
