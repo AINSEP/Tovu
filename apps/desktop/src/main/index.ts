@@ -152,7 +152,8 @@ import { totalmem, hostname as osHostname } from "node:os";
 import { randomBytes } from "node:crypto";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
-import { presenceClaimSource } from "@jini-ai/desktop-host/electron/partitions";
+import { presenceClaimSource, runPartitionPass, type PartitionMaintenance } from "@jini-ai/desktop-host/electron/partitions";
+import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassRun } from "./boot/desktop-partition-pass.ts";
 import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
@@ -331,6 +332,24 @@ const desktopPartitions = bindDesktopPartitions<Electron.Session>({
   log: ({ event, partition, detail }) => console.warn(`[partitions] ${event}${partition ? ` ${partition}` : ""}${detail ? `: ${detail}` : ""}`),
 });
 { const registered = desktopPartitions.registerHolder(); if (registered.state === "failed") console.error(`[partitions] holder registration failed: ${registered.reason}`); }
+
+/**
+ * The boot partition pass's cache hooks (ST-2c seam). Deliberately empty: the one-time and update cache
+ * clears (ST-1.T/ST-3.T) plug in here as entries; until then the pass does no per-partition cache work.
+ */
+const bootPartitionMaintenance: readonly PartitionMaintenance[] = [];
+/** This profile boot's partition pass, retained so desktop Storage (ST-18a) can read `lastReport()`. */
+let desktopPartitionPass: DesktopPartitionPassRun | null = null;
+/** The ST-2c next-start pass for this profile — `runDesktopBoot` calls it once. */
+async function runPartitionPassOnBoot(): Promise<void> {
+  desktopPartitionPass = await runDesktopPartitionPass({
+    partitionPass: runPartitionPass, claims: desktopPartitions, ledger: desktopRetirement.ledger,
+    fs: nodePartitionPassFs({ fs }), root: { isManaged: desktopPartitions.isManaged }, maintenance: bootPartitionMaintenance,
+    log: ({ event, detail }) => console.warn(`[partitions] ${event}${detail ? `: ${detail}` : ""}`),
+    mono: () => performance.now(), scheduler: { sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)) },
+    newToken: () => randomBytes(16).toString("hex"),
+  });
+}
 
 
 // The bundled node/npm/npx shims' env, or `undefined` if writing them failed. Written once, after
@@ -1116,6 +1135,7 @@ function bootDesktop(): Promise<void> {
     startUpdaterInBackground: () => desktopUpdater.startInBackground(),
     reconcileOrphansOnBoot,
     migrateNestedSitesHome: migrateSitesHomeOnBoot,
+    runPartitionPass: runPartitionPassOnBoot,
     chooseBootMode: () => chooseBootMode({ env: process.env }),
     bootSitesHomeMode,
     bootAttachMode,
