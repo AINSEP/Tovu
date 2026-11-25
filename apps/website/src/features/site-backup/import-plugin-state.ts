@@ -14,7 +14,8 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
   const deps: ImportPluginStateDeps = {
     sourceRoot: optional.sourceRoot ?? bundledAgentPluginsDir(),
     createLifecycle: ({ layout, sourceRoot }) => createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot }),
-    // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10).
+    // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10): written off
+    // rather than refused, so one locked plugin never aborts the rest of the import.
     findSoonAgentPlugin: ({ catalog, workspaceRoot, pluginId }) => findSoonAgentPlugin({ catalog: catalog as Parameters<typeof findSoonAgentPlugin>[0]["catalog"], workspaceRoot, pluginId }),
     starterWorkspaceId: () => readTemplate({ templateId: "starter" }).seed.workspace.id,
     validatePath: validateSharePath,
