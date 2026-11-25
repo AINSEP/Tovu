@@ -7,7 +7,8 @@ import type { CachedLoader } from "@jini-ai/core/fetch";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { isAbortError } from "@jini-ai/core/text";
 import { retryWhileUnreachable } from "@/lib/retry-unreachable";
-import { EXECUTION_NAMESPACE, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
+import { loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";
 import { useExecutionConfigLedger } from "./execution-config-ledger.hooks";
 

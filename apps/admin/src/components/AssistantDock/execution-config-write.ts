@@ -3,7 +3,8 @@ import type { ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning } from "@jini-ai/ui";
 import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
-import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
+import { saveExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE, selectedLocalCliModel, selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 import { isAbortError } from '@jini-ai/core/text';
@@ -86,7 +87,7 @@ export function withLocalCliSelection({ previous, selection }: {
  */
 export function localCliSelectionFromConfig({ config }: { config: ExecutionConfig }, _options = {}): ChatPaneAgentSelection {
   const agentId = config.localCli.agentId ?? "claude";
-  const model = selectedLocalCliModel(config);
-  const reasoning = selectedLocalCliReasoning(config);
+  const model = selectedLocalCliModel({ config: config }, {});
+  const reasoning = selectedLocalCliReasoning({ config: config }, {});
   return { agentId, ...(model ? { model } : {}), ...(reasoning ? { reasoning } : {}) };
 }

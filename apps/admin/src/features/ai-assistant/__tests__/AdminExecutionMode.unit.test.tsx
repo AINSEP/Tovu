@@ -1,3 +1,4 @@
+import { useExecutionCredential } from "@jini-ai/ui";
 import { useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
@@ -216,7 +217,7 @@ describe("AdminExecutionMode — OpenAI selected while the saved key is Google's
     render(
       <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={useLiveExecutionMode}
-        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential(input, credentialPort)}
+        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential({ input: input, port: credentialPort, useExecutionCredentialHook: useExecutionCredential }, {})}
         {...(t ? { t } : {})}
       />,
     );

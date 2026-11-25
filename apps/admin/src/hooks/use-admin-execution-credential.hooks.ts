@@ -1,51 +1,19 @@
 import { useMemo } from "react";
-import { useExecutionCredential, type UseExecutionCredentialInput, type ExecutionCredentialController, type ExecutionCredentialPort, type ExecutionCredentialEffects, type ExecutionCredentialSaveState } from "@jini-ai/ui";
+import { useExecutionCredential, type UseExecutionCredentialInput, type ExecutionCredentialController, type ExecutionCredentialPort, type ExecutionCredentialEffects } from "@jini-ai/ui";
 
 import type { AdminExecutionCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../lib/admin-http/request";
-import {
-  EXECUTION_NAMESPACE,
-  clearLegacyLocalCredential,
-  hasTypedAdminKey,
-  readLegacyLocalCredential,
-} from "../lib/execution-settings";
+import { clearLegacyLocalCredential, readLegacyLocalCredential } from "../lib/execution-settings";
+import { EXECUTION_NAMESPACE, hasTypedAdminKey } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { STORED_KEY_OTHER_PROVIDER_COPY, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
 import type { AdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 import { storedCredentialHint } from "../lib/credential-copy";
 import { useAdminLocale } from "./use-admin-locale.hooks";
 
-import { type Translate } from '@jini-ai/core/text';
 /** Host adapter for the shared write-only credential controller; footer/error copy remains product-owned. */
-
-export type AdminByokSaveState = ExecutionCredentialSaveState;
-
-/**
- * {@link AdminByokKeyFooter}'s status line, as a single string (or `null` to render nothing) — the
- * four mutually-exclusive `saveState.status` checks that used to sit directly in
- * `AdminByokKeyFooter`'s JSX (`components/AdminByokKeyPanel.tsx`), pulled out as a top-level pure
- * function per the complexity-ceiling brief. `isStored` takes the already-narrowed boolean rather
- * than the full `stored` record, so this function has no dependency on
- * `AdminExecutionCredentialController`'s shape beyond the one field it reads.
- *
- * @param optional.storedKeyIsForOtherEndpoint - The controller's flag of the same name. While idle, the line
- *   then asks for this provider's key instead of reporting a stored key this provider cannot use —
- *   the same ask, and the same dictionary key, as the visitor screen's key line.
- * @param optional.t - The host screen's translator. Defaults to English passthrough.
- * @complexity O(1).
- */
-export function resolveByokFooterStatusLine(
-  { status, isStored }: { status: AdminByokSaveState["status"]; isStored: boolean },
-  { storedKeyIsForOtherEndpoint = false, t = (key) => key }: { storedKeyIsForOtherEndpoint?: boolean; t?: Translate } = {},
-): string | null {
-  if (status === "saving") return t("Saving…");
-  if (status === "saved") return t("Saved to the server, encrypted.");
-  if (status !== "idle") return null;
-  if (storedKeyIsForOtherEndpoint) return t(STORED_KEY_OTHER_PROVIDER_COPY);
-  return t(isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.");
-}
 
 /**
  * The key field's placeholder: the server's mask for a key stored for the form's endpoint, otherwise
@@ -95,13 +63,20 @@ const executionCredentialEffects: ExecutionCredentialEffects<AdminExecutionCrede
   credentialHint: ({ stored, storedKeyIsForOtherEndpoint }, options = {}) => storedCredentialHint({ stored, storedKeyIsForOtherEndpoint }, options),
 };
 /** Bind host policy and migration; the package owns save/refresh ordering and draft clearing. */
-export function useAdminExecutionCredential(input: UseAdminExecutionCredentialInput, port: AdminExecutionCredentialPort): AdminExecutionCredentialController {
+export function useAdminExecutionCredential(
+  { input, port, useExecutionCredentialHook }: {
+    input: UseAdminExecutionCredentialInput;
+    port: AdminExecutionCredentialPort;
+    useExecutionCredentialHook: typeof useExecutionCredential<AdminExecutionCredential>;
+  },
+  _optional: Record<string, never> = {},
+): AdminExecutionCredentialController {
   // Stable identity prevents a render from restarting the stored-view GET/subscription effect.
   const adapted = useMemo<ExecutionCredentialPort<AdminExecutionCredential>>(() => ({
     loadAdminExecutionCredential: () => port.loadAdminExecutionCredential(),
     saveAdminExecutionCredential: ({ patch }) => port.saveAdminExecutionCredential({ patch }),
   }), [port]);
-  return useExecutionCredential({ ...input, port: adapted, effects: executionCredentialEffects }, {});
+  return useExecutionCredentialHook({ ...input, port: adapted, effects: executionCredentialEffects }, {});
 }
 
 /**
@@ -114,7 +89,8 @@ export function useAdminExecutionCredential(input: UseAdminExecutionCredentialIn
  */
 export function useWiredAdminExecutionCredential(
   input: UseAdminExecutionCredentialInput,
+  _optional: Record<string, never> = {},
 ): AdminExecutionCredentialController {
   const locale = useAdminLocale();
-  return useAdminExecutionCredential({ ...input, locale }, defaultAdminExecutionCredentialPort);
+  return useAdminExecutionCredential({ input: { ...input, locale }, port: defaultAdminExecutionCredentialPort, useExecutionCredentialHook: useExecutionCredential }, {});
 }

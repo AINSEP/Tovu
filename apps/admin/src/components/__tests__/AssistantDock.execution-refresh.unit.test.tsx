@@ -8,7 +8,8 @@ import { EXECUTION_CONFIG_MAX_AGE_MS } from "../AssistantDock/hooks/execution-co
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import type { ExecutionConfigWrite } from "../AssistantDock/execution-config-write";
-import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "../../lib/execution-settings";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { EXECUTION_NAMESPACE } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { SAVE_DEBOUNCE_MS, useSettingsSlice } from "../../hooks/use-settings-slice.hooks";
 import { writeAgentsSnapshot } from "../../lib/shell-collaborators";

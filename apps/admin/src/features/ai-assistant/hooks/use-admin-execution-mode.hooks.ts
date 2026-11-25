@@ -1,14 +1,8 @@
 import { useRef } from "react";
 import type { ExecutionConfig, ExecutionPort } from "@jini-ai/core/contracts/execution";
 
-import {
-  DEFAULT_EXECUTION_CONFIG,
-  EXECUTION_NAMESPACE,
-  createExecutionPort,
-  loadExecutionConfig,
-  reconcileExecutionConfigRefresh,
-  saveExecutionConfig,
-} from "@/lib/execution-settings";
+import { DEFAULT_EXECUTION_CONFIG, createExecutionPort, loadExecutionConfig, saveExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE, reconcileExecutionConfigRefresh } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { useSettingsSlice, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 
 /**
@@ -66,7 +60,7 @@ export function useAdminExecutionMode(): AdminExecutionModeController {
     // Same hazard, same fix as `use-settings-ui.hooks.ts`'s mount of this slice — see
     // `reconcileExecutionConfigRefresh`'s own doc. This is the SECOND mount over the same ledger
     // namespace (this file's header), so it needs the identical option, not a copy.
-    reconcileRefresh: reconcileExecutionConfigRefresh,
+    reconcileRefresh: (current, loaded) => reconcileExecutionConfigRefresh({ current, loaded }, {}),
   });
 
   return { port, execution };

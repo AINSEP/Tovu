@@ -1,14 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { type MemoryTopTab, type NotificationsPreferences, type PrivacyConsentState } from "@jini-ai/ui";
 import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
-import {
-  DEFAULT_EXECUTION_CONFIG,
-  EXECUTION_NAMESPACE,
-  createExecutionPort,
-  loadExecutionConfig,
-  reconcileExecutionConfigRefresh,
-  saveExecutionConfig,
-} from "@/lib/execution-settings";
+import { DEFAULT_EXECUTION_CONFIG, createExecutionPort, loadExecutionConfig, saveExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE, reconcileExecutionConfigRefresh } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import {
   DEFAULT_INSTRUCTIONS,
   DEFAULT_INTERFACE,
@@ -120,7 +114,7 @@ export function useSettingsUi(): SettingsUiController {
     // Without this, an external refresh (a same-tab echo of this slice's own write over the
     // settings-changed SSE feed, another tab, another operator) wipes a typed-but-unsaved API key
     // out of the form — see `reconcileExecutionConfigRefresh`'s own doc.
-    reconcileRefresh: reconcileExecutionConfigRefresh,
+    reconcileRefresh: (current, loaded) => reconcileExecutionConfigRefresh({ current, loaded }, {}),
   });
   const instructions = useSettingsSlice<string>({
     load: loadInstructions,

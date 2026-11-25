@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_EXECUTION_CONFIG, buildLocalCliConfigFromLedger } from "@/lib/execution-settings";
+import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
+import { buildLocalCliConfigFromLedger } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { localCliSelectionFromConfig, withLocalCliSelection } from "../execution-config-write";
 
 describe("Local CLI selection persistence", () => {

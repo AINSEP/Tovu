@@ -18,7 +18,7 @@ import type { ComponentProps } from "react";
 import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
 import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { VOICE_INPUT_ENABLED } from "@jini-ai/admin/screens/voice-input/voice-input-config";
-import { hasUsableAdminKey } from "../../lib/execution-settings";
+import { hasUsableAdminKey } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
