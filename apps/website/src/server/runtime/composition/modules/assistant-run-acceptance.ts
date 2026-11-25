@@ -45,6 +45,7 @@ export interface OwnerChatAcceptancePorts {
 
 /** The browser's run-start envelope with every server-owned field removed (recovery choices and the routine marker). */
 export function sanitizeBrowserRunContext({ decoded }: { decoded: Record<string, unknown> }, _optional = {}): Record<string, unknown> {
+  // Recovery session choices are server decisions, never client-controlled launch fields.
   const { recoveryMode: _mode, recoverySessionId: _session, routine: _routine, ...rest } = decoded;
   return rest;
 }
