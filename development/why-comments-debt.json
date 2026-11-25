@@ -14264,6 +14264,10 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "f83b6d1159b9",
+      "reason": "P8-T3.T made useMenuEditorHook a REQUIRED host injection (panels.tsx passes useRouteGuardedMenuEditor), so the old 'defaulted to the real hook, production callers pass only menuId' doc is false; the replacement doc in menu-editor-panel.tsx states the required contract."
     }
   ]
 }
