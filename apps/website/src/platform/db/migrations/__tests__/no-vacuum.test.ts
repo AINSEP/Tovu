@@ -16,3 +16,17 @@ test("no migration performs vacuum", () => {
     }
   }
 });
+
+test("no migration imports compaction or idle-turn primitives", () => {
+  const pending = [path.resolve(import.meta.dirname, "..")];
+  while (pending.length) {
+    const directory = pending.pop()!;
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory() && entry.name !== "__tests__") pending.push(file);
+      if (entry.isFile() && entry.name.endsWith(".ts") && !/\.(test|spec)\.ts$/.test(entry.name)) {
+        assert.doesNotMatch(readFileSync(file, "utf8"), /withIdleTurn|incrementalVacuumStep|convertToIncrementalVacuum|compactStoppedSite|resolveCompactionAttention/, file);
+      }
+    }
+  }
+});
