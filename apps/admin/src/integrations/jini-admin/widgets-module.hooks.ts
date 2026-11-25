@@ -4,7 +4,8 @@ import { createElement, useMemo, type ReactElement, type ComponentProps } from '
 import { widgets, useWidgetsOptions, type WidgetsReactOptions, type WidgetsSlots } from '@jini-ai/admin/widgets/react';
 import type { AdminWidgetType as HostWidgetType } from '@jini-ai/admin/screens/widgets/api/widgets-api.types';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
-import { WidgetConfigFields, WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/WidgetConfigFields';
+import { WidgetConfigFields } from '../../components/WidgetConfigFields/WidgetConfigFields';
+import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/widget-config-host-policy';
 import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPickerDialog';
 import { t as sharedComponentsT } from '@jini-ai/admin/shell/components/shared-components-i18n';
 import { serverLabel } from '@jini-ai/admin/shell/lib/status-labels';

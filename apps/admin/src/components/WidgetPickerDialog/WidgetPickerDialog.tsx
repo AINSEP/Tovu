@@ -6,7 +6,8 @@ import type { AdminWidget, AdminWidgetType } from "@jini-ai/admin/screens/widget
 
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";
 import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
-import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
+import { WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/widget-config-host-policy";
 import { Select, type SelectOption } from "../Select/Select";
 import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
 

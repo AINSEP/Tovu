@@ -10,7 +10,8 @@ import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtml
 import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";
 
 const isDroppedAttributeRow = (row: Parameters<typeof isDroppedRow>[0]["row"]) => isDroppedRow({ row, policy: embedPolicy });
-import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields";
+import { WidgetConfigFields } from "../WidgetConfigFields";
+import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from "../widget-config-host-policy";
 
 /**
  * @file `MediaContentEditor` behaviour against an in-memory media library port (no module mocks):

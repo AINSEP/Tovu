@@ -13,12 +13,6 @@
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
-    "CollectionEntryEditor::useCollectionEntryEditorHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
-      ]
-    },
     "Media::useMediaHook": {
       "count": 1,
       "files": [
@@ -125,12 +119,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/media/Media.tsx"
-      ]
-    },
-    "JsonFieldControl::useJsonFieldControl": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
       ]
     },
     "Media::useMediaItemLink": {

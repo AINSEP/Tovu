@@ -9,7 +9,7 @@ import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { MediaEditDialog } from "@jini-ai/cms/react/media/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
-import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
+import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/widget-config-host-policy";
 import { PlacementContentFields } from "@jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields";
 import { MediaContentEditor } from "../components/WidgetConfigFields/MediaContentEditor";
 import "../styles/media-content-editor.css";

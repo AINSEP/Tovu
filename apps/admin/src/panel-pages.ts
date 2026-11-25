@@ -49,7 +49,7 @@ import "./styles/form-field-settings.css";
 export { FormsList, FormEditor } from "@jini-ai/admin/screens/forms";
 export const Collections = lazy(() => import("./features/collections").then(module => ({ default: module.Collections })));
 export const CollectionEntries = lazy(() => import("./features/collections").then(module => ({ default: module.CollectionEntries })));
-export const CollectionEntryEditor = lazy(() => import("./features/collections").then(module => ({ default: module.CollectionEntryEditor })));
+export const CollectionEntryEditor = lazy(() => import("./features/collections/collection-entry-panel").then(module => ({ default: module.CollectionEntryEditor })));
 export const Taxonomy = lazy(() => import("./features/taxonomy").then(module => ({ default: module.Taxonomy })));
 export const Trash = lazy(() => import("./features/trash").then(module => ({ default: module.Trash })));
 export const Email = lazy(() => import("./features/email").then(module => ({ default: module.Email })));
