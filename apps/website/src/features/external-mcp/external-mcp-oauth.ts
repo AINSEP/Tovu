@@ -1,7 +1,6 @@
 import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ExternalMcpOAuthDeps } from "./contracts.js";
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
-import { hostedMcpSignInLink } from '../api-connections/browser-binding.js';
 import { formatAad } from "@jini-ai/platform/secrets";
 // Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
 // EXTRACT-S5 H3: the gate body lives in `@jini-ai/mcp/federation/hosted` (connection-gate.ts) and the sign-in body, device
@@ -117,8 +116,10 @@ export const tovuSealExternalMcpOAuthPayload: HostedMcpSignInPorts["store"]["sea
  * `ExternalMcpValidationError`/`ExternalMcpSecretStoreUnconfiguredError`; the ONE reauth factory the connection gate also gets;
  * the store shims the repository uses; the canonical projections; platform `formatAad`; the browser-binding sign-in link; Tovu's
  * OAuth copy, issuer-bound discovery policy and stable registration identity. Copy strings are the exact bytes the sign-in used before.
+ * The sign-in link is the one host-injected member: the composition root binds the browser-binding link, so this feature never
+ * imports the api-connections implementation.
  */
-export const tovuSignInPorts: HostedMcpSignInPorts = {
+const tovuSignInPortsBase: Omit<HostedMcpSignInPorts, "signInLink"> = {
   flow: oauthFlowOperations,
   errors: {
     oauth: (input) => new OAuthError(input),
@@ -130,7 +131,6 @@ export const tovuSignInPorts: HostedMcpSignInPorts = {
   store: { openPayload: openExternalMcpOAuthPayload, sealPayload: tovuSealExternalMcpOAuthPayload },
   projections: { authMode: resolveExternalMcpAuthMode, oauthStatus: resolveExternalMcpOAuthStatus },
   aad: { format: formatAad },
-  signInLink: hostedMcpSignInLink,
   registrationIdentity: tovuRegistrationIdentity,
   oauthMessages: tovuOAuthMessages,
   discoveryPolicy: createTovuIssuerBoundDiscoveryPolicy,
@@ -162,7 +162,14 @@ export const tovuSignInPorts: HostedMcpSignInPorts = {
   },
 };
 
+/** Tovu's sign-in ports with the host-bound sign-in link; every other member is the shared {@link tovuSignInPortsBase}. */
+export function createTovuSignInPorts({ signInLink }: { readonly signInLink: HostedMcpSignInPorts["signInLink"] }, _optional: Record<string, never> = {}): HostedMcpSignInPorts {
+  return { ...tovuSignInPortsBase, signInLink };
+}
+
 /** Tovu's sign-in service: the neutral {@link createHostedMcpSignInService} bound to {@link tovuSignInPorts}. Signature and defaults unchanged. */
-export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
-  return createHostedMcpSignInService({ ...required, ports: tovuSignInPorts });
+// A06: `tovuSignInPorts` is now built per service by `createTovuSignInPorts`; the one added required arg is the host-bound `signInLink`.
+export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps & { readonly signInLink: HostedMcpSignInPorts["signInLink"] }, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
+  const { signInLink, ...deps } = required;
+  return createHostedMcpSignInService({ ...deps, ports: createTovuSignInPorts({ signInLink }) });
 }

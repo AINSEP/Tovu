@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import * as signIn from "@jini-ai/integrations/api-connections/hosted-mcp";
 import * as oldOAuth from "../../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 
 const here = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -16,7 +17,7 @@ test("Tovu's own names keep their arity and bindings", () => {
   assert.equal(oldOAuth.createExternalMcpConnectionGate.length, 1);
   assert.equal(oldOAuth.createExternalMcpOAuthService.length, 1);
   assert.equal(signIn.createDeviceAuthorizationStore.length, 0);
-  assert.equal(oldOAuth.tovuSignInPorts.errors.reauthRequired, oldOAuth.createExternalMcpReauthRequiredError);
+  assert.equal(oldOAuth.createTovuSignInPorts({ signInLink: hostedMcpSignInLink }).errors.reauthRequired, oldOAuth.createExternalMcpReauthRequiredError);
   const error = oldOAuth.createExternalMcpReauthRequiredError({ serverId: "docs" });
   assert.ok(error instanceof oldOAuth.ExternalMcpReauthRequiredError);
   assert.equal(error.settingsLink, oldOAuth.externalMcpSettingsDeepLink({ serverId: "docs" }));

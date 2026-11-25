@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { createExternalMcpOAuthService } from "../../../external-mcp/external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
@@ -112,7 +113,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     },
   }));
 
-  const service = createExternalMcpOAuthService({
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE,
     repo,
     sealer,

@@ -8,6 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../features/api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
@@ -91,6 +92,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
     lookupProvider: () => PROVIDER,
+    signInLink: hostedMcpSignInLink,
   };
   const deps: RouteDeps = { ...base, externalMcpOAuth: { ...createExternalMcpOAuthService(oauthDeps), ...options.sharedOAuth } };
 
