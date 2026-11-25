@@ -140,7 +140,11 @@ function createPorts(required: Required) {
       // Opening an absent file could create an empty DB; ENOENT tells resolveMode the DB is missing.
       if (stat === undefined) throw Object.assign(new Error("Import history database is missing."), { code: "ENOENT" });
       if (!stat.isFile()) throw Object.assign(new Error("Import history database is not a regular file."), { code: "SQLITE_NOTADB" });
-      return openImportIndex({ file, open: (file, options) => open({ file, options }), clock, policy, integrityMemo, checkIntegrity }, { mustExist: true, readonly });
+      const opener = { file, open: (file: string, options: { readonly?: boolean; fileMustExist?: boolean }) => open({ file, options }), clock, policy, integrityMemo, checkIntegrity };
+      // A read-write connection over a damaged main file deletes its WAL/SHM on close, destroying what
+      // quarantine must preserve; so a locked open first validates through a read-only connection.
+      if (!readonly) openImportIndex(opener, { mustExist: true, readonly: true }).close({});
+      return openImportIndex(opener, { mustExist: true, readonly });
     },
   };
 }

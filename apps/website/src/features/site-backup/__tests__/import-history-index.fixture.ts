@@ -6,10 +6,27 @@ import type { TestContext } from "node:test";
 import type { ImportHistoryPolicy } from "@jini-ai/core/contracts/site/site-import-history";
 import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { sweepExpired } from "@jini-ai/devops/backup/site/import-index/sweep";
+import { IMPORT_INDEX_STATE_SCHEMA, indexStatePaths, type ImportIndexState } from "@jini-ai/devops/backup/site/import-index/mode";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { SiteImportRegistry } from "../import-registry.js";
 import { createSiteImportBackend } from "../import-backend.js";
 import { importFixture } from "./import.fixture.js";
+
+/** Writes `<root>/import-index.state.json` directly (0600), as a crash or an earlier run would leave it. */
+export function seedIndexState({ root, mode, dbId, cutoverAt }: { root: string; mode: ImportIndexState["mode"]; dbId: string | null; cutoverAt: number }, _optional: Record<string, never> = {}): ImportIndexState {
+  const state = (mode === "legacy"
+    ? { schema: IMPORT_INDEX_STATE_SCHEMA, mode, dbId: null, cutoverAt: 0, firstIndexedWriteAt: 0, legacyRetiredAt: 0 }
+    : { schema: IMPORT_INDEX_STATE_SCHEMA, mode, dbId, cutoverAt, firstIndexedWriteAt: mode === "indexed" ? cutoverAt : 0, legacyRetiredAt: 0 }) as ImportIndexState;
+  fs.writeFileSync(indexStatePaths({ root }).state, JSON.stringify(state), { mode: 0o600 });
+  return state;
+}
+
+/** Creates the monotonic `<root>/.history-indexed-v1` witness (0600). */
+export function seedWitness({ root }: { root: string }, _optional: Record<string, never> = {}): string {
+  const file = indexStatePaths({ root }).witness;
+  fs.writeFileSync(file, "", { mode: 0o600 });
+  return file;
+}
 
 export async function importHistoryIndexFixture({ t }: { t: TestContext }, _optional: Record<string, never> = {}) {
   const h = await importFixture(t);
@@ -48,5 +65,9 @@ export async function importHistoryIndexFixture({ t }: { t: TestContext }, _opti
   } });
   const backendPorts = { ...h.backendPorts, registry };
   const backfill = bindSiteImportBackfill({ directory: registry.directory, fs: h.payload.fs, clock, policy, openCandidate, log: () => {} });
-  return { ...h, backfill, registry, backendPorts, backend: createSiteImportBackend(backendPorts), db, store, policy, clock, file, openCandidate };
+  const root = registry.directory;
+  return { ...h, backfill, registry,
+    seedIndexState: (state: Omit<Parameters<typeof seedIndexState>[0], "root">, _optional: Record<string, never> = {}) => seedIndexState({ root, ...state }),
+    seedWitness: (_required: Record<string, never>, _optional: Record<string, never> = {}) => seedWitness({ root }),
+    backendPorts, backend: createSiteImportBackend(backendPorts), db, store, policy, clock, file, openCandidate };
 }
