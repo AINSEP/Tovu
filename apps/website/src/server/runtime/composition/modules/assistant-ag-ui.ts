@@ -65,6 +65,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
+import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -162,7 +163,7 @@ async function startDaemonRun(
   res: Response,
   run: AgUiRunInput,
   principalId: string,
-  daemon: DaemonCallOptions,
+  daemon: DaemonCallOptions & { reporter: Pick<RouteDeps["tracker"], "error"> },
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
   const prompt = flattenMessagesToPrompt({ messages: run.messages });
   const startUpstream = await fetchAgentDaemon(req, res, {
@@ -177,12 +178,40 @@ async function startDaemonRun(
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.
 
   if (!startUpstream.ok) {
-    const detail = await startUpstream.text().catch(() => "");
-    res.status(startUpstream.status).json({ error: "agent run failed to start", code: "DAEMON_START_FAILED", detail });
+    await refuseDaemonStart({ res, upstream: startUpstream, reporter: daemon.reporter });
     return { ok: false };
   }
   const { run: daemonRun } = (await startUpstream.json()) as { run: { id: string } };
   return { ok: true, daemonRunId: daemonRun.id };
+}
+
+/** A daemon refusal code the browser can act on (a busy slot, a missing agent). Anything that is
+ *  not a bare upper-snake code — prose, paths, keys — stays private. */
+const SAFE_REFUSAL_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+function readSafeRefusalCode({ body }: { body: string }, _optional = {}): string | undefined {
+  try {
+    const code = (JSON.parse(body) as { code?: unknown } | null)?.code;
+    return typeof code === "string" && SAFE_REFUSAL_CODE.test(code) ? code : undefined;
+  } catch {
+    return undefined; // A non-JSON refusal still answers with the daemon's status and the report id.
+  }
+}
+
+/** Answers a daemon start refusal without its raw body: the public route carries the daemon's
+ *  status, a known refusal code and a report reference; the redacted detail goes only to the host
+ *  reporter under that same reference, so support can find it without the browser ever seeing it.
+ * @complexity O(n) in the bounded refusal body. */
+async function refuseDaemonStart(
+  { res, upstream, reporter }: { res: Response; upstream: globalThis.Response; reporter: Pick<RouteDeps["tracker"], "error"> }, _optional = {},
+): Promise<void> {
+  const reportId = randomUUID();
+  const body = (await upstream.text().catch(() => "")).slice(0, 4096);
+  const exactSecrets = [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value));
+  reporter.error({ error: redactedTovuError({ error: new Error(`AG-UI daemon start refused: HTTP ${upstream.status}; ${body}`) }, { exactSecrets }) },
+    { context: { operation: "assistant.run", exactSecrets, attributes: { "tovu.report_id": reportId } } });
+  const reason = readSafeRefusalCode({ body });
+  res.status(upstream.status).json({ error: AG_UI_START_REFUSAL_MESSAGE, code: "DAEMON_START_FAILED", ...(reason ? { reason } : {}), reportId });
 }
 
 /** Subscribes to one daemon run's native SSE stream, returning a reader ready for
@@ -238,7 +267,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
-  const daemon: DaemonCallOptions = { observability: deps.observability };
+  const daemon = { observability: deps.observability, reporter: deps.tracker };
   let daemonRunId: string | null = null;
   // One agent-run span per daemon run (its own trace root, like the finalizer's), ended exactly once:
   // canceled by the close handler, failed if the subscribe fails, else the drain's own outcome.
@@ -293,6 +322,9 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 /** The owner-approved RUN_ERROR words for a daemon stream that drops mid-run (bugs1 T4). The
  *  transport's own message stays private: Jini's drain returns it to the run tracker only. */
 const AG_UI_INTERRUPTION_MESSAGE = "The assistant’s response was interrupted. Send your request again.";
+
+/** The plain sentence for a run the daemon refused to start; its own reason stays at the reporter. */
+const AG_UI_START_REFUSAL_MESSAGE = "The assistant could not start that request. Send it again; if it keeps failing, restart the site.";
 
 /** The plain sentence for a run the daemon reported as failed. The daemon's own wording (exit
  *  codes, transport errors) is not shown here; it stays in the run's status line and the logs. */
