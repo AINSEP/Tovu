@@ -28,6 +28,7 @@ import type { RoutinesKit } from '../features/routines/Routines';
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList as ChatConversationList, defaultConversationListHooks, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard, createDaemonAttachmentUploader,
   useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
   mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';
+import type { ConversationListHooks } from '@jini-ai/chat/react';
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle, isTerminalRunStatus } from '@jini-ai/chat/core';
 import { createA2uiActionPoster, createConditionalHistoryRead, createChatAttachmentValidator } from '@jini-ai/chat/transports/http';
 import { createAgentInventorySnapshot } from '@jini-ai/chat/browser/agent-inventory';
@@ -40,12 +41,16 @@ import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
 import type { UserManagementKit } from '@jini-ai/user-management/react/kit';
 import type { UiKit } from '@jini-ai/ui/react-kit';
 
-/** The dock's conversation switcher with its hooks bound here, at the composition root. Chat's
- *  `ConversationList` takes its hooks as a REQUIRED prop; the admin kit's prop contract does not
- *  carry them yet (NEEDS-JINI: add `hooks` to `KitConversationListProps` and pass it from DockHeader),
- *  so without this binding the dock would mount the list with `hooks` undefined. */
-function ConversationList(props: KitConversationListProps) {
-  return createElement(ChatConversationList, { ...props, hooks: defaultConversationListHooks });
+/** The dock's conversation switcher. Chat's `ConversationList` takes its hooks as a REQUIRED prop;
+ *  the admin kit forwards a host's list hooks opaquely (`KitConversationListProps.hooks`, injected
+ *  through `DockHeader`'s `conversationTools`), so they are narrowed here, and the chat defaults are
+ *  bound when the dock injects none. */
+function ConversationList({ hooks, ...props }: KitConversationListProps) {
+  return createElement(ChatConversationList, { ...props, hooks: isConversationListHooks(hooks) ? hooks : defaultConversationListHooks });
+}
+
+function isConversationListHooks(value: unknown): value is ConversationListHooks {
+  return typeof value === 'object' && value !== null && 'useConversationListView' in value && 'useT' in value;
 }
 
 /** Tovu picks the implementations; @jini-ai/admin only states what it renders. ui-kit facades (not

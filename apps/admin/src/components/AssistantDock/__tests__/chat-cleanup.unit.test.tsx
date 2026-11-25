@@ -1,22 +1,24 @@
 import { cleanup, render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defaultConversationListHooks } from "@jini-ai/chat/react";
+import { ConversationTitle, defaultConversationListHooks } from "@jini-ai/chat/react";
 
 import { useWiredChatCleanup } from "@/hooks/assistant-chats-dependencies.hooks";
 import type { ChatCleanupClient, WiredChatCleanup } from "../hooks/chat-cleanup.hooks";
 import { HttpError } from "@/lib/assistant-chats";
 import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
-import { DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { ChatCleanupPanel } from "../ChatCleanupPanel";
 import { chatCleanupCopy } from "../chat-cleanup-copy";
-import { DockHeader } from "../DockHeader";
+import { DockCleanupHeader } from "../DockCleanupHeader";
 
 /**
  * @file The dock's chat cleanup: the age chooser's server-counted preview, the token-bound apply,
  * the visible confirmation in front of delete-selected (owner rule d), and the dock taking its list
- * and cleanup hooks only from its props. The real `/api/assistant/chats` client is never reached:
+ * and cleanup hooks only from its props. The dock path is the one `DockChatPane` mounts: `DockCleanupHeader`
+ * feeding the cleanup into `@jini-ai/admin`'s `DockHeader` through its `conversationTools` slot. The real `/api/assistant/chats` client is never reached:
  * every test hands `useWiredChatCleanup` a fake client.
  */
 
@@ -109,16 +111,19 @@ describe("chat cleanup", () => {
       deleteSelected: vi.fn(), error: null,
     };
     const useChatCleanup = vi.fn(() => fake);
-    render(<DockHeader chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+    render(<DockCleanupHeader chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
       activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
       chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
       chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}
-      onMoreSettings={undefined} empty={false} useChatCleanup={useChatCleanup} />);
+      onMoreSettings={undefined} empty={false} useChatCleanup={useChatCleanup}
+      toolCallOptions={CHAT_TOOL_CALL_OPTIONS} replyLengthOptions={REPLY_LENGTH_OPTIONS} translateAiAssistant={({ key }) => key}
+      useSubagentsSettingsHook={() => ({ tooltipKey: null })} ConversationTitle={ConversationTitle} />);
     expect(useChatCleanup).toHaveBeenCalled();
     expect(useConversationListView).toHaveBeenCalled();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Chats" }));
     await user.click(screen.getByRole("button", { name: "Pin Plan" }));
     expect(togglePin).toHaveBeenCalledWith({ id: "c1", pinned: true });
+    expect(screen.getByRole("button", { name: "Clean up chats" })).toBeTruthy();
   });
 });
