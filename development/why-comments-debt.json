@@ -14264,6 +14264,26 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "7d0b6272b92a",
+      "reason": "PostCoverImage moved to Jini @jini-ai/cms/react/posts/PostCoverImage (x9 posts AP01); the picker hook is now a REQUIRED prop, so 'defaults to the real hook' is obsolete — the host binding post-cover-host.hooks.ts supplies it."
+    },
+    {
+      "id": "f6f8a3e5bce7",
+      "reason": "publish-content-api.types.ts deleted by x9 deploy P0.T: the destination response type was consolidated into the existing core contract, so there is no longer a hand-mirrored admin copy to explain."
+    },
+    {
+      "id": "4f120dc5fbd5",
+      "reason": "ThemePreviewReloadButton moved to Jini @jini-ai/cms/react/themes/ThemePreviewReloadButton (x9 rest TH03); comment carried there reworded for the now-required hook prop ('defaults inside the supplied hook')."
+    },
+    {
+      "id": "2340f53ac4b1",
+      "reason": "withLargeUploadRouting moved to Jini @jini-ai/cms/media/site/large-upload-routing (x9 posts); the routing text is now injected (routingText), comment reworded there; the product text stays in large-upload-routing-copy.ts."
+    },
+    {
+      "id": "c87e40383e1b",
+      "reason": "http.memory.ts moved to Jini @jini-ai/integrations/webhooks/site/http.memory (x9 small SM-J02); @file header carried verbatim except its two path references, updated to the new module location."
     }
   ]
 }
