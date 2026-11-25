@@ -3,7 +3,7 @@ import { resolveMediaCaptionsTrack } from "@jini-ai/cms/media/site/public-path";
 import { restorePostForward } from "../post/post-trash.js";
 import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "@jini-ai/cms/posts/post-read";
 import { PostVersionConflictError, PostNotFoundError } from "@jini-ai/cms/posts/post";
-import type { ForgetRemovedPostFn } from "../post/contracts.js";
+import type { ForgetRemovedPostFn } from "#src/platform/publish-contracts";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";

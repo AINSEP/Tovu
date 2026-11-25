@@ -1,11 +1,11 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
@@ -22,6 +22,10 @@ import {
   type EntryStatus,
 } from "@jini-ai/cms/entries";
 import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
+
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type EntryBag = Pick<CmsPublishPorts, "collection-entry">;
 
 /**
  * @file `collection-entry` on the publish factory: every entry except widgets and widget areas
@@ -140,8 +144,8 @@ const ENTRY_PUBLISH_ERRORS = {
     ],
 };
 
-export const contributeCollectionEntryPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<EntryRow, EntryPublishPorts, TovuPublishPorts>({
+export const contributeCollectionEntryPublish = (): PublishContentContributor<EntryBag> =>
+  createRepoPublishHandler<EntryRow, EntryPublishPorts, EntryBag>({
     entityType: "collection-entry",
     coversTables: ["entries", "entry_refs"],
     // 2 = the state may carry `termIds`. Exact-match, so an instance built before this refuses.

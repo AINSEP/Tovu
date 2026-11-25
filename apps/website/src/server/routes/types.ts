@@ -29,7 +29,7 @@ import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort,
 import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import type { RemovePostFn } from "../../features/post/index.js";
+import type { RemovePostFn } from "../../platform/publish-contracts.js";
 import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
 import type { PostSearchPort } from "@jini-ai/cms/posts/search";

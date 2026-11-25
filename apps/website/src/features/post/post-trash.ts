@@ -3,6 +3,7 @@ import { type PostRepoPort, type PostRecord, PostNotFoundError, SYSTEM_ACTOR_ID,
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { appendPostRevision, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
+import type { ForgetRemovedPostFn, RemovePostFn } from "#src/platform/publish-contracts";
 
 export interface DeletePostInput {
   /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) — unset
@@ -18,28 +19,6 @@ export interface DeletePostInput {
   /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
   delegatedById?: UUID | null;
 }
-
-/**
- * The delete primitive this domain is handed, rather than one it implements.
- *
- * Structurally typed ON PURPOSE — this file imports nothing from `features/trash`, and must not.
- * The composition root binds the real implementation (which stamps the marker AND indexes the item
- * for the Trash screen, as one transaction) and hands it in already bound to this domain's entity
- * type, so `deletePost` never learns that a Trash exists. The only thing it knows is that removal
- * is somebody else's single, atomic write.
- *
- * `display` is REQUIRED because the caller already holds the record — it loaded it for its own
- * not-found check — so the two strings the Trash screen shows come from columns, with no second
- * read and no payload parse. That is what keeps a post with unparseable `body_json` deletable.
- */
-export type RemovePostFn = (required: {
-  workspaceId: string;
-  id: string;
-  display: { title: string; subtitle?: string | null };
-  at: string;
-  expectedVersion: number | null;
-  actor: { principalId: string; pluginId?: string | null };
-}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
 
 export interface DeletePostDeps {
   clock: ClockPort;
@@ -130,14 +109,6 @@ export async function deletePost(
   return { post, revisionId, previousRevisionId };
 }
 
-/**
- * Drops whatever index row some other owner wrote when this post's removal was recorded.
- *
- * Structurally typed and injected, exactly like {@link RemovePostFn}, so this domain still imports
- * nothing from the module that owns that index. A no-op for an entity that was never indexed, so a
- * caller that cannot tell never has to decide.
- */
-export type ForgetRemovedPostFn = (required: { workspaceId: string; id: string }) => Promise<void>;
 
 export interface RestorePostForwardRequired {
   deps: {
