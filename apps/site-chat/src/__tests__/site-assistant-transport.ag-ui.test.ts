@@ -133,7 +133,7 @@ describe("visitor AG-UI transport", () => {
 
   it("EOF without a terminal does not mark a partial reply successful", async () => {
     const finishes: unknown[] = [];
-    const frontend = { headers: async () => ({}), finish: (args: unknown) => { finishes.push(args); } };
+    const frontend = { headers: async () => ({}), acceptBrowserInvocation: () => {}, finish: (args: unknown) => { finishes.push(args); } };
 
     // Interrupted: partial text, split across chunks, then the body just ends.
     const cut = controlledServer();
@@ -190,7 +190,7 @@ describe("visitor AG-UI transport", () => {
 
   it("page navigation still navigates after saving the reply", async () => {
     const finishes: Array<{ navigation: boolean; messages?: ChatMessage[] }> = [];
-    const frontend = { headers: async () => ({ "X-Visitor-Tab": "tab-1" }), finish: (args: { navigation: boolean; messages?: ChatMessage[] }) => { finishes.push(args); } };
+    const frontend = { headers: async () => ({ "X-Visitor-Tab": "tab-1" }), acceptBrowserInvocation: () => {}, finish: (args: { navigation: boolean; messages?: ChatMessage[] }) => { finishes.push(args); } };
     const server = controlledServer();
     const run = makeHandlers();
     const history = [userMessage("take me to about")];
