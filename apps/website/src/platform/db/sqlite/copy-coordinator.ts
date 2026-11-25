@@ -59,11 +59,11 @@ export interface DatabaseCopyFs {
 
 export interface ListedCopy extends DatabaseCopy { readonly bytes: number }
 
-/**
- * The grammar-matched copies in one ops folder, newest first, with their bytes (copy plus proven sidecars).
- * A missing folder lists nothing; any other read error propagates so a pass reports it instead of guessing.
- * @complexity O(n log n) in folder entries, one lstat per matched name and sidecar.
- */
+/** Only the exact filenames this writer owns enter the shared retention policy (ISO stamps give the
+ * order); a removed copy takes any `-wal`/`-shm` a reader left beside it. Foreign files are left alone.
+ * @complexity O(n log n) in files beside the new copy. */
+// Listing: newest first with bytes (copy plus proven sidecars). A missing folder lists nothing; any other
+// read error propagates so a pass reports it instead of guessing.
 export async function listMigrationCopies({ opsDir, fs }: { opsDir: string; fs: DatabaseCopyFs }, _optional: Record<string, never> = {}): Promise<ListedCopy[]> {
   const entries = await fs.readdir(opsDir).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return []; throw error; });
   const copies: ListedCopy[] = [];

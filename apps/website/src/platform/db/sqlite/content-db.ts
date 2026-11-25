@@ -148,7 +148,7 @@ export interface MigrationCopyPorts {
  * site's recovery journal (`<site>/ops/database-journal.db` unless the caller names another journal).
  * @complexity O(1); the returned checks do the I/O.
  */
-export function siteMigrationCopyPorts({ filePath }: { filePath: string }, { journalPath }: { journalPath?: string } = {}): MigrationCopyPorts {
+export function siteMigrationCopyPorts({ filePath }: { filePath: string }, { journalPath }: { journalPath?: string } = {}): ReturnType<typeof sqliteCopyPorts> {
   const journal = journalPath ?? path.join(path.dirname(path.resolve(filePath)), "ops", "database-journal.db");
   return sqliteCopyPorts({ journalPath: journal, copies: processCopyCoordinator, open: openNativeSqlite as unknown as ReadonlySqliteOpener, exists: fs.existsSync });
 }

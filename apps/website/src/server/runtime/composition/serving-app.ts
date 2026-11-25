@@ -2,7 +2,7 @@ import { createRetentionRunner } from "@jini-ai/platform/retention";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
-import { siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
 import { stat, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
@@ -92,7 +92,7 @@ export function createServingApp(
   const siteRetention = optional.runningLease && !optional.runningLease.attached
     ? startSiteRetention({
       createRunner: createRetentionRunner, clock: Date, scheduler: globalThis,
-      policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError }),
+      policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError, databaseCopies: servingDatabaseCopies({ contentDbPath: routeDeps.siteStoragePaths.contentDbPath }) }),
       reportError: reportRetentionError,
       log: line => console.log(line),
     }, {})
