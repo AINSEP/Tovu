@@ -8,7 +8,7 @@ import { publishTrustChallengeRoute, publishTrustIdentityRoute, publishTrustSess
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";

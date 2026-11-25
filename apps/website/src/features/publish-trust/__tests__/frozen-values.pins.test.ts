@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { PUBLISH_TRUST_ROUTES, isPublishTrustRoute } from "@jini-ai/cms/publish/trust/grant";
 import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";

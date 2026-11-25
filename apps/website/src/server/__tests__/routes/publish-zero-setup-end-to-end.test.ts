@@ -25,7 +25,8 @@ import {
   createFileProvisioning,
   type ProvisioningFileIo,
 } from "@jini-ai/cms/publish/trust/provisioning";
-import { PUBLISH_TRUST_ENV_VAR, PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { deployConfigGenerators } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";

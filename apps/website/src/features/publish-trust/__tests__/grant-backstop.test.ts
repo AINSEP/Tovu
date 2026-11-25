@@ -5,7 +5,7 @@ import { backstopGrantAllows, DEFAULT_PUBLISHING_CAPABILITIES, parsePublishTrust
 import { connectDestination, disconnectDestination, type ConnectDeps } from "@jini-ai/cms/publish/trust/connect";
 import { nowIso } from "@jini-ai/core/primitives";
 import { findCandidateDestination } from "../connect.js";
-import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, type ProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning";
 
 test("backstop requires a separate capability AND an explicit raw entity type", () => {

@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response as ExpressResponse } from "express
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { parseGrantDocument, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";

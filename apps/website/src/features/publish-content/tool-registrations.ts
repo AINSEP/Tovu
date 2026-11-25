@@ -34,7 +34,7 @@ import {
 } from "@jini-ai/cms/publish/trust/connect";
 import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
-import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";

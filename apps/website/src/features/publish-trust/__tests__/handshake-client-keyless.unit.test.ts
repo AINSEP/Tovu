@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
-import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 
 // A destination with no site key answers every handshake route with a typed 503. The owner must
 // read what to fix on that site, not "try again in a moment", which no retry will ever satisfy.

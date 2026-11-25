@@ -1,6 +1,6 @@
 import { openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { resolvePublishDestinationCredential as resolveDestinationCredential } from "@jini-ai/cms/publish/content/destination-credential";

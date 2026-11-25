@@ -9,7 +9,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";

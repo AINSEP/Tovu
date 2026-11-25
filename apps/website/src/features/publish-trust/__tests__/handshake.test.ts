@@ -11,7 +11,7 @@ import {
   issuePublishChallenge,
   verifyChallengeResponse,
 } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { isPublishTrustRoute, parsePublishTrustGrant, PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "@jini-ai/cms/publish/trust/session";

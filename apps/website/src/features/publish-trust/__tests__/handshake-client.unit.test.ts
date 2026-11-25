@@ -6,7 +6,7 @@ import test from "node:test";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
-import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import {
   fetchDestinationIdentity,
   openPublishSession,
