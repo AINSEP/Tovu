@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { OAuthError } from "@jini-ai/oauth";
 import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
 import { externalMcpAdmissionsRoute } from "@jini-ai/cms/admin-http/routes/external-mcp/admissions";
@@ -27,7 +28,7 @@ import {
 } from "#src/server/inbound/admin-http/routes/external-mcp/oauth";
 import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "#src/server/inbound/admin-http/routes/external-mcp/probe";
 import { registerExternalMcpOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `external-mcp` server module — the operator's roster of third-party MCP servers,
@@ -90,8 +91,8 @@ function instanceOf<E>({ ErrorClass }: { ErrorClass: abstract new (...args: neve
 const isValidationError = instanceOf({ ErrorClass: ExternalMcpValidationError });
 const isSecretStoreUnconfiguredError = instanceOf({ ErrorClass: ExternalMcpSecretStoreUnconfiguredError });
 
-export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({
+export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors,
     app, spec: externalMcpListRoute,
     deps: {
       ...externalMcpPortDeps({ deps }), describeOwnership: ownershipFor({ deps }),
@@ -100,8 +101,8 @@ export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ a
   }, mountOptions({ operation: "routes/external-mcp/list" }));
 };
 
-export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({
+export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors,
     app, spec: externalMcpPutRoute,
     deps: {
       ...externalMcpPortDeps({ deps }), describeOwnership: ownershipFor({ deps }),
@@ -113,8 +114,8 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ ap
   }, mountOptions({ operation: "routes/external-mcp/put" }));
 };
 
-export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({
+export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors,
     app, spec: externalMcpDeleteRoute,
     deps: {
       ...externalMcpPortDeps({ deps }),
@@ -124,10 +125,10 @@ export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({
   }, mountOptions({ operation: "routes/external-mcp/delete" }));
 };
 
-export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   // No composed reader reads the server-owned federation directly (its own unavailable 503).
   const readAdmissions = () => deps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {});
-  mountAdminJsonRoute({ app, spec: externalMcpAdmissionsRoute, deps: { ...externalMcpPortDeps({ deps }), readAdmissions } }, mountOptions({ operation: "routes/external-mcp/admissions" }));
+  mountAdminJsonRoute({ errors, app, spec: externalMcpAdmissionsRoute, deps: { ...externalMcpPortDeps({ deps }), readAdmissions } }, mountOptions({ operation: "routes/external-mcp/admissions" }));
 };
 
 /**
@@ -135,20 +136,20 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
  * composition with no store (`externalMcpToolApprovalRepo` unset) can have saved nothing, so its
  * list is empty and every revoke is a 404 — the truthful answer, not an error.
  */
-export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalsListRoute, deps: {
+export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: externalMcpToolApprovalsListRoute, deps: {
     ...externalMcpPortDeps({ deps }),
     listApprovals: async ({ workspaceId }) => (await deps.externalMcpToolApprovalRepo?.listByWorkspaceId(workspaceId)) ?? [],
   } }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalRevokeRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: externalMcpToolApprovalRevokeRoute, deps: {
     ...externalMcpPortDeps({ deps }),
     revokeApproval: async (input) => (await deps.externalMcpToolApprovalRepo?.delete(input)) ?? false,
   } }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
 };
 
 /** `DELETE .../mcp-servers/:serverId/oauth`; registered only when an OAuth service is wired. */
-export function registerAdminExternalMcpOAuthDisconnectRoute({ app, deps }: { app: import("express").Express; deps: ExternalMcpOAuthRouteDeps }, _optional = {}): void {
-  mountAdminJsonRoute({
+export function registerAdminExternalMcpOAuthDisconnectRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: import("express").Express; deps: ExternalMcpOAuthRouteDeps }, _optional = {}): void {
+  mountAdminJsonRoute({ errors,
     app, spec: externalMcpOAuthDisconnectRoute,
     deps: {
       ...externalMcpPortDeps({ deps }),
@@ -162,7 +163,7 @@ export function registerAdminExternalMcpOAuthDisconnectRoute({ app, deps }: { ap
   }, mountOptions({ operation: "routes/external-mcp/oauth" }));
 }
 
-export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle {
+export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle<RouteRegistration> {
   const oauthDeps = "externalMcpOAuth" in deps && deps.externalMcpOAuth !== undefined ? (deps as ExternalMcpOAuthRouteDeps) : null;
   // Separate instances per family (not one shared limiter) so a device-poll burst does not eat the
   // callback's budget — the same reasoning the connectors module records for its four.
@@ -172,23 +173,23 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
 
   return {
     name: "external-mcp",
-    registerRoutes: ({ app }, _options = {}) => {
+    registerRoutes: ({ errors, app }, _options = {}) => {
       // No ordering hazard of the kind the connectors module documents: the collection route, the
       // `:serverId` routes, and the two new fixed-suffix routes (`/admissions`, `/:serverId/probe`)
       // all differ by HTTP method or by segment count, so no literal path can be swallowed as an id.
-      registerAdminExternalMcpListRoute({ app, deps });
-      registerAdminExternalMcpPutRoute({ app, deps });
-      registerAdminExternalMcpDeleteRoute({ app, deps });
-      registerAdminExternalMcpAdmissionsRoute({ app, deps });
+      registerAdminExternalMcpListRoute({ errors, app, deps });
+      registerAdminExternalMcpPutRoute({ errors, app, deps });
+      registerAdminExternalMcpDeleteRoute({ errors, app, deps });
+      registerAdminExternalMcpAdmissionsRoute({ errors, app, deps });
       registerAdminExternalMcpProbeRoute({ app, deps, limiter: probeLimiter });
       // `GET /tool-approvals` is registered before nothing it could be mistaken for: there is no
       // `GET /:serverId`, and the revoke path has four segments past `mcp-servers`.
-      registerAdminExternalMcpToolApprovalsRoutes({ app, deps });
+      registerAdminExternalMcpToolApprovalsRoutes({ errors, app, deps });
 
       if (!oauthDeps) return;
       registerAdminExternalMcpOAuthConnectRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
       registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
-      registerAdminExternalMcpOAuthDisconnectRoute({ app, deps: oauthDeps });
+      registerAdminExternalMcpOAuthDisconnectRoute({ errors, app, deps: oauthDeps });
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.
       registerExternalMcpOAuthCallbackRoute({ app, deps: { oauth: oauthDeps.externalMcpOAuth, callbackLimiter } });

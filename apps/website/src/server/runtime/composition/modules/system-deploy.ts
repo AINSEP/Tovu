@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { homedir } from "node:os";
 import type { Express } from "express";
 
@@ -151,8 +152,8 @@ export type AdminDeploymentOverviewDeps = Pick<
  *  hand-written route read `deps.*`.
  * @complexity O(1) setup.
  */
-export function registerAdminDeploymentOverviewRoute({ app, deps }: { app: Express; deps: AdminDeploymentOverviewDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: deploymentOverviewRoute, deps: {
+export function registerAdminDeploymentOverviewRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminDeploymentOverviewDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: deploymentOverviewRoute, deps: {
     ...deployPortDeps({ deps }),
     get identityReady() { return deps.identityReady; },
     get ownerPrincipalId() { return deps.ownerPrincipalId; },
@@ -236,15 +237,15 @@ export type AdminExportSiteDeps = RouteDeps;
  * continues in the background).
  * @complexity O(1) setup.
  */
-export function registerAdminExportSiteRoutes({ app, deps }: { app: Express; deps: AdminExportSiteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminExportSiteRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminExportSiteDeps }, _optional: Record<string, never> = {}): void {
   const getRunSnapshot = () => getExportRunSnapshot();
-  mountAdminJsonRoute({ app, spec: exportSiteTriggerRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: exportSiteTriggerRoute, deps: {
     ...deployPortDeps({ deps }),
     getRunSnapshot,
     startRun: ({ clean, actorId }, { basePath }) => startExportRun({ routeDeps: deps, runExportSite: deps.runExportSite, clean }, { basePath,
       productEvent: { tracker: deps.tracker, userId: actorId, operationId: deps.idGen.newId(), source: "admin" } }),
   } }, mountOptions({ operation: "routes/system/export-site", authorization: "direct" }));
-  mountAdminJsonRoute({ app, spec: exportSiteStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot } }, mountOptions({ operation: "routes/system/export-site", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: exportSiteStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot } }, mountOptions({ operation: "routes/system/export-site", authorization: "direct" }));
 }
 
 /** The deps `registerAdminPublishSiteRoutes` reads (the publish context and trigger take the whole bag). */
@@ -260,12 +261,12 @@ const PUBLISH_MOUNT = mountOptions({ operation: "routes/system/publish-site", au
  * destinations listing stay hand-written in `routes/system/publish-site.ts` (see each registrar's doc).
  * @complexity O(1) setup.
  */
-export function registerAdminPublishSiteRoutes({ app, deps }: { app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminPublishSiteRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
   const context = createPublishSiteContext({ deps });
   registerAdminPublishTriggerRoute({ app, context });
-  mountAdminJsonRoute({ app, spec: publishStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot: () => getPublishRunSnapshot() } }, PUBLISH_MOUNT);
-  mountAdminJsonRoute({ app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor({ context }) } }, PUBLISH_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: publishStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot: () => getPublishRunSnapshot() } }, PUBLISH_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor({ context }) } }, PUBLISH_MOUNT);
   registerAdminPublishDestinationsRoute({ app, context });
   // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
-  mountAdminJsonRoute({ app, spec: publishTargetsRoute, deps: { ...deployPortDeps({ deps }), listTargets: publishTargetsFor({ deps }) } }, PUBLISH_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: publishTargetsRoute, deps: { ...deployPortDeps({ deps }), listTargets: publishTargetsFor({ deps }) } }, PUBLISH_MOUNT);
 }

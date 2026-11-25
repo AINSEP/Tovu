@@ -1,4 +1,5 @@
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
@@ -19,9 +20,10 @@ const PROVIDERS = "/api/admin/v1/workspaces/:workspaceId/system/source-control/p
 const offline = async () => { throw new Error("SECRET repo detail"); };
 const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
 
-function harness(overrides: PortFake<AdminSourceControlCredentialsDeps> = {}) {
+function harness(overrides: PortFake<AdminSourceControlCredentialsDeps> = {}, incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   const app = express();
-  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({
+  registerAdminSourceControlCredentialsRoutes({ errors: routeErrors, app, deps: portFake<AdminSourceControlCredentialsDeps>({
     workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowIso: () => "2026-10-21T00:00:00.000Z", nowMs: () => 0 }, idGen: { newId: () => "cred-1" },
     sourceControlCredentialSetRepo: { listByWorkspace: offline, findById: offline, delete: offline },
@@ -67,16 +69,16 @@ test("providers list optional credential/i18n fields only when declared, names s
   assert.deepEqual(warned, ["[source-control-providers] plugin 'broken' refused: bad manifest"]);
 });
 
-test("unexpected store or loader failures answer a private 500 and log a correlated diagnostic", async (t) => {
-  const logged: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
-  const invoke = harness();
+test("unexpected store or loader failures answer a private 500 and log a correlated diagnostic", async () => {
+  const incidents = createRouteIncidentReporter();
+  const invoke = harness({}, incidents);
   assertAdminResponse({ actual: await invoke("get", PROVIDERS), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminResponse({ actual: await invoke("get", BASE), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminResponse({ actual: await invoke("post", BASE, { body: { label: "valid", connection: { providerId: "example-git", token: "fixture-secret" } } }), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminResponse({ actual: await invoke("put", `${BASE}/:id`, { body: { isDefault: true } }), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminResponse({ actual: await invoke("delete", `${BASE}/:id`), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/source-control-credentials]", diagnostics: Array(5).fill(/SECRET repo detail/) });
+  assertIncidentDiagnostics({ incidents, step: "routes/system/source-control-credentials", diagnostics: Array(5).fill(/SECRET repo detail/) });
+  assert.equal(incidents.reports.length, 5);
 });
 
 test("an absent request body is read as {} on create (validation 400) and update (not-found 404)", async () => {
@@ -153,7 +155,7 @@ type RegisteredRoute = { method: "get" | "post" | "put" | "delete"; path: string
 
 function registeredRoutes(): RegisteredRoute[] {
   const app = express();
-  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }) });
+  registerAdminSourceControlCredentialsRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }) });
   const stack = (app as unknown as { _router: { stack: RouterLayer[] } })._router.stack;
   return stack.flatMap((layer) => layer.route === undefined ? [] : Object.keys(layer.route.methods).map((method) => ({ method: method as RegisteredRoute["method"], path: layer.route!.path })));
 }

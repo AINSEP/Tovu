@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -41,7 +42,7 @@ function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDep
   const app = express();
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
-  createSeoModule(deps).registerRoutes?.({ app });
+  createSeoModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   registerProductRoutes({ app, deps });
   registerSiteRoutes({ app, deps });
   return { app, deps };

@@ -6,6 +6,7 @@
  * tests share incident memory, and a test that needs one ID across several boundaries passes the
  * same instance to each of them.
  */
+import assert from "node:assert/strict";
 import type { ReportRouteInternalError, RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { NOOP_OPERATION_TRACKER } from "@jini-ai/core/errors/reporter";
 import { createRecordingReporter } from "@jini-ai/core/errors/testing";
@@ -36,4 +37,23 @@ export function createRouteIncidentReporter(_required: Record<string, never> = {
     reportInternalError: createReporterRouteInternalError({ reporter: recorded.reporter }),
     errors: { reporter: recorded.reporter, observability: { trackOperation: () => NOOP_OPERATION_TRACKER } },
   };
+}
+
+/**
+ * The reporter-backed twin of the retired console-line assertion: exactly one host record per expected
+ * diagnostic, each under `step`, with a well-formed error ID and a (redacted) diagnostic matching the regex.
+ * @returns the recorded error IDs, in order, so a test can compare them with the reply's `errorId` / `requestId`.
+ */
+export function assertIncidentDiagnostics(
+  { incidents, step, diagnostics }: { incidents: Pick<RouteIncidentFixture, "entries">; step: string; diagnostics: readonly RegExp[] },
+  _optional: Record<string, never> = {},
+): string[] {
+  assert.equal(incidents.entries.length, diagnostics.length);
+  return incidents.entries.map((entry, index) => {
+    const meta = entry.meta as { errorId: string; step: string; diagnostic: string };
+    assert.match(meta.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+    assert.equal(meta.step, step);
+    assert.match(meta.diagnostic, diagnostics[index]!);
+    return meta.errorId;
+  });
 }

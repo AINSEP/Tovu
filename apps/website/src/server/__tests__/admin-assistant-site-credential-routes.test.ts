@@ -44,12 +44,13 @@ class BrokenKeyring implements KeyringPort {
 }
 
 function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.({ app });
+  createAssistantSettingsModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps };
 }
 

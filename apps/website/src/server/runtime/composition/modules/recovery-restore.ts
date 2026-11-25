@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import {
@@ -104,10 +105,10 @@ function withPorts<T extends object>({ deps, own }: { deps: RouteDeps; own: T },
 
 /** Mounts the three ceremony specs. The gateway authorizes inside each step, so the mounts are
  * `"direct"` (no publishing-credential override was ever consulted) and never call `authorize`. */
-export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: recoveryRestorePlanRoute, deps: withPorts({ deps, own: { planRestore: planStep({ deps }) } }) }, RESTORE_MOUNT);
-  mountAdminJsonRoute({ app, spec: recoveryRestoreConfirmRoute, deps: withPorts({ deps, own: { confirmRestore: confirmStep({ deps }) } }) }, RESTORE_MOUNT);
-  mountAdminJsonRoute({ app, spec: recoveryRestoreExecuteRoute, deps: withPorts({ deps, own: {
+export function registerAdminRecoveryRestoreRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: recoveryRestorePlanRoute, deps: withPorts({ deps, own: { planRestore: planStep({ deps }) } }) }, RESTORE_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: recoveryRestoreConfirmRoute, deps: withPorts({ deps, own: { confirmRestore: confirmStep({ deps }) } }) }, RESTORE_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: recoveryRestoreExecuteRoute, deps: withPorts({ deps, own: {
     executeRestore: executeStep({ deps }),
     authorizeRestoreExecution: ({ principalId, permission }: { principalId: string; permission: string }) =>
       authorizeForHooks({ deps: deps.gatedMutations.gatewayDeps, hooks: confirmOnlyRestoreHooks({ deps }), required: { principalId, permission } }),

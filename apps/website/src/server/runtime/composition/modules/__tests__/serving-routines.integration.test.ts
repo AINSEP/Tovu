@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import type { AddressInfo } from "node:net";
@@ -33,9 +34,10 @@ function site(t: { after: (fn: () => void) => void }) {
 }
 
 function boot(t: { after: (fn: () => void) => void }, { desktopEligible = true, hooks = site(t).hooks, holderId = "boot-a", opened = { count: 0 } } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const router = Router();
   const channel = fakeChannel();
-  const serving = startServingRoutines({ routeDeps, router, desktopEligible, releaseEnabled: true, reporter: { record: () => assert.fail("no incident is expected") } }, { storeHooks: hooks, channel, composeOverrides: {
+  const serving = startServingRoutines({ errors: routeErrors, routeDeps, router, desktopEligible, releaseEnabled: true, reporter: { record: () => assert.fail("no incident is expected") } }, { storeHooks: hooks, channel, composeOverrides: {
     timers: { schedule: () => () => {} }, log: () => {}, writeBeacon: async () => {},
     openSqlite: (file) => { opened.count += 1; return openNativeSqlite(file); },
     policy: { releaseEnabled: true, access: async ({ actor }) => actor.principalId === "owner-1" } } });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
@@ -263,6 +264,7 @@ test("deploy inventory and default selection see attached keys only; create retu
 
 
 test('a Deployments-page save attaches its project key to this site and survives a list reload, without attaching another site', async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));
   const project = projectStore();
   const attachments = fakeAttachments();
@@ -272,7 +274,7 @@ test('a Deployments-page save attaches its project key to this site and survives
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminPublishCredentialsRoutes({ app, deps: {
+  registerAdminPublishCredentialsRoutes({ errors: routeErrors, app, deps: {
     observability: createNoopObservabilityPort({}), publishExecutionMode: "hosted-api-only",
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
     vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,

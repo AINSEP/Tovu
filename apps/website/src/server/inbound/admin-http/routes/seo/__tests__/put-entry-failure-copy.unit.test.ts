@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
@@ -31,6 +32,7 @@ const { registerAdminSeoPutEntryRoute } = await import("#src/server/runtime/comp
 const { dispatchJsonRequest } = await import("#src/server/__tests__/helpers/in-process-http");
 
 test("seo put-entry: a principal-bearing unexpected failure answers the legacy operation-only copy, not the route-derived one", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) };
   await deps.seoReady;
   let reached = false;
@@ -38,7 +40,7 @@ test("seo put-entry: a principal-bearing unexpected failure answers the legacy o
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSeoPutEntryRoute({ app, deps });
+  registerAdminSeoPutEntryRoute({ errors: routeErrors, app, deps });
 
   const response = await dispatchJsonRequest(app, "PUT", "/api/admin/v1/workspaces/workspace-local/seo/entries/post-home", { title: "x" });
 

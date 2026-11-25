@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Skills validators match If-None-Match themselves, after workspace and permission guards. */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -10,11 +11,12 @@ import { registerSkillsListRoute } from "#src/server/runtime/composition/modules
 import type { SkillsRouteDeps } from "#src/server/runtime/composition/modules/skills";
 
 test("matching validators return an empty 304; changed skills return a private 200 with a new ETag", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const fixture = createTempSiteLayoutFixture({});
   t.after(fixture.cleanup);
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute({ app, deps: { ...fixture.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
+  registerSkillsListRoute({ errors: routeErrors, app, deps: { ...fixture.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/workspace-local/skills`;
   const first = await fetch(url);
@@ -41,6 +43,7 @@ test("matching validators return an empty 304; changed skills return a private 2
 });
 
 test("matching validators cannot bypass workspace or authorization guards or reach enumeration", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const fixture = createTempSiteLayoutFixture({});
   t.after(fixture.cleanup);
   let allowed = true, refuseEnumeration = false, authorizations = 0;
@@ -51,7 +54,7 @@ test("matching validators cannot bypass workspace or authorization guards or rea
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute({ app, deps });
+  registerSkillsListRoute({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/workspace-local/skills`;
   const etag = (await fetch(url)).headers.get("etag");

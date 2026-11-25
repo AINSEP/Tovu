@@ -21,10 +21,11 @@ import type { RouteDeps } from "../routes/types.js";
  */
 
 function buildApp(deps: RouteDeps = createRouteDeps()) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
-  createAssistantChatsModule(deps).registerRoutes?.({ app });
+  createAssistantChatsModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return app;
 }
 

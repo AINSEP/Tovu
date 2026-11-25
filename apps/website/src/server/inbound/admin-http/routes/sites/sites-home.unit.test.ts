@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Home2 review: exercise registered route handlers against the real shared settings owner. */
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -11,6 +12,7 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 async function fixture(t: TestContext, { useDefaultCapability = false } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sites-settings-routes-")));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
@@ -19,7 +21,7 @@ async function fixture(t: TestContext, { useDefaultCapability = false } = {}) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSitesHomeRoutes({ app, workspace, deps: { workspaceId: "ws", ...(useDefaultCapability ? {} : { isSiteSwitcherEnabled: () => enabled }),
+  registerSitesHomeRoutes({ errors: routeErrors, app, workspace, deps: { workspaceId: "ws", ...(useDefaultCapability ? {} : { isSiteSwitcherEnabled: () => enabled }),
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed, reason: "policy" }; } } });
   const origin = await startTestServer(app, t);
   return { app, root, workspace, permissions, disable: () => { enabled = false; }, deny: () => { allowed = false; },

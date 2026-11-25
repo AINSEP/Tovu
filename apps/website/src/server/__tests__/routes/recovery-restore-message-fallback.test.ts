@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import express from "express";
@@ -22,7 +23,7 @@ test("recovery restore: a contract-valid error payload with no message falls bac
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminRecoveryRestoreRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }) } as unknown as RouteDeps });
+  registerAdminRecoveryRestoreRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }) } as unknown as RouteDeps });
   const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/recovery/restore/plan", { restorePointId: "rp-1" });
   assert.equal(response.status, 409);
   assert.deepEqual(response.body, { error: "PLAN_STALE", code: "PLAN_STALE" });

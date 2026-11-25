@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
@@ -29,7 +30,7 @@ async function harness() {
     ownerCheck: ({ context }) => ownerFromSession({ context, workspaceId: WS }),
     openConversations: async () => new Set<string>(),
     previewStore: createCleanupPreviewStore({ randomToken: () => crypto.randomUUID(), mono: () => clock }),
-    adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: WS, authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites },
+    adminPorts: { errors: createRouteIncidentReporter().errors, mount: mountAdminJsonRoute, deps: { workspaceId: WS, authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites },
   });
   const server = app.listen(0);
   await new Promise<void>(resolve => server.once("listening", resolve));

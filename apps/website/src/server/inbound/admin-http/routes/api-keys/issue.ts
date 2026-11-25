@@ -5,6 +5,6 @@ import { API_KEY_MOUNT_OPTIONS, apiKeyMountDeps, type ApiKeysRouteRegistrar } fr
 
 /** POST api-keys — `APIKEY_ISSUE`; the spec (and its rationale) lives in Jini. Host binding only:
  * `issueApiKey` is the host's key-format-bound transition. Nothing here logs the response body. */
-export const registerAdminApiKeyIssueRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: apiKeyIssueRoute, deps: { ...apiKeyMountDeps({ deps }), issueApiKey } }, API_KEY_MOUNT_OPTIONS);
+export const registerAdminApiKeyIssueRoute: ApiKeysRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: apiKeyIssueRoute, deps: { ...apiKeyMountDeps({ deps }), issueApiKey } }, API_KEY_MOUNT_OPTIONS);
 };

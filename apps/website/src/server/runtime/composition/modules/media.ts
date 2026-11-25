@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /**
  * Owner policy: 50 MiB for media uploads, including Library documents, and 500 MiB for video
  * (owner 2026-11-24). One source: `@tovu/contracts/upload-limits`. Call sites pass the caps as
@@ -57,7 +58,7 @@ import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/rout
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `media` server module.
@@ -171,12 +172,12 @@ const MEDIA_PROVIDER_SAVE_ERRORS: readonly MediaErrorMapping[] = [
 /** `text`: Jini `mediaTextRoute` with the host's 64 KiB document-text pager bound. Its hand-written check
  *  called `deps.authorize` directly (`"direct"`) and denied with its own body (no `details`), kept by
  *  `forbidden`; its 500 was `sendAdminFailure`'s route-derived copy, so the mount names no `failure`. */
-export function registerAdminMediaTextRoute(required: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMediaTextRoute(required: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
   const readText = (input: { workspaceId: string; id: string; offset: number }) => readDocumentText({
     deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, documentTextExtractors: deps.documentTextExtractors }, input,
   });
-  mountAdminJsonRoute({ app, spec: mediaTextRoute, deps: { ...mediaPortDeps({ deps }), readText } }, {
+  mountAdminJsonRoute({ errors: required.errors, app, spec: mediaTextRoute, deps: { ...mediaPortDeps({ deps }), readText } }, {
     authorization: "direct",
     forbidden: () => ({ status: 403, body: { error: "media.read is required", code: "FORBIDDEN" } }),
   });
@@ -188,7 +189,7 @@ const MEDIA_WRITE_FAILURE: FailureOptions = { operation: "routes/media/route-gua
 /** `replace`: Jini `mediaReplaceRoute` with the host's transactional file switch (50 MiB owner cap) and the
  *  stored-asset describer bound. Its hand-written check used `authorizeDirectOrRespond` (`"direct"`). */
 export function registerAdminMediaReplaceRoute(
-  { app, deps }: { app: Express; deps: MediaRouteDeps },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps },
   { videoCodecProbe }: { videoCodecProbe?: VideoCodecProbePort | undefined } = {},
 ): void {
   const replaceDeps = {
@@ -198,7 +199,7 @@ export function registerAdminMediaReplaceRoute(
     replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
-  mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
+  mountAdminJsonRoute({ errors, app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
 }
 
 /** The product-event kind of an upload: its document/media kind refined by the verified MIME family. */
@@ -227,7 +228,7 @@ export type { VideoImportOptions };
  * The video import rule (2026-10-31) is opt-in through `videoImport`, so a bare mount never converts.
  */
 export function registerAdminMediaUploadRoute(
-  { app, deps }: { app: Express; deps: MediaRouteDeps },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps },
   { videoImport }: { videoImport?: VideoImportOptions } = {},
 ): void {
   const uploadPorts = {
@@ -247,20 +248,20 @@ export function registerAdminMediaUploadRoute(
     }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
-  mountAdminJsonRoute({ app, spec: mediaUploadRoute, deps: uploadDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE, deferMissingPrincipal: true });
+  mountAdminJsonRoute({ errors, app, spec: mediaUploadRoute, deps: uploadDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE, deferMissingPrincipal: true });
 }
 
-export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
-  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, { authorization: "direct", failure: operationOnlyFailure({ operation: "routes/media/update" }) });
+  mountAdminJsonRoute({ errors, app, spec: mediaUpdateRoute, deps: updateDeps }, { authorization: "direct", failure: operationOnlyFailure({ operation: "routes/media/update" }) });
 };
 
-export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const trashDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo, removeMedia: deps.removeMedia };
-  mountAdminJsonRoute({ app, spec: mediaTrashRoute, deps: trashDeps }, mountOptions({ operation: "routes/media/trash", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaTrashRoute, deps: trashDeps }, mountOptions({ operation: "routes/media/trash", authorization: "direct" }));
 };
 
-export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
+export const registerAdminMediaDeleteRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
   const purgeDeps = {
     mediaRepo: deps.mediaRepo, entryRefsRepo: deps.entryRefsRepo, postRepo: deps.postRepo, blobRepo: deps.assetBlobRepo,
     renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock,
@@ -270,7 +271,7 @@ export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; dep
     purgeMedia: (input: { workspaceId: string; id: string }) => purgeMedia({ deps: purgeDeps, input }),
     forgetRemovedMedia: (input: { workspaceId: string; id: string }) => deps.forgetRemovedMedia(input),
   };
-  mountAdminJsonRoute({ app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete", authorization: "guarded" }));
 };
 
 /** The provider store's deps, read from `deps` per request so a test's later replacement is honoured. */
@@ -281,22 +282,22 @@ function mediaProviderStoreDeps({ deps }: { deps: MediaProviderRouteDeps }, _opt
   };
 }
 
-export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const getProviders = ({ workspaceId }: { workspaceId: string }) => getMediaProviderCredentialsModel({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId });
-  mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
 /** GET the admin provider cards, projected per request from the live registry generation uses, so a
  *  plugin vendor mounted after boot is listed exactly when it can generate. */
-export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry });
-  mountAdminJsonRoute({ app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
 };
 
 /** The legacy whole-set PUT: its `If-Match` basis is compared by the store INSIDE the writer boundary
  *  (`saveMediaProviderCredentials`' planner), and a mismatch answers `stale` with nothing written. The
  *  saved answer is re-read in one list so the map and its revision describe the same stored set. */
-export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const saveProviders = async (
     { workspaceId, providers, expectedRevision }: { workspaceId: string; providers: Record<string, unknown>; expectedRevision: string },
   ): Promise<MediaProvidersSaveOutcome> => {
@@ -310,23 +311,23 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
   };
   const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
   const spec = { ...mediaPutProvidersRoute, readHeaders: [MEDIA_PROVIDERS_REVISION_REQUEST_HEADER] };
-  mountAdminJsonRoute({ app, spec, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
 };
 
 /** PATCH one provider: only the named provider is written, merged against its current row. */
-export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const patchProvider = ({ workspaceId, providerId, fields }: { workspaceId: string; providerId: string; fields: { apiKey?: string; baseUrl?: string; model?: string } }) =>
     patchMediaProvider({ deps: mediaProviderStoreDeps({ deps }), workspaceId, providerId, fields });
   const patchDeps = { ...mediaPortDeps({ deps }), patchProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
-  mountAdminJsonRoute({ app, spec: mediaPatchProviderRoute, deps: patchDeps }, mountOptions({ operation: "routes/media/patch-provider", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaPatchProviderRoute, deps: patchDeps }, mountOptions({ operation: "routes/media/patch-provider", authorization: "direct" }));
 };
 
 /** DELETE one provider: exactly the bound workspace and the named provider, catalog or not. */
-export const registerAdminMediaDeleteProviderRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMediaDeleteProviderRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const removeProvider = ({ workspaceId, providerId }: { workspaceId: string; providerId: string }) =>
     removeMediaProvider({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId, providerId });
   const deleteDeps = { ...mediaPortDeps({ deps }), removeProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
-  mountAdminJsonRoute({ app, spec: mediaDeleteProviderRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete-provider", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: mediaDeleteProviderRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete-provider", authorization: "direct" }));
 };
 
 /** The `RouteDeps` slice the usage route reads (the usage scan's repos plus the port fields). */
@@ -335,8 +336,8 @@ export type MediaWhereUsedDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "
 /** GET where-used (Jini spec `mediaWhereUsedRoute`). It read `deps.authorize` directly, never the
  *  publishing-credential override, so it mounts with `authorizeDirectOrRespond` semantics. The usage
  *  scan reads `deps` per request, so a test's later replacement of a repo method is still honoured. */
-export const registerAdminMediaWhereUsedRoute = ({ app, deps }: { app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
-  mountAdminJsonRoute({ app, spec: mediaWhereUsedRoute, deps: {
+export const registerAdminMediaWhereUsedRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ errors, app, spec: mediaWhereUsedRoute, deps: {
     ...mediaPortDeps({ deps }),
     mediaRepo: { findById: (input) => deps.mediaRepo.findById(input) },
     findWhereUsed: (input) => findMediaWhereUsed({ deps, input }),
@@ -376,8 +377,8 @@ async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: r
  *  orders page: alphabetical is decided in the repo over a bounded id + title key set, because no SQL
  *  collation reproduces the admin's `localeCompare` title order (`media-grid-query.ts`).
  *  @complexity O(1) setup; per request one bounded page read plus the summary aggregate. */
-export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
-  mountAdminJsonRoute({ app, spec: mediaGridRoute, deps: {
+export const registerAdminMediaGridRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ errors, app, spec: mediaGridRoute, deps: {
     ...mediaPortDeps({ deps }),
     readPage: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional),
     findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
@@ -390,14 +391,14 @@ export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps:
  *  diagnosis; without it, the operator console does.
  *  @complexity O(1) setup; per request as the spec. */
 export function registerAdminMediaImportUrlRoute(
-  { app, deps }: { app: Express; deps: MediaImportUrlRouteDeps },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaImportUrlRouteDeps },
   optional: { logEgressRefusal?: (line: string) => void; videoImport?: VideoImportOptions } = {},
 ): void {
   const convertingUpload = createConvertingUploader({
     uploadDeps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     caps: UPLOAD_CAPS, mediaRepo: deps.mediaRepo, clock: deps.clock,
   }, { video: optional.videoImport });
-  mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: mediaImportUrlRoute, deps: {
     ...mediaPortDeps({ deps }),
     // This is the dedicated MEDIA_IMPORT_EGRESS_POLICY client from composition, never the
     // credentialed-request client (which has a smaller cap and a different redirect policy).
@@ -424,28 +425,28 @@ function egressRefusalMessage({ error }: { error: unknown }, optional: { log?: (
 export function createMediaModule(
   deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps,
   { videoImport }: { videoImport?: VideoImportOptions } = {},
-): ServerModuleHandle {
+): ServerModuleHandle<RouteRegistration> {
   return {
     name: "media",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminMediaListRoute({ app, deps });
-      registerAdminMediaGridRoute({ app, deps });
-      registerAdminMediaWhereUsedRoute({ app, deps });
-      registerAdminMediaUploadRoute({ app, deps }, { videoImport });
-      registerAdminMediaImportUrlRoute({ app, deps }, { videoImport });
-      registerAdminMediaReplaceRoute({ app, deps }, { videoCodecProbe: videoImport?.ports.videoCodecProbe });
-      registerAdminMediaUpdateRoute({ app, deps });
-      registerAdminMediaTrashRoute({ app, deps });
-      registerAdminMediaDeleteRoute({ app, deps });
-      registerAdminMediaOriginalRoute({ app, deps });
-      registerAdminMediaTextRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminMediaListRoute({ errors, app, deps });
+      registerAdminMediaGridRoute({ errors, app, deps });
+      registerAdminMediaWhereUsedRoute({ errors, app, deps });
+      registerAdminMediaUploadRoute({ errors, app, deps }, { videoImport });
+      registerAdminMediaImportUrlRoute({ errors, app, deps }, { videoImport });
+      registerAdminMediaReplaceRoute({ errors, app, deps }, { videoCodecProbe: videoImport?.ports.videoCodecProbe });
+      registerAdminMediaUpdateRoute({ errors, app, deps });
+      registerAdminMediaTrashRoute({ errors, app, deps });
+      registerAdminMediaDeleteRoute({ errors, app, deps });
+      registerAdminMediaOriginalRoute({ errors, app, deps });
+      registerAdminMediaTextRoute({ errors, app, deps });
       registerMediaRenditionRoute({ app, deps });
       registerMediaOriginalVideoRoute({ app, deps });
-      registerAdminMediaProviderCatalogRoute({ app, deps });
-      registerAdminMediaGetProvidersRoute({ app, deps });
-      registerAdminMediaPutProvidersRoute({ app, deps });
-      registerAdminMediaPatchProviderRoute({ app, deps });
-      registerAdminMediaDeleteProviderRoute({ app, deps });
+      registerAdminMediaProviderCatalogRoute({ errors, app, deps });
+      registerAdminMediaGetProvidersRoute({ errors, app, deps });
+      registerAdminMediaPutProvidersRoute({ errors, app, deps });
+      registerAdminMediaPatchProviderRoute({ errors, app, deps });
+      registerAdminMediaDeleteProviderRoute({ errors, app, deps });
     },
   };
 }

@@ -1,3 +1,4 @@
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -26,7 +27,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/system/custom/credentials";
 
-function setup({ withTargets }: { withTargets: boolean }) {
+function setup({ withTargets }: { withTargets: boolean }, incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   const base = createRouteDeps();
   const deleted: Array<{ workspaceId: string; target: string }> = [];
   const cache = { ...base.publishCredentialVerificationCache, delete: (input: { workspaceId: string; target: string }) => { deleted.push(input); } };
@@ -39,7 +41,7 @@ function setup({ withTargets }: { withTargets: boolean }) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminCustomCredentialsRoutes({ app, deps });
+  registerAdminCustomCredentialsRoutes({ errors: routeErrors, app, deps });
   return { app, deps, deleted };
 }
 
@@ -104,8 +106,8 @@ test("custom-credentials: missing params or body take the documented fallbacks (
 });
 
 test("custom-credentials: an unexpected store failure on list or delete is a fixed 500 that never echoes the cause", async (t) => {
-  const { app, deps } = setup({ withTargets: false });
-  const logged = t.mock.method(console, "error", () => {});
+  const incidents = createRouteIncidentReporter();
+  const { app, deps } = setup({ withTargets: false }, incidents);
   const fault = async () => { throw new Error("vault corrupted at /private/vault.db"); };
   t.mock.method(deps.customCredentialSetRepo, "listByWorkspace", fault);
   t.mock.method(deps.customCredentialSetRepo, "findById", fault);
@@ -113,10 +115,11 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
   for (const [method, suffix] of [["GET", ""], ["DELETE", "/some-id"]] as const) {
     assertAdminResponse({ actual: await send(method, suffix), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: method === "GET" ? {"message":"The system information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load system information"} : {"message":"The system setting removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove system setting"} });
   }
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/custom-credentials]", diagnostics: [/vault corrupted at \/private\/vault.db/, /vault corrupted at \/private\/vault.db/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/system/custom-credentials", diagnostics: [/vault corrupted at \/private\/vault.db/, /vault corrupted at \/private\/vault.db/] });
 });
 
 test("custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { app, deps } = setup({ withTargets: false });
   const keyring = new InMemoryKeyring();
   const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
@@ -124,7 +127,7 @@ test("custom-credentials: with a project store, keys save to the project unless 
   const projectApp = express();
   projectApp.use(express.json());
   projectApp.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminCustomCredentialsRoutes({ app: projectApp, deps: shared });
+  registerAdminCustomCredentialsRoutes({ errors: routeErrors, app: projectApp, deps: shared });
   const send = await client(t, projectApp, deps.workspaceId);
   const everywhere = await send("POST", "", CREATE);
   assert.equal(everywhere.json.credential.scope, "project", JSON.stringify(everywhere.json));

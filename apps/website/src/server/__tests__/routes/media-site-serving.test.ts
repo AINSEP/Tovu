@@ -66,8 +66,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createContentModule(deps).registerRoutes?.({ app });
-  createMediaModule(deps).registerRoutes?.({ app });
+  createContentModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
+  createMediaModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   registerSiteRoutes({ app, deps });
   return { app, deps };
 }

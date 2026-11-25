@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { bindRemoveEntity, createTrashService, InMemoryTrashRepo, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
 import assert from "node:assert/strict";
@@ -254,6 +255,7 @@ test("theme_trash: purge removes the parked original along with the theme", asyn
 
 /** The admin Trash's generic `POST /trash/items` over the harness's real theme adapter and Trash. */
 async function startTrashRoutes(t: test.TestContext, h: Harness, options: { deny?: readonly string[] } = {}): Promise<string> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
@@ -271,7 +273,7 @@ async function startTrashRoutes(t: test.TestContext, h: Harness, options: { deny
     userRepo: {},
     movers: new Map([[THEME_ENTITY_TYPE, createThemeTrashMover(h.deps)]]),
   } as unknown as TrashRouteDeps;
-  createTrashModule(trashDeps).registerRoutes?.({ app });
+  createTrashModule(trashDeps).registerRoutes?.({ errors: routeErrors, app });
   const baseUrl = await startTestServer(app, t);
   return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/trash/items`;
 }

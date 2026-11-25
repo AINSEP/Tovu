@@ -1,3 +1,4 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -13,9 +14,11 @@ function appWithPrincipal() {
 }
 
 test("analytics retains its canonical error and the shared incident reference", async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
-  registerAdminAnalyticsRecentHitsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+  registerAdminAnalyticsRecentHitsRoute({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
     analyticsSink: { list: async () => { throw new Error("PRIVATE_SINK password=SECRET_CANARY"); } } as never } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/analytics/recent-hits");
   assert.equal(response.status, 500);
@@ -27,8 +30,8 @@ test("analytics retains its canonical error and the shared incident reference", 
   assert.equal(body.error.details.errorId, failure.errorId);
   assert.match(body.error.message, new RegExp(failure.errorId));
   assert.equal(failure.cause, "The error ID identifies the server report.");
-  assert.equal(logged.mock.callCount(), 1);
-  assert.equal((logged.mock.calls[0].arguments[1] as any).errorId, failure.errorId);
+  assert.equal(recorded.records.length, 1);
+  assert.equal((recorded.records[0]?.[1] as { meta: { errorId: string } }).meta.errorId, failure.errorId);
   for (const canary of ["PRIVATE_SINK", "SECRET_CANARY"]) assert.equal(JSON.stringify(body).includes(canary), false);
 });
 

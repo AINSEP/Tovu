@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -51,10 +53,11 @@ function makeComment(overrides: Partial<CommentRecord> = {}): CommentRecord {
   };
 }
 
-function buildApp(depsOverrides: Partial<AdminCommentsModerationQueueDeps> = {}): {
+function buildApp(depsOverrides: Partial<AdminCommentsModerationQueueDeps> = {}, { recorded = recordingComposedReporter() } = {}): {
   app: express.Express;
   commentRepo: InMemoryCommentRepo;
 } {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const commentRepo = new InMemoryCommentRepo();
   const deps: AdminCommentsModerationQueueDeps = {
     workspaceId: WORKSPACE_ID,
@@ -68,7 +71,7 @@ function buildApp(depsOverrides: Partial<AdminCommentsModerationQueueDeps> = {})
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsModerationQueueRoute({ app, deps });
+  registerAdminCommentsModerationQueueRoute({ errors: routeErrors, app, deps });
   return { app, commentRepo };
 }
 
@@ -233,7 +236,8 @@ test("moderation-queue: a non-string cursor is a 400 VALIDATION_ERROR, not a sil
 });
 
 test("moderation-queue: a repository failure that is not a ToolInputError is a 500 INTERNAL_ERROR, never a leaked message", async (t) => {
-  const { app, commentRepo } = buildApp();
+  const recorded = recordingComposedReporter();
+  const { app, commentRepo } = buildApp({}, { recorded });
   commentRepo.listModerationQueue = async () => {
     throw new Error("disk exploded at /var/secret/path");
   };
@@ -242,6 +246,6 @@ test("moderation-queue: a repository failure that is not a ToolInputError is a 5
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/comments/queue`);
   assert.equal(res.status, 500);
   assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The comments could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load comments"} });
-  assert.equal(consoleError.mock.callCount(), 1);
-  assert.equal(consoleError.mock.calls[0]?.arguments[0], "[routes/comments/moderation-queue]");
+  assert.equal(recorded.records.length, 1);
+  assert.equal((recorded.records[0]?.[1] as { meta: { step: string } }).meta.step, "routes/comments/moderation-queue");
 });

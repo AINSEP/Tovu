@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
@@ -67,7 +68,7 @@ export type UsersRouteDeps = Pick<
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
-export type UsersRouteRegistrar = (required: { app: Express; deps: UsersRouteDeps }, optional?: Record<string, never>) => void;
+export type UsersRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: UsersRouteDeps }, optional?: Record<string, never>) => void;
 
 type IdentityServiceRouteDeps = Pick<UsersRouteDeps,
   "transactions" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" |

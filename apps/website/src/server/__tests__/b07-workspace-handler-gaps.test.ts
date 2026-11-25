@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -15,11 +16,12 @@ const other = { id: "ws-foreign", name: "Foreign Journal", slug: "foreign-journa
 /** Each test fakes only the repo members its route path reaches; `Partial` of the real port still
  *  checks every faked method's signature. The routes under test read no `clock`/`idGen`/`outbox`/`bus`. */
 async function invoke(register: WorkspaceRouteRegistrar, workspaceRepo: Partial<WorkspaceRouteDeps["workspaceRepo"]>, body?: unknown, workspaceId = WS) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const fakes: Pick<WorkspaceRouteDeps, "workspaceId" | "authorize"> & { workspaceRepo: typeof workspaceRepo } = {
     workspaceId: WS, workspaceRepo, authorize: async () => ({ allowed: true, reason: "granted" }),
   };
-  register({ app, deps: fakes as WorkspaceRouteDeps });
+  register({ errors: routeErrors, app, deps: fakes as WorkspaceRouteDeps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-b07" };
   const list = register === registerAdminWorkspaceListRoute;

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -43,7 +44,7 @@ for (const scenario of readinessCases) {
   test(`test-agent preserves ${scenario.name} and forces a fresh probe`, async () => {
     const app = express();
     let calls = 0;
-    registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
+    registerAdminAssistantTestAgentRoute({ errors: createRouteIncidentReporter().errors, app, deps: dependencies({ overrides: {
       detectAgents: async (input, options) => {
         calls++;
         assert.deepEqual(input, { agentIds: ["fixture-cli"] });
@@ -71,7 +72,7 @@ for (const force of [undefined, false, "true", true]) {
     try {
       const app = express();
       const events: unknown[] = [];
-      registerAdminAssistantDetectAgentsRoute({ app, deps: dependencies({ overrides: {
+      registerAdminAssistantDetectAgentsRoute({ errors: createRouteIncidentReporter().errors, app, deps: dependencies({ overrides: {
         assistantAgentInventory: {
           ...inventory,
           listDetectedAssistantAgents: async (input) => { events.push(input); return [agent]; },
@@ -99,7 +100,7 @@ test("test-agent probes through the assistant inventory's runtime when no detect
   });
   const forces: unknown[] = [];
   const app = express();
-  registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
+  registerAdminAssistantTestAgentRoute({ errors: createRouteIncidentReporter().errors, app, deps: dependencies({ overrides: {
     assistantAgentInventory: {
       ...inventory,
       runtime: { ...inventory.runtime, detectAgents: async (_input, options) => { forces.push(options); return [agent]; } },
@@ -119,7 +120,7 @@ test("test-agent refuses another workspace before authorizing or probing", async
   let authorizeCalls = 0;
   let probes = 0;
   const app = express();
-  registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
+  registerAdminAssistantTestAgentRoute({ errors: createRouteIncidentReporter().errors, app, deps: dependencies({ overrides: {
     authorize: async () => { authorizeCalls++; return { allowed: true, reason: "granted" }; },
     detectAgents: async () => { probes++; return [agent]; },
   } }) });

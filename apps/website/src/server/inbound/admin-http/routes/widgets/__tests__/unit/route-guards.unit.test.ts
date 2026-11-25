@@ -24,6 +24,7 @@ const B = "/api/admin/v1/workspaces/:workspaceId";
 type Method = "get" | "post" | "put" | "delete";
 
 function harness({ allowed = true }: { allowed?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   let authorizeCalls = 0;
   let counter = 0;
@@ -46,7 +47,7 @@ function harness({ allowed = true }: { allowed?: boolean } = {}) {
     registerAdminWidgetRegionBindRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionMutatePlacementsRoute,
     registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute, registerAdminWidgetAgentToolsRoutes,
   ]) register({ app, deps, errors: createRouteIncidentReporter().errors });
-  registerAdminWidgetPreviewRoute({ app, deps });
+  registerAdminWidgetPreviewRoute({ errors: routeErrors, app, deps });
   return {
     entryRepo,
     widgetBindingRepo,

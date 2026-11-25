@@ -1,4 +1,4 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -20,7 +20,7 @@ import {
   registerAdminMenuListRoute,
   registerAdminMenuUpdateTreeRoute,
 } from "#src/server/runtime/composition/modules/menus";
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for the admin `menus` HTTP surface (ADR-029).
@@ -46,12 +46,12 @@ function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMenuListRoute({ app, deps });
-  registerAdminMenuGetRoute({ app, deps });
-  registerAdminMenuCreateRoute({ app, deps });
-  registerAdminMenuUpdateTreeRoute({ app, deps });
-  registerAdminMenuAssignLocationRoute({ app, deps });
-  registerAdminMenuDeleteRoute({ app, deps });
+  registerAdminMenuListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuGetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -798,7 +798,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -850,7 +850,8 @@ test("update-tree: a menu item with a missing or null target is a 400 with a spe
 });
 
 test("update-tree logs the original error with or without a stack and returns an opaque 500", async () => {
-  const failure = new Error("boom: repo exploded");
+  // A fresh Error per request: the reporter records one incident per error object, so re-throwing one object would be a single record.
+  let failure = new Error("boom: repo exploded");
   const throwingMenuRepo: MenuRepoPort = {
     findById: async () => {
       throw failure;
@@ -866,8 +867,9 @@ test("update-tree logs the original error with or without a stack and returns an
     menuRepo: throwingMenuRepo,
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
+  const incidents = createRouteIncidentReporter();
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: incidents.errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -877,12 +879,10 @@ test("update-tree logs the original error with or without a stack and returns an
 
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
 
-  const logged: unknown[][] = [];
   const errorIds: string[] = [];
-  const realError = console.error;
-  console.error = (...args: unknown[]) => void logged.push(args);
-  try {
+  {
     for (const hasStack of [true, false]) {
+      failure = new Error("boom: repo exploded");
       if (!hasStack) delete failure.stack;
       const { res, capture } = createCapturingResponse();
       res.locals.principal = ownerPrincipal;
@@ -893,15 +893,14 @@ test("update-tree logs the original error with or without a stack and returns an
       assert.doesNotMatch(JSON.stringify(capture), /boom: repo exploded/);
       errorIds.push((capture.jsonBody as { errorId: string }).errorId);
     }
-  } finally {
-    console.error = realError;
   }
 
   // Assert the ORIGINAL error text reached the log. Asserting only that console.error fired would
   // pass under a log that printed "internal error" and threw the real cause away -- which is the
   // exact defect being fixed. The stackless case retains the error's name and message.
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/^Error: boom: repo exploded\n\s+at /, /^Error: boom: repo exploded$/] });
-  assert.deepEqual(logged.map((call) => (call[1] as { errorId: string }).errorId), errorIds);
+  const recordedIds = assertIncidentDiagnostics({ incidents, step: "routes/menus/update-tree", diagnostics: [/^Error: boom: repo exploded\n\s+at /, /^Error: boom: repo exploded$/] });
+  assert.deepEqual(recordedIds, errorIds);
+  assert.equal(incidents.reports.length, 2);
 });
 
 test("update-tree: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with no params, is the workspace 404", async () => {
@@ -958,8 +957,9 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
     menuRepo: throwingMenuRepo,
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
+  const incidents = createRouteIncidentReporter();
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: incidents.errors, app, deps });
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
   assert.ok(ownerUser, "expected the seeded admin user");
@@ -967,19 +967,16 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
   assert.ok(ownerPrincipal, "expected the seeded admin principal");
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
 
-  const logged: unknown[][] = [];
-  const realError = console.error;
-  console.error = (...args: unknown[]) => void logged.push(args);
-  try {
+  {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = ownerPrincipal;
     await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The menu operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "menu operation" } });
     assert.doesNotMatch(JSON.stringify(capture), /bare string/);
-  } finally {
-    console.error = realError;
+    const [recordedId] = assertIncidentDiagnostics({ incidents, step: "routes/menus/update-tree", diagnostics: [/^repo rejected with a bare string$/] });
+    assert.equal(recordedId, (capture.jsonBody as { errorId: string }).errorId);
+    assert.equal(incidents.reports.length, 1);
   }
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/^repo rejected with a bare string$/] });
 });
 
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
@@ -1052,6 +1049,7 @@ test("assign-location refuses missing, null and blank location keys without chan
 });
 
 test("assign-location returns 400 for an absent body when mounted without a body parser", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { deps } = buildTestApp();
   await deps.identityReady;
   const app = express();
@@ -1059,7 +1057,7 @@ test("assign-location returns 400 for an absent body when mounted without a body
   // the absent body (not the absent session) is what this test exercises.
   const principal = await seededOwnerPrincipal(deps);
   app.use((_req, res, next) => { res.locals.principal = principal; next(); });
-  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   // A parser failure occurs before the route's catch; bound the request if it never responds.
@@ -1113,7 +1111,7 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
   };
   const deps: MenuRouteDeps = { ...createRouteDeps(), menuRepo: losingMenuRepo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) };
   const app = express();
-  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -1139,6 +1137,7 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
  * mutation `update-use-grant` (mount update-tree guarded) turns case 2 into a 200.
  */
 async function serveUpdateTreeWithGrant(grantCapabilities: readonly string[], rbacAllows: readonly string[]) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
   const deps: MenuRouteDeps = createRouteDeps();
   const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
@@ -1157,7 +1156,7 @@ async function serveUpdateTreeWithGrant(grantCapabilities: readonly string[], rb
     res.locals.publishTrust = { sourceInstallationId: "src", capabilities: grantCapabilities, entityTypes: ["menu"], generation: 1 };
     next();
   });
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const port = (server.address() as import("node:net").AddressInfo).port;
@@ -1198,6 +1197,7 @@ test("update-tree: a publishing grant holding admin.menus.update does not stand 
  * reading anything. Mutation `defer-every-mount` / `defer-no-mount` breaks one side of this.
  */
 test("menus: deferral is per mount — update-tree keeps its 400 without a session, valid input stops before the save", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
   const deps: MenuRouteDeps = createRouteDeps();
   const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
@@ -1207,8 +1207,8 @@ test("menus: deferral is per mount — update-tree keeps its 400 without a sessi
   deps.authorize = async () => { authorizeCalls += 1; return { allowed: true, reason: "granted" } as Awaited<ReturnType<MenuRouteDeps["authorize"]>>; };
   const app = express();
   app.use(express.json());
-  registerAdminMenuUpdateTreeRoute({ app, deps });
-  registerAdminMenuGetRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps });
+  registerAdminMenuGetRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));

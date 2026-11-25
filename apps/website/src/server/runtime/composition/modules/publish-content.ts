@@ -19,7 +19,7 @@ import {
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file Task 4 + Task 6 of the publish-content (Publish Content) feature —
@@ -42,7 +42,7 @@ import type { ServerModuleHandle } from "./types.js";
  * register it — so there is no
  * stale-closure risk for a reset to guard against either.
  */
-export function createPublishContentModule(deps: PublishContentRouteDeps): ServerModuleHandle {
+export function createPublishContentModule(deps: PublishContentRouteDeps): ServerModuleHandle<RouteRegistration> {
   installFirstPartyPublishContentTypes();
 
   // The SOURCE half of publishing trust, composed here for the same reason
@@ -68,8 +68,8 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
 
   return {
     name: "publish-content",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerPublishContentExportRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerPublishContentExportRoute({ errors, app, deps });
       registerPublishContentBlobsProbeRoute({ app, deps });
       registerPublishContentBlobPutRoute({ app, deps });
       // The download half of the same blob channel (2026-09-19) — what makes the PULL direction

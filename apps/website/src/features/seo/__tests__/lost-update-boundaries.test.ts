@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -35,7 +36,7 @@ test("SEO PUT maps a stale basis to 409 and a malformed basis to 400", async () 
   deps.seoDeps.postRepo.saveIfVersion = async () => { throw conflict(); };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
-  registerAdminSeoPutEntryRoute({ app, deps });
+  registerAdminSeoPutEntryRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const path = `/api/admin/v1/workspaces/${deps.workspaceId}/seo/entries/post-home`;
   const stale = await dispatchJsonRequest(app, "PUT", path, { title: "Edit", expectedVersion: 1 });
   assert.equal(stale.status, 409);

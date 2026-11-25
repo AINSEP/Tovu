@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,6 +19,7 @@ const clock = { nowIso: () => "2026-09-26T00:00:00.000Z" };
 
 /** Registers the routes on a stand-in app and returns each handler by `METHOD path`. */
 function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string, Handler> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const noKey = Promise.reject(new Error("no site key"));
   noKey.catch(() => undefined);
   const handlers = new Map<string, Handler>();
@@ -25,7 +27,7 @@ function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string,
     get: (path: string, handler: Handler) => handlers.set(`GET ${path}`, handler),
     post: (path: string, handler: Handler) => handlers.set(`POST ${path}`, handler),
   } as unknown as Express;
-  registerPublishTrustHandshakeRoutes({ app, deps: {
+  registerPublishTrustHandshakeRoutes({ errors: routeErrors, app, deps: {
     keyring: {} as never,
     workspaceId: "w-1",
     clock,

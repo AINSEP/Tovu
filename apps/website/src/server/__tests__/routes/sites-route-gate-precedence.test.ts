@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -42,6 +43,7 @@ const ROUTES = [
 
 /** A direct mount with counted collaborators: every count is a side effect the gate must precede. */
 function fixture({ t }: { t: TestContext }, { switcherEnabled, switcherCompatible }: { switcherEnabled: boolean; switcherCompatible: boolean }) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sites-gate-precedence-")));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const real = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
@@ -64,7 +66,7 @@ function fixture({ t }: { t: TestContext }, { switcherEnabled, switcherCompatibl
   };
   const app = express();
   app.use(express.json());
-  registerAdminSitesRoutes({ app, deps });
+  registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   return { app, calls };
 }
 

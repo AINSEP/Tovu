@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -80,7 +81,7 @@ function appFor(error: unknown, sinks: Sinks = recordingComposedReporter()) {
     req.body = req.method === "PUT" ? Buffer.from([0x50, 0x4b, 0x03, 0x04]) : {};
     next();
   });
-  registerAdminSiteShareRoutes({ app, reporter: sinks.reporter, deps: {
+  registerAdminSiteShareRoutes({ errors: { ...createRouteIncidentReporter().errors, reporter: sinks.reporter }, app, deps: {
     workspaceId: "ws", ownerPrincipalId: "owner", authorize: async () => ({ allowed: true }),
     siteShareBackend: {
       create: fail, list: fail, staticOptions: fail, revoke: fail, acknowledge: fail, revealPassword: fail,

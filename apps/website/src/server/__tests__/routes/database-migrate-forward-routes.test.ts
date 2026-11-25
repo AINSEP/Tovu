@@ -110,7 +110,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminDatabaseMigrateForwardRoutes({ app, deps });
+  registerAdminDatabaseMigrateForwardRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

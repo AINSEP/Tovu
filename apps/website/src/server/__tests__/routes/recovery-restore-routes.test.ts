@@ -1,4 +1,4 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -104,14 +104,14 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
   assert.equal(login.status, 200);
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
+function buildTestApp(incidents = createRouteIncidentReporter()): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminRecoveryRestoreRoutes({ app, deps });
+  registerAdminRecoveryRestoreRoutes({ errors: incidents.errors, app, deps });
   return { app, deps };
 }
 
@@ -500,11 +500,11 @@ test("recovery restore: a gateway error whose code has no mapped status (INTERNA
   assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "Restore preparation could not be completed.", action: "Try preparing the restore again. Copy details and report this problem if it still fails.", step: "Prepare restore" } });
 });
 
-test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR whose redacted log names the miswiring", async (t) => {
-  const { app } = buildTestApp();
+test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR whose redacted log names the miswiring", async () => {
+  const incidents = createRouteIncidentReporter();
+  const { app } = buildTestApp(incidents);
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/recovery/restore/confirm");
   const { res, capture } = createCapturingResponse();
-  const logged = t.mock.method(console, "error", () => {});
 
   await handler({ body: { planId: "p-1", planHash: "h-1", disclosureAcknowledged: true } }, res);
 
@@ -512,14 +512,14 @@ test("recovery restore: confirm reached without a session principal (requireAdmi
   // redacted log line carrying the same incident id, so an operator can still find it.
   assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The recovery operation restore could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation restore" } });
   const errorId = (capture.jsonBody as { errorId: string }).errorId;
-  const diagnostics = logged.mock.calls.map((call) => call.arguments[1] as { errorId?: string; diagnostic?: string });
-  assert.ok(diagnostics.some((entry) => entry?.errorId === errorId && /no principal on res\.locals/.test(entry.diagnostic ?? "")));
+  const [recordedId] = assertIncidentDiagnostics({ incidents, step: "routes/recovery/restore", diagnostics: [/no principal on res\.locals/] });
+  assert.equal(recordedId, errorId);
 });
 
 test("recovery restore: execute surfaces a throwing instance-authorization port as 500 INTERNAL_ERROR before any lock is taken", async (t) => {
-  const { app, deps } = buildTestApp();
+  const incidents = createRouteIncidentReporter();
+  const { app, deps } = buildTestApp(incidents);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const logged = t.mock.method(console, "error", () => {});
   deps.gatedMutations.gatewayDeps.authorizeInstance = async () => {
     throw new Error("instance authorizer offline token=RECOVERY_CANARY_90872");
   };
@@ -528,6 +528,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
   assert.equal(res.status, 500);
   const body = await res.json();
   assert.equal(JSON.stringify(body).includes("RECOVERY_CANARY_90872"), false);
-  assert.equal(JSON.stringify(logged.mock.calls.map(call => call.arguments)).includes("RECOVERY_CANARY_90872"), false);
+  assert.equal(JSON.stringify(incidents.entries).includes("RECOVERY_CANARY_90872"), false);
+  assert.equal(incidents.entries.length, 1);
   assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The restore result could not be confirmed.", action: "Check recovery status before starting another restore. Copy details and report this problem.", step: "Execute restore" } });
 });

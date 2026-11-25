@@ -12,6 +12,7 @@ import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-
 
 /** The real HTTP handlers + Jini verifier, with only persistence held in a deterministic fixture. */
 test('password login waits for a valid TOTP and consumes the pending proof before issuing a cookie', async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   await deps.identityReady;
   deps.clock = { nowIso: () => '1970-01-01T00:00:59.000Z', nowMs: () => 59000 };
@@ -75,7 +76,7 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
   await deps.mfaStore.savePending({ ...scope, purpose: 'passkey-login', tokenHash: 'passkey-proof-hash',
     expiresAt: 359000, attempts: 0, sealedSecret: '{"challenge":"not-a-secret"}' });
   assert.equal(proofs.size, 2);
-  registerAdminUserResetPasswordRoute({ app, deps });
+  registerAdminUserResetPasswordRoute({ errors: routeErrors, app, deps });
   const reset = response();
   reset.res.send = () => reset.res;
   reset.res.locals.principal = await deps.principalRepo.findById({ workspaceId: scope.workspaceId, id: scope.principalId });

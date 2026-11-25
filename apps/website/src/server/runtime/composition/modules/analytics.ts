@@ -1,6 +1,6 @@
 import type { AdminAnalyticsRecentHitsDeps } from "#src/server/inbound/admin-http/routes/analytics/recent-hits";
 import { registerAdminAnalyticsRecentHitsRoute } from "#src/server/inbound/admin-http/routes/analytics/recent-hits";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — the `analytics` server module (ADR-035/ADR-PIPE-014 admin
@@ -11,11 +11,11 @@ import type { ServerModuleHandle } from "./types.js";
  * (`registerAdminAnalyticsRecentHitsRoute`), moved here verbatim from `app.ts`'s `createApp()`,
  * same registrar function body, no behavior change.
  */
-export function createAnalyticsModule(deps: AdminAnalyticsRecentHitsDeps): ServerModuleHandle {
+export function createAnalyticsModule(deps: AdminAnalyticsRecentHitsDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "analytics",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAnalyticsRecentHitsRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminAnalyticsRecentHitsRoute({ errors, app, deps });
     },
   };
 }

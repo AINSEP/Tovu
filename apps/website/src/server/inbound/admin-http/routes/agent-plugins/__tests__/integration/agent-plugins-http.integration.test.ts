@@ -146,7 +146,7 @@ function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsR
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginsListRoute({ app, deps: agentPluginsDeps });
+  registerAgentPluginsListRoute({ errors: createRouteIncidentReporter().errors, app, deps: agentPluginsDeps });
   return { app, agentPluginsDeps };
 }
 

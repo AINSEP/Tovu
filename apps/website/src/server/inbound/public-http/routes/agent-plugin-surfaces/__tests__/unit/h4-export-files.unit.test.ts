@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -12,7 +13,7 @@ for (const scenario of ['catalog-error', 'read-error', 'duplicate-owner', 'missi
     let reads = 0;
     const source = harness().source;
     const app = express();
-    registerPluginExportFilesRoute({ app, deps: { workspaceId: 'ws', clock: { nowMs: () => 0 }, agentPluginLifecycle: portFake<TovuAgentPluginLifecycle>({}) } }, {
+    registerPluginExportFilesRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: 'ws', clock: { nowMs: () => 0 }, agentPluginLifecycle: portFake<TovuAgentPluginLifecycle>({}) } }, {
       source: { ...source,
         list: async () => {
           if (scenario === 'catalog-error') throw new Error('/private/package/path');
@@ -34,7 +35,7 @@ test('a declared script is served as JavaScript; an undeclared or remote one is 
   const entry = { ...owner.exports.button!, scripts: ['components/widget.js', 'https://assets.vendor.test/loader.js'] };
   const source = harness().source;
   const app = express();
-  registerPluginExportFilesRoute({ app, deps: { workspaceId: 'ws', clock: { nowMs: () => 0 }, agentPluginLifecycle: portFake<TovuAgentPluginLifecycle>({}) } }, {
+  registerPluginExportFilesRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: 'ws', clock: { nowMs: () => 0 }, agentPluginLifecycle: portFake<TovuAgentPluginLifecycle>({}) } }, {
     source: { ...source, list: async () => [{ ...owner, exports: { button: entry } }], readAsset: async () => 'console.log(1)' }, limiter: { check: async () => ({ allowed: true }) },
   });
   const request = async (path: string) => {

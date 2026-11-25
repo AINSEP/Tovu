@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
@@ -58,16 +59,16 @@ export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "author
  *  in its own `sendAdminFailure`, under its own operation and code. */
 const PUT_FAILURE = { operation: "routes/fs-files/custom-root", code: "INTERNAL_ERROR" } as const;
 
-export function registerAdminFsFilesCustomRootRoutes({ app, deps }: { app: Express; deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminFsFilesCustomRootRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): void {
   // Resolved per call, as the hand-written verbs did, so the store always follows the bound site directory.
   const storeOptional = (): CustomFsRootStoreOptional => deps.storeOptional ?? { siteDir: deps.siteBinding.dir };
   const readCustomRoot = ({ workspaceId }: { workspaceId: string }) => getCustomFsRootStatus({ workspaceId, optional: storeOptional() });
   const writeCustomRoot = ({ workspaceId, path }: { workspaceId: string; path: string | null }) => setCustomFsRoot({ workspaceId, path, optional: storeOptional() });
   const port = { workspaceId: deps.workspaceId, authorize: deps.authorize };
   const managePermission = FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION;
-  mountAdminJsonRoute({ app, spec: fsCustomRootGetRoute, deps: { ...port, readPermission: FS_FILES_READ_PERMISSION, readCustomRoot } }, { forwardUncaughtErrors: true });
-  mountAdminJsonRoute({ app, spec: fsCustomRootPutRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: fsCustomRootGetRoute, deps: { ...port, readPermission: FS_FILES_READ_PERMISSION, readCustomRoot } }, { forwardUncaughtErrors: true });
+  mountAdminJsonRoute({ errors, app, spec: fsCustomRootPutRoute, deps: {
     ...port, managePermission, readCustomRoot, writeCustomRoot, isInvalidRootError: ({ err }) => err instanceof CustomFsRootError,
   } }, { forwardRejection: true, failure: PUT_FAILURE });
-  mountAdminJsonRoute({ app, spec: fsCustomRootDeleteRoute, deps: { ...port, managePermission, writeCustomRoot } }, { forwardUncaughtErrors: true });
+  mountAdminJsonRoute({ errors, app, spec: fsCustomRootDeleteRoute, deps: { ...port, managePermission, writeCustomRoot } }, { forwardUncaughtErrors: true });
 }

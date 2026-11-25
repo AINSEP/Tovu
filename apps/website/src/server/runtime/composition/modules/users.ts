@@ -20,7 +20,7 @@ import {
   registerAdminPolicyPermissionRemoveRoute, registerAdminPolicyUpdateRoute, registerAdminPolicyWritePermissionRoute,
   registerAdminRoleCreateRoute, registerAdminRoleDeleteRoute, registerAdminRoleListRoute, registerAdminRoleUpdateRoute,
 } from "./users-access.js";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `users` server module (users/roles/policies admin
@@ -82,33 +82,33 @@ const isSelfDeleteError = ({ err }: { err: unknown }) => err instanceof SelfDele
 const isUserInTrashError = ({ err }: { err: unknown }) => err instanceof UserInTrashError;
 const isUserDeleteUnsupportedError = ({ err }: { err: unknown }) => err instanceof UserDeleteUnsupportedError;
 
-export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminUserListRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listDeps = {
     ...userServiceDeps({ deps }), decidePermission: (params: Parameters<UsersRouteDeps["authorize"]>[0]) => deps.authorize(params),
     ownerPrincipalId: deps.ownerPrincipalId, userAccountProtection,
   };
-  mountAdminJsonRoute({ app, spec: userListRoute, deps: listDeps }, mountOptions("routes/users/list"));
+  mountAdminJsonRoute({ errors, app, spec: userListRoute, deps: listDeps }, mountOptions("routes/users/list"));
 };
 
-export const registerAdminUserCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userCreateRoute, deps: { ...userServiceDeps({ deps }), createUser, normalizeUsername } }, mountOptions("routes/users/create"));
+export const registerAdminUserCreateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: userCreateRoute, deps: { ...userServiceDeps({ deps }), createUser, normalizeUsername } }, mountOptions("routes/users/create"));
 };
 
-export const registerAdminUserUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userUpdateRoute, deps: { ...userServiceDeps({ deps }), updateUser, isUserInTrashError } }, mountOptions("routes/users/update"));
+export const registerAdminUserUpdateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: userUpdateRoute, deps: { ...userServiceDeps({ deps }), updateUser, isUserInTrashError } }, mountOptions("routes/users/update"));
 };
 
-export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const disableDeps = { ...userServiceDeps({ deps }), disablePrincipal, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isSelfDeleteError };
-  mountAdminJsonRoute({ app, spec: userDisableRoute, deps: disableDeps }, mountOptions("routes/users/disable"));
+  mountAdminJsonRoute({ errors, app, spec: userDisableRoute, deps: disableDeps }, mountOptions("routes/users/disable"));
 };
 
 /** B151: the enable mount carries the seeded owner and the account guard, so only an owner may re-enable an admin or owner. */
-export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const enableDeps = {
     ...userServiceDeps({ deps }), enablePrincipal, assertCallerHasAnyPermission, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isUserInTrashError,
   };
-  mountAdminJsonRoute({ app, spec: userEnableRoute, deps: enableDeps }, mountOptions("routes/users/enable"));
+  mountAdminJsonRoute({ errors, app, spec: userEnableRoute, deps: enableDeps }, mountOptions("routes/users/enable"));
 };
 
 /** The reset-password mount's deps; exported so a wire test can swap only the account guard. */
@@ -119,53 +119,53 @@ export function userResetPasswordRouteDeps({ deps }: { deps: UsersRouteDeps }, _
   };
 }
 
-export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userResetPasswordRoute, deps: userResetPasswordRouteDeps({ deps }) }, mountOptions("routes/users/reset-password"));
+export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: userResetPasswordRoute, deps: userResetPasswordRouteDeps({ deps }) }, mountOptions("routes/users/reset-password"));
 };
 
 /** The trash move is host-local (`features/identity/delete-user-service.ts`), bound here to this
  *  request's identity deps; `removeUser` is read per request (absent → its 501). */
-export const registerAdminUserDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminUserDeleteRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const deleteDeps = {
     ...userPortDeps({ deps }), ownerPrincipalId: deps.ownerPrincipalId, isSelfDeleteError, isUserDeleteUnsupportedError,
     trashUser: (input: Parameters<typeof trashUser>[0]["input"]) =>
       trashUser({ deps: { identity: identityServiceDepsFrom(deps), removeUser: deps.removeUser, isInTrash: deps.isInTrash }, input }),
   };
-  mountAdminJsonRoute({ app, spec: userDeleteRoute, deps: deleteDeps }, mountOptions("routes/users/delete"));
+  mountAdminJsonRoute({ errors, app, spec: userDeleteRoute, deps: deleteDeps }, mountOptions("routes/users/delete"));
 };
 
-export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userAssignRoleRoute, deps: { ...userServiceDeps({ deps }), assignRole } }, mountOptions("routes/users/assign-role"));
+export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: userAssignRoleRoute, deps: { ...userServiceDeps({ deps }), assignRole } }, mountOptions("routes/users/assign-role"));
 };
 
-export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userAttachPolicyRoute, deps: { ...userServiceDeps({ deps }), attachPolicy } }, mountOptions("routes/users/attach-policy"));
+export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: userAttachPolicyRoute, deps: { ...userServiceDeps({ deps }), attachPolicy } }, mountOptions("routes/users/attach-policy"));
 };
 
-export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
+export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "users",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminUserListRoute({ app, deps });
-      registerAdminUserCreateRoute({ app, deps });
-      registerAdminUserUpdateRoute({ app, deps });
-      registerAdminUserDisableRoute({ app, deps });
-      registerAdminUserEnableRoute({ app, deps });
-      registerAdminUserResetPasswordRoute({ app, deps });
-      registerAdminUserDeleteRoute({ app, deps });
-      registerAdminUserAssignRoleRoute({ app, deps });
-      registerAdminUserAttachPolicyRoute({ app, deps });
-      registerAdminRoleListRoute({ app, deps });
-      registerAdminRoleCreateRoute({ app, deps });
-      registerAdminRoleUpdateRoute({ app, deps });
-      registerAdminRoleDeleteRoute({ app, deps });
-      registerAdminPolicyListRoute({ app, deps });
-      registerAdminPolicyCreateRoute({ app, deps });
-      registerAdminPolicyUpdateRoute({ app, deps });
-      registerAdminPolicyDeleteRoute({ app, deps });
-      registerAdminPolicyWritePermissionRoute({ app, deps });
-      registerAdminPolicyPermissionListRoute({ app, deps });
-      registerAdminPolicyPermissionRemoveRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminUserListRoute({ errors, app, deps });
+      registerAdminUserCreateRoute({ errors, app, deps });
+      registerAdminUserUpdateRoute({ errors, app, deps });
+      registerAdminUserDisableRoute({ errors, app, deps });
+      registerAdminUserEnableRoute({ errors, app, deps });
+      registerAdminUserResetPasswordRoute({ errors, app, deps });
+      registerAdminUserDeleteRoute({ errors, app, deps });
+      registerAdminUserAssignRoleRoute({ errors, app, deps });
+      registerAdminUserAttachPolicyRoute({ errors, app, deps });
+      registerAdminRoleListRoute({ errors, app, deps });
+      registerAdminRoleCreateRoute({ errors, app, deps });
+      registerAdminRoleUpdateRoute({ errors, app, deps });
+      registerAdminRoleDeleteRoute({ errors, app, deps });
+      registerAdminPolicyListRoute({ errors, app, deps });
+      registerAdminPolicyCreateRoute({ errors, app, deps });
+      registerAdminPolicyUpdateRoute({ errors, app, deps });
+      registerAdminPolicyDeleteRoute({ errors, app, deps });
+      registerAdminPolicyWritePermissionRoute({ errors, app, deps });
+      registerAdminPolicyPermissionListRoute({ errors, app, deps });
+      registerAdminPolicyPermissionRemoveRoute({ errors, app, deps });
     },
   };
 }

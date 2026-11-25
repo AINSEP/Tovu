@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -16,9 +17,10 @@ const URL_PATH = '/api/admin/v1/workspaces/ws/media/document/text';
 
 /** An app with the session principal the admin middleware would have set, and the text route mounted. */
 function textApp(findById: () => Promise<never>): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerAdminMediaTextRoute({ app, deps: portFake<MediaRouteDeps>({ workspaceId: 'ws',
+  registerAdminMediaTextRoute({ errors: routeErrors, app, deps: portFake<MediaRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }), mediaRepo: { findById },
   }) });
   return app;

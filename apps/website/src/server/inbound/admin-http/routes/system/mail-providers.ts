@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { classifyMailProviderError as classifyMailProviderFailure, mailProviderCredentialSaveRoute, type MailProviderFailure } from "@jini-ai/cms/admin-http/routes/system/mail-providers";
@@ -62,9 +63,9 @@ export function classifyMailProviderError({ error }: { error: unknown }, _option
 /** `PUT …/:providerId/credential` (Jini spec): `direct` authorization and the one `routes/system/mail-providers`
  * failure copy, as its siblings; the request's credential kind and the owner id are bound per request.
  * @complexity O(1) setup; per request one authorization, at most one owner read and one save. */
-export function registerAdminMailProviderCredentialSaveRoute({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMailProviderCredentialSaveRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
   const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
-  mountAdminJsonRoute({ app, spec: mailProviderCredentialSaveRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: mailProviderCredentialSaveRoute, deps: {
     workspaceId: deps.workspaceId,
     authorize: (params: Parameters<AdminMailProviderDeps["authorize"]>[0]) => deps.authorize(params),
     classifyMailProviderError,

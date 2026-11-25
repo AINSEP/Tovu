@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -85,13 +86,14 @@ function countingPostRepo(posts: PostRecord[]): { repo: ContentRouteDeps["postRe
 }
 
 function buildTestApp(deps: ContentRouteDeps): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

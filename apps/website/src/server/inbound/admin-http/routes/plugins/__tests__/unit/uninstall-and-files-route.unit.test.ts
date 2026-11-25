@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -53,13 +54,14 @@ function fakeDeps(overrides: Partial<PluginsRouteDeps> = {}) {
 }
 
 function appWith(deps: PluginsRouteDeps) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use((_req, res, next) => {
     res.locals.principal = { id: "owner" };
     next();
   });
-  registerPluginUninstallRoute({ app, deps });
-  registerPluginFilesRoute({ app, deps });
+  registerPluginUninstallRoute({ errors: routeErrors, app, deps });
+  registerPluginFilesRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

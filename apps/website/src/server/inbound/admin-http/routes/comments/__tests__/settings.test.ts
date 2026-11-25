@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -24,6 +25,7 @@ function buildApp(overrides: Partial<CommentsModerationRouteDeps> = {}): {
   app: express.Express;
   authorizeCalls: unknown[];
 } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const authorizeCalls: unknown[] = [];
   const deps: CommentsModerationRouteDeps = {
@@ -40,8 +42,8 @@ function buildApp(overrides: Partial<CommentsModerationRouteDeps> = {}): {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsGetSettingsRoute({ app, deps });
-  registerAdminCommentsPutSettingsRoute({ app, deps });
+  registerAdminCommentsGetSettingsRoute({ errors: routeErrors, app, deps });
+  registerAdminCommentsPutSettingsRoute({ errors: routeErrors, app, deps });
   return { app, authorizeCalls };
 }
 
@@ -123,14 +125,15 @@ test("comments settings: a PUT with no request body is an empty patch — it ech
 });
 
 test("comments settings: a host that mounts PUT without any JSON parser still gets an empty patch, not a 500", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: CommentsModerationRouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) };
   const app = express();
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsGetSettingsRoute({ app, deps });
-  registerAdminCommentsPutSettingsRoute({ app, deps });
+  registerAdminCommentsGetSettingsRoute({ errors: routeErrors, app, deps });
+  registerAdminCommentsPutSettingsRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const stored = (await (await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`)).json()) as { data: unknown };

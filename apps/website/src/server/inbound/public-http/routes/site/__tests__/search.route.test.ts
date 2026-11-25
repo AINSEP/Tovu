@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,9 +32,9 @@ function fakeRuntime(answer: () => Promise<SearchServiceResult>) {
   return { runtime, queries, sessions };
 }
 
-async function serve(t: import("node:test").TestContext, siteSearch?: SiteSearchRuntime): Promise<string> {
+async function serve(t: import("node:test").TestContext, siteSearch?: SiteSearchRuntime, { recorded = recordingComposedReporter() } = {}): Promise<string> {
   const app = express();
-  registerSiteSearchRoute(app, siteSearch ? { siteSearch } : {});
+  registerSiteSearchRoute({ app, deps: siteSearch ? { siteSearch } : {}, errors: { ...createRouteIncidentReporter().errors, reporter: recorded.reporter } });
   return startTestServer(app, t);
 }
 
@@ -110,28 +112,28 @@ test("a composition without search answers 503 not_configured", async (t) => {
 });
 
 test("an unexpected failure is logged and answered with a 500", async (t) => {
-  const errors = t.mock.method(console, "error", () => undefined);
+  const recorded = recordingComposedReporter();
   const { runtime } = fakeRuntime(async () => { throw new Error("db closed"); });
-  const base = await serve(t, runtime);
+  const base = await serve(t, runtime, { recorded });
   const res = await fetch(`${base}/api/search?q=x`);
   assert.equal(res.status, 500);
   const body = await res.json();
   assert.ok(body.errorId);
   assert.match(body.error, /couldn’t load the search results/);
-  assert.equal(errors.mock.callCount(), 1);
+  assert.equal(recorded.records.length, 1);
 });
 
 test("unexpected search error has one redacted incident and preserves private JSON headers", async t => {
-  const logs = t.mock.method(console, "error", () => {});
+  const recorded = recordingComposedReporter();
   const { runtime } = fakeRuntime(async () => { throw new Error("search context password=SEARCH_CANARY"); });
-  const base = await serve(t, runtime);
+  const base = await serve(t, runtime, { recorded });
   const res = await fetch(`${base}/api/search?q=hello`);
   const body = await res.json();
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /^application\/json/);
   assert.equal(res.headers.get("cache-control"), "private, no-store");
   assert.ok(body.errorId);
-  assert.equal(logs.mock.calls.length, 1);
-  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(logs.mock.calls), /SEARCH_CANARY/);
+  assert.equal(recorded.records.length, 1);
+  assert.ok(JSON.stringify(recorded.records).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(recorded.records), /SEARCH_CANARY/);
 });

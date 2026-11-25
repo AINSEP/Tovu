@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -18,6 +19,7 @@ function writePortTrap(touched: string[]) {
 }
 
 async function serve(t: test.TestContext, { allowed = true, credential = "session" }: { allowed?: boolean; credential?: string } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const reads: string[] = [];
   const touched: string[] = [];
   const asked: unknown[] = [];
@@ -34,7 +36,7 @@ async function serve(t: test.TestContext, { allowed = true, credential = "sessio
   } as unknown as Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime">;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credential; next(); });
-  registerAdminSiteUpdateStatusRoute({ app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
+  registerAdminSiteUpdateStatusRoute({ errors: routeErrors, app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
   // Bound after registration, as the composition assigns it: the route must read it per request.
   deps.siteUpdateRuntime = runtime as unknown as RouteDeps["siteUpdateRuntime"];
   const base = await startTestServer(app, t);

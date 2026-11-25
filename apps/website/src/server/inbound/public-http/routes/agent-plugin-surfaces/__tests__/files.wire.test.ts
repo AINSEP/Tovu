@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { request } from "node:http";
 import { test } from "node:test";
@@ -56,8 +57,9 @@ function conditional(url: string, { method = "GET", headers = {} }: { method?: s
 }
 
 async function serve(t: import("node:test").TestContext, limiter?: { check: () => Promise<{ allowed: false; retryAfterSeconds: number }> }): Promise<string> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminSurfaceFilesRoute({ app, deps: {
+  registerAdminSurfaceFilesRoute({ errors: routeErrors, app, deps: {
     workspaceId: "ws-1", clock: { nowMs: () => 0 },
     agentPluginLifecycle: { loadPluginContributions: async () => { throw new Error("the source seam is used"); }, readTrustedPluginFile: async () => "unused" },
     adminSurfaceSource: SOURCE,

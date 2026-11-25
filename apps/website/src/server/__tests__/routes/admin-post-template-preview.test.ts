@@ -84,6 +84,7 @@ function staticThemeWithTemplates(overrides: { templates?: string[]; extraPages?
 }
 
 function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.themes = [theme];
   const app = express();
@@ -93,7 +94,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   // `as never`: `createContentModule` takes the narrower `ContentRouteDeps`, and `RouteDeps` is a
   // structural supertype of it — same cast the existing `post-template-site-serving.test.ts` uses at
   // its own identical call site.
-  createContentModule(deps as never).registerRoutes?.({ app });
+  createContentModule(deps as never).registerRoutes?.({ errors: routeErrors, app });
   registerSiteRoutes({ app, deps });
   return { app, deps };
 }

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -29,8 +30,9 @@ const { registerAdminAssistantDetectAgentsRoute } = await import("#src/server/ru
 const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents";
 
 function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminAssistantDetectAgentsRoute({ app, deps: {
+  registerAdminAssistantDetectAgentsRoute({ errors: routeErrors, app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
@@ -122,7 +124,7 @@ test("Rescan forces discovery once after the cached response and preserves exact
   const forces: boolean[] = [];
   let calls = 0;
   const app = express();
-  registerAdminAssistantDetectAgentsRoute({ app, deps: {
+  registerAdminAssistantDetectAgentsRoute({ errors: createRouteIncidentReporter().errors, app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
@@ -156,7 +158,7 @@ test("each route uses its composition's inventory rather than the process compat
     for (const assistantAgentInventory of inventories) {
       await assistantAgentInventory.listAssistantAgents({}, { waitForProbe: true });
       const app = express();
-      registerAdminAssistantDetectAgentsRoute({ app, deps: {
+      registerAdminAssistantDetectAgentsRoute({ errors: createRouteIncidentReporter().errors, app, deps: {
         assistantAgentInventory,
         adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
         siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),

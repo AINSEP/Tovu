@@ -21,7 +21,7 @@ import { createSkillsModule } from "../skills.js";
 import { createTaxonomyModule } from "../taxonomy.js";
 import { createUsersModule } from "../users.js";
 import { createWorkspaceModule } from "../workspace.js";
-import type { ServerModuleHandle } from "../types.js";
+import type { RouteRegistration, ServerModuleHandle } from "../types.js";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
@@ -47,7 +47,7 @@ const W = "/api/admin/v1/workspaces/:workspaceId";
 
 type ModuleCase = {
   readonly name: string;
-  readonly create: () => ServerModuleHandle;
+  readonly create: () => ServerModuleHandle<RouteRegistration>;
   readonly routes: readonly string[];
 };
 
@@ -320,7 +320,7 @@ for (const c of CASES) {
     assert.equal(typeof handle.registerRoutes, "function");
 
     const app = express();
-    handle.registerRoutes!({ app });
+    handle.registerRoutes!({ app, errors: createRouteIncidentReporter().errors });
     assert.deepEqual(routesOf(app), c.routes);
   });
 }

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import {
@@ -87,10 +88,10 @@ function withPorts<T extends object>({ deps, own }: { deps: RouteDeps; own: T },
 
 /** Mounts the three ceremony specs. The gateway authorizes inside each step, so the mounts are
  * `"direct"` (no publishing-credential override was ever consulted) and never call `authorize`. */
-export function registerAdminDatabaseMigrateForwardRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: databaseMigrateForwardPlanRoute, deps: withPorts({ deps, own: { planMigrateForward: planStep({ deps }) } }) }, MIGRATE_MOUNT);
-  mountAdminJsonRoute({ app, spec: databaseMigrateForwardConfirmRoute, deps: withPorts({ deps, own: { confirmMigrateForward: confirmStep({ deps }) } }) }, MIGRATE_MOUNT);
-  mountAdminJsonRoute({ app, spec: databaseMigrateForwardExecuteRoute, deps: withPorts({ deps, own: {
+export function registerAdminDatabaseMigrateForwardRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: databaseMigrateForwardPlanRoute, deps: withPorts({ deps, own: { planMigrateForward: planStep({ deps }) } }) }, MIGRATE_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: databaseMigrateForwardConfirmRoute, deps: withPorts({ deps, own: { confirmMigrateForward: confirmStep({ deps }) } }) }, MIGRATE_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: databaseMigrateForwardExecuteRoute, deps: withPorts({ deps, own: {
     executeMigrateForward: executeStep({ deps }),
     authorizeMigrateForward: ({ principalId, permission }: { principalId: string; permission: string }) =>
       authorizeForHooks({ deps: deps.gatedMutations.gatewayDeps, hooks: confirmOnlyMigrateHooks({ deps }), required: { principalId, permission } }),

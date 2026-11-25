@@ -1,4 +1,5 @@
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,7 +13,8 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
 
 const route = "/api/admin/v1/workspaces/:workspaceId/system/sites";
-function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
+function fixture(overrides: Partial<AdminSitesDeps> = {}, { incidents = createRouteIncidentReporter() }: { incidents?: ReturnType<typeof createRouteIncidentReporter> } = {}) {
+  const routeErrors = incidents.errors;
   const calls: unknown[] = [];
   const supervisor = createLocalSiteSupervisor({ servingName: "owner", scheme: "http", processPort: {
     isPortFree: async () => true, schedule: () => () => {},
@@ -27,7 +29,7 @@ function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
     createSite: async (input, options) => { calls.push({ input, options }); return { name: input.name, dir: "/new", siteId: "new" }; },
     ...overrides,
   };
-  const app = express(); registerAdminSitesRoutes({ app, deps });
+  const app = express(); registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   return { app, calls, async request({ method = "get", body, workspaceId = "ws" }: { method?: "get" | "post"; body?: unknown; workspaceId?: string | null } = {}, _options = {}) {
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
     await extractRouteHandler(app, method, route)({ params: { workspaceId }, body, socket: { localPort: 3000 } }, res);
@@ -168,17 +170,17 @@ test("token sign-in plugins and activate 404 an absent workspace param; activate
   assert.deepEqual(persisted, []);
 });
 
-test("token sign-in plugins and activate hide unexpected failures behind a logged generic 500", async (t) => {
-  const logged: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+test("token sign-in plugins and activate hide unexpected failures behind a logged generic 500", async () => {
+  const incidents = createRouteIncidentReporter();
   const { app } = fixture({
     listTokenSignInPlugins: async () => { throw new Error("SECRET plugin detail"); },
     listSites: () => { throw new Error("SECRET disk detail"); },
-  });
+  }, { incidents });
   const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
   assertAdminResponse({ actual: await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), expected: internal }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
   assertAdminResponse({ actual: await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), expected: internal }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/sites]", diagnostics: [/SECRET plugin detail/, /SECRET disk detail/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/system/sites", diagnostics: [/SECRET plugin detail/, /SECRET disk detail/] });
+  assert.equal(incidents.reports.length, 2);
 });
 
 test("trashing the persisted next-launch site re-points the default at the served site; any other site leaves it", async () => {

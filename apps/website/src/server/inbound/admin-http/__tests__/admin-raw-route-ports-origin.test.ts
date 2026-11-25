@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { RouteHostContext } from "@jini-ai/core/contracts/server";
@@ -51,4 +52,12 @@ test("the wrappers forward the host origin context: same-origin reaches the hand
     await cross.body?.cancel();
   }
   assert.deepEqual(s.calls, ["/api/admin/v1/workspaces/:workspaceId/guarded", "/public/guarded"]);
+});
+
+
+test("same-origin raw mounts still reject a missing explicit origin at registration", () => {
+  const errors = createRouteIncidentReporter().errors;
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  assert.throws(() => mountAdminRawRoute({ app: fakeAdminApp(), errors, spec: guardedSpec("/bound/admin", []) as never, deps }), /raw route \/bound\/admin: requireSameOrigin.*origin context/);
+  assert.throws(() => mountPublicRawRoute({ app: fakeAdminApp(), errors, spec: guardedSpec("/bound/public", []) as never, deps, failure: visitor }), /raw route \/bound\/public: requireSameOrigin.*origin context/);
 });

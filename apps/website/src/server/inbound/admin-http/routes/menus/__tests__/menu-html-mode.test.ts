@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -14,6 +15,7 @@ import { registerAdminMenuCreateRoute, registerAdminMenuUpdateTreeRoute } from "
  */
 
 async function setup(t: test.TestContext, denied: readonly string[] = []) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const menuRepo = new InMemoryMenuRepo({});
   await menuRepo.save({ id: "m1", workspaceId: "ws-1", title: "Header", slug: "header-main", status: "published", version: 1,
     doc: { type: "menu", version: 1, items: [{ id: "home", label: "Home", target: { kind: "url", href: "/" } }] }, locations: [], updatedAt: "2026-10-08T00:00:00.000Z" });
@@ -23,8 +25,8 @@ async function setup(t: test.TestContext, denied: readonly string[] = []) {
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminMenuUpdateTreeRoute({ app, deps: deps as any });
-  registerAdminMenuCreateRoute({ app, deps: deps as any });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps: deps as any });
+  registerAdminMenuCreateRoute({ errors: routeErrors, app, deps: deps as any });
   const baseUrl = await startTestServer(app, t);
   const send = (method: "PUT" | "POST", path: string, body: object) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus${path}`, {
     method, headers: { "content-type": "application/json" }, body: JSON.stringify(body),

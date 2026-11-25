@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import type { LoadedAdminSurface } from "@jini-ai/agent-plugins/admin-surfaces";
 import { createAdminSurfaceFilesRoute } from "@jini-ai/cms/public-http/routes/agent-plugin-surfaces/files";
@@ -36,10 +37,10 @@ const adminSurfaceFilesRoute = createAdminSurfaceFilesRoute<LoadedAdminSurface>(
 /** Mount public static files with a per-route limiter; denied calls do no plugin I/O.
  * @complexity O(p + s) admitted plugin/surface scan per allowed request; limiter state is window-bounded.
  */
-export function registerAdminSurfaceFilesRoute({ app, deps }: { app: Express; deps: AdminSurfaceFilesRouteDeps }, options: { readonly limiter?: RateLimiter } = {}): void {
+export function registerAdminSurfaceFilesRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminSurfaceFilesRouteDeps }, options: { readonly limiter?: RateLimiter } = {}): void {
   const limiter = options.limiter ?? createRateLimiter({ profile: ADMIN_SURFACE_FILES_PER_IP, clock: deps.clock });
   const source = deps.adminSurfaceSource ?? createAgentPluginAdminSurfaceSource({ lifecycle: deps.agentPluginLifecycle });
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app,
     spec: adminSurfaceFilesRoute,
     deps: {

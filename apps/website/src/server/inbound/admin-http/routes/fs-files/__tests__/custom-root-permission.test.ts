@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
@@ -183,6 +184,7 @@ async function rewindAdminToShippingVintage(repos: IdentityRepos): Promise<void>
 /** The real route, mounted over the real `authorize()`, with the acting principal chosen per request
  *  by a header — the same bare-express shape `custom-root.test.ts` uses for its stubbed cases. */
 async function mountRoute(chain: Chain, t: Parameters<typeof startTestServer>[1]): Promise<string> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: AdminFsFilesCustomRootDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: ((params: { principalId: string; permission: string }) =>
@@ -196,7 +198,7 @@ async function mountRoute(chain: Chain, t: Parameters<typeof startTestServer>[1]
     res.locals.principal = { id: String(req.header(PRINCIPAL_HEADER) ?? "") };
     next();
   });
-  registerAdminFsFilesCustomRootRoutes({ app, deps: deps });
+  registerAdminFsFilesCustomRootRoutes({ errors: routeErrors, app, deps: deps });
   return startTestServer(app, t);
 }
 

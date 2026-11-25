@@ -31,8 +31,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminChangeSetListRoute({ app, deps });
-  registerAdminChangeSetGetRoute({ app, deps });
+  registerAdminChangeSetListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminChangeSetGetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

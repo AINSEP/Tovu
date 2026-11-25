@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { respondToApiError } from "#src/server/error-mapping/respond";
 import type { Express, Response } from "express";
@@ -39,9 +40,9 @@ function writeAnalyticsRefusal({ res, error }: { res: Response; error: RouteRefu
 
 /** An unexpected failure: shared redacted diagnostics without replacing the canonical analytics wire contract.
  * @complexity O(1) plus the shared failure report. */
-function writeAnalyticsFailure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
+function writeAnalyticsFailure({ res, error, errors }: { res: Response; error: unknown; errors: RouteErrorPorts }, _optional = {}): void {
   const { req } = res;
-  const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }, {
+  const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: errors.reporter }, {
     operation: "analytics/recent-hits", method: req.method, route: req.route.path,
     discloseDetails: !!res.locals.principal,
   });
@@ -52,10 +53,10 @@ function writeAnalyticsFailure({ res, error }: { res: Response; error: unknown }
   } });
 }
 
-export function registerAdminAnalyticsRecentHitsRoute({ app, deps }: { app: Express; deps: AdminAnalyticsRecentHitsDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminAnalyticsRecentHitsRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminAnalyticsRecentHitsDeps }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute(
     // `authorize` is read per request so a later reassignment of `deps.authorize` is honoured.
-    { app, spec: analyticsRecentHitsRoute, deps: { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), analyticsSink: deps.analyticsSink } },
-    { authorization: "direct", refusalWriter: writeAnalyticsRefusal, failureWriter: writeAnalyticsFailure },
+    { errors, app, spec: analyticsRecentHitsRoute, deps: { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), analyticsSink: deps.analyticsSink } },
+    { authorization: "direct", refusalWriter: writeAnalyticsRefusal, failureWriter: ({ res, error }) => writeAnalyticsFailure({ res, error, errors }) },
   );
 }

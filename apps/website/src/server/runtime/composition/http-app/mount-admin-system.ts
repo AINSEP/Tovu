@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /**
  * @file The system-admin registrations of `createApp`: analytics + the public site assistant, observability, mail, site administration,
  * and credentials/files. Registration order is behaviour, so `mountAdminSystem` calls the five sub-mounts in the original statement
@@ -51,7 +52,7 @@ import { createNativeFolderPicker } from "@jini-ai/cms/fs-files/native-folder-pi
 import { isLocalTovuHost } from "../registered-sites.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput } from "./module-handles.js";
 import type { CreateAppOptions } from "../create-app-options.js";
 import { mountStorageRoutes, storageOwnerFrom, type SiteStoragePort } from "../modules/storage-routes.js";
 import { adminSameOriginWrites } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -60,8 +61,8 @@ import { adminSameOriginWrites } from "#src/server/inbound/admin-http/admin-json
  * authorization and the route's own failure copy, as the hand-written route answered.
  * @complexity O(1) setup.
  */
-export function registerAdminModuleStatusRoute({ app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: moduleStatusRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, getReadinessSnapshot } },
+export function registerAdminModuleStatusRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: moduleStatusRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, getReadinessSnapshot } },
     { authorization: "direct", failure: { operation: "routes/system/module-status", code: "INTERNAL_ERROR" } });
 }
 
@@ -73,12 +74,12 @@ export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "auth
  * override), as the hand-written routes did; the POST answers its own 403 copy.
  * @complexity O(1) setup.
  */
-export function registerAdminObservabilityStatusRoute({ app, deps }: { app: Express; deps: AdminObservabilityStatusDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminObservabilityStatusRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminObservabilityStatusDeps }, _optional: Record<string, never> = {}): void {
   const options = { authorization: "direct", failure: { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" } } as const;
   const { workspaceId, authorize, sendTelemetryTest } = deps;
-  mountAdminJsonRoute({ app, spec: observabilityStatusRoute, deps: { workspaceId, authorize, sendTelemetryTest, observability: deps.observability,
+  mountAdminJsonRoute({ errors, app, spec: observabilityStatusRoute, deps: { workspaceId, authorize, sendTelemetryTest, observability: deps.observability,
     observabilityEnabled: deps.observabilityEnabled, telemetryStatus: deps.telemetryStatus, serviceName: "tovu" } }, options);
-  mountAdminJsonRoute({ app, spec: observabilityTestErrorRoute, deps: { workspaceId, authorize, sendTelemetryTest } }, options);
+  mountAdminJsonRoute({ errors, app, spec: observabilityTestErrorRoute, deps: { workspaceId, authorize, sendTelemetryTest } }, options);
 }
 
 // Tool gaps are owner-only, never RBAC-gated: the spec compares the session principal with the
@@ -88,8 +89,8 @@ const toolGapsNeverAuthorizes: RouteDeps["authorize"] = async () => ({ allowed: 
 /** `GET .../system/tool-gaps` (Jini spec) over the tool audit store; the route's own 500 copy.
  * @complexity O(1) setup.
  */
-export function registerAdminToolGapsRoute({ app, deps }: { app: Express; deps: ToolGapsToolDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: toolGapsRoute, deps: { workspaceId: deps.workspaceId, ownerPrincipalId: deps.ownerPrincipalId, toolGaps: deps.toolGaps, authorize: toolGapsNeverAuthorizes } },
+export function registerAdminToolGapsRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: ToolGapsToolDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: toolGapsRoute, deps: { workspaceId: deps.workspaceId, ownerPrincipalId: deps.ownerPrincipalId, toolGaps: deps.toolGaps, authorize: toolGapsNeverAuthorizes } },
     { authorization: "direct", failure: { operation: "routes/system/tool-gaps", code: "INTERNAL_ERROR", message: "Could not read tool gaps." } });
 }
 
@@ -98,11 +99,11 @@ export function registerAdminToolGapsRoute({ app, deps }: { app: Express; deps: 
  * @complexity O(1) setup.
  */
 export function registerAdminServerLogsRoute(
-  { app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> },
   optional: { logs?: ServerLogSourcePort } = {},
 ): void {
   const logs = optional.logs ?? processServerLogSource;
-  mountAdminJsonRoute({ app, spec: serverLogsRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize,
+  mountAdminJsonRoute({ errors, app, spec: serverLogsRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize,
     parseServerLogFilters, readServerLogs: (filters) => readServerLogs({ logs }, filters as ServerLogFilters),
     serverLogFilterReply: ({ error }) => (error instanceof ServerLogFilterError ? error.message : undefined) } },
   { authorization: "direct", failure: { operation: "routes/system/server-logs", code: "INTERNAL_ERROR" } });
@@ -113,30 +114,30 @@ export function registerAdminServerLogsRoute(
  * @complexity O(1) setup.
  */
 export function registerAdminAssistantDaemonRoutes(
-  { app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> & Partial<AdminAssistantDaemonDeps> },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> & Partial<AdminAssistantDaemonDeps> },
   _optional: Record<string, never> = {},
 ): void {
   const restartAssistantDaemon = deps.restartAssistantDaemon ?? restartAssistantDaemonReal;
-  mountAdminJsonRoute({ app, spec: assistantDaemonRestartRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, restartAssistantDaemon } },
+  mountAdminJsonRoute({ errors, app, spec: assistantDaemonRestartRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, restartAssistantDaemon } },
     { authorization: "direct", failure: { operation: "routes/system/assistant-daemon", code: "INTERNAL_ERROR" } });
 }
 
 /** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. `reporter` is the site's one reporter (the visitor assistant's routes record through it). */
-export function mountAdminSystem({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown" | "siteStorage"> = {}): void {
-  mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }, options);
+export function mountAdminSystem({ app, routeDeps, errors, reporter }: ErrorBoundMountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown" | "siteStorage"> = {}): void {
+  mountAnalyticsAndSiteAssistant({ app, routeDeps, errors, reporter }, options);
   mountStorageRoutes({ app, storage: options.siteStorage, authorizeOwner: storageOwnerFrom({ ownerPrincipalId: async () => routeDeps.ownerPrincipalId }),
-    adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize }, origin: adminSameOriginWrites } }, {});
-  mountObservability({ app, routeDeps });
-  mountMail({ app, routeDeps });
-  mountSiteAdmin({ app, routeDeps, reporter });
-  mountCredentialsAndFiles({ app, routeDeps });
+    adminPorts: { errors, mount: mountAdminJsonRoute, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize }, origin: adminSameOriginWrites } }, {});
+  mountObservability({ app, routeDeps, errors });
+  mountMail({ app, routeDeps, errors });
+  mountSiteAdmin({ app, routeDeps, errors, reporter });
+  mountCredentialsAndFiles({ app, routeDeps, errors });
 }
 
 /** The analytics admin module, then the public site-assistant module (started BEFORE it is mounted). */
-function mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown"> = {}): void {
+function mountAnalyticsAndSiteAssistant({ app, routeDeps, errors, reporter }: ErrorBoundMountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown"> = {}): void {
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
-  mountRoutes({ app, mod: createAnalyticsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createAnalyticsModule(routeDeps) });
   // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
@@ -145,68 +146,68 @@ function mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }: MountInput
   startModule(siteAssistantModule);
   // Parked visitor approvals hold a running provider call; shutdown denies and ends each one.
   options.onShutdown?.({ shutdown: siteAssistantModule.shutdown });
-  mountRoutes({ app, mod: siteAssistantModule });
+  mountRoutes({ app, errors, mod: siteAssistantModule });
 }
 
 /** Module status, observability, browser telemetry, tool gaps and server logs routes. */
-function mountObservability({ app, routeDeps }: MountInput, _optional = {}): void {
-  registerAdminModuleStatusRoute({ app, deps: routeDeps });
+function mountObservability({ app, routeDeps, errors }: ErrorBoundMountInput, _optional = {}): void {
+  registerAdminModuleStatusRoute({ errors, app, deps: routeDeps });
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
-  registerAdminObservabilityStatusRoute({ app, deps: routeDeps });
+  registerAdminObservabilityStatusRoute({ errors, app, deps: routeDeps });
   // The admin browser's own errors and page views, relayed to the same provider-plugin ports.
-  registerAdminBrowserTelemetryRoute({ app, deps: routeDeps });
-  registerAdminToolGapsRoute({ app, deps: routeDeps });
-  registerAdminServerLogsRoute({ app, deps: routeDeps });
+  registerAdminBrowserTelemetryRoute({ errors, app, deps: routeDeps });
+  registerAdminToolGapsRoute({ errors, app, deps: routeDeps });
+  registerAdminServerLogsRoute({ errors, app, deps: routeDeps });
 }
 
 /** Mail status, provider, DNS, test-send and activity routes. */
-function mountMail({ app, routeDeps }: MountInput, _optional = {}): void {
+function mountMail({ app, routeDeps, errors }: ErrorBoundMountInput, _optional = {}): void {
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
-  registerAdminMailStatusRoute({ app, deps: routeDeps });
-  registerAdminMailProviderRoutes({ app, deps: routeDeps });
+  registerAdminMailStatusRoute({ errors, app, deps: routeDeps });
+  registerAdminMailProviderRoutes({ errors, app, deps: routeDeps });
   // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
   // Send test email (same operation as `mail_send_test`).
-  registerAdminMailDnsRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) } });
-  registerAdminMailTestSendRoute({ app, deps: routeDeps });
+  registerAdminMailDnsRoutes({ errors, app, deps: { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) } });
+  registerAdminMailTestSendRoute({ errors, app, deps: routeDeps });
   // Email page: What uses email and Recent sends and failures (same operations as
   // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).
-  registerAdminMailActivityRoutes({ app, deps: routeDeps });
+  registerAdminMailActivityRoutes({ errors, app, deps: routeDeps });
 }
 
 /** Assistant daemon/subagents/permanent deletes, deployment, sites, profile, export, share, import and backup routes. */
-function mountSiteAdmin({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, _optional = {}): void {
+function mountSiteAdmin({ app, routeDeps, errors, reporter }: ErrorBoundMountInput & { reporter: ErrorReporter }, _optional = {}): void {
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
   // own header for why its response never claims the daemon is healthy again.
-  registerAdminAssistantDaemonRoutes({ app, deps: routeDeps });
-  registerAdminAssistantSubagentsRoutes({ app, deps: routeDeps });
-  registerAdminAssistantPermanentDeletesRoutes({ app, deps: routeDeps });
+  registerAdminAssistantDaemonRoutes({ errors, app, deps: routeDeps });
+  registerAdminAssistantSubagentsRoutes({ errors, app, deps: routeDeps });
+  registerAdminAssistantPermanentDeletesRoutes({ errors, app, deps: routeDeps });
   // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
   // module-status route just above; see each route file's own header for why they share it.
-  registerAdminDeploymentOverviewRoute({ app, deps: routeDeps });
-  registerAdminDockerfileSourceRoute({ app, deps: routeDeps });
+  registerAdminDeploymentOverviewRoute({ errors, app, deps: routeDeps });
+  registerAdminDockerfileSourceRoute({ errors, app, deps: routeDeps });
   // Admin "Sites" screen (2026-09-04 sites-switcher decision) — list/create/activate the sites
   // under `sites/<name>/`. `system.read`/`system.write`-gated, same shape as the routes just
   // above; Create/Activate additionally refuse when `TOVU_ENABLE_SITE_SWITCHER` is off (default),
   // which List does not — see that route file's own header for the full split.
-  registerAdminSitesRoutes({ app, deps: routeDeps });
+  registerAdminSitesRoutes({ errors, app, deps: routeDeps });
   // The admin frontend's door to `buildSiteProfile()` — the SAME function the `site_get_profile`
   // agent tool calls, because `apps/admin` is a browser bundle and cannot invoke an agent tool.
   // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
   // section's own domain permission. See that route file's header for why that difference matters.
-  registerAdminSiteProfileRoute({ app, deps: routeDeps });
+  registerAdminSiteProfileRoute({ errors, app, deps: routeDeps });
   // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/features/site-export/`).
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
-  registerAdminExportSiteRoutes({ app, deps: routeDeps });
-  registerAdminSiteShareRoutes({ app, deps: routeDeps, reporter });
-  registerAdminSiteImportRoutes({ app, deps: routeDeps });
-  registerAdminSiteBackupRoutes({ app, deps: routeDeps });
+  registerAdminExportSiteRoutes({ errors, app, deps: routeDeps });
+  registerAdminSiteShareRoutes({ errors, app, deps: routeDeps });
+  registerAdminSiteImportRoutes({ errors, app, deps: routeDeps });
+  registerAdminSiteBackupRoutes({ errors, app, deps: routeDeps });
   // Admin site-update notice: the same read as `site_update_check`, below the authenticated shell.
-  registerAdminSiteUpdateStatusRoute({ app, deps: routeDeps, reporter });
+  registerAdminSiteUpdateStatusRoute({ errors, app, deps: routeDeps, reporter });
 }
 
 /** The read half of the platform runtime, copied port by port so the write ports never travel with it. */
@@ -227,12 +228,12 @@ function lastAttemptReader(runtime: SiteUpdateCheckRuntime | null | undefined, _
  * @complexity O(1) setup; per request one version read plus one feed request.
  */
 export function registerAdminSiteUpdateStatusRoute(
-  required: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime">; reporter: Pick<ErrorReporter, "record"> },
+  required: { errors: RouteErrorPorts; app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime">; reporter: Pick<ErrorReporter, "record"> },
   _optional = {},
 ): void {
   const { app, deps, reporter } = required;
   const reportFailure = ({ error }: { error: unknown }) => void reportServerFailure({ error, operation: "site-update:status" }, { reporter });
-  mountAdminJsonRoute<Record<string, never>, SiteUpdateStatusReply, SiteUpdateStatusRouteDeps>({
+  mountAdminJsonRoute<Record<string, never>, SiteUpdateStatusReply, SiteUpdateStatusRouteDeps>({ errors: required.errors,
     app,
     spec: {
       ...siteUpdateStatusRoute,
@@ -249,24 +250,24 @@ export function registerAdminSiteUpdateStatusRoute(
 }
 
 /** Consent, publish, credential-set, site-key and fs-files routes. */
-function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}): void {
+function mountCredentialsAndFiles({ app, routeDeps, errors }: ErrorBoundMountInput, _optional = {}): void {
   // Deployment panel → publish to a static host: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
-  registerAdminConsentRoutes({ app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });
-  registerAdminPublishSiteRoutes({ app, deps: routeDeps });
+  registerAdminConsentRoutes({ errors, app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });
+  registerAdminPublishSiteRoutes({ errors, app, deps: routeDeps });
   // Deployment panel → Static Site tab's credential form: CRUD over saved provider connections
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
   // header for why this doesn't split trigger/read the way `publish-site.ts` does.
-  registerAdminPublishCredentialsRoutes({ app, deps: routeDeps });
+  registerAdminPublishCredentialsRoutes({ errors, app, deps: routeDeps });
   // Admin Source Control page: CRUD over saved plugin-provided source-control identities
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
-  registerAdminSourceControlCredentialsRoutes({ app, deps: routeDeps });
+  registerAdminSourceControlCredentialsRoutes({ errors, app, deps: routeDeps });
   // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
   // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
-  registerAdminCustomCredentialsRoutes({ app, deps: routeDeps });
-  registerAdminCredentialCopyRoutes({ app, deps: routeDeps });
+  registerAdminCustomCredentialsRoutes({ errors, app, deps: routeDeps });
+  registerAdminCredentialCopyRoutes({ errors, app, deps: routeDeps });
   // Security panel → site key tab: view/generate the TOVU_SITE_KEY site key's
   // generated-file fallback. `admin.security.site-key.manage`-gated on both verbs — see that route
   // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
@@ -278,10 +279,10 @@ function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.
-  registerAdminFsFilesCustomRootRoutes({ app, deps: routeDeps });
+  registerAdminFsFilesCustomRootRoutes({ errors, app, deps: routeDeps });
   // Chat composer's folder button: opens the OS folder dialog on this machine and returns the path.
   // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
   // for a request from this machine — see that route file's own header.
-  registerAdminFsFilesFolderPickerRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
+  registerAdminFsFilesFolderPickerRoutes({ errors, app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
     localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({ platform: process.platform, env: process.env }) } });
 }

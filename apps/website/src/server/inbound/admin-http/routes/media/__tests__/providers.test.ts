@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -24,6 +25,7 @@ const WORKSPACE_ID = "workspace-local";
 const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/media/providers`;
 
 function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: MediaProviderRouteDeps = {
     workspaceId: base.workspaceId,
@@ -41,8 +43,8 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaGetProvidersRoute({ app, deps });
-  registerAdminMediaPutProvidersRoute({ app, deps });
+  registerAdminMediaGetProvidersRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaPutProvidersRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

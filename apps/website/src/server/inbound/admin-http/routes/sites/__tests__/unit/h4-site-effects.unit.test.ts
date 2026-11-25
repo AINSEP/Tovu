@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { tmpdir } from 'node:os';
@@ -14,7 +15,7 @@ for (const [body, status] of [[{}, 400], [{ checked: true }, 400], [{ confirmed:
   test(`permanent site deletion requires both confirmations: ${JSON.stringify(body)}`, async () => {
     const events: unknown[] = [];
     const app = express();
-    registerLocalSitesRoutes({ app, deps: portFake<LocalSitesRouteDeps>({
+    registerLocalSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<LocalSitesRouteDeps>({
       workspaceId: 'ws', siteBinding: { name: 'owner', dir: '/repo/sites/owner', dirOverridden: false, switcherCompatible: true },
       isSiteSwitcherEnabled: () => true, authorize: async () => ({ allowed: true, reason: 'owner' }),
       localSiteSupervisor: { withStoppedSite: async ({ name, task }: { name: string; task: () => Promise<unknown> }) => {
@@ -34,7 +35,7 @@ for (const [body, status] of [[{}, 400], [{ checked: true }, 400], [{ confirmed:
 test('sites settings validate every root before calling the settings writer', async () => {
   const app = express();
   let writes = 0;
-  registerSitesHomeRoutes({ app, deps: { workspaceId: 'ws', isSiteSwitcherEnabled: () => true,
+  registerSitesHomeRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: 'ws', isSiteSwitcherEnabled: () => true,
     authorize: async () => ({ allowed: true, reason: 'owner' }) },
     workspace: portFake<SitesWorkspace>({ updateConfig: () => { writes++; assert.fail('invalid second root must stop the update'); } }),
   });

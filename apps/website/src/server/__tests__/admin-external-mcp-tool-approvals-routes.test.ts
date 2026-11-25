@@ -34,7 +34,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; repo: InMemory
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps, repo };
 }
 
@@ -128,12 +128,13 @@ test("both routes need a session, this site's workspace id, and the integrations
 });
 
 test("a composition with no Always-allow store lists nothing and revokes nothing", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), externalMcpToolApprovalRepo: undefined };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const list = await req(baseUrl, `${BASE}/tool-approvals`, cookie);

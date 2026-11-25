@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { listPublishContentContributors, registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
@@ -41,13 +42,14 @@ import { BASE, routeApp, routeDeps } from "./route-fixture.js";
  */
 
 function buildHandler(deps: Partial<PublishContentRouteDeps>) {
+  const routeErrors = createRouteIncidentReporter().errors;
   let handler: (req: { params: Record<string, unknown> }, res: unknown) => Promise<void>;
   const app = {
     get: (_path: string, h: typeof handler) => {
       handler = h;
     },
   };
-  registerPublishContentExportRoute({ app: app as never, deps: deps as PublishContentRouteDeps });
+  registerPublishContentExportRoute({ errors: routeErrors, app: app as never, deps: deps as PublishContentRouteDeps });
   return (req: { params: Record<string, unknown> }, res: unknown) => handler(req, res);
 }
 

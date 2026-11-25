@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -47,6 +48,7 @@ function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
 }
 
 test("test-agent: an authenticated CLI offering the requested model reports ok:true, via an injected detectAgents() -- no real CLI on PATH required", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let available = true;
   let detectionFails = false;
   let allowed = true;
@@ -113,7 +115,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
       clearKey: unusedByThisRoute("adminExecutionCredentialRepo.clearKey"),
     },
   };
-  registerAdminAssistantTestAgentRoute({ app, deps });
+  registerAdminAssistantTestAgentRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const address = server.address();

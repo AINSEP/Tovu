@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,6 +12,7 @@ import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/
 const now = "2026-10-01T12:00:00.000Z";
 function unexpected(_required: object = {}, _options: object = {}): never { throw new Error("unexpected port call"); }
 function harness(required: { suffix: "/items" | "/restore" }, options: Partial<TrashRouteDeps> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const deps: TrashRouteDeps = {
     workspaceId: "ws-7", registry: new Map(), clock: { nowIso: () => now },
@@ -24,8 +26,8 @@ function harness(required: { suffix: "/items" | "/restore" }, options: Partial<T
   };
   // Assign only supplied fields; spreading the defaults would evaluate the unused userRepo getter.
   Object.defineProperties(deps, Object.getOwnPropertyDescriptors(options));
-  registerAdminTrashMoveToTrashRoute({ app, deps });
-  registerAdminTrashRestoreRoute({ app, deps });
+  registerAdminTrashMoveToTrashRoute({ errors: routeErrors, app, deps });
+  registerAdminTrashRestoreRoute({ errors: routeErrors, app, deps });
   return async (input: { body?: unknown; workspaceId?: unknown; principal?: boolean }, _options: object = {}) => {
     const { res, capture } = createCapturingResponse();
     if (input.principal !== false) res.locals.principal = { id: "p-7" };

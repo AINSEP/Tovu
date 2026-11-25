@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -27,6 +28,7 @@ const RAW_ERROR = "upstream 401: bearer xai-RAW-TOKEN-999 rejected";
 type CatalogBody = { providers: Array<{ id: string; label: string; defaultBaseUrl?: string; models?: string[] }> };
 
 function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: MediaProviderRouteDeps = {
     workspaceId: base.workspaceId,
@@ -44,9 +46,9 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaProviderCatalogRoute({ app, deps });
-  registerAdminMediaGetProvidersRoute({ app, deps });
-  registerAdminMediaPutProvidersRoute({ app, deps });
+  registerAdminMediaProviderCatalogRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaGetProvidersRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaPutProvidersRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

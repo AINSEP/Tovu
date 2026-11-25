@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -27,10 +28,11 @@ function previewDeps(): WidgetPreviewDeps {
   }) };
 }
 function harness({ allowed = true, render = renderWidgetPreview }: { allowed?: boolean; render?: typeof renderWidgetPreview } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const checks: unknown[] = [];
   const deps = { ...previewDeps(), authorize: async (input: unknown) => { checks.push(input); return { allowed, reason: 'test' }; } };
   const app = express();
-  registerAdminWidgetPreviewRoute({ app, deps: deps as RouteDeps }, { render });
+  registerAdminWidgetPreviewRoute({ errors: routeErrors, app, deps: deps as RouteDeps }, { render });
   return { checks, async invoke({ workspaceId = 'ws', authed = true, body = { widgetType: 'text', content: { body: 'Draft' } } }: { workspaceId?: string; authed?: boolean; body?: unknown } = {}) {
     const { res, capture } = createCapturingResponse();
     const headers: Record<string, unknown> = {};

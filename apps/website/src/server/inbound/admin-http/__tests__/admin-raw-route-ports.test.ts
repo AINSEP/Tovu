@@ -1,3 +1,7 @@
+import { NOOP_OPERATION_TRACKER } from "@jini-ai/core/errors/reporter";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defineJsonRoute, ok, routeReply, type RouteInputContext } from "@jini-ai/core/contracts/server";
@@ -196,4 +200,25 @@ test("public mounts register route-scoped bodyParsers ahead of the handler, and 
   assert.equal(await post("/hooks/raw"), "buffer:0");
   assert.equal(await post("/hooks/plain", "abc"), "no-buffer");
   assert.deepEqual(JSON.parse(await post("/hooks/json", "abcd")), { seen: "buffer:4" });
+});
+
+
+test("raw custom failure text is preserved with exactly one site incident", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const operations: unknown[] = [];
+  const errors: RouteErrorPorts = { ...fixture.errors, observability: { trackOperation: (input) => { operations.push(input); return NOOP_OPERATION_TRACKER; } } };
+  const app = fakeAdminApp();
+  const spec = defineRawRoute<object>({ method: "get", path: "/custom-raw", handle: async () => { throw new Error("private raw canary"); } });
+  mountPublicRawRoute({ app, errors, origin: { originPolicy: { isSameOrigin: () => true } }, spec, deps: {}, failure: ({ res, error }) => {
+    const { errorId } = reportServerFailure({ error, operation: "custom:raw" }, { reporter: fixture.reporter });
+    res.status(503).type("text/plain").send(`Custom failure. Error ID: ${errorId}`);
+  } });
+  const server = await listen({ app });
+  t.after(server.close);
+  const response = await fetch(`${server.base}/custom-raw`);
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.equal(await response.text(), `Custom failure. Error ID: ${fixture.entries[0]?.meta?.errorId}`);
+  assert.equal(fixture.entries.length, 1);
+  assert.deepEqual(operations, [{ name: "http.route", attributes: { "http.method": "GET", "http.route": "/custom-raw" } }]);
 });

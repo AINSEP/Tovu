@@ -1,3 +1,4 @@
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -55,7 +56,8 @@ const registry: DeployTargetRegistry = {
   refusals: [REFUSAL],
 };
 
-function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
+function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}, incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   const base = createRouteDeps();
   const permissions: string[] = [];
   const deps = {
@@ -66,7 +68,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
     ...overrides,
   };
   const app = express();
-  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ app, deps }) };
+  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ errors: routeErrors, app, deps }) };
 }
 
 async function direct(app: express.Express, path: string, req: object, locals: Record<string, unknown> = { principal: { id: "owner" } }) {
@@ -103,14 +105,18 @@ test("publish-targets and destinations: a request with no :workspaceId param 404
 });
 
 test("publish-targets and destinations: a registry load failure is a fixed 500 that never echoes the cause", async (t) => {
+  const incidents = createRouteIncidentReporter();
   const logged = t.mock.method(console, "error", () => {});
   const cause = new Error("plugin directory unreadable at /private/plugins");
-  const { app, deps, register } = setup({ loadDeployTargets: async () => { throw cause; } });
+  const { app, deps, register } = setup({ loadDeployTargets: async () => { throw cause; } }, incidents);
   register();
   for (const path of ["/publish-targets", "/publish/destinations"]) {
     assertAdminResponse({ actual: await direct(app, path, { params: { workspaceId: deps.workspaceId } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { message: path, failure: {"message": "The system setting operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "system setting operation"} });
   }
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-site]", diagnostics: [/plugin directory unreadable at \/private\/plugins/, /plugin directory unreadable at \/private\/plugins/] });
+  // `/publish/destinations` is still hand-written (registerAdminPublishDestinationsRoute) and answers through the
+  // legacy sink; `/publish-targets` is bound to the site reporter. Each failure is recorded exactly once, on its own sink.
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-site]", diagnostics: [/plugin directory unreadable at \/private\/plugins/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/system/publish-site", diagnostics: [/plugin directory unreadable at \/private\/plugins/] });
 });
 
 test("publish destinations: a publishing-grant request reads peers through its grant, not the session authorizer", async () => {

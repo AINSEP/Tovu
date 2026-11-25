@@ -43,6 +43,7 @@ const DISCOVERY: readonly PluginDiscoveryRecord[] = [
 ];
 
 function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express.Express; pluginDeps: PluginsRouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const baseDeps = createRouteDeps();
   const onEnabledCalls: string[] = [];
   const onDisabledCalls: string[] = [];
@@ -74,7 +75,7 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerPluginSetEnabledRoute({ app, deps: pluginDeps });
+  registerPluginSetEnabledRoute({ errors: routeErrors, app, deps: pluginDeps });
   return { app, pluginDeps };
 }
 

@@ -92,6 +92,7 @@ function buildTestApp(
   theme: DiscoveredTheme,
   { withAdmin = false }: { withAdmin?: boolean } = {}
 ): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.themes = [theme];
   const app = express();
@@ -99,7 +100,7 @@ function buildTestApp(
   if (withAdmin) {
     registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
-    createContentModule(deps as never).registerRoutes?.({ app });
+    createContentModule(deps as never).registerRoutes?.({ errors: routeErrors, app });
   }
   registerSiteRoutes({ app, deps });
   return { app, deps };

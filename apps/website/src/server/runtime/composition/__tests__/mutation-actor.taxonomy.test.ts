@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -43,14 +44,15 @@ async function postJson(url: string, cookie: string, body: unknown) {
 }
 
 test("the same owner's admin taxonomy edit and assistant taxonomy edit persist different kinds", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminTaxonomyCreateRoute({ app, deps });
-  registerAdminTaxonomyCreateTermRoute({ app, deps });
-  registerAdminTaxonomyAssignTermsRoute({ app, deps });
+  registerAdminTaxonomyCreateRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyCreateTermRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyAssignTermsRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const api = `${baseUrl}/api/admin/v1/taxonomy`;
 
@@ -79,14 +81,15 @@ test("the same owner's admin taxonomy edit and assistant taxonomy edit persist d
 // but no kind, and the assistant has no term-delete tool; so the term writers whose kind this
 // covers are the ones both channels share: create and rename.
 test("the same owner's admin term rename and assistant term rename persist different kinds", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminTaxonomyCreateRoute({ app, deps });
-  registerAdminTaxonomyCreateTermRoute({ app, deps });
-  registerAdminTaxonomyRenameTermRoute({ app, deps });
+  registerAdminTaxonomyCreateRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyCreateTermRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyRenameTermRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const api = `${baseUrl}/api/admin/v1/taxonomy`;
 

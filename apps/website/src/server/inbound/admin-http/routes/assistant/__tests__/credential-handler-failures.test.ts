@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse, type ExpectedAdminFailure } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -55,8 +56,9 @@ async function invoke(
   register: AssistantSettingsRouteRegistrar, deps: AssistantSettingsRouteDeps,
   method: "get" | "put" | "delete", suffix: string, body: unknown = {},
 ) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  register({ app, deps });
+  register({ errors: routeErrors, app, deps });
   const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "admin-9" };
@@ -319,7 +321,7 @@ for (const { label, register, method, suffix } of [
     const authorizations: unknown[] = [];
     deps.authorize = async (params) => { authorizations.push(params); return { allowed: true, reason: "test_grant" }; };
     const app = express();
-    register({ app, deps });
+    register({ errors: createRouteIncidentReporter().errors, app, deps });
     const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "admin-9" };

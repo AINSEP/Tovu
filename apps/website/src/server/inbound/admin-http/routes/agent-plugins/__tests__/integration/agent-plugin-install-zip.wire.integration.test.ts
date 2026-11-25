@@ -44,11 +44,12 @@ async function withTempPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function buildTestApp(deps: ReturnType<typeof createRouteDeps>): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAgentPluginInstallRoute({ app, deps });
+  registerAgentPluginInstallRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

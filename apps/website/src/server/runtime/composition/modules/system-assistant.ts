@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 import { createOwnerGrantRoutes, type OwnerGrantPolicy } from "@jini-ai/cms/admin-http/routes/system/assistant-owner-grant";
@@ -51,19 +52,19 @@ function ownerGrantRouteDeps({ deps }: { deps: AssistantOwnerGrantDeps }, _optio
  * Tovu's hosting copy unless the policy names its own.
  * @complexity O(1) setup; per request as the Jini owner-grant specs. */
 export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }>(
-  required: { app: Express; deps: AssistantOwnerGrantDeps; path: string } & OwnerGrantPolicy<T>,
+  required: { errors: RouteErrorPorts; app: Express; deps: AssistantOwnerGrantDeps; path: string } & OwnerGrantPolicy<T>,
   optional: { requireAcknowledgment?: boolean; scope?: "user" | "workspace" } = {},
 ): void {
-  const { app, deps, path, ...policy } = required;
+  const { app, deps, path, errors, ...policy } = required;
   const routes = createOwnerGrantRoutes<T>({ path, policy: { uneditableError: HOSTED_UNAVAILABLE, ...policy, ...optional } });
   const routeDeps = ownerGrantRouteDeps({ deps });
-  mountAdminJsonRoute({ app, spec: routes.get, deps: routeDeps }, OWNER_GRANT_MOUNT);
-  mountAdminJsonRoute({ app, spec: routes.put, deps: routeDeps }, OWNER_GRANT_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: routes.get, deps: routeDeps }, OWNER_GRANT_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: routes.put, deps: routeDeps }, OWNER_GRANT_MOUNT);
 }
 
 /** Mount this site's owner policy on the shared acknowledged/audited grant ceremony.
  * @example registerAdminAssistantPermanentDeletesRoutes({ app, deps }); */
-export function registerAdminAssistantPermanentDeletesRoutes(required: { app: Express; deps: AssistantOwnerGrantDeps }, _optional = {}): void {
+export function registerAdminAssistantPermanentDeletesRoutes(required: { errors: RouteErrorPorts; app: Express; deps: AssistantOwnerGrantDeps }, _optional = {}): void {
   const { deps } = required;
   registerAssistantOwnerGrantRoutes({ ...required, path: ASSISTANT_PERMANENT_DELETES_PATH, ...assistantPermanentDeletesGrant({
     grant: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: ASSISTANT_PERMANENT_DELETES_KEY, writeReason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON },
@@ -106,6 +107,6 @@ function subagentsGrantDeps({ deps }: { deps: AssistantOwnerGrantDeps }, _option
 /** Owner/site-scoped CLI permissions through the existing authenticated, audited grant owner.
  * The master writes all defaults; explicit item choices survive until the master is changed.
  * @complexity O(1), fixed capability payload and one atomic ledger revision per write. */
-export function registerAdminAssistantSubagentsRoutes(required: { app: Express; deps: AssistantOwnerGrantDeps }, _optional = {}): void {
+export function registerAdminAssistantSubagentsRoutes(required: { errors: RouteErrorPorts; app: Express; deps: AssistantOwnerGrantDeps }, _optional = {}): void {
   registerAssistantOwnerGrantRoutes({ ...required, path: ASSISTANT_SUBAGENTS_PATH, ...assistantSubagentsGrant(subagentsGrantDeps({ deps: required.deps })) });
 }

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { captureMemberSignedIn } from "./analytics.js";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express, Request, Response } from "express";
@@ -98,7 +99,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  * answers a fixed /account redirect, the sealed email continuation or /signin#oidcError=<CODE>; logs no request
  * material. The counter is read per request, as the hand-written route did. O(1) setup.
  */
-export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
+export function registerMemberOidcCallbackRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   const mounted: MemberOidcCallbackRouteDeps = {
     ipLimiter: { check: (input) => deps.members.magicLinkCompleteAttemptLimiter.check(input) },
     flowCookie: (input) => memberOidcCookieHeader(input),
@@ -106,7 +107,7 @@ export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; d
     signedInLocation: "/account",
     callbackUrl: boundPerRequest, complete: boundPerRequest, onFailed: boundPerRequest,
   };
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberOidcGetApp({ app, deps: deps.members }),
     spec: memberOidcCallbackRoute,
     deps: mounted,

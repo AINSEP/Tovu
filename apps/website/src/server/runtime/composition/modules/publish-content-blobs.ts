@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { blobGetRoute, type BlobGetRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-get";
 import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-put";
 import { exportRoute, type ExportRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/export";
@@ -24,14 +25,14 @@ function blobPortDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: Re
 }
 
 /** `GET …/publish-content/export` — the streamed bundle, a raw route (the body is piped, one entity at a time). */
-export const registerPublishContentExportRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentExportRoute: (required: Parameters<PublishContentRouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps }, _options = {}) => {
   const routeDeps: ExportRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     workspaceRepo: { findById: (input) => deps.workspaceRepo.findById(input) },
     isPublishingCredential: ({ context }) => Boolean(adminPublishTrustFor({ context: context as OperatorPrincipalRecord | undefined })),
     packEntities: ({ principalId }) => packAuthorizedEntities({ workspaceId: deps.workspaceId, principalId, authorize: deps.authorize, catalog: { build: buildPublishContentCatalog }, publishContentDeps: toPublishContentDeps(deps) }),
   };
-  mountAdminRawRoute({ app, spec: exportRoute, deps: routeDeps }, { authorization: "guarded", failure: { operation: "routes/publish-content/export", code: "INTERNAL_ERROR" } });
+  mountAdminRawRoute({ errors, app, spec: exportRoute, deps: routeDeps }, { authorization: "guarded", failure: { operation: "routes/publish-content/export", code: "INTERNAL_ERROR" } });
 };
 
 /** `PUT …/publish-content/blobs/:sha` — one blob upload, refused unless the bytes hash to the claimed sha. */

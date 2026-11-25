@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -8,6 +9,7 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from "#
 import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
 
 test("permission removal refuses a different workspace without deleting the permission", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   await deps.identityReady;
   const ownerId = await deps.ownerPrincipalId;
@@ -20,7 +22,7 @@ test("permission removal refuses a different workspace without deleting the perm
     res.locals.principal = { id: ownerId };
     next();
   });
-  registerAdminPolicyPermissionRemoveRoute({ app, deps });
+  registerAdminPolicyPermissionRemoveRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-workspace/policies/${policy.id}/permissions/${permission.id}`, { method: "DELETE" });
@@ -33,6 +35,7 @@ test("permission removal refuses a different workspace without deleting the perm
 // F6.2/F6.3/F7.6: leaking a delete failure or returning 204 without deleting on retry must fail.
 // The service/evaluator and repositories stay real; only the first delete is fault-injected.
 test("permission removal hides storage failures, retains the row on failure, and allows a subsequent removal", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   await deps.identityReady;
   const ownerId = await deps.ownerPrincipalId;
@@ -50,7 +53,7 @@ test("permission removal hides storage failures, retains the row on failure, and
     return remove(input);
   });
   const app = express();
-  registerAdminPolicyPermissionRemoveRoute({ app, deps });
+  registerAdminPolicyPermissionRemoveRoute({ errors: routeErrors, app, deps });
   const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId");
   const sentBodies: unknown[] = [];
   const invoke = async () => {

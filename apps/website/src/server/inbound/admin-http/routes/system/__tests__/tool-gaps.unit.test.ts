@@ -1,4 +1,5 @@
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
@@ -6,10 +7,11 @@ import { registerAdminToolGapsRoute } from '#src/server/runtime/composition/http
 import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
 /** Execute only the route callback; no HTTP listener, app, daemon or CLI is started. */
-async function invoke(principalId: string, workspaceId = 'w', toolGaps?: ToolGapsToolDeps['toolGaps'] | null) {
+async function invoke(principalId: string, workspaceId = 'w', toolGaps?: ToolGapsToolDeps['toolGaps'] | null, incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   let handler!: (req: Request, res: Response) => Promise<void>;
   let reads = 0;
-  registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps: {
+  registerAdminToolGapsRoute({ errors: routeErrors, app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps: {
     workspaceId: 'w', ownerPrincipalId: Promise.resolve('owner'),
     toolGaps: toolGaps === undefined
       ? { list: async input => { reads++; assert.deepEqual(input, { workspaceId: 'w', principalId: 'owner' }); return []; } }
@@ -34,10 +36,10 @@ test('Tool gaps answer 503 when the composition root wired no audit store', asyn
   assert.deepEqual(await invoke('owner', 'w', null), { status: 503, body: { error: 'Tool gap audit storage is unavailable.' }, reads: 0 });
 });
 
-test('Tool gaps audit read failures return a generic 500 and log without the storage detail', async (t) => {
-  const logged: unknown[][] = [];
-  t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
+test('Tool gaps audit read failures return a generic 500 and log without the storage detail', async () => {
+  const incidents = createRouteIncidentReporter();
   const failing: ToolGapsToolDeps['toolGaps'] = { list: async () => { throw new Error('private storage detail'); } };
-  assertAdminResponse({ actual: await invoke('owner', 'w', failing), expected: { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 } }, { failure: {"message":"Could not read tool gaps.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/tool-gaps]", diagnostics: [/private storage detail/] });
+  assertAdminResponse({ actual: await invoke('owner', 'w', failing, incidents), expected: { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 } }, { failure: {"message":"Could not read tool gaps.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assertIncidentDiagnostics({ incidents, step: 'routes/system/tool-gaps', diagnostics: [/private storage detail/] });
+  assert.equal(incidents.reports.length, 1);
 });

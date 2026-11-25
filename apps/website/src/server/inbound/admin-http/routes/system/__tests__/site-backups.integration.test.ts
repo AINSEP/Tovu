@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,6 +12,7 @@ import type { SiteBackupToolDeps } from "#src/features/site-backup/backup-servic
  *  tests cover); these pin what the door itself owns: workspace 404, publish-trust 403, no-store,
  *  error mapping, the service's own refusal passed through, and the short push wait. */
 test("site-backup routes gate, map errors and run the shared plan/push service", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let allowed = true, trusted = false, authorizeThrows = false;
   const waits: number[] = [];
   const progress = { filesDone: 1, filesTotal: 2, bytesDone: 10, bytesTotal: 20 };
@@ -25,7 +27,7 @@ test("site-backup routes gate, map errors and run the shared plan/push service",
   } as unknown as SiteBackupToolDeps;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteBackupRoutes({ app, deps });
+  registerAdminSiteBackupRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t), root = base + "/api/admin/v1/workspaces/ws/site-backups";
   const post = (path: string, body: unknown) => fetch(root + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 

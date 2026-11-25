@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
 import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -38,7 +39,7 @@ function buildLlmsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerLlmsTxtRoute({ app, deps });
+  registerLlmsTxtRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 
@@ -197,7 +198,7 @@ for (const description of ["Field notes from the garden.", undefined]) {
     const settings = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
     deps.seoDeps.settings.getSeoSettings = async () => ({ ...settings, defaultDescription: description });
     const app = express();
-    registerLlmsTxtRoute({ app, deps });
+    registerLlmsTxtRoute({ errors: createRouteIncidentReporter().errors, app, deps });
     const url = await startTestServer(app, t);
     const response = await fetch(`${url}/llms.txt`);
     assert.equal(response.status, 200);
@@ -215,7 +216,7 @@ test("unexpected site index failure keeps plain text and one redacted matching i
   const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
   const app = express();
   app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
-  registerLlmsTxtRoute({ app, deps });
+  registerLlmsTxtRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/llms.txt`);
   const text = await res.text();

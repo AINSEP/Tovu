@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Request, RequestHandler } from "express";
 import { memberOidcVerifyEmailRoute, type MemberOidcEmailProof, type MemberOidcVerifyEmailOutcome, type MemberOidcVerifyEmailRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-verify-email";
@@ -80,7 +81,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  * in S2, and keeps this cookie for a bounded retry; success clears it. No identity comes from JSON.
  * Mounts the Jini spec; the counter is read per request, as the hand-written route did. O(1) setup.
  */
-export function registerMemberOidcVerifyEmailRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
+export function registerMemberOidcVerifyEmailRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   const mounted: MemberOidcVerifyEmailRouteDeps = {
     ipLimiter: { check: (input) => deps.members.magicLinkCompleteAttemptLimiter.check(input) },
     parseProof: ({ body }) => proofBody({ body }),
@@ -89,7 +90,7 @@ export function registerMemberOidcVerifyEmailRoute({ app, deps }: { app: Express
     refusalFor: ({ error }) => memberOidcRefusal({ error }),
     verify: boundPerRequest, callbackUrl: boundPerRequest,
   };
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberOidcProofPostApp({ app, deps: deps.members }),
     spec: memberOidcVerifyEmailRoute,
     deps: mounted,

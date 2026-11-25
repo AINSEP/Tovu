@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
@@ -37,6 +38,7 @@ function fakeStorage(): SiteStoragePort & { calls: boolean[]; plan: { bytes: num
 }
 
 async function harness({ serving = true } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const storage = serving ? fakeStorage() : undefined;
   const app = express();
   app.use(express.json());
@@ -46,7 +48,7 @@ async function harness({ serving = true } = {}) {
     next();
   });
   mountStorageRoutes({ app, storage, authorizeOwner: storageOwnerFrom({ ownerPrincipalId: async () => OWNER }),
-    adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: "ws", authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites } }, {});
+    adminPorts: { errors: routeErrors, mount: mountAdminJsonRoute, deps: { workspaceId: "ws", authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites } }, {});
   const server = app.listen(0);
   await new Promise<void>(resolve => server.once("listening", resolve));
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

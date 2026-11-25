@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -36,7 +37,7 @@ async function serve() {
     next();
   });
   for (const register of [registerAdminRedirectListRoute, registerAdminRedirectImportRoute, registerAdminRedirectGetRoute,
-    registerAdminRedirectUpdateRoute, registerAdminRedirectTombstoneRoute, registerAdminRedirectHitsRoute]) register({ app, deps });
+    registerAdminRedirectUpdateRoute, registerAdminRedirectTombstoneRoute, registerAdminRedirectHitsRoute]) register({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, calls };
 }
 

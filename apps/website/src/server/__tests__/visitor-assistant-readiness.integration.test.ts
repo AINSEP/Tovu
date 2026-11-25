@@ -39,6 +39,7 @@ async function legacyEnabled({ deps }: { deps: RouteDeps }, _options = {}) {
 }
 
 async function boot({ t }: { t: import("node:test").TestContext }, _options = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   await deps.siteTitleReady;
   let providerCalls = 0;
@@ -50,9 +51,9 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.({ app });
-  registerAdminSettingsSetRoute({ app, deps });
-  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  createAssistantSettingsModule(deps).registerRoutes?.({ errors: routeErrors, app });
+  registerAdminSettingsSetRoute({ errors: routeErrors, app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ errors: routeErrors, app, deps });
   createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
     TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint } }).registerRoutes?.({ app });
   // A real declarative renderer with no disk theme/build dependency; homepage content proves

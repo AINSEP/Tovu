@@ -10,7 +10,7 @@ import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/com
 import { registerApiConnectionSignInRoute } from "./agent-plugins-routes.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `agent-plugins` server module (2026-09-09) — mirrors `modules/plugins.ts`'s own
@@ -39,19 +39,19 @@ import type { ServerModuleHandle } from "./types.js";
  * Its hosted sign-in links open through the session-gated sign-in route (`agent-plugins-routes.ts`, Jini `apiConnectionSignInRoute`), which
  * binds the starting browser before redirecting to the provider.
  */
-export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
+export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle<RouteRegistration> {
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   return {
     name: "agent-plugins",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAgentPluginsListRoute({ app, deps });
-      registerAgentPluginSetEnabledRoute({ app, deps });
-      registerAgentPluginFilesRoute({ app, deps });
-      registerAgentPluginInstallRoute({ app, deps });
-      registerAgentPluginMemoryRoutes({ app, deps });
-      registerAgentPluginAdminSurfaceRoutes({ app, deps });
-      registerAdminSurfaceFilesRoute({ app, deps });
-      registerPluginExportFilesRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAgentPluginsListRoute({ errors, app, deps });
+      registerAgentPluginSetEnabledRoute({ errors, app, deps });
+      registerAgentPluginFilesRoute({ errors, app, deps });
+      registerAgentPluginInstallRoute({ errors, app, deps });
+      registerAgentPluginMemoryRoutes({ errors, app, deps });
+      registerAgentPluginAdminSurfaceRoutes({ errors, app, deps });
+      registerAdminSurfaceFilesRoute({ errors, app, deps });
+      registerPluginExportFilesRoute({ errors, app, deps });
       if (deps.apiConnections) {
         registerApiConnectionSignInRoute({ app, deps: { workspaceId: deps.workspaceId, host: deps.apiConnections.host } });
         registerApiConnectionOAuthCallbackRoute({ app, deps: { host: deps.apiConnections.host, callbackLimiter } });

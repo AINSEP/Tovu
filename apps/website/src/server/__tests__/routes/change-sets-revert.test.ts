@@ -60,7 +60,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminChangeSetRevertRoute({ app, deps });
+  registerAdminChangeSetRevertRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

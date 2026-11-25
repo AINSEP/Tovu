@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Express, Request, RequestHandler } from "express";
 import { orFallback } from "@jini-ai/core/errors/idioms";
@@ -58,9 +59,9 @@ function memberPostApp({ app, deps }: { app: Express; deps: MemberPublicRouteDep
 }
 
 /** `POST …/sign-out`: revoke only the member session; an absent/already-revoked cookie still succeeds. O(1) I/O. */
-export function registerPublicMemberSignOutRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicMemberSignOutRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   const tokens = new NodeSessionTokens({});
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberPostApp({ app, deps }),
     spec: memberSignOutRoute,
     // Read per request, as the hand-written route did: tests swap repository methods after registration.
@@ -125,8 +126,8 @@ function memberSignInApp(
 /** `POST …/sign-in`: public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
  * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
  */
-export function registerPublicMemberSignInRequestRoute({ app, deps, reporter }: { app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+export function registerPublicMemberSignInRequestRoute({ errors, app, deps, reporter }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({ errors,
     app: memberSignInApp({ app, deps, method: "challenge" }),
     spec: memberSignInRequestRoute,
     deps: {
@@ -147,9 +148,9 @@ export function registerPublicMemberSignInRequestRoute({ app, deps, reporter }: 
 }
 
 /** `POST …/sign-in/complete`: complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
-export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicMemberCompleteSignInRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   // A raw mount: the member cookie is appended after any cookie an earlier handler set, as `res.append` did.
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberSignInApp({ app, deps, method: "challenge" }),
     spec: memberCompleteSignInRoute,
     deps: {
@@ -168,8 +169,8 @@ export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Ex
 }
 
 /** `POST …/password/sign-in`: verify unchanged password bytes behind separate strict IP and normalized-email counters. O(1) I/O. */
-export function registerPublicMemberPasswordSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+export function registerPublicMemberPasswordSignInRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({ errors,
     app: memberSignInApp({ app, deps, method: "password" }),
     spec: memberPasswordSignInRoute,
     deps: {
@@ -192,8 +193,8 @@ export function registerPublicMemberPasswordSignInRoute({ app, deps }: { app: Ex
 }
 
 /** `POST …/reset-password`: consume a link-only reset; a reset never creates a session. O(1) plus the service. */
-export function registerPublicMemberResetPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+export function registerPublicMemberResetPasswordRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({ errors,
     app: memberPostApp({ app, deps }),
     spec: memberResetPasswordRoute,
     deps: {
@@ -210,8 +211,8 @@ export function registerPublicMemberResetPasswordRoute({ app, deps }: { app: Exp
 /** `POST …/password/set`: member self-service behind /me's session check and both strict counters.
  * @complexity O(n + s) in password size n and affected sessions s; service owns the write lifecycle.
  */
-export function registerPublicMemberSetPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+export function registerPublicMemberSetPasswordRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({ errors,
     app: memberPostApp({ app, deps }),
     spec: memberSetPasswordRoute,
     deps: {
@@ -236,8 +237,8 @@ export function registerPublicMemberSetPasswordRoute({ app, deps }: { app: Expre
 /** `POST …/forgot-password`: link-only reset requests share the magic-link counters and the detached
  * delivery owner. O(1) setup I/O.
  */
-export function registerPublicMemberForgotPasswordRoute({ app, deps, reporter }: { app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
-  mountPublicJsonRoute({
+export function registerPublicMemberForgotPasswordRoute({ errors, app, deps, reporter }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({ errors,
     app: memberPostApp({ app, deps }),
     spec: memberForgotPasswordRoute,
     deps: {
@@ -255,9 +256,9 @@ export function registerPublicMemberForgotPasswordRoute({ app, deps, reporter }:
 }
 
 /** `GET …/me`: never cache identity; resolver validates sessions, then the member row enforces current status. */
-export function registerPublicMemberMeRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, options: { login?: MemberOidcRouteDeps } = {}): void {
+export function registerPublicMemberMeRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberPublicRouteDeps }, options: { login?: MemberOidcRouteDeps } = {}): void {
   const resolver = createMemberAccessResolver({ deps });
-  mountPublicJsonRoute({
+  mountPublicJsonRoute({ errors,
     app,
     spec: memberMeRoute,
     deps: {
@@ -294,8 +295,8 @@ async function publicMemberIdentities({ memberId, deps }: { memberId: string; de
 /** `GET …/login-providers`: safe provider metadata only; configuration/pins and credentials never leave the server.
  * @complexity O(p*c), p admitted providers, c credential metadata rows; bounded bundled catalog.
  */
-export function registerMemberLoginProvidersRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
-  mountPublicJsonRoute({
+export function registerMemberLoginProvidersRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
+  mountPublicJsonRoute({ errors,
     app,
     spec: memberLoginProvidersRoute,
     deps: {

@@ -119,8 +119,8 @@ async function provisionAgentPluginMcpServersBestEffort(
 }
 
 /** `AGENT_PLUGINS_LIST`: the host's read model plus its per-plugin connection statuses. */
-export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: agentPluginsListRoute, deps: {
+export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: agentPluginsListRoute, deps: {
     ...idFreeAgentPluginPortDeps({ deps }),
     loadCandidates: () => loadAgentPluginSearchCandidates(deps),
     loadConnectionStatuses: () => loadAgentPluginConnectionStatuses({ workspaceId: deps.workspaceId,
@@ -129,8 +129,8 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ app,
 };
 
 /** `AGENT_PLUGIN_SET_ENABLED`: the shared lifecycle owner (or the test override), enable-only provisioning. */
-export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: agentPluginSetEnabledRoute, deps: {
+export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: agentPluginSetEnabledRoute, deps: {
     ...agentPluginPortDeps({ deps }),
     loadCandidates: () => loadAgentPluginSearchCandidates(deps),
     setEnabled: ({ pluginId, enabled, actor }) => (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId, enabled, actor }),
@@ -143,8 +143,8 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({
 };
 
 /** `AGENT_PLUGIN_FILES`: the contained Node package-file reader over this workspace's layout. */
-export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: agentPluginFilesRoute, deps: {
+export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: agentPluginFilesRoute, deps: {
     ...idFreeAgentPluginPortDeps({ deps }),
     agentPluginLayout: { forWorkspace: (required) => deps.agentPluginLayout.forWorkspace(required) },
     // An upgraded bundled plugin's superseded package is dropped first, so this browses the

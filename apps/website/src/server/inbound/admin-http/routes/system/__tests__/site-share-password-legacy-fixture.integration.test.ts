@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /**
  * A share password sealed by the ORIGINAL export code, opened through today's combined route:
  * browser-only owner POST …/site-shares/:shareId/password → host share backend binding → engine
@@ -62,6 +63,7 @@ async function post(app: express.Express, url: string) {
 
 /** The production pieces with only the clock, the directory and the TEST root key injected. */
 async function legacyRoute(t: TestContext, { shareId = LEGACY_SHARE_ID }: { shareId?: string } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const directory = await mkdtemp(path.join(tmpdir(), "share-legacy-fixture-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const clock = { now: Date.parse("2026-11-20T00:00:00Z") };
@@ -75,7 +77,7 @@ async function legacyRoute(t: TestContext, { shareId = LEGACY_SHARE_ID }: { shar
     zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: Promise.resolve("owner"), savedKeys: composeSiteSavedKeys({ workspaceId: "ws", sealer }) }, { now });
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }), siteShareBackend } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }), siteShareBackend } as unknown as RouteDeps });
   return { app, registry, clock, url: `/api/admin/v1/workspaces/ws/site-shares/${shareId}/password` };
 }
 

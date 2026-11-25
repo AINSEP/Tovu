@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** OPUS-REVIEW T1: declared assets only, inert SVG, byte-preserving PNG and admission per request. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,11 +11,12 @@ import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifec
 
 const deps = { workspaceId: "ws-embeds", clock: { nowMs: () => 0 }, agentPluginLifecycle: {} as TovuAgentPluginLifecycle };
 test("T1: serves declared PNG unchanged and CSS; denies template/traversal/disabled and limits before I/O", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   let enabled = true;
   let reads = 0;
   const source = harness().source;
-  registerPluginExportFilesRoute({ app, deps }, { source: { ...source,
+  registerPluginExportFilesRoute({ errors: routeErrors, app, deps }, { source: { ...source,
     list: async () => [{ ...owner, enabled }], readAsset: async input => { reads += 1; return source.readAsset(input); } },
     limiter: createRateLimiter({ clock: deps.clock, profile: { max: 6, burst: 0, windowSeconds: 60 } }) });
   const origin = await startTestServer(app, t);
@@ -34,9 +36,10 @@ test("T1: serves declared PNG unchanged and CSS; denies template/traversal/disab
 });
 
 test("T1: SVG navigation is sandboxed, nosniff and never serves undeclared files", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const source = harness().source;
-  registerPluginExportFilesRoute({ app, deps }, { source: { ...source,
+  registerPluginExportFilesRoute({ errors: routeErrors, app, deps }, { source: { ...source,
     list: async () => [{ ...owner, exports: { button: { ...owner.exports.button!, assets: { mark: "mark.svg" } } } }],
     readAsset: async () => '<svg xmlns="http://www.w3.org/2000/svg"></svg>' } });
   const origin = await startTestServer(app, t);
@@ -47,10 +50,11 @@ test("T1: SVG navigation is sandboxed, nosniff and never serves undeclared files
 });
 
 test("T1: a declared asset with a non-CSS/PNG/SVG extension is refused without a read", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   let reads = 0;
   const source = harness().source;
-  registerPluginExportFilesRoute({ app, deps }, { source: { ...source,
+  registerPluginExportFilesRoute({ errors: routeErrors, app, deps }, { source: { ...source,
     list: async () => [{ ...owner, exports: { button: { ...owner.exports.button!, assets: { page: "page.html", code: "code.js" } } } }],
     readAsset: async input => { reads += 1; return source.readAsset(input); } } });
   const origin = await startTestServer(app, t);

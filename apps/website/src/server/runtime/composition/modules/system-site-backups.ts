@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -37,7 +38,7 @@ function siteBackupErrorReply({ error }: { error: unknown }, _optional: Record<s
  * Mounts the two routes under the admin session gate.
  * @complexity O(1) per request besides the service's own cost.
  */
-export function registerAdminSiteBackupRoutes(required: { app: Express; deps: SiteBackupToolDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminSiteBackupRoutes(required: { errors: RouteErrorPorts; app: Express; deps: SiteBackupToolDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
   const routeDeps: SiteBackupRouteDeps & { authorize: SiteBackupToolDeps["authorize"] } = {
     workspaceId: deps.workspaceId,
@@ -50,6 +51,6 @@ export function registerAdminSiteBackupRoutes(required: { app: Express; deps: Si
     isPublishTrusted: ({ context }: { context: OperatorPrincipalRecord }) => adminPublishTrustFor({ context }) !== null,
     mapBackupError: siteBackupErrorReply,
   };
-  mountAdminRawRoute({ app, spec: siteBackupPlanRoute, deps: routeDeps }, SITE_BACKUP_MOUNT);
-  mountAdminRawRoute({ app, spec: siteBackupPushRoute, deps: routeDeps }, SITE_BACKUP_MOUNT);
+  mountAdminRawRoute({ errors: required.errors, app, spec: siteBackupPlanRoute, deps: routeDeps }, SITE_BACKUP_MOUNT);
+  mountAdminRawRoute({ errors: required.errors, app, spec: siteBackupPushRoute, deps: routeDeps }, SITE_BACKUP_MOUNT);
 }

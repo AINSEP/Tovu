@@ -12,34 +12,33 @@ import { createThemeHeldBackModule } from "../modules/theme-held-back.js";
 import { createPublishContentModule } from "../modules/publish-content.js";
 import type { CreateAppOptions } from "../create-app-options.js";
 import { mountRoutes } from "./module-handles.js";
-import type { MountInput, PreviewRevisionCheck } from "./module-handles.js";
+import type { ErrorBoundMountInput, PreviewRevisionCheck } from "./module-handles.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
-import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 
 /** The core module (ops, auth, the `/api/admin` session gate), theme preview refresh, the content and publish-content modules, in registration order.
  * @param required.reporter - The site's one reporter (`createApp`'s); the routes these modules mount directly on http-kit record through it. */
-export function mountCoreContent({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onAdminSignIn"> = {}): { isAuthenticatedPreviewRevision: PreviewRevisionCheck } {
+export function mountCoreContent({ app, routeDeps, errors, reporter }: ErrorBoundMountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onAdminSignIn"> = {}): { isAuthenticatedPreviewRevision: PreviewRevisionCheck } {
   // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
   // login/logout/me (ungated), then the `/api/admin` session gate, all
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // inbound/admin-http/dev-auth.ts.
-  mountRoutes({ app, mod: createCoreModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }, { onAdminSignIn: options.onAdminSignIn }) });
+  mountRoutes({ app, errors, mod: createCoreModule({ deps: routeDeps, errors }, { onAdminSignIn: options.onAdminSignIn }) });
   const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
   // inline immediately below — it was never one of this module's 11 registrations.
-  mountRoutes({ app, mod: createContentModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createContentModule(routeDeps) });
   // A452: the Themes screen's "Held back on import" routes, right after content. Their path is
   // `held-back-themes`, so `themes/:themeId` (registered earlier) can never swallow them.
-  mountRoutes({ app, mod: createThemeHeldBackModule(routeDeps) });
-  registerContentPostGetRoute({ app, deps: routeDeps });
+  mountRoutes({ app, errors, mod: createThemeHeldBackModule(routeDeps) });
+  registerContentPostGetRoute({ errors, app, deps: routeDeps });
 
   // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
   // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
   // also where `installFirstPartyPublishContentTypes()` first gets a real caller (see
   // `publish-content-manifest.ts`'s own header and `modules/publish-content.ts`'s).
-  mountRoutes({ app, mod: createPublishContentModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createPublishContentModule(routeDeps) });
   return { isAuthenticatedPreviewRevision };
 }

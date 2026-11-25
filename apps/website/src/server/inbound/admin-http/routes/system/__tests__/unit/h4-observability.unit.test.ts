@@ -1,3 +1,4 @@
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -13,30 +14,27 @@ const ROOT = '/api/admin/v1/workspaces/:workspaceId/system';
 
 for (const failure of [new Error('private exporter failure'), 'opaque exporter failure']) {
   test(`telemetry test sanitizes ${typeof failure} failure and reports it to the tracker`, async () => {
-    const reports: unknown[][] = [];
+    const incidents = createRouteIncidentReporter();
     const app = express();
-    registerAdminObservabilityStatusRoute({ app, deps: portFake<AdminObservabilityStatusDeps>({
+    registerAdminObservabilityStatusRoute({ errors: incidents.errors, app, deps: portFake<AdminObservabilityStatusDeps>({
       workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'owner' }),
       sendTelemetryTest: async () => { throw failure; },
-      tracker: { error: (...args: unknown[]) => { reports.push(args); } },
+      tracker: { error: () => assert.fail('the route binding reports through the reporter, not the deps tracker') },
     }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
-    res.locals.adminFailureTracker = { error: (...args: unknown[]) => { reports.push(args); } };
     await extractRouteHandler(app, 'post', `${ROOT}/observability/test-error`)({ params: { workspaceId: 'ws' } }, res);
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
-    assert.equal(reports.length, 1);
-    const [{ error }, context] = reports[0] as [{ error: Error }, unknown];
-    assert.ok(error.message.includes(String(failure instanceof Error ? failure.message : failure)));
-    const body = capture.jsonBody as { errorId: string };
-    assert.deepEqual(context, { context: { operation: 'routes/system/observability-status', attributes: { errorId: body.errorId } } });
+    const [recordedId] = assertIncidentDiagnostics({ incidents, step: 'routes/system/observability-status', diagnostics: [new RegExp(String(failure instanceof Error ? failure.message : failure))] });
+    assert.equal(incidents.reports.length, 1);
+    assert.equal((capture.jsonBody as { errorId: string }).errorId, recordedId);
   });
 }
 
 test('telemetry test without a bound sender is unavailable after authorization', async () => {
   const app = express();
   const permissions: string[] = [];
-  registerAdminObservabilityStatusRoute({ app, deps: portFake<AdminObservabilityStatusDeps>({
+  registerAdminObservabilityStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminObservabilityStatusDeps>({
     workspaceId: 'ws', authorize: async ({ permission }) => { permissions.push(permission); return { allowed: true, reason: 'owner' }; },
   }) });
   const { res, capture } = createCapturingResponse();
@@ -48,7 +46,7 @@ test('telemetry test without a bound sender is unavailable after authorization',
 
 test('observability read can succeed while test-error permission is denied', async () => {
   const app = express();
-  registerAdminObservabilityStatusRoute({ app, deps: portFake<AdminObservabilityStatusDeps>({
+  registerAdminObservabilityStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminObservabilityStatusDeps>({
     workspaceId: 'ws', observability: createNoopObservabilityPort({}),
     authorize: async ({ permission }) => ({ allowed: permission === 'system.read', reason: 'read-only' }),
     sendTelemetryTest: async () => assert.fail('a status read must never send a diagnostic'),
@@ -60,9 +58,10 @@ test('observability read can succeed while test-error permission is denied', asy
 });
 
 test('browser telemetry answers a fixed 500 if its limiter rejects, without forwarding', async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   t.mock.method(console, 'error', () => {});
   const app = express();
-  registerAdminBrowserTelemetryRoute({ app, deps: {
+  registerAdminBrowserTelemetryRoute({ errors: routeErrors, app, deps: {
     clock: { nowMs: () => 0, nowIso: () => '2026-10-28T00:00:00.000Z' },
     tracker: portFake<Tracker>({ capture: () => assert.fail('must not capture'), error: () => assert.fail('must not report') }),
   } }, { limiter: { check: async () => { throw new Error('private limiter failure'); } } });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -51,6 +52,7 @@ test("authorizeMenuHtml names the menu as entityId only when an entity id is giv
 // K1: the raw-HTML check moved into the Jini specs (`authorizeMenuHtml`); this pins the same rule at
 // the wire — the menu is named as `entityId` on an update (by id) and omitted on a create.
 test("the raw-HTML permission names the menu as entityId only on the by-id update", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: Array<Record<string, unknown>> = [];
   const menuRepo = new InMemoryMenuRepo({});
   await menuRepo.save({ ...baseMenu, id: "menu-1", version: 1, doc: { type: "menu", version: 1, items: [] } } as never);
@@ -59,8 +61,8 @@ test("the raw-HTML permission names the menu as entityId only on the by-id updat
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => { res.locals.principal = { id: "p-1" }; next(); });
-  registerAdminMenuUpdateTreeRoute({ app, deps: deps as never });
-  registerAdminMenuCreateRoute({ app, deps: deps as never });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps: deps as never });
+  registerAdminMenuCreateRoute({ errors: routeErrors, app, deps: deps as never });
   const baseUrl = await startTestServer(app, t);
   const send = (method: string, path: string, body: object) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   assert.equal((await send("PUT", "/menu-1", { expectedVersion: 1, mode: "html", html: "<i>z</i>" })).status, 200);

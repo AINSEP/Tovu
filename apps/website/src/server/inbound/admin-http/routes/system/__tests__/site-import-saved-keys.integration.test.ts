@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** k1: optional saved keys password stays on the existing private owner-setup endpoint. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,7 +14,7 @@ test("owner setup accepts the optional password without echoing or caching it", 
   const pending = { importId: "import", status: "needs-owner", state: "needs-owner", hasEncryptedKeys: true };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteImportBackend: {
+  registerAdminSiteImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteImportBackend: {
     get: () => pending,
     completeOwner: async (input: unknown) => { calls.push(input); return { ...pending, status: "ready", state: "ready" }; },
   } } as unknown as RouteDeps });

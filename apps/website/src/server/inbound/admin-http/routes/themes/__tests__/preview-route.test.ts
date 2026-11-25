@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -76,9 +77,10 @@ function response() {
 function route({ themes = [theme("editorial-rose")], service, allowed = true, contentVersion = 1_000, shipped = null as string | null }: {
   themes?: ReturnType<typeof theme>[]; service?: SitePreviewService; allowed?: boolean; contentVersion?: number; shipped?: string | null;
 } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   registerAdminThemePreviewRoute(
-    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), themes: themes as never, themePreviews: service ?? null } },
+    { errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), themes: themes as never, themePreviews: service ?? null } },
     { contentVersion: () => contentVersion, shippedImage: () => shipped, waitMs: 50 },
   );
   const handler = extractRouteHandler(app, "get", ROUTE);
@@ -178,7 +180,7 @@ test("a rejected queue drain still rechecks and serves a completed capture", asy
 test("without a serving socket address, no capture is enqueued or read", async () => {
   const { service, enqueued } = fakeService();
   const app = express();
-  registerAdminThemePreviewRoute({ app, deps: {
+  registerAdminThemePreviewRoute({ errors: createRouteIncidentReporter().errors, app, deps: {
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
     themes: [theme("editorial-rose")] as never, themePreviews: service,
   } }, { contentVersion: () => 1_000, shippedImage: () => "/fallback.png" });
@@ -202,7 +204,7 @@ test("capture lookup errors retain the internal-error response", async (t) => {
 test("a host that wires neither a preview service nor a site binding serves the shipped screenshot", async () => {
   const app = express();
   registerAdminThemePreviewRoute(
-    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never } },
+    { errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never } },
     { contentVersion: () => 1_000, shippedImage: ({ id }) => `/theme-assets/${id}/screenshots/index.png`, waitMs: 50 },
   );
   const { res, capture } = response();
@@ -225,7 +227,7 @@ test("absent workspaceId or themeId params fall back to the empty string and 404
   const { service, enqueued } = fakeService();
   const app = express();
   registerAdminThemePreviewRoute(
-    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, themePreviews: service } },
+    { errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, themePreviews: service } },
     { contentVersion: () => 1_000, shippedImage: () => null, waitMs: 50 },
   );
   const handler = extractRouteHandler(app, "get", ROUTE);
@@ -244,7 +246,7 @@ test("with no explicit preview service, the queue is resolved from the host's si
   const resolvedFor: unknown[] = [];
   const app = express();
   registerAdminThemePreviewRoute(
-    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, siteBinding: binding } },
+    { errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, siteBinding: binding } },
     { contentVersion: () => 1_000, shippedImage: () => null, waitMs: 50, previewServiceForHost: ({ binding: b }) => { resolvedFor.push(b); return service; } },
   );
   const { res, capture } = response();

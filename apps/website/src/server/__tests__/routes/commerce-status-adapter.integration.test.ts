@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,9 +15,10 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 type TestCommerceDeps = ReturnType<typeof createRouteDeps> & { lipay?: CommercePaymentRuntimePort & Record<string, unknown> };
 /** Explicit test-only mounting preserves the future CMS authorization adapter. Production stays off. */
 function createApp(deps: TestCommerceDeps): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use("/api/admin/v1/workspaces", requireAdminSession(deps));
-  registerAdminCommerceStatusRoute({ app, deps });
+  registerAdminCommerceStatusRoute({ errors: routeErrors, app, deps });
   app.use(createBaseApp(deps));
   return app;
 }

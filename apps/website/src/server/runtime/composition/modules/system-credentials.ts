@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { publishCredentialCreateRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/create";
 import { publishCredentialDeleteRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/delete";
@@ -164,7 +165,7 @@ function providerLoaderReportingRefusals(
  *
  * Same registration order as before: providers, list, create, update, delete.
  */
-export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app: Express; deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminSourceControlCredentialsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const readDeps = sourceControlReadDeps({ deps });
   const writeDeps = sourceControlWriteDeps({ deps });
   const base = { ...portDeps({ deps }), storeErrors: SOURCE_CONTROL_ERRORS };
@@ -173,19 +174,19 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
     load: () => deps.loadSourceControlProviders,
     reportRefusal: (refusal) => console.warn(`[source-control-providers] ${refusal}`),
   });
-  mountAdminJsonRoute({ app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders } }, options);
-  mountAdminJsonRoute({ app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials(readDeps, { workspaceId }) } }, options);
-  mountAdminJsonRoute({ app, spec: sourceControlCreateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders } }, options);
+  mountAdminJsonRoute({ errors, app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials(readDeps, { workspaceId }) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: sourceControlCreateRoute, deps: {
     ...base,
     createCredential: (input) => createSourceControlCredential({ deps: writeDeps, input: input as Parameters<typeof createSourceControlCredential>[0]["input"] }),
     hasProjectStore: () => Boolean(deps.sourceControlCredentialSetRepo.project),
     useProjectKey: async ({ keyId }) => { await deps.projectKeys?.use({ keyId, use: true }); },
   } }, options);
-  mountAdminJsonRoute({ app, spec: sourceControlUpdateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: sourceControlUpdateRoute, deps: {
     ...base,
     updateCredential: (input) => updateSourceControlCredential({ deps: writeDeps, input: input as Parameters<typeof updateSourceControlCredential>[0]["input"] }),
   } }, options);
-  mountAdminJsonRoute({ app, spec: sourceControlDeleteRoute, deps: { ...base, deleteCredential: (args) => deleteSourceControlCredential(readDeps, args) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: sourceControlDeleteRoute, deps: { ...base, deleteCredential: (args) => deleteSourceControlCredential(readDeps, args) } }, options);
 }
 
 // ── custom ──────────────────────────────────────────────────────────────────────────────────────
@@ -233,7 +234,7 @@ function customBase({ deps, readDeps }: { deps: AdminCustomCredentialsDeps; read
 }
 
 /** Same registration order as before: list, create, update, delete. */
-export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminCustomCredentialsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const options = mountOptions({ operation: "routes/system/custom-credentials", authorization: "direct" });
   // Store deps are bound once, at registration, as the hand-written routes bound them.
   const readDeps = customReadDeps({ deps });
@@ -243,22 +244,22 @@ export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Expre
   // the specs never see `res`. The list reads it through `getAuthedCredentialKind` (throws when the
   // session middleware attached none), the update through the bare `res.locals` field (absent = not a
   // session), exactly as each hand-written verb did.
-  mountAdminJsonRoute({ app, spec: customCredentialListRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: customCredentialListRoute, deps: {
     ...base,
     copy: { sessionRequired: "Use the owner's session to view Shared Keys.", ownerRequired: "Sign in as the installation owner to view Shared Keys." },
     credentialKind: () => undefined, ownerPrincipalId: () => deps.ownerPrincipalId,
     listInventory: () => listCustomCredentialInventory({ deps: readDeps, workspaceId: deps.workspaceId }),
   } }, { ...options, requestDeps: ({ res, deps: mounted }) => ({ ...mounted, credentialKind: () => getAuthedCredentialKind(res) }) });
-  mountAdminJsonRoute({ app, spec: customCredentialCreateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: customCredentialCreateRoute, deps: {
     ...base,
     createCredential: (input) => createCustomCredential(writeDeps, input as unknown as Parameters<typeof createCustomCredential>[1]),
   } }, options);
-  mountAdminJsonRoute({ app, spec: customCredentialUpdateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: customCredentialUpdateRoute, deps: {
     ...base, credentialKind: () => undefined, ownerPrincipalId: () => deps.ownerPrincipalId,
     updateCredential: ({ allowSharedKeyReplacement, input }) =>
       updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement }, input as unknown as Parameters<typeof updateCustomCredential>[1]),
   } }, { ...options, requestDeps: ({ res, deps: mounted }) => ({ ...mounted, credentialKind: () => res.locals.authCredentialKind }) });
-  mountAdminJsonRoute({ app, spec: customCredentialDeleteRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: customCredentialDeleteRoute, deps: {
     ...base, deleteCredential: (target) => deleteCustomCredential(readDeps, target),
   } }, options);
 }
@@ -455,7 +456,7 @@ async function preparePublishInvalidation({ deps }: { deps: AdminPublishCredenti
  *
  * Same registration order as before: list, create, update, verify, delete.
  */
-export function registerAdminPublishCredentialsRoutes({ app, deps }: { app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminPublishCredentialsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const options = mountOptions({ operation: "routes/system/publish-credentials", authorization: "direct" });
   // Store deps are bound once, at registration, as the hand-written routes bound them: a later
   // reassignment of `deps.loadDeployTargets` reaches only the per-request loads (heal, invalidation).
@@ -469,17 +470,17 @@ export function registerAdminPublishCredentialsRoutes({ app, deps }: { app: Expr
   };
   // STAYS hand-written (K1 STOP): a wire test pins that a principal-less direct call rejects.
   registerAdminPublishCredentialsListRoute({ app, deps, readDeps, triggerAccountLabelHeal: buildTriggerAccountLabelHeal({ deps, verifyAfterSave }) });
-  mountAdminJsonRoute({ app, spec: publishCredentialCreateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: publishCredentialCreateRoute, deps: {
     ...base,
     createCredential: (input) => createPublishCredential(writeDeps, input as Parameters<typeof createPublishCredential>[1]),
     hasProjectStore: () => Boolean(deps.vendorCredentialSetRepo.project),
     useProjectKey: async ({ keyId }) => { await deps.projectKeys?.use({ keyId, use: true }); },
   } }, options);
-  mountAdminJsonRoute({ app, spec: publishCredentialUpdateRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: publishCredentialUpdateRoute, deps: {
     ...base, updateCredential: (input) => updatePublishCredential(writeDeps, input as UpdatePublishCredentialInput),
   } }, options);
-  mountAdminJsonRoute({ app, spec: publishCredentialVerifyRoute, deps: base }, options);
-  mountAdminJsonRoute({ app, spec: publishCredentialDeleteRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: publishCredentialVerifyRoute, deps: base }, options);
+  mountAdminJsonRoute({ errors, app, spec: publishCredentialDeleteRoute, deps: {
     ...base, deleteCredential: (target) => deletePublishCredential({ ...readDeps, transaction: deps.contentKernel }, target),
   } }, options);
 }

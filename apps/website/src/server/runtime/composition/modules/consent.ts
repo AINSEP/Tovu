@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import {
@@ -24,7 +25,7 @@ const CONSENT_FAILURE = { status: 503, operation: "consent-admin", code: "CONSEN
 /** Six HTTP endpoints, each behind the existing admin session gate and its service permission.
  * @example registerAdminConsentRoutes({ app, deps, service })
  * @complexity One service call per route; readiness renders at most one bounded local page. */
-export function registerAdminConsentRoutes({ app, deps, service }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize">; service: SiteConsentService }, _options = {}): void {
+export function registerAdminConsentRoutes({ errors, app, deps, service }: { errors: RouteErrorPorts; app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize">; service: SiteConsentService }, _options = {}): void {
   const routeDeps: ConsentRouteDeps & { authorize: RouteDeps["authorize"] } = {
     workspaceId: deps.workspaceId,
     // Read per request, as the hand-written routes read `deps.authorize`.
@@ -36,6 +37,6 @@ export function registerAdminConsentRoutes({ app, deps, service }: { app: Expres
   };
   // Registration order is the hand-written order (route-table pin). All "guarded" (`authorizeOrRespond`).
   for (const spec of [consentSettingsGetRoute, consentReadinessRoute, consentDryRunRoute, consentPreviewRoute, consentSettingsPutRoute, consentPublishRoute]) {
-    mountAdminJsonRoute({ app, spec, deps: routeDeps }, { failure: CONSENT_FAILURE });
+    mountAdminJsonRoute({ errors, app, spec, deps: routeDeps }, { failure: CONSENT_FAILURE });
   }
 }

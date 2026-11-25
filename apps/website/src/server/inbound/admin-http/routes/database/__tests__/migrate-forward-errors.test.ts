@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -8,19 +10,21 @@ import { registerAdminDatabaseMigrateForwardRoutes } from "#src/server/runtime/c
 import { TokenExpiredError } from "@jini-ai/core/gated-mutations";
 
 for (const typed of [false, true]) test(`migration failure retains ${typed ? "typed refusal" : "one private incident"}`, async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const cause = typed ? new TokenExpiredError({ message: "expired migration token" }) : new Error("migration context password=MIGRATE_CANARY");
   const logs = t.mock.method(console, "error", () => {});
   const app = express();
   const deps = portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => { throw cause; }, gatedMutations: { gatewayDeps: portFake<RouteDeps["gatedMutations"]["gatewayDeps"]>({ authorize: async () => { throw cause; }, authorizeInstance: async () => { throw cause; } }) } });
-  registerAdminDatabaseMigrateForwardRoutes({ app, deps });
+  registerAdminDatabaseMigrateForwardRoutes({ errors: routeErrors, app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "post", "/api/admin/v1/database/migrate-forward/execute")({ body: { confirmationToken: "token" }, params: {} }, res);
   const body = capture.jsonBody as { code: string; errorId?: string; error: string };
   assert.equal(capture.statusCode, typed ? 409 : 500);
   assert.equal(body.code, typed ? "TOKEN_EXPIRED" : "INTERNAL_ERROR");
-  assert.equal(logs.mock.calls.length, typed ? 0 : 1);
+  assert.equal(recorded.records.length, typed ? 0 : 1);
   if (typed) assert.equal(body.error, cause.message);
-  else assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId!));
-  assert.doesNotMatch(JSON.stringify(capture) + JSON.stringify(logs.mock.calls), /MIGRATE_CANARY/);
+  else assert.ok(JSON.stringify(recorded.records).includes(body.errorId!));
+  assert.doesNotMatch(JSON.stringify(capture) + JSON.stringify(recorded.records), /MIGRATE_CANARY/);
 });

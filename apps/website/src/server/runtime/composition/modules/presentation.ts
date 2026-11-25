@@ -71,20 +71,20 @@ function presentationGetDeps({ deps }: { deps: ContentRouteDeps }, _optional: Re
  * The image route behind every card URL this listing hands out is registered first, with it, so the
  * two cannot be mounted apart (and the route table keeps its order).
  */
-export const registerAdminPresentationGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  registerAdminThemePreviewRoute({ app, deps });
-  mountAdminJsonRoute({ app, spec: presentationGetRoute, deps: presentationGetDeps({ deps }) }, mountOptions("routes/presentation/get"));
+export const registerAdminPresentationGetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  registerAdminThemePreviewRoute({ errors, app, deps });
+  mountAdminJsonRoute({ errors, app, spec: presentationGetRoute, deps: presentationGetDeps({ deps }) }, mountOptions("routes/presentation/get"));
 };
 
 /** POST themes/rescan — re-runs discovery against the same themes root the host discovered from. */
-export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const rescanDeps = {
     ...presentationPortDeps({ deps }),
     rescanThemes: () => rescanThemes({ themes: deps.themes, dir: deps.themesDir }),
     catalogThemeIds: () => validThemeIds({ themes: deps.themes }),
     duplicateThemeIds: () => duplicateThemeIds({ themes: deps.themes }),
   };
-  mountAdminJsonRoute({ app, spec: themeRescanRoute, deps: rescanDeps }, mountOptions("routes/presentation/rescan-themes"));
+  mountAdminJsonRoute({ errors, app, spec: themeRescanRoute, deps: rescanDeps }, mountOptions("routes/presentation/rescan-themes"));
 };
 
 /** The PATCH's host collaborators, each bound to this request's `deps` (tests reassign fields). */
@@ -109,9 +109,9 @@ function presentationPatchDeps({ deps }: { deps: ContentRouteDeps }, _optional: 
 }
 
 /** PATCH the active theme, gated by `theme.set` (`authorizeDirectOrRespond`, so `"direct"`). */
-export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: presentationPatchRoute, deps: presentationPatchDeps({ deps }) },
+    { errors, app, spec: presentationPatchRoute, deps: presentationPatchDeps({ deps }) },
     // No `code`: the hand-written route called `adminFailureResponse` with its operation only.
     { authorization: "direct", failure: { operation: "routes/presentation/patch-active-theme" }, failureCopy: "operation" },
   );

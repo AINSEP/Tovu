@@ -55,8 +55,8 @@ function installRouteDeps({ deps }: { deps: AgentPluginsRouteDeps }, _optional: 
 }
 
 /** Mount both upload routes on the shared spec deps. @complexity O(1) setup. */
-export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const routeDeps = { ...installRouteDeps({ deps }), workspaceId: deps.workspaceId, authorize: deps.authorize };
-  mountAdminRawRoute({ app, spec: agentPluginInstallZipRoute, deps: routeDeps, handlerName: "installHandler" }, FAILURE);
-  mountAdminRawRoute({ app, spec: agentPluginUpdateZipRoute, deps: routeDeps, handlerName: "installHandler" }, FAILURE);
+  mountAdminRawRoute({ errors, app, spec: agentPluginInstallZipRoute, deps: routeDeps, handlerName: "installHandler" }, FAILURE);
+  mountAdminRawRoute({ errors, app, spec: agentPluginUpdateZipRoute, deps: routeDeps, handlerName: "installHandler" }, FAILURE);
 };

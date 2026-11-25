@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { commentsGetSettingsRoute } from "@jini-ai/cms/admin-http/routes/comments/get-settings";
@@ -9,7 +10,7 @@ import { getCommentsSettings, setCommentsSettings } from "@jini-ai/cms/comments/
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `comments-moderation` server module (ADR-031 §6/§9
@@ -79,8 +80,8 @@ function commentsPortDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "aut
 /** These routes never consulted the publishing-credential override (`authorizeDirectOrRespond`). */
 const directMountOptions = (operation: string) => ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } });
 
-export function registerAdminCommentsModerationQueueRoute({ app, deps }: { app: Express; deps: AdminCommentsModerationQueueDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: commentsModerationQueueRoute, deps: {
+export function registerAdminCommentsModerationQueueRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminCommentsModerationQueueDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: commentsModerationQueueRoute, deps: {
     ...commentsPortDeps({ deps }),
     commentRepo: deps.commentRepo,
     // The admin surface's outward copy for a classified domain error is that error's own message.
@@ -89,23 +90,23 @@ export function registerAdminCommentsModerationQueueRoute({ app, deps }: { app: 
 }
 
 /** approve/spam/trash/restore first, then purge — the hand-written registrar's order. */
-export function registerAdminCommentsModerateRoutes({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminCommentsModerateRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminCommentsModerateDeps }, _optional: Record<string, never> = {}): void {
   const routeDeps = { ...commentsPortDeps({ deps }), commentWriteService: deps.commentWriteService };
   for (const spec of [...commentsModerationActionRoutes, commentsPurgeRoute]) {
-    mountAdminJsonRoute({ app, spec, deps: routeDeps }, directMountOptions("routes/comments/moderate"));
+    mountAdminJsonRoute({ errors, app, spec, deps: routeDeps }, directMountOptions("routes/comments/moderate"));
   }
 }
 
-export const registerAdminCommentsGetSettingsRoute = ({ app, deps }: { app: Express; deps: CommentsModerationRouteDeps }, _optional: Record<string, never> = {}): void => {
-  mountAdminJsonRoute({ app, spec: commentsGetSettingsRoute, deps: {
+export const registerAdminCommentsGetSettingsRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: CommentsModerationRouteDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ errors, app, spec: commentsGetSettingsRoute, deps: {
     ...commentsPortDeps({ deps }),
     commentsSettingsReady: deps.commentsSettingsReady,
     getCommentsSettings: ({ workspaceId }) => getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId }),
   } }, directMountOptions("routes/comments/get-settings"));
 };
 
-export const registerAdminCommentsPutSettingsRoute = ({ app, deps }: { app: Express; deps: CommentsModerationRouteDeps }, _optional: Record<string, never> = {}): void => {
-  mountAdminJsonRoute({ app, spec: commentsPutSettingsRoute, deps: {
+export const registerAdminCommentsPutSettingsRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: CommentsModerationRouteDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ errors, app, spec: commentsPutSettingsRoute, deps: {
     ...commentsPortDeps({ deps }),
     commentsSettingsReady: deps.commentsSettingsReady,
     // The admin surface's outward copy for a classified domain error is that error's own message.
@@ -117,14 +118,14 @@ export const registerAdminCommentsPutSettingsRoute = ({ app, deps }: { app: Expr
   } }, directMountOptions("routes/comments/put-settings"));
 };
 
-export function createCommentsModerationModule(deps: CommentsModerationRouteDeps): ServerModuleHandle {
+export function createCommentsModerationModule(deps: CommentsModerationRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "comments-moderation",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminCommentsModerationQueueRoute({ app, deps });
-      registerAdminCommentsModerateRoutes({ app, deps });
-      registerAdminCommentsGetSettingsRoute({ app, deps });
-      registerAdminCommentsPutSettingsRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminCommentsModerationQueueRoute({ errors, app, deps });
+      registerAdminCommentsModerateRoutes({ errors, app, deps });
+      registerAdminCommentsGetSettingsRoute({ errors, app, deps });
+      registerAdminCommentsPutSettingsRoute({ errors, app, deps });
     },
   };
 }

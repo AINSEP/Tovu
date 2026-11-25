@@ -173,9 +173,9 @@ export const registerAdminWidgetAgentToolsRoutes: WidgetRouteRegistrar = ({ app,
  * w4-routes K restored the order a K1 conversion had flipped); an unmapped failure is
  * `adminFailureResponse`'s operation-only `http/widgets` copy, as `mapWidgetErrorToResponse` wrote it.
  */
-export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
+export function registerAdminWidgetPreviewRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
   mountAdminJsonRoute(
-    {
+    { errors,
       app,
       spec: widgetPreviewRoute,
       deps: {
@@ -204,7 +204,7 @@ export function createWidgetsModule({ deps, errors }: { deps: RouteDeps; errors:
       // BEFORE `get-by-id.ts`/`update.ts`'s `/widgets/:id` (param path). The AI tool routes
       // (`/widgets/tools/*`) have the same shape and MUST also precede them for the same reason.
       registerAdminWidgetListRoute({ app, deps, errors });
-      registerAdminWidgetPreviewRoute({ app, deps });
+      registerAdminWidgetPreviewRoute({ errors, app, deps });
       registerAdminWidgetRegionsListRoute({ app, deps, errors });
       registerAdminWidgetRegionBindRoute({ app, deps, errors });
       registerAdminWidgetRegionGetRoute({ app, deps, errors });

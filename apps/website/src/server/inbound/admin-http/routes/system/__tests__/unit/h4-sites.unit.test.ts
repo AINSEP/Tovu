@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
@@ -18,7 +19,7 @@ const ROOT = '/api/admin/v1/workspaces/:workspaceId/system/sites';
 test('sites uses the bundled token catalog when no catalog port override is supplied', async () => {
   catalogReads.length = 0;
   const app = express();
-  registerAdminSitesRoutes({ app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
+  registerAdminSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
     siteBinding: { name: 'owner', dir: '/repo/sites/owner', dirOverridden: false, switcherCompatible: true },
     authorize: async () => ({ allowed: true, reason: 'owner' }), sitePreviews: null, devRestart: null,
   }) });
@@ -33,7 +34,7 @@ for (const active of ['alpha', 'beta']) {
     let persisted = active;
     const writes: unknown[] = [];
     const app = express();
-    registerAdminSitesRoutes({ app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
+    registerAdminSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
       siteBinding: { name: 'owner', dir: '/repo/sites/owner', dirOverridden: false, switcherCompatible: true },
       authorize: async () => ({ allowed: true, reason: 'owner' }), isSiteSwitcherEnabled: () => true,
       sitePreviews: null, devRestart: null,

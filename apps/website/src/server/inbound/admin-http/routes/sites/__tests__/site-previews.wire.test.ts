@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { request } from "node:http";
 import { test } from "node:test";
@@ -58,10 +59,11 @@ function service(reads: string[]): SitePreviewService {
 
 /** The route behind a stand-in session layer: `x-principal` names the principal; `operator` is allowed. */
 async function serve(t: import("node:test").TestContext, { withService = true }: { withService?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const reads: string[] = [];
   app.use((req, res, next) => { if (req.get("x-principal")) res.locals.principal = { id: req.get("x-principal") }; next(); });
-  registerSitePreviewRoutes({ app, deps: {
+  registerSitePreviewRoutes({ errors: routeErrors, app, deps: {
     workspaceId: "ws",
     authorize: async ({ principalId }) => ({ allowed: principalId === "operator", reason: "test" }),
     ...(withService ? { sitePreviews: service(reads) } : {}),

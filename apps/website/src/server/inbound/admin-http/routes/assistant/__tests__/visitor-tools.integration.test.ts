@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,8 +13,9 @@ import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/
 import { ws } from "#src/features/settings/__tests__/visitor-tools.fixture";
 
 function requests(deps: VisitorToolsRouteDeps) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminVisitorToolsRoutes({ app, deps });
+  registerAdminVisitorToolsRoutes({ errors: routeErrors, app, deps });
   return async (method: "get" | "put", body?: unknown, workspaceId: unknown = ws) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };

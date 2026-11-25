@@ -1,4 +1,5 @@
 import { createTovuReadyLoginProviderList, loginCredentialPorts } from "#src/features/member-login/bindings";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";
@@ -12,7 +13,7 @@ import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthor
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute, registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 /**
  * @file Public surface (barrel) for the `members` Tier-2 core library (ADR-030).
  *
@@ -80,14 +81,14 @@ export const classifyMemberError: MemberErrorClassifier = ({ err }, _optional = 
   return undefined;
 };
 
-export const registerAdminMemberListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+export const registerAdminMemberListRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions({ operation: "routes/members/list", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: memberListRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo } }, mountOptions({ operation: "routes/members/list", authorization: "direct" }));
 };
 
-export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+export const registerAdminMemberGetRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions({ operation: "routes/members/get-by-id", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions({ operation: "routes/members/get-by-id", authorization: "direct" }));
 };
 
 /**
@@ -100,24 +101,24 @@ export const MEMBER_VERSION_CONFLICT_MESSAGE =
 
 /** The write service takes the member bundle built from this request's deps, so it is bound lazily here. The
  *  classifier's `conflict` kind (`MemberConflictError`) is what the spec answers with the reload copy above. */
-export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+export const registerAdminMemberDisableRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
   const disable = {
     disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, versionConflictMessage: MEMBER_VERSION_CONFLICT_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions({ operation: "routes/members/disable", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions({ operation: "routes/members/disable", authorization: "guarded" }));
 };
 
 /** The trash move is the members library's, bound here to this request's repo, remover and clock. The
  *  shared adapter revokes sessions and links in the same transaction. */
-export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+export const registerAdminMemberDeleteRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
   const remove = {
     trashMember: (input: Parameters<typeof trashMember>[0]) => trashMember(input, { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }),
     classifyMemberError,
   };
-  mountAdminJsonRoute({ app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions({ operation: "routes/members/delete", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: memberDeleteRoute, deps: { ...memberPortDeps({ deps }), ...remove } }, mountOptions({ operation: "routes/members/delete", authorization: "guarded" }));
 };
 
 /** The 503 copy for a site whose mailer has no sender identity: the mailer's own message names internal setup. */
@@ -129,14 +130,14 @@ export const MEMBER_SENDER_NOT_CONFIGURED_MESSAGE = "Member sign-in is unavailab
  * read from the members library at call time. The limiter is the app's shared `MAGIC_LINK_PER_EMAIL`
  * instance (C-015), consulted by the spec only after `authorize()` (INV-NEW-03). Direct RBAC, as before.
  */
-export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+export const registerAdminMemberRequestMagicLinkRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
   const magicLink = {
     magicLinkPerEmailLimiter: deps.magicLinkPerEmailLimiter,
     requestSignInLink: (input: { workspaceId: string; email: string; redirectPath: string | undefined }) => requestSignInLink({ deps: toMembersWriteServiceDeps(deps), input }),
     classifyMemberError, senderNotConfiguredMessage: MEMBER_SENDER_NOT_CONFIGURED_MESSAGE,
   };
-  mountAdminJsonRoute({ app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions({ operation: "routes/members/request-magic-link", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: memberRequestMagicLinkRoute, deps: { ...memberPortDeps({ deps }), ...magicLink } }, mountOptions({ operation: "routes/members/request-magic-link", authorization: "direct" }));
 };
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot
@@ -168,7 +169,7 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
 /** Register the public-only dependency bundle. No admin capability reaches an OIDC handler.
  * @complexity O(1), fixed route count. Missing durable composition fails closed.
  */
-function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: MemberOidcRouteDeps; members: MemberPublicRouteDeps }, _options = {}): void {
+function registerOidcRoutes({ errors, app, deps, members }: { errors: RouteErrorPorts; app: Express; deps?: MemberOidcRouteDeps; members: MemberPublicRouteDeps }, _options = {}): void {
   if (!deps) {
     app.get("/api/members/v1/workspaces/:workspaceId/login-providers", (req, res) => {
       memberOidcHeaders({ res });
@@ -183,11 +184,11 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
     });
     return;
   }
-  registerMemberLoginProvidersRoute({ app, deps });
-  registerMemberOidcStartRoute({ app, deps });
-  registerMemberOidcCallbackRoute({ app, deps });
-  registerMemberOidcVerifyEmailRoute({ app, deps });
-  registerMemberUnlinkIdentityRoute({ app, deps });
+  registerMemberLoginProvidersRoute({ errors, app, deps });
+  registerMemberOidcStartRoute({ errors, app, deps });
+  registerMemberOidcCallbackRoute({ errors, app, deps });
+  registerMemberOidcVerifyEmailRoute({ errors, app, deps });
+  registerMemberUnlinkIdentityRoute({ errors, app, deps });
 }
 
 /**
@@ -224,25 +225,25 @@ export function createMembersModule(deps: {
   public: MemberPublicRouteDeps;
   /** The site's composed failure reporter: the detached delivery and login-link failures have no request to read it from. */
   reporter: Pick<ErrorReporter, "record">;
-}, options: { oidc?: MemberOidcRouteDeps } = {}): ServerModuleHandle {
+}, options: { oidc?: MemberOidcRouteDeps } = {}): ServerModuleHandle<RouteRegistration> {
   const oidc = options.oidc ?? createMemberOidcRouteDeps(deps);
   return {
     name: "members",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminMemberListRoute({ app, deps: deps.admin });
-      registerAdminMemberGetRoute({ app, deps: deps.admin });
-      registerAdminMemberDisableRoute({ app, deps: deps.admin });
-      registerAdminMemberDeleteRoute({ app, deps: deps.admin });
-      registerAdminMemberRequestMagicLinkRoute({ app, deps: deps.admin });
-      registerPublicMemberSignInRequestRoute({ app, deps: deps.public, reporter: deps.reporter });
-      registerPublicMemberCompleteSignInRoute({ app, deps: deps.public });
-      registerPublicMemberPasswordSignInRoute({ app, deps: deps.public });
-      registerPublicMemberForgotPasswordRoute({ app, deps: deps.public, reporter: deps.reporter });
-      registerPublicMemberResetPasswordRoute({ app, deps: deps.public });
-      registerPublicMemberSetPasswordRoute({ app, deps: deps.public });
-      registerPublicMemberMeRoute({ app, deps: deps.public }, { login: oidc });
-      registerPublicMemberSignOutRoute({ app, deps: deps.public });
-      registerOidcRoutes({ app, deps: oidc, members: deps.public });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminMemberListRoute({ errors, app, deps: deps.admin });
+      registerAdminMemberGetRoute({ errors, app, deps: deps.admin });
+      registerAdminMemberDisableRoute({ errors, app, deps: deps.admin });
+      registerAdminMemberDeleteRoute({ errors, app, deps: deps.admin });
+      registerAdminMemberRequestMagicLinkRoute({ errors, app, deps: deps.admin });
+      registerPublicMemberSignInRequestRoute({ errors, app, deps: deps.public, reporter: deps.reporter });
+      registerPublicMemberCompleteSignInRoute({ errors, app, deps: deps.public });
+      registerPublicMemberPasswordSignInRoute({ errors, app, deps: deps.public });
+      registerPublicMemberForgotPasswordRoute({ errors, app, deps: deps.public, reporter: deps.reporter });
+      registerPublicMemberResetPasswordRoute({ errors, app, deps: deps.public });
+      registerPublicMemberSetPasswordRoute({ errors, app, deps: deps.public });
+      registerPublicMemberMeRoute({ errors, app, deps: deps.public }, { login: oidc });
+      registerPublicMemberSignOutRoute({ errors, app, deps: deps.public });
+      registerOidcRoutes({ errors, app, deps: oidc, members: deps.public });
     },
   };
 }

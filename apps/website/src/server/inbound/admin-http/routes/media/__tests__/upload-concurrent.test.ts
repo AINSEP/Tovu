@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -12,9 +13,10 @@ import { registerAdminMediaUploadRoute } from "#src/server/runtime/composition/m
 
 // Capture the registered handler: exercise the route with DI ports without a listening server.
 function uploadAction({ deps }: { deps: MediaRouteDeps }, _optional: Record<string, never> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   let handler!: (req: Request, res: Response) => Promise<void>;
   const app = { post(_path: string, action: typeof handler) { handler = action; } } as unknown as Express;
-  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaUploadRoute({ errors: routeErrors, app, deps });
   return async () => {
     const result = { status: 200, body: {} as Record<string, unknown> };
     const res = {

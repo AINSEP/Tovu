@@ -55,7 +55,7 @@ export async function renderAuthorizedTemplatePreview(
   return await renderSharedTemplatePreview({ deps: templatePreviewDeps({ deps }), postId, rawTemplateChoice, body });
 }
 
-export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const previewDeps: TemplatePreviewRouteDeps<Post> & AdminJsonRoutePortDeps = {
     ...templatePreviewDeps({ deps }),
     authorize: deps.authorize,
@@ -67,11 +67,11 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ a
       res.status(error.response.status).type("text/plain").send((error.response.body as { error: string }).error);
     },
     failureWriter: ({ res, error }: { res: express.Response; error: unknown }) => {
-      const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }, { message: "preview render failed" });
+      const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: errors.reporter }, { message: "preview render failed" });
       res.status(failure.status).type("text/plain").send(failure.body.error);
     },
   };
   const handlerName = "handlePreviewRequest";
-  mountAdminRawRoute({ app, spec: templatePreviewGetRoute, deps: previewDeps, handlerName }, options);
-  mountAdminRawRoute({ app, spec: templatePreviewPostRoute, deps: previewDeps, handlerName }, { ...options, bodyParsers: [express.urlencoded({ extended: false, limit: "15mb" })] });
+  mountAdminRawRoute({ errors, app, spec: templatePreviewGetRoute, deps: previewDeps, handlerName }, options);
+  mountAdminRawRoute({ errors, app, spec: templatePreviewPostRoute, deps: previewDeps, handlerName }, { ...options, bodyParsers: [express.urlencoded({ extended: false, limit: "15mb" })] });
 };

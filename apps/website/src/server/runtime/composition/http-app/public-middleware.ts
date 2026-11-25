@@ -33,11 +33,11 @@ import { isPublicAssistantEnabled } from "../../../../assistant/index.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { Express } from "express";
 import type { CreateAppOptions } from "../create-app-options.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput, MountInput } from "./module-handles.js";
 
 /** Install the ordered public request guards before any normal routes. O(1) setup. */
 export function applyPublicMiddleware(
-  { app, routeDeps, internalRouter }: MountInput & { internalRouter: express.Router },
+  { app, routeDeps, internalRouter }: ErrorBoundMountInput & { internalRouter: express.Router },
   options: Pick<CreateAppOptions, "themeIdOverride" | "consentAudit" | "applyDevCors"> = {},
 ): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.

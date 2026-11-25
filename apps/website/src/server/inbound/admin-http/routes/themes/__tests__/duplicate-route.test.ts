@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -24,6 +25,7 @@ const REPO_THEMES = path.resolve(import.meta.dirname, "../../../../../../../../.
 const SOURCE_ID = "minimal-declarative";
 
 function buildApp(options: { allowed?: boolean; permissions?: string[] } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-duplicate-route-"));
   fs.cpSync(path.resolve(REPO_THEMES, "../../development/fixtures/themes/minimal-declarative"), path.join(root, "declarative", SOURCE_ID), { recursive: true });
   const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
@@ -43,7 +45,7 @@ function buildApp(options: { allowed?: boolean; permissions?: string[] } = {}) {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDuplicateRoute({ app, deps });
+  registerAdminThemeDuplicateRoute({ errors: routeErrors, app, deps });
   return { app, root, themes, permissions };
 }
 
@@ -128,13 +130,14 @@ test("duplicate: an unreadable source manifest is a 400 BAD_MANIFEST", async (t)
 });
 
 test("duplicate: an unexpected failure is a bare 500", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const failing = express();
   failing.use(express.json());
   failing.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDuplicateRoute({ app: failing, deps: {
+  registerAdminThemeDuplicateRoute({ errors: routeErrors, app: failing, deps: {
     workspaceId: WORKSPACE_ID,
     authorize: async () => {
       throw new Error("authorizer offline");

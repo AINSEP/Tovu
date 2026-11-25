@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -121,7 +122,7 @@ test("web-only boot leaves a routine turn unrecovered", async (t) => {
   // No routine host option at all: admission still protects the turn because it reads the durable marker.
   const handle = createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true, onBootWork: ({ work }) => { void work; } });
   const work: Promise<void>[] = [];
-  createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ app: fakeApp() });
+  createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: fakeApp() });
   await work[0];
   void handle;
   assert.deepEqual(seen.recovered, []);
@@ -134,7 +135,7 @@ test("ordinary repair with no routine is unchanged: the turn is recovered", asyn
   const { ledger, seen } = ledgerWith(durableRun({}, "none"), [turn()]);
   const history = historyWith();
   const work: Promise<void>[] = [];
-  createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ app: fakeApp() });
+  createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: fakeApp() });
   await work[0];
   assert.deepEqual(seen.recovered, ["m1"]);
   assert.deepEqual(seen.cancelled, []);
@@ -161,7 +162,7 @@ test("only the current lease owner waits for the routine boot barrier; a passive
     const barrier = new Promise<void>((resolve) => { release = resolve; });
     const work: Promise<void>[] = [];
     createAssistantChatsModule({ workspaceId: "ws-1", chatRunLedger: ledger, chatHistory: history.factory } as never, { recoverInterrupted: true,
-      routineBoot: { isLeaseOwner: () => owner, whenInterrupted: () => barrier }, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ app: fakeApp() });
+      routineBoot: { isLeaseOwner: () => owner, whenInterrupted: () => barrier }, onBootWork: ({ work: w }) => { work.push(w); } }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: fakeApp() });
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(seen.recovered.length === 0, expectWait, owner ? "owner waits for the barrier" : "passive boot repairs immediately");
     release();

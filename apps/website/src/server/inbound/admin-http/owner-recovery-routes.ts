@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 import { sendAdminFailure } from '#src/server/inbound/shared/admin-failure';
 import { isLocalAdminRequest } from './local-admin-request.js';
@@ -10,7 +11,7 @@ import { identityServiceDepsFrom } from './routes/users/deps.js';
 import { resolveClientIp, type RateLimiter } from '#src/contracts/core/rate-limit/rate-limit';
 import { mountPublicRawRoute } from './admin-raw-route-ports.js';
 
-type Admission = {
+type Admission = { errors: RouteErrorPorts;
   app: Express;
   deps: RouteDeps;
   authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ id: string } | null>;
@@ -36,8 +37,8 @@ async function recoveryDeps({ deps }: Pick<Admission, 'deps'>): Promise<OwnerRec
  * outside it, with the redacted admin failure so storage exceptions never disclose secrets.
  * @complexity O(1), one response, no request input logged.
  */
-function failure({ res, error }: { res: Response; error: unknown }): void {
-  sendAdminFailure({ res, error }, { operation: 'owner-recovery', code: 'RECOVERY_UNAVAILABLE',
+function failure({ res, error, errors }: { res: Response; error: unknown; errors: RouteErrorPorts }): void {
+  sendAdminFailure({ res, error, reporter: errors.reporter }, { operation: 'owner-recovery', code: 'RECOVERY_UNAVAILABLE',
     message: 'Owner recovery could not be saved.', failure: { step: 'owner-recovery',
       action: 'Retry once, then ask the host operator to check the identity database.' } });
 }
@@ -69,7 +70,7 @@ function requestDepsFor({ req, admission }: { req: Request; admission: Admission
 export function registerOwnerRecoveryRoutes(admission: Admission, _options: Record<string, never> = {}): void {
   for (const spec of routes) {
     // The mounted bag is never read: `requestDeps` binds this request's ports before every gate.
-    mountPublicRawRoute<OwnerRecoveryRouteDeps>({ app: admission.app, spec, deps: requestDepsFor({ req: undefined as never, admission }), failure },
+    mountPublicRawRoute<OwnerRecoveryRouteDeps>({ errors: admission.errors, app: admission.app, spec, deps: requestDepsFor({ req: undefined as never, admission }), failure: ({ res, error }) => failure({ res, error, errors: admission.errors }) },
       { requestDeps: ({ req }) => requestDepsFor({ req, admission }) });
   }
 }

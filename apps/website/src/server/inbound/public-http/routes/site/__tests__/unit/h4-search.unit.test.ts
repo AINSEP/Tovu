@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -22,11 +23,11 @@ for (const [count, elapsedMs, resultCountBucket, durationBucket] of [
       service: { query: async () => { time += elapsedMs; return { status: 'ok', page: { hits: Array.from({ length: count }, () => hit) } }; } },
     } as unknown as SiteSearchRuntime;
     const app = express();
-    registerSiteSearchRoute(app, { siteSearch: runtime, clock: { nowMs: () => time }, idGen: { newId: () => 'anonymous' },
+    registerSiteSearchRoute({ app, deps: { siteSearch: runtime, clock: { nowMs: () => time }, idGen: { newId: () => 'anonymous' },
       tracker: createTracker({ productAnalytics: { capture(event) { events.push(event); delivered(); }, identify() {} } }),
       visitorAnalyticsProof: async () => ({ receiptId: 'private-receipt', policyVersion: '1' }),
       visitorAnalyticsDeliveryAllowed: async () => true,
-    });
+    }, errors: createRouteIncidentReporter().errors });
     const { res, capture } = createCapturingResponse();
     res.set = (() => res) as typeof res.set;
     // The mounted spec writes its static `Cache-Control` through `setHeader` (http-kit `applyResponseHeaders`).

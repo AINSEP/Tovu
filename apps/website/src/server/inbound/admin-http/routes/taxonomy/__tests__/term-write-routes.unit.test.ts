@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,15 +16,16 @@ import { registerAdminTaxonomyDeleteTermRoute } from "#src/server/runtime/compos
  * repos/ports each route hands to its service function — no HTTP listener, no database.
  */
 const allow = async () => ({ allowed: true, reason: "matched" });
-function harness(overrides: PortFake<TaxonomyRouteDeps>) {
+function harness(overrides: PortFake<TaxonomyRouteDeps>, { recorded = recordingComposedReporter() } = {}) {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const app = express();
   const deps = portFake<TaxonomyRouteDeps>({
     workspaceId: "ws-7", authorize: allow, clock: { nowIso: () => "2026-10-21T00:00:00.000Z" }, idGen: { newId: () => "term-new" },
     outbox: { enqueue: async () => {} }, postRepo: {}, ...overrides,
   });
-  registerAdminTaxonomyCreateTermRoute({ app, deps });
-  registerAdminTaxonomyDeleteRoute({ app, deps });
-  registerAdminTaxonomyDeleteTermRoute({ app, deps });
+  registerAdminTaxonomyCreateTermRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyDeleteRoute({ errors: routeErrors, app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ errors: routeErrors, app, deps });
   return async (method: "post" | "delete", path: string, req: { params: Record<string, string>; body?: unknown }) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -110,13 +113,13 @@ test("delete-taxonomy and delete-term hide storage failures behind a generic 500
 });
 
 test("create-term unexpected failure emits one redacted incident with a matching reply ID", async t => {
-  const logs = t.mock.method(console, "error", () => {});
-  const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("create context password=TERM_CANARY"); } } });
+  const recorded = recordingComposedReporter();
+  const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("create context password=TERM_CANARY"); } } }, { recorded });
   const reply = await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } });
   assert.equal(reply.statusCode, 500);
   const body = reply.jsonBody as { errorId: string };
   assert.ok(body.errorId);
-  assert.equal(logs.mock.calls.length, 1);
-  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(reply) + JSON.stringify(logs.mock.calls), /TERM_CANARY/);
+  assert.equal(recorded.records.length, 1);
+  assert.ok(JSON.stringify(recorded.records).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(reply) + JSON.stringify(recorded.records), /TERM_CANARY/);
 });

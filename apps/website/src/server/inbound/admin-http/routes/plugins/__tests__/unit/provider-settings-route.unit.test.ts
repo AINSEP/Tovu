@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -73,12 +74,13 @@ function memoryConfig(): ProviderConfigSource & { saved: Map<string, ProviderPlu
 }
 
 async function serve(t: TestContext, deps: Partial<ProviderSettingsRouteDeps> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const permissions: string[] = [];
   const config = memoryConfig();
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPluginProviderSettingsRoutes({ app, deps: { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
+  registerPluginProviderSettingsRoutes({ errors: routeErrors, app, deps: { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
     authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "ok" }; }, ...deps } as ProviderSettingsRouteDeps });
   const server = app.listen(0);
   t.after(() => server.close());

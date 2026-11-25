@@ -1,3 +1,4 @@
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -34,13 +35,15 @@ const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/comments`;
 
 function buildApp(
   depsOverrides: Partial<AdminCommentsModerateDeps> = {},
-  writeServiceOverrides: Partial<CommentWriteService> = {}
+  writeServiceOverrides: Partial<CommentWriteService> = {},
+  incidents = createRouteIncidentReporter()
 ): {
   app: express.Express;
   applyModerationCalls: Array<Record<string, unknown>>;
   purgeCalls: Array<Record<string, unknown>>;
   jsonBodies: unknown[];
 } {
+  const routeErrors = incidents.errors;
   const applyModerationCalls: Array<Record<string, unknown>> = [];
   const purgeCalls: Array<Record<string, unknown>> = [];
   const commentWriteService: CommentWriteService = {
@@ -74,7 +77,7 @@ function buildApp(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsModerateRoutes({ app, deps });
+  registerAdminCommentsModerateRoutes({ errors: routeErrors, app, deps });
   return { app, applyModerationCalls, purgeCalls, jsonBodies };
 }
 
@@ -474,9 +477,9 @@ test("moderate: an unexpected write-service failure is a 500 INTERNAL_ERROR on t
   const explode = async (): Promise<never> => {
     throw new Error("disk exploded at /var/secret/path");
   };
-  const { app } = buildApp({}, { applyModeration: explode, purge: explode });
+  const incidents = createRouteIncidentReporter();
+  const { app } = buildApp({}, { applyModeration: explode, purge: explode }, incidents);
   const baseUrl = await startTestServer(app, t);
-  const consoleError = t.mock.method(console, "error", () => undefined);
 
   for (const path of ["approve", "purge"]) {
     const res = await fetch(`${BASE}/c1/${path}`.replace(/^/, baseUrl), {
@@ -487,8 +490,6 @@ test("moderate: an unexpected write-service failure is a 500 INTERNAL_ERROR on t
     assert.equal(res.status, 500, path);
     assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: {"message":"The comment operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"comment operation"} });
   }
-  assert.deepEqual(
-    consoleError.mock.calls.map((call) => call.arguments[0]),
-    ["[routes/comments/moderate]", "[routes/comments/moderate]"]
-  );
+  assertIncidentDiagnostics({ incidents, step: "routes/comments/moderate", diagnostics: [/disk exploded at \/var\/secret\/path/, /disk exploded at \/var\/secret\/path/] });
+  assert.equal(incidents.reports.length, 2);
 });

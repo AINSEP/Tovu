@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 /** Google login S3: real HTTP + real sealed state/JWT/link owners, entirely local protocol I/O.
  * Binding changes and owner 2026-10-24 require first-link inbox proof and member-only cookies.
@@ -33,6 +34,7 @@ const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("
 const cookie = (response: globalThis.Response, name: string) => response.headers.getSetCookie().find(value => value.startsWith(`${name}=`))?.split(";")[0] ?? "";
 
 function fixture(claimOverrides: Record<string, unknown> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const crypto = cryptoFixture();
   const sent: OutboundEmail[] = [], locks: string[] = [];
   const claims = { email: "person@gmail.com", email_verified: true, ...claimOverrides };
@@ -77,8 +79,8 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
   };
   const app = express(); app.use(express.json());
   for (const register of [registerMemberLoginProvidersRoute, registerMemberOidcStartRoute, registerMemberOidcCallbackRoute,
-    registerMemberOidcVerifyEmailRoute, registerMemberUnlinkIdentityRoute]) register({ app, deps });
-  registerPublicMemberMeRoute({ app, deps: members }, { login: deps });
+    registerMemberOidcVerifyEmailRoute, registerMemberUnlinkIdentityRoute]) register({ errors: routeErrors, app, deps });
+  registerPublicMemberMeRoute({ errors: routeErrors, app, deps: members }, { login: deps });
   async function start(base: string, memberCookie = "") {
     crypto.clock.advanceMs(1);
     const response = await fetch(`${base}${OIDC}/start`, { redirect: "manual", headers: { cookie: memberCookie } });

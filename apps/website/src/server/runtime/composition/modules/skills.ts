@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import path from "node:path";
 
@@ -17,7 +18,7 @@ import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import { buildSkillToolRegistrations, loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `skills` server module: skill listings, file inspection, guidance, installation,
@@ -43,7 +44,7 @@ import type { ServerModuleHandle } from "./types.js";
  */
 export type SkillsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "skillLayout" | "siteBinding">;
 
-export type SkillsRouteRegistrar = (required: { app: Express; deps: SkillsRouteDeps }, optional?: Record<string, never>) => void;
+export type SkillsRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: SkillsRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The management registrar also needs the approval policy the guidance preview's tool carries. */
 type SkillsManagementDeps = SkillsRouteDeps & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy };
@@ -74,16 +75,16 @@ function mountOptions({ operation }: { operation: string }, { message }: { messa
  * match, after the workspace and permission guards). The listing reads the booted layout per request,
  * through the same binding as installation and tool registration.
  */
-export const registerSkillsListRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: skillListRoute, deps: {
+export const registerSkillsListRoute: SkillsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: skillListRoute, deps: {
     ...skillsPortDeps({ deps }),
     listManagedSkills: () => listManagedSkills({ ...siteContext({ deps }), workspaceId: deps.workspaceId }),
   } }, mountOptions({ operation: "routes/skills/list" }));
 };
 
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
-export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: skillFilesRoute, deps: {
+export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: skillFilesRoute, deps: {
     ...skillsPortDeps({ deps }), loadSkillSources: skillSourcesLoader({ deps }),
     // The spec hands over only a discovered directory; the shared reader enforces realpath
     // containment under the workspace's skill container and the Plugins caps.
@@ -102,17 +103,17 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _op
 
 /** Session-gated routes; one validator/service owns every installation transport. Same order as before:
  *  install, enable/disable, remove, guidance. */
-export const registerSkillsManagementRoutes = ({ app, deps }: { app: Express; deps: SkillsManagementDeps }, _optional = {}): void => {
+export const registerSkillsManagementRoutes = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: SkillsManagementDeps }, _optional = {}): void => {
   const options = mountOptions({ operation: "routes/skills/manage" }, { message: "Could not change skills. Try again." });
   const isSkillInputError = ({ err }: { err: unknown }) => err instanceof SkillInputError;
   const port = skillsPortDeps({ deps });
-  mountAdminJsonRoute({ app, spec: skillInstallRoute, deps: { ...port, isSkillInputError,
+  mountAdminJsonRoute({ errors, app, spec: skillInstallRoute, deps: { ...port, isSkillInputError,
     installSkill: (input) => installSkill({ ...input, ...siteContext({ deps }) }) } }, options);
-  mountAdminJsonRoute({ app, spec: skillSetEnabledRoute, deps: { ...port, isSkillInputError,
+  mountAdminJsonRoute({ errors, app, spec: skillSetEnabledRoute, deps: { ...port, isSkillInputError,
     setSkillEnabled: (input) => setSkillEnabled({ ...input, ...siteContext({ deps }) }) } }, options);
-  mountAdminJsonRoute({ app, spec: skillUninstallRoute, deps: { ...port, isSkillInputError,
+  mountAdminJsonRoute({ errors, app, spec: skillUninstallRoute, deps: { ...port, isSkillInputError,
     uninstallSkill: (input) => uninstallSkill({ ...input, ...siteContext({ deps }) }) } }, options);
-  mountAdminJsonRoute({ app, spec: skillGuidanceRoute, deps: { ...port, isSkillInputError, loadSkillSources: skillSourcesLoader({ deps }),
+  mountAdminJsonRoute({ errors, app, spec: skillGuidanceRoute, deps: { ...port, isSkillInputError, loadSkillSources: skillSourcesLoader({ deps }),
     // Typed on the host's own source: the spec passes back the exact objects the loader returned.
     skillRegistrations: { build: ({ source }: { source: InstalledSkillToolSource }) =>
       buildSkillToolRegistrations({ sources: [source], withExtensionApprovalPolicy: deps.withExtensionApprovalPolicy })[0] },
@@ -120,13 +121,13 @@ export const registerSkillsManagementRoutes = ({ app, deps }: { app: Express; de
 };
 
 /** Composes skill listings, file inspection, guidance, installation, enablement and removal behind admin sessions. */
-export function createSkillsModule(deps: SkillsRouteDeps): ServerModuleHandle {
+export function createSkillsModule(deps: SkillsRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "skills",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerSkillsListRoute({ app, deps });
-      registerSkillFilesRoute({ app, deps });
-      registerSkillsManagementRoutes({ app, deps: { ...deps, withExtensionApprovalPolicy } });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerSkillsListRoute({ errors, app, deps });
+      registerSkillFilesRoute({ errors, app, deps });
+      registerSkillsManagementRoutes({ errors, app, deps: { ...deps, withExtensionApprovalPolicy } });
     },
   };
 }

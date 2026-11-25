@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { RevertConflictError } from "@jini-ai/cms/core/commands";
@@ -360,13 +361,14 @@ test("memory root: section writes and moves are unavailable too; nothing is writ
  * The policy comes from the registered `page-html` reverter, never from the request body.
  */
 async function mountedRevert(t: TestContext, authorize: Authorize) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = await sqliteRoot(t);
   deps.authorize = authorize;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminChangeSetRevertRoute({ app, deps });
+  registerAdminChangeSetRevertRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const revert = (changeSetId: string, body: Record<string, unknown> = {}) => fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/change-sets/${changeSetId}/revert`, {
     method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body),

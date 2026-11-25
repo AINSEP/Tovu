@@ -1,3 +1,4 @@
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -55,9 +56,10 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
   };
 }
 
-async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get") {
+async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get", incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   const app = express();
-  registerAdminMailActivityRoutes({ app, deps: d });
+  registerAdminMailActivityRoutes({ errors: routeErrors, app, deps: d });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, method, path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);
@@ -141,8 +143,8 @@ test("mail-suppressions/remove previews without confirmed: true, removes with it
   assert.equal((await call(deps(["mail.activity.read"], { mailSuppressionAdmin: suppressionRepo() }), REMOVE, { body: { ...body, revision: "reviewed-v1", confirmed: true } }, WS, "post")).statusCode, 403);
 });
 
-test("feedback dependency failures are safe HTTP errors without partial receiving rows", async (t) => {
-  const logged: unknown[][] = []; t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+test("feedback dependency failures are safe HTTP errors without partial receiving rows", async () => {
+  const incidents = createRouteIncidentReporter();
   for (const override of [
     { mailProviderControl: { describe: async () => { throw new Error("describe unavailable ghp_" + "x".repeat(36)); } } },
     { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("credentials unavailable ghp_" + "x".repeat(36)); } } },
@@ -150,10 +152,9 @@ test("feedback dependency failures are safe HTTP errors without partial receivin
   ]) {
     const provider = { id: "fake", label: "Fake", lanes: ["transactional"], capabilities: { feedback: true } };
     const d = deps(["admin.forms.manage"], { mailProviderControl: { describe: async () => ({ providers: [provider] }) } as never, customCredentialSetRepo: { listByWorkspace: async () => [] } as never, ...override } as never);
-    const response = await call(d, FEEDBACK); assertAdminResponse({ actual: [response.statusCode, response.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+    const response = await call(d, FEEDBACK, {}, WS, "get", incidents); assertAdminResponse({ actual: [response.statusCode, response.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   }
-  assert.doesNotMatch(JSON.stringify(logged), /ghp_/);
-  assert.match(JSON.stringify(logged), /describe unavailable/);
-  assert.match(JSON.stringify(logged), /credentials unavailable/);
-  assert.match(JSON.stringify(logged), /inbox unavailable/);
+  assert.doesNotMatch(JSON.stringify(incidents.entries), /ghp_/);
+  assertIncidentDiagnostics({ incidents, step: "routes/system/mail-activity", diagnostics: [/describe unavailable/, /credentials unavailable/, /inbox unavailable/] });
+  assert.equal(incidents.reports.length, 3);
 });

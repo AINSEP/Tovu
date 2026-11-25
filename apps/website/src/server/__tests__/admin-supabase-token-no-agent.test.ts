@@ -56,7 +56,7 @@ async function buildAdminOnlyApp() {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   const supabase = parsed.config.servers.supabase;
   assert.ok(supabase && supabase.type !== "stdio");
   return { app, deps, pluginUrl: supabase.url };

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -16,6 +17,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
  * tombstoned type's fields, each answer 409 with a stable code instead of overwriting the row.
  */
 async function buildApp(t: import("node:test").TestContext, status?: ContentTypeRecord["status"]) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const repo = new InMemoryContentTypeRepo();
   if (status) await repo.save({
     workspaceId: "ws-1",
@@ -47,8 +49,8 @@ async function buildApp(t: import("node:test").TestContext, status?: ContentType
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminContentTypeRegisterRoute({ app, deps });
-  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
+  registerAdminContentTypeRegisterRoute({ errors: routeErrors, app, deps });
+  registerAdminContentTypeUpdateFieldsRoute({ errors: routeErrors, app, deps });
   return { baseUrl: await startTestServer(app, t), repo, deps, indexCalls };
 }
 

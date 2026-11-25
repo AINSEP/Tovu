@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { sitePreviewRoute } from "@jini-ai/cms/admin-http/routes/sites/site-previews";
 import { SITE_PREVIEW_CONTENT_TYPE, type SitePreviewService } from "#src/features/sites/index";
@@ -22,8 +23,8 @@ export interface SitePreviewRouteDeps extends Pick<RouteDeps, "workspaceId" | "a
  * host without a preview service answers the 404 for every site.
  * @complexity O(1) setup; per request the admin ports and one capture read.
  */
-export function registerSitePreviewRoutes({ app, deps }: { app: Express; deps: SitePreviewRouteDeps }, _optional = {}): void {
-  mountAdminRawRoute({
+export function registerSitePreviewRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: SitePreviewRouteDeps }, _optional = {}): void {
+  mountAdminRawRoute({ errors,
     app,
     spec: sitePreviewRoute,
     deps: {

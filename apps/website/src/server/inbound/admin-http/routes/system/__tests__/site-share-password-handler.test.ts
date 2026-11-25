@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -43,6 +44,7 @@ async function request(app: express.Express, options: { principal?: string; cred
 }
 
 test("only the same-origin browser owner can open this share's real sealed password; every response is no-store", { timeout: 10000 }, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "share-password-handler-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const registry = new SiteShareRegistry({ directory: root, now: () => Date.now() });
@@ -64,7 +66,7 @@ test("only the same-origin browser owner can open this share's real sealed passw
     if (req.get("x-trust") === "yes") res.locals.publishTrust = { sourceInstallationId: "peer", capabilities: [] };
     next();
   });
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
   for (const options of [{ principal: "admin" }, { credential: "api_key" }, { credential: "publish_key" }, { credential: "tool" }, { credential: "connected_computer" }, { trust: true }, { origin: "https://localhost" }, { origin: "null" }, { fetchSite: "cross-site" }]) {
     const response = await request(app, options);
     assert.equal(response.status, 403);

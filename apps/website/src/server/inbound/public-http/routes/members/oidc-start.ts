@@ -1,4 +1,5 @@
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { memberOidcStartRoute, type MemberOidcStartRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-start";
 import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";
@@ -20,7 +21,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
 /** Plain-link entry point: mounts the Jini spec. The counter is read per request, as the hand-written route did
  * (tests swap the limiter instances on `deps` after registration). O(1) setup.
  */
-export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
+export function registerMemberOidcStartRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   const mounted: MemberOidcStartRouteDeps = {
     ipLimiter: { check: (input) => deps.members.passwordSignInPerIpLimiter.check(input) },
     flowCookie: (input) => memberOidcCookieHeader(input),
@@ -28,7 +29,7 @@ export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps
     crossSiteRefusal: () => new MemberLoginError({ code: "LOGIN_INVALID" }),
     begin: boundPerRequest, onRequested: boundPerRequest, onFailed: boundPerRequest,
   };
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberOidcGetApp({ app, deps: deps.members }),
     spec: memberOidcStartRoute,
     deps: mounted,

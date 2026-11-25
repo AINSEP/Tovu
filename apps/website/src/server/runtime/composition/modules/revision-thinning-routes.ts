@@ -1,6 +1,7 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
-import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/server";
+import type { JsonRouteSpec, OriginContext } from "@jini-ai/core/contracts/server";
 import { ok } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
@@ -33,7 +34,7 @@ export interface MountRevisionThinningRequired {
   binding: RevisionThinningBinding;
   /** The strict installation-owner check; returns the owner principal or refuses. */
   ownerCheck: (required: { context: OperatorPrincipalRecord | undefined }) => Promise<{ principal: string }>;
-  adminPorts: { mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: RouteHostContext };
+  adminPorts: { errors: RouteErrorPorts; mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: OriginContext };
 }
 
 /**
@@ -85,8 +86,8 @@ function applySpec({ binding, ownerCheck }: Omit<MountRevisionThinningRequired, 
  * @complexity O(1) setup; per request as the binding.
  */
 export function mountRevisionThinning({ app, binding, ownerCheck, adminPorts }: MountRevisionThinningRequired, _optional: Record<string, never> = {}): void {
-  adminPorts.mount({ app, spec: previewSpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
-  adminPorts.mount({ app, spec: applySpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: previewSpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: applySpec({ binding, ownerCheck }), deps: adminPorts.deps, origin: adminPorts.origin });
 }
 
 const OWNER_ONLY = "Only the site owner can thin revisions.";

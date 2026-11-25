@@ -22,13 +22,14 @@ import type { RouteDeps } from "../routes/types.js";
  */
 
 function buildTestApp(ledger = new InMemoryDatabaseLedgerRepo()): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), databaseLedgerRepo: ledger };
 
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseTimelineRoute({ app, deps });
+  registerAdminDatabaseTimelineRoute({ errors: routeErrors, app, deps });
 
   return { app, deps };
 }

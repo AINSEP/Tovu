@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
 import { registerAdminUserListRoute } from "#src/server/runtime/composition/modules/users";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
@@ -56,7 +57,7 @@ async function setup() {
     return policyId;
   };
   const app = express();
-  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register({ app, deps });
+  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register({ errors: createRouteIncidentReporter().errors, app, deps });
   const invoke = async (method: "post" | "delete" | "patch", suffix: string, callerId: string, principalId: string, body = {}) => {
     const { res, capture } = createCapturingResponse();
     res.send = () => res;

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';
@@ -14,7 +15,7 @@ function fixture(options: { caller?: string; kind?: string; allowed?: boolean; e
   const deps = { workspaceId: 'site', ownerPrincipalId: Promise.resolve('owner'), identityReady: Promise.resolve(),
     mfaStore: { factor: async () => { factorReads++; return options.enrolled ? { sealedSecret: 'never-return-this' } : null; } },
   } as unknown as RouteDeps;
-  registerOwnerMfaRoutes({ app, deps,
+  registerOwnerMfaRoutes({ errors: createRouteIncidentReporter().errors, app, deps,
     authenticate: async () => options.caller ? { principal: { id: options.caller }, kind: options.kind ?? 'session' } : null,
     limiter: { check: async () => ({ allowed: options.allowed ?? true, retryAfterSeconds: 60 }) },
   });
@@ -64,7 +65,7 @@ test('every MFA reply is no-store: origin 403, 429 with Retry-After, status 200 
   app.use(express.json());
   let check = async () => ({ allowed: false, retryAfterSeconds: 42 });
   const deps = { workspaceId: 'site', ownerPrincipalId: Promise.resolve('owner'), identityReady: Promise.resolve(), mfaStore: { factor: async () => null } } as unknown as RouteDeps;
-  registerOwnerMfaRoutes({ app, deps, authenticate: async () => ({ principal: { id: 'owner' }, kind: 'session' }),
+  registerOwnerMfaRoutes({ errors: createRouteIncidentReporter().errors, app, deps, authenticate: async () => ({ principal: { id: 'owner' }, kind: 'session' }),
     limiter: { check: () => check() } });
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));

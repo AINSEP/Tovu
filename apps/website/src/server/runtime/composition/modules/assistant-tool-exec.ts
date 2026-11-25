@@ -110,7 +110,7 @@ export function registerAssistantToolExecRoutes({ router, reporter, toolSurface,
   // Same token gate, 1 KiB body and no-store answer as before; Jini's spec owns the three body shapes.
   router.post(AGENT_PLUGIN_PREFLIGHT_ROUTE_PATH, requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
     json({ limit: "1kb" }), (_req, res, next) => { res.set("cache-control", "no-store"); next(); });
-  mountJsonRoute({ app: router as unknown as Express, spec: agentPluginPreflightRoute, deps: agentPluginPreflightDeps({ runStore, workspaceId, plugins }) });
+  mountJsonRoute({ app: router as unknown as Express, adapter: { originPolicy: { isSameOrigin: () => false }, errors: { reporter, observability: NO_OPERATION_TRACKING } }, spec: agentPluginPreflightRoute, deps: agentPluginPreflightDeps({ runStore, workspaceId, plugins }) });
 }
 
 const preflightNotLive = <T>(): Result<T> => err({ error: { code: "NOT_FOUND", message: "a live site run is required" } });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -23,6 +24,7 @@ const MOV_AS_MP4 = Buffer.from([0, 0, 0, 24, ...Buffer.from("ftypisom"), 0, 0, 2
 const CONVERTED = new Uint8Array([0, 0, 0, 24, ...Buffer.from("ftypmp42"), 0, 0, 0, 0, ...Buffer.from("mp42isom")]);
 
 function setup(transcode: MediaTranscoderPort["transcode"], optional: { thresholdBytes?: number } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
     tracker: createNoopTracker({}),
@@ -48,7 +50,7 @@ function setup(transcode: MediaTranscoderPort["transcode"], optional: { threshol
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaUploadRoute({ app, deps }, { videoImport: {
+  registerAdminMediaUploadRoute({ errors: routeErrors, app, deps }, { videoImport: {
     ports: { transcoder: { transcode } },
     reportNote: ({ note }) => { notes.push(note); },
     ...optional,

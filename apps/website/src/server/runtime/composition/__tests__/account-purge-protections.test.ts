@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { outboxEventValues } from "@jini-ai/db/events";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -46,7 +47,7 @@ async function setup() {
   const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel({ store: db }), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);
   const app = express();
-  registerAdminTrashPurgeRoute({ app, deps: routeDeps });
+  registerAdminTrashPurgeRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps });
   const make = async (name: string, role: "admin" | "owner" | undefined = undefined) => {
     const { principal } = await createUser({ deps: service, input: { workspaceId, callerPrincipalId: ownerId, username: name, password: "correct-horse-battery" } });
     if (role) {

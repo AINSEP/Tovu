@@ -45,12 +45,13 @@ class BrokenKeyring implements KeyringPort {
 }
 
 function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps };
 }
 
@@ -528,6 +529,7 @@ test("host-declared built-in MCP connections are labelled and cannot be removed,
 });
 
 test("external-mcp: without a session a malformed or valid PUT is the redacted 500, before authorize or any save", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   // rv1123e K1 migration: `guardExternalMcpRequest` read the session before any route looked at its
   // params or body, so none of these mounts opts into `deferMissingPrincipal`. Without a session the
   // malformed `expectedVersion` (a 400 once signed in) must still answer the redacted 500. No spec in
@@ -541,7 +543,7 @@ test("external-mcp: without a session a malformed or valid PUT is the redacted 5
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
   const app = express();
   app.use(express.json());
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));

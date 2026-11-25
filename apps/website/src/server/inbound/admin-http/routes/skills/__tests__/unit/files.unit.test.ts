@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -12,6 +13,7 @@ import { createSkillsModule } from "#src/server/runtime/composition/modules/skil
 const route = "/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files";
 const markdown = "---\nname: example\ndescription: Example skill.\n---\nRead the reference.\n";
 async function harness(work: (call: (toolId?: string, workspaceId?: string, overrides?: { locals?: object }) => Promise<{ code: number; body: any }>, directory: string, outside: string) => Promise<void>, allowed = true, expectedAuthorizations = 1) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const siteLayouts = createTempSiteLayoutFixture({});
   const root = siteLayouts.deps.skillLayout.root;
   try {
@@ -35,7 +37,7 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string, over
       return { allowed, reason: "test" };
     } }));
     assert.ok(skillsModule.registerRoutes, "the skills module registers routes");
-    skillsModule.registerRoutes({ app });
+    skillsModule.registerRoutes({ errors: routeErrors, app });
     await work(async (toolId = "skill_example", workspaceId = "workspace-local", overrides = {}) => {
       const handler = handlers.get(`get ${route}`);
       assert.equal(typeof handler, "function", "files route is composed into the skills module");

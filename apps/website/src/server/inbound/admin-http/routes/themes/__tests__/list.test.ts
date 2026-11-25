@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,8 +12,9 @@ function theme(id: string, source: string, errors: string[] = []) {
   return { manifest: { id, name: `Theme ${id}`, version: "2.3.4" }, source, status: errors.length ? "invalid" : "valid", errors };
 }
 async function invoke(themes: unknown[], settings: unknown, fail = false) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminThemesListRoute({ app, deps: {
+  registerAdminThemesListRoute({ errors: routeErrors, app, deps: {
     workspaceId: "ws-7", themes, authorize: async () => ({ allowed: true, reason: "matched" }),
     presentationRepo: { findByWorkspaceId: async (required: { workspaceId: string }) => {
       assert.deepEqual(required, { workspaceId: "ws-7" }); if (fail) throw new Error("secret db failure"); return settings;
@@ -52,7 +54,7 @@ test("an absent or foreign workspace 404s and a caller without theme.set gets 40
   let reads = 0;
   let allowed = false;
   const app = express();
-  registerAdminThemesListRoute({ app, deps: portFake<ContentRouteDeps>({
+  registerAdminThemesListRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<ContentRouteDeps>({
     workspaceId: "ws-7", themes: [], authorize: async (input: unknown) => {
       assert.deepEqual(input, { principalId: "principal-7", permission: "theme.set", workspaceId: "ws-7", entityType: "presentation" });
       return { allowed, reason: "no grant" };

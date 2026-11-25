@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,10 +14,11 @@ import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/c
  */
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId";
 async function invoke(authorize: ContentRouteDeps["authorize"], suffix: "/original" | "/page/publish") {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const deps = portFake<ContentRouteDeps>({ workspaceId: "ws-1", authorize, themes: [], themesDir: "/nonexistent" });
-  registerAdminThemeSaveOriginalRoute({ app, deps });
-  registerAdminThemePagePublishRoute({ app, deps });
+  registerAdminThemeSaveOriginalRoute({ errors: routeErrors, app, deps });
+  registerAdminThemePagePublishRoute({ errors: routeErrors, app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-1" };
   await extractRouteHandler(app, "post", `${ROOT}${suffix}`)({ params: { workspaceId: "ws-1", themeId: "plain" }, body: { page: "index", published: true } }, res);
