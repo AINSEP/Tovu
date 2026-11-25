@@ -2,7 +2,8 @@ import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini
 import { type PostRepoPort, type PostRecord, PostNotFoundError, SYSTEM_ACTOR_ID, PostConflictError } from "@jini-ai/cms/posts/post";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { appendPostRevision, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
+import { appendPostRevision, emitPublicTransitionEvent, postEventActor } from "@jini-ai/cms/posts/post-write-effects";
+import type { MutationActor } from "@jini-ai/core/contracts/events";
 
 export interface DeletePostInput {
   /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) — unset
@@ -13,6 +14,8 @@ export interface DeletePostInput {
   id: UUID;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
   actorId?: UUID;
+  /** See {@link CreatePostInput.actor}. */
+  actor?: MutationActor | undefined;
   /** Same optional-with-null-default contract as {@link CreatePostInput.delegatedByWorkspaceId}. */
   delegatedByWorkspaceId?: UUID | null;
   /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
@@ -93,6 +96,8 @@ export async function deletePost(
   _optional: DeletePostOptional = {}
 ): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
+  // The channel vouches for the kind, the principal authorizes: an actor naming somebody else is refused before any write.
+  postEventActor({ actorId: input.actorId, actor: input.actor });
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing || isTrashed(existing)) {
     throw new PostNotFoundError(`post '${input.id}' was not found`);
@@ -123,7 +128,7 @@ export async function deletePost(
     }
     const revision = await appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
     // Inside the transaction (2026-10-21): an enqueue failure rolls the trash back with it.
-    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now, actorId: input.actorId, actor: input.actor });
     return revision;
   } });
 
@@ -156,6 +161,8 @@ export interface RestorePostForwardRequired {
     /** The exact pre-`execute` record, as the mutation's own `captureInverse` read it. */
     prior: PostRecord;
     actorId?: string;
+    /** See {@link CreatePostInput.actor}. */
+    actor?: MutationActor | undefined;
     delegatedByWorkspaceId?: UUID | null;
     delegatedById?: UUID | null;
   };
@@ -228,6 +235,8 @@ export async function restorePostForward(
   _optional: RestorePostForwardOptional = {}
 ): Promise<{ post: PostRecord; revisionId: string } | null> {
   const { deps, input } = required;
+  // The channel vouches for the kind, the principal authorizes: an actor naming somebody else is refused before any write.
+  postEventActor({ actorId: input.actorId, actor: input.actor });
   const { prior } = input;
 
   const current = await deps.repo.findById({ workspaceId: prior.workspaceId, id: prior.id });
@@ -257,7 +266,7 @@ export async function restorePostForward(
     // compensation that can itself half-fail is not a compensation.
     if (undoesATrash) await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
     // Same transaction for the event (2026-10-21), for the same all-or-nothing reason.
-    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt });
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt, actorId: input.actorId, actor: input.actor });
     return appended.id;
   } });
   if (revisionId === null) return null;
