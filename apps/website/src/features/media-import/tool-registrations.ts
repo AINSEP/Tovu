@@ -1,4 +1,4 @@
-import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
+import { UPLOAD_CAPS, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
@@ -14,7 +14,6 @@ import type { ToolContributor } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { sniffContentType, uploadMedia, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
-import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/public-urls.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
@@ -248,13 +247,23 @@ export async function persistImportedMedia(required: { routeDeps: MediaImportToo
   };
 }
 
+/** The byte ceiling enforced BEFORE a local file is read. Its type is unknown until read, so the cap follows the
+ * file's extension (a video extension gets the video limit, everything else 50 MiB); `uploadMedia` then re-checks
+ * against the SNIFFED type, so a mis-named non-video that passes here is still refused there. The injected
+ * `mediaImportLocalMaxBytes` can only narrow this, never widen it.
+ * @complexity O(1). */
+function localReadCeiling({ routeDeps, relativePath }: { routeDeps: MediaImportToolDeps; relativePath: string }, _optional = {}): number {
+  const ceiling = uploadLimitForFile({ name: relativePath, type: "" });
+  return Math.min(routeDeps.mediaImportLocalMaxBytes ?? ceiling, ceiling);
+}
+
 /** Read replacement bytes through the existing root containment, secret exclusions and bounded read.
  * @throws FsFilePathError or MediaImportValidationError for unsafe paths or unsupported bytes.
  * @complexity O(b) time/space for b file bytes, bounded by the host upload ceiling. */
 async function readLocalReplacement({ routeDeps, input }: { routeDeps: MediaImportToolDeps; input: Record<string, unknown> }, _optional = {}) {
   const relativePath = requireString({ input, key: "path" });
   const request = resolveLocalImportRequest({ routeDeps, root: requireString({ input, key: "root" }), relativePath }, {});
-  const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+  const maxBytes = localReadCeiling({ routeDeps, relativePath });
   const bytes = await openFsFileForRead({ ...request, maxBytes });
   const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
   return { bytes, contentType, provenance: { kind: 'upload' as const, path: request.relativePath } };
@@ -331,7 +340,7 @@ function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps): Tool
     isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError || error instanceof MediaValidationError,
     fn: async () => {
       const request = resolveLocalImportRequest({ routeDeps, root, relativePath }, {});
-      const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+      const maxBytes = localReadCeiling({ routeDeps, relativePath });
       const bytes = await openFsFileForRead({ ...request, maxBytes });
       const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
       const title = optionalString({ input, key: "title" });
