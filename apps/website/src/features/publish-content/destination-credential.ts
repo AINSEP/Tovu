@@ -1,5 +1,6 @@
-import { openPublishSession, PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import { openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import type { HttpClientPort } from "#src/platform/http/index";
+import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 import { PublishContentPeerNotFoundError } from "@jini-ai/cms/publish/content/peers";
@@ -71,7 +72,7 @@ export async function resolvePublishDestinationCredential(
   }
 
   const session = await openSession({
-    deps: { httpClient: deps.httpClient, keyring: deps.keyring },
+    deps: { httpClient: deps.httpClient, protocol: PUBLISH_TRUST_WIRE, keyring: deps.keyring },
     input: { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) },
   });
 

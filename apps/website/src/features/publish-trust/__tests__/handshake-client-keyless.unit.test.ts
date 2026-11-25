@@ -2,7 +2,8 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeError } from "../handshake-client.js";
+import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 
 // A destination with no site key answers every handshake route with a typed 503. The owner must
 // read what to fix on that site, not "try again in a moment", which no retry will ever satisfy.
@@ -17,7 +18,7 @@ test("a destination without a Site key is named as the thing to fix", async () =
   };
 
   await assert.rejects(
-    fetchDestinationIdentity({ deps: { httpClient: httpClient as never }, input: { baseUrl: "https://dest.example" } }),
+    fetchDestinationIdentity({ deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: httpClient as never }, input: { baseUrl: "https://dest.example" } }),
     (err: unknown) => {
       assert.ok(err instanceof PublishTrustHandshakeError);
       assert.equal(err.failure, "refused");
@@ -35,7 +36,7 @@ test("identity decoding returns the destination's workspace and origin", async (
   const identity = { installationId: "dest-install", workspaceId: "dest-ws", origin: "https://canonical.example" };
   const requests: unknown[] = [];
   assert.deepEqual(await fetchDestinationIdentity({
-                                                    deps: { httpClient: { send: async request => {
+                                                    deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async request => {
       requests.push(request);
       return { status: 200, headers: {}, bodyText: JSON.stringify(identity) };
     } } },
@@ -46,7 +47,7 @@ test("identity decoding returns the destination's workspace and origin", async (
 
 test("a null identity response is reported as a non-Tovu destination", async () => {
   await assert.rejects(fetchDestinationIdentity({
-                                                  deps: { httpClient: { send: async () => ({
+                                                  deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({
       status: 200, headers: {}, bodyText: "null",
     }) } },
                                                   input: { baseUrl: "https://dest.example" }
@@ -60,7 +61,7 @@ test("identity responses require nonempty installation and workspace ids", async
     for (const value of [undefined, "", 42]) {
       const body = { installationId: "dest-install", workspaceId: "dest-ws", [field]: value };
       await assert.rejects(fetchDestinationIdentity({
-                                                      deps: { httpClient: { send: async () => ({
+                                                      deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({
           status: 200, headers: {}, bodyText: JSON.stringify(body),
         }) } },
                                                       input: { baseUrl: "https://dest.example" }
@@ -74,7 +75,7 @@ test("identity responses require nonempty installation and workspace ids", async
 for (const [status, failure] of [[404, "not-a-tovu-site"], [401, "not-connected"], [500, "refused"]] as const) {
   test(`identity HTTP ${status} becomes ${failure}`, async () => {
     await assert.rejects(fetchDestinationIdentity({
-                                                    deps: { httpClient: { send: async () => ({
+                                                    deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({
         status, headers: {}, bodyText: "{}",
       }) } },
                                                     input: { baseUrl: "https://dest.example" }
@@ -85,7 +86,7 @@ for (const [status, failure] of [[404, "not-a-tovu-site"], [401, "not-connected"
 
 test("a transport timeout is translated to an unreachable handshake error", async () => {
   await assert.rejects(fetchDestinationIdentity({
-                                                  deps: { httpClient: { send: async () => { throw new Error("timed out"); } } },
+                                                  deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => { throw new Error("timed out"); } } },
                                                   input: { baseUrl: "https://dest.example" }
                                                 }),
     (err: unknown) => err instanceof PublishTrustHandshakeError && err.failure === "unreachable" &&
@@ -108,7 +109,7 @@ test("openPublishSession signs the challenge and returns the minted session", as
         deriveSigningSecret: async () => assert.fail("the handshake never derives a webhook signing secret"),
         derive: async input => { keyRequests.push(input); return seed; },
       },
-      httpClient: { send: async request => {
+      protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async request => {
         requests.push(request as typeof requests[number]);
         const response = requests.length === 1 ? identity : requests.length === 2
           ? { nonce: "nonce-under-test", targetInstallationId: "dest-install" }
@@ -157,7 +158,7 @@ for (const [leg, fields] of [
               deriveSigningSecret: async () => assert.fail("the handshake never derives a webhook signing secret"),
               derive: async () => new Uint8Array(32).fill(7),
             },
-            httpClient: { send: async request => {
+            protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async request => {
               const path = new URL(request.url).pathname.split("/").at(-1)!;
               assert.ok(Object.hasOwn(responses, path), `unexpected handshake path: ${request.url}`);
               assert.equal(request.url, `https://dest.example/api/publish-trust/v1/${path}`);
@@ -176,7 +177,7 @@ for (const [leg, fields] of [
 
 test("an invalid destination address is still named in a non-Error transport failure", async () => {
   await assert.rejects(fetchDestinationIdentity({
-                                                  deps: { httpClient: { send: async () => { throw "egress denied"; } } },
+                                                  deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => { throw "egress denied"; } } },
                                                   input: { baseUrl: "invalid-address" }
                                                 }), {
     name: "PublishTrustHandshakeError", failure: "unreachable",
@@ -187,7 +188,7 @@ test("an invalid destination address is still named in a non-Error transport fai
 test("malformed successful JSON quotes at most 200 response characters", async () => {
   const bodyText = "<html>" + "x".repeat(300);
   await assert.rejects(fetchDestinationIdentity({
-                                                  deps: { httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
+                                                  deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
                                                   input: { baseUrl: "https://dest.example" }
                                                 }), {
     name: "PublishTrustHandshakeError", failure: "not-a-tovu-site",
@@ -198,7 +199,7 @@ test("malformed successful JSON quotes at most 200 response characters", async (
 for (const bodyText of ['"hello"', "42", "[]"]) {
   test(`a successful non-object JSON response ${bodyText} is not a Tovu identity`, async () => {
     await assert.rejects(fetchDestinationIdentity({
-                                                    deps: { httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
+                                                    deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
                                                     input: { baseUrl: "https://dest.example" }
                                                   }), {
       name: "PublishTrustHandshakeError", failure: "not-a-tovu-site",
@@ -210,7 +211,7 @@ for (const bodyText of ['"hello"', "42", "[]"]) {
 for (const bodyText of ["invalid JSON", "null", '"SECRET_STORE_UNCONFIGURED"', '{"code":"OTHER_FAILURE"}']) {
   test(`an unrelated 503 body ${bodyText} uses the generic refusal without quoting the destination`, async () => {
     await assert.rejects(fetchDestinationIdentity({
-                                                    deps: { httpClient: { send: async () => ({ status: 503, headers: {}, bodyText }) } },
+                                                    deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({ status: 503, headers: {}, bodyText }) } },
                                                     input: { baseUrl: "https://dest.example" }
                                                   }), {
       name: "PublishTrustHandshakeError", failure: "refused",
@@ -221,7 +222,7 @@ for (const bodyText of ["invalid JSON", "null", '"SECRET_STORE_UNCONFIGURED"', '
 
 test("an informational HTTP status is refused rather than parsed as an identity", async () => {
   await assert.rejects(fetchDestinationIdentity({
-                                                  deps: { httpClient: { send: async () => ({
+                                                  deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({
       status: 199, headers: {}, bodyText: JSON.stringify({ installationId: "dest", workspaceId: "ws" }),
     }) } },
                                                   input: { baseUrl: "https://dest.example" }
@@ -234,7 +235,7 @@ test("an informational HTTP status is refused rather than parsed as an identity"
 test("an identity with no string origin falls back to the requested base URL", async () => {
   for (const origin of [undefined, 42]) {
     assert.deepEqual(await fetchDestinationIdentity({
-                                                      deps: { httpClient: { send: async () => ({
+                                                      deps: { protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({
         status: 200, headers: {}, bodyText: JSON.stringify({ installationId: "dest", workspaceId: "ws", origin }),
       }) } },
                                                       input: { baseUrl: "https://dest.example" }
@@ -254,7 +255,7 @@ test("backstop sessions sign the default generation and retain requested capabil
         deriveSigningSecret: async () => assert.fail("no webhook secret"),
         derive: async () => new Uint8Array(32).fill(7),
       },
-      httpClient: { send: async request => {
+      protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async request => {
         assert.ok(request.body === undefined || typeof request.body === "string", "handshake requests carry JSON text");
         requests.push({ url: request.url, body: request.body });
         const body = requests.length === 1 ? identity : requests.length === 2
@@ -291,7 +292,7 @@ test("a session response keeps string capabilities and drops non-string values",
         deriveSigningSecret: async () => assert.fail("no webhook secret"),
         derive: async () => new Uint8Array(32).fill(7),
       },
-      httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify(responses.shift()) }) },
+      protocol: PUBLISH_TRUST_WIRE, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify(responses.shift()) }) },
     },
                                             input: { baseUrl: "https://dest.example", workspaceId: "source-ws" }
                                           });

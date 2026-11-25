@@ -14332,6 +14332,38 @@
     {
       "id": "3a42c3166859",
       "reason": "PR-01: the RT-005 tokenizer cases moved to Jini plugins runtime/built-ins/word-count/__tests__/count-words.test.ts with their rationale; this Tovu test file's header described a RED stub that no longer exists and was replaced with an accurate one."
+    },
+    {
+      "id": "b8637eea59e3",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "0494bb808476",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3a816f1cfdaa",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "e22b83e5b84b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3da4ae56654b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3c011ddffb4b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "ce657c36b6c0",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "6d0658ecbdcd",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
     }
   ]
 }

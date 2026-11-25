@@ -4,7 +4,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
-import { disconnectDestination, PublishTrustConnectError } from "../publish-trust/connect.js";
+import { disconnectDestination, PublishTrustConnectError } from "@jini-ai/cms/publish/trust/connect";
 import { disconnectAndForgetDestination } from "./connect-destination.js";
 import { defaultProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
 
