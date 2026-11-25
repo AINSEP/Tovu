@@ -152,7 +152,7 @@ test('production preview wiring schedules only from live guests and uses the tes
   const main = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
   const ipc = readFileSync(new URL('../../project-ipc.ts', import.meta.url), 'utf8');
   assert.match(main, /allowed: \(\{ owner, guest, target \}\) => isLivePreviewGuestAllowed\(/);
-  assert.match(main, /partitionSession: session\.fromPartition\(target\.partition\)/);
+  assert.match(main, /partitionSession: desktopPartitions\.siteSession\(\{ partition: target\.partition \}\)/);
   assert.doesNotMatch(main, /createListedPreviewRequests|requestListedSitePreview|scheduleSitePreview/);
   assert.doesNotMatch(ipc, /requestMissingPreviews|requestPreviewCapture/);
   assert.match(ipc, /SITE_IPC_CHANNELS\.list, \(\) => handleList/);

@@ -46,6 +46,8 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   agentService?: Pick<DesktopAgentService, "bindServer">;
   /** `desktop-auth.ts`'s `sitePartition`. */
   partitionFor: (required: { siteDir: string }) => string;
+  /** `desktop-partition-lock.ts`'s `acquireSite`: holds the site's partition before any session use. */
+  acquirePartition: (required: { siteDir: string }) => Promise<unknown>;
   /** `shared-sites.ts`'s `attachRunningSite` against the shared workspace. */
   attachRunning: (required: { siteDir: string }) => TServer | null;
   /** `shared-sites.ts`'s `rememberSharedSiteOpen` against the shared workspace. */
@@ -190,6 +192,8 @@ function createSiteBackendStarter<TServer extends SiteBackendServer>(ports: Site
     { siteDir, ctx }: { siteDir: string; ctx: SiteBackendCtx }, { port }: { port?: number } = {},
   ): Promise<{ server: TServer; partition: string }> {
     const partition = ports.partitionFor({ siteDir });
+    // Before attach or spawn: both paths seed/redeem the admin session in this partition.
+    await ports.acquirePartition({ siteDir });
     const attached = ports.attachRunning({ siteDir });
     if (attached) {
       ports.rememberOpen({ siteDir });

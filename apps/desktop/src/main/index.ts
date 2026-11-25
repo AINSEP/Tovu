@@ -145,7 +145,12 @@ import { registerResourcesIpc } from "../resources-ipc.ts";
 import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
-import { totalmem } from "node:os";
+import { totalmem, hostname as osHostname } from "node:os";
+import { randomBytes } from "node:crypto";
+import { withFileLock } from "@jini-ai/platform/fs";
+import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
+import { presenceClaimSource } from "@jini-ai/desktop-host/electron/partitions";
+import { bindDesktopPartitions, nodePartitionFs, NO_RETIREMENT } from "../desktop-partition-lock.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
@@ -287,6 +292,33 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
 // Must run before `app.whenReady()`; see `applyUserDataDir`'s doc (src/main/boot/boot-steps.ts) for why.
 const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir: DESKTOP_ROOTS.userDataDir, resolvePath: ({ dir }) => path.resolve(dir),
   setUserDataDir: ({ dir }) => app.setPath("userData", dir), getUserDataDir: () => app.getPath("userData") });
+
+// The profile partition interlock, bound to the canonical `userData`/`sessionData` just resolved
+// above and registered synchronously here, before `ready` and before any window, guest or session
+// exists (ALGO §24 ST-2a): an unregistered process never holds a partition, so a sibling's
+// next-start pass cannot miss one. Registration failure is logged; every open is then refused.
+// Retirement stays `NO_RETIREMENT` until ST-2b.T binds the erase arm's ledger.
+/** Signal-zero liveness; EPERM means alive under another user, so only ESRCH reads as gone. */
+function isPidAlive({ pid }: { pid: number }): boolean {
+  try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
+}
+const desktopPartitions = bindDesktopPartitions<Electron.Session>({
+  app: { getPath: (name) => app.getPath(name) }, session,
+  fs: nodePartitionFs({ fs }), fileLock: { withFileLock },
+  clock: { mono: () => performance.now(), now: () => Date.now() },
+  scheduler: { sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)), every: ({ ms, run }) => { const timer = setInterval(run, ms); timer.unref(); return { cancel: () => clearInterval(timer) }; } },
+  process: { pid: process.pid, bootId: readBootIdentity({})?.id ?? "unknown-boot", hostname: osHostname(),
+    isAlive: isPidAlive,
+    newToken: () => randomBytes(16).toString("hex") },
+  projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
+  catalog: { listSiteDirs: () => sharedSites.registry({}).list({}).map((entry) => entry.path) },
+  instances: [presenceClaimSource({ directory: presenceDirPath({ userDataDir: app.getPath("userData") }),
+    fs: { readdirSync: ({ path: dir }) => fs.readdirSync(dir), readFileSync: ({ path: file, encoding }) => fs.readFileSync(file, encoding) }, liveness: isPidAlive })],
+  retirement: NO_RETIREMENT, openMaintenance: async () => {},
+  log: ({ event, partition, detail }) => console.warn(`[partitions] ${event}${partition ? ` ${partition}` : ""}${detail ? `: ${detail}` : ""}`),
+});
+{ const registered = desktopPartitions.registerHolder(); if (registered.state === "failed") console.error(`[partitions] holder registration failed: ${registered.reason}`); }
+
 
 // The bundled node/npm/npx shims' env, or `undefined` if writing them failed. Written once, after
 // `userData` is set and before any site is served; see `prepareNodeToolchainEnv`'s doc.
@@ -430,7 +462,7 @@ const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
   },
   open: ({ target, getRevision, onFrame }) => openSiteThemePreviewStream({
     target, getRevision, onFrame,
-    fetch: (url, init) => session.fromPartition(target.partition).fetch(String(url), { ...init, credentials: "include" }),
+    fetch: (url, init) => desktopPartitions.siteSession({ partition: target.partition }).fetch(String(url), { ...init, credentials: "include" }),
   }),
 } });
 
@@ -525,6 +557,8 @@ function appWindowCount(): number { return SELFTEST ? BrowserWindow.getAllWindow
 
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
+  // Electron creates the partition's session implicitly inside `new BrowserWindow`; it must be held.
+  desktopPartitions.assertPartitionHeld({ partition });
   return createAppWindow(
     { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target) },
     { title, partition, selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) },
@@ -537,6 +571,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     rendererPath: SITES_RENDERER_PATH, sitesPreloadPath: SITES_PRELOAD_PATH, guestPreloadPath: SPEECH_PRELOAD_PATH,
     userDataDir: app.getPath("userData"), fileExists: ({ filePath }) => fs.existsSync(filePath),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
+    admitGuestPartition: ({ partition }) => desktopPartitions.admitGuestPartition({ partition }),
     readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: ({ url }) => void shell.openExternal(url),
@@ -562,6 +597,7 @@ const desktopAgentService = createDesktopAgentService({
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   agentService: desktopAgentService,
   partitionFor: ({ siteDir }) => sitePartition({ siteDir }),
+  acquirePartition: ({ siteDir }) => desktopPartitions.acquireSite({ siteDir }),
   attachRunning: ({ siteDir }) => attachRunningSite({ workspace: sharedSites, dir: siteDir }),
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
@@ -573,9 +609,9 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
   recordSiteOpened: ({ registryPath, row }) => siteChildRegistry.recordOpened({ registryDir: registryPath, row }),
   now: Date.now,
-  armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
-  ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
-  redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
+  armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: desktopPartitions.siteSession({ partition }), adminUrl, capability }),
+  ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl, redeem }),
+  redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl, bootToken }),
   log: ({ message }) => console.log(message), warn: ({ message }) => console.warn(message), error: ({ message }) => console.error(message),
   openSites,
   syncThemePreview: ({ siteDir }) => siteThemePreviews.sync({ siteDir }, {}),
@@ -597,7 +633,7 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
     return undefined;
   },
   allowed: ({ owner, guest, target }) => isLivePreviewGuestAllowed({ owner, guest,
-    shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: session.fromPartition(target.partition) }),
+    shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: desktopPartitions.siteSession({ partition: target.partition }) }),
   schedule: ({ siteDir }) => sitePreviewScheduler.schedule({ key: siteDir }, {}),
   cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}),
 });
@@ -622,7 +658,7 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => siteChildRegistry.recordClosed({ registryDir: registryPath, key: dir }, { pid }),
     siteThemePreviews, sitePreviewScheduler: { cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}) },
-    endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
+    endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
     platform: process.platform, quitPhase: () => quitPhase, logError: ({ message }) => console.error(message),
