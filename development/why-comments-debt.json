@@ -14272,6 +14272,50 @@
     {
       "id": "918fdcf94bca",
       "reason": "Documented the deleted assemblePromptWithPluginPrefix forwarding export (C036, P8-L1.T-C036); the assembly owner plugin-prompt-assembly.ts:3-10 keeps the empty-prefix and separator explanation."
+    },
+    {
+      "id": "d939ee337c2d",
+      "reason": "Documented mediaApi.saveMediaProviders, the whole-map PUT whose omitted providers were deleted server-side; b882474dd replaced it with patchMediaProvider/removeMediaProvider (one provider per PATCH/DELETE), and their docs in media-api.ts state the per-provider semantics and that deletion is only ever a named request."
+    },
+    {
+      "id": "87036f03ecf2",
+      "reason": "Documented media-providers-port's saveMediaProviders (persist the whole map); b882474dd replaced it with patchProvider/removeProvider, whose docs carry over the still-true parts (rejects on failure unlike fetchMediaProviders, the tab renders save-error, useMediaProvidersTab issues one write at a time)."
+    },
+    {
+      "id": "5a43648ba4c0",
+      "reason": "Headed the whole-map Replace test (the PUT would null the target's baseUrl/model); 38300cc4d rebound Security media writes to one-provider PATCH, and the rewritten test's 'Was:' comment explains the per-provider equivalent (the server merge keeps baseUrl/model, no other provider is written)."
+    },
+    {
+      "id": "e96bdfbd3c88",
+      "reason": "Regression header for the whole-map Remove that sent {} for every other provider and cleared their baseUrl/model; 38300cc4d replaced the rebuild with a DELETE naming one provider, so no other provider is written; the 'media Replace/Remove name exactly one provider' tests pin that instead."
+    },
+    {
+      "id": "e52e90b28c66",
+      "reason": "Explained the exact rebuilt PUT map (markers not echoed, absent apiKey keeps the key); 38300cc4d removed that map: a Replace now PATCHes { apiKey } for one provider, and the test's 'write carries the key alone' comment states the remaining rule."
+    },
+    {
+      "id": "6381616969b9",
+      "reason": "Regression header for the GET map → rebuild → PUT race between two in-tab removes; 38300cc4d removed the read-before-write, and the serialized-writes describe now opens with a 'Was:' comment restating this history and the per-provider guarantee it pins."
+    },
+    {
+      "id": "cb0b0f34f09f",
+      "reason": "Documented fakeMediaServer, a fake of the whole-map PUT semantics (absent provider hard-deleted); 38300cc4d replaced it with fakePerProviderMediaServer, documented as the per-provider PATCH-merge/DELETE fake."
+    },
+    {
+      "id": "0241b5677b6a",
+      "reason": "Said the second remove must not have 'read or written' yet; since 38300cc4d a remove no longer reads the map first, so the comment was reworded in place to 'must not have been sent yet'."
+    },
+    {
+      "id": "2dc01fe8391c",
+      "reason": "Explained the second PUT body built from the post-first-write map (unserialized it re-created cloudinary); 38300cc4d removed map bodies: each remove is a DELETE naming one provider, and the test asserts the two writes and the empty end state instead."
+    },
+    {
+      "id": "01122291ce2a",
+      "reason": "Said Security media keys keep the host's replaced-last write order; e79ca2ea2 dropped the dead mediaOrder: 'replaced-last' option once Jini's adapter (Jini 538470813) writes one provider row per PATCH/DELETE, and the doc now says exactly that."
+    },
+    {
+      "id": "d0fd7ed0c4bc",
+      "reason": "Said _routeDeps/_surfaces were unused because the component catalog was static; 6b664884a (B186) made chart entries come from the host's live chart-provider snapshot per request, and the rewritten doc explains readChartSnapshot's per-request read instead."
     }
   ]
 }
