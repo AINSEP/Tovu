@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { AdminMedia, MediaGridOrder, MediaGridPage, MediaGridTab } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { useFetchQuery as UseFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -70,8 +70,8 @@ export function useGridPages(required: GridPagesDeps, optional: { itemId?: strin
   const itemId = optional.itemId ?? null;
   const first = useFetchQuery({ key: [...KEYS.list, "grid", tab, orderBy], fetch: () => port.listMediaGrid({ tab, orderBy }, { limit: GRID_PAGE_SIZE }) });
   const [state, setState] = useState<MorePages>(NO_MORE);
-  const current = useRef(first.data);
-  current.current = first.data;
+  // The one stale guard: rows and the cursor are shown only for the page-one answer they were read after,
+  // so a response that lands after a tab, sort or refresh change is stored under a base nobody renders.
   const more = state.base === first.data && first.data !== undefined ? state : null;
   const items = first.data ? mergeRows({ first: first.data, more }) : null;
   const cursor = more ? more.cursor : first.data?.nextCursor ?? null;
@@ -88,10 +88,8 @@ export function useGridPages(required: GridPagesDeps, optional: { itemId?: strin
     setState({ base, rows, cursor, loading: true, error: null });
     try {
       const page = await port.listMediaGrid({ tab, orderBy }, { limit: GRID_PAGE_SIZE, cursor });
-      if (current.current !== base) return;
       setState({ base, rows: [...rows, ...page.media], cursor: page.nextCursor, loading: false, error: null });
     } catch (failure) {
-      if (current.current !== base) return;
       setState({ base, rows, cursor, loading: false, error: failure instanceof Error ? failure : new Error("more media could not be loaded") });
     }
   }, [first.data, cursor, more, port, tab, orderBy]);
