@@ -109,7 +109,7 @@ test('replace enforces the host upload size cap before writing', async t => {
   const { deps, media } = await fixture(t);
   const large = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1); Buffer.from(png, 'base64').copy(large);
   assert.deepEqual(await invoke({ deps, id: media.id, input: { ...body, dataBase64: large.toString('base64') } }),
-    { status: 400, json: { error: 'uploaded file exceeds the 50 MB size cap' } });
+    { status: 400, json: { error: 'That file is 50.1 MB; the limit is 50 MB.' } });
   assertAdminResponse({ actual: await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), expected: media });
 });
 
