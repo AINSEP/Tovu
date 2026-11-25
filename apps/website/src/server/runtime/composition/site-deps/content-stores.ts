@@ -5,16 +5,19 @@ import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { createMediaSearchChangeSink } from "#src/features/media/media-search-source";
 import { SqlitePostRepo } from "#src/features/post/index";
+import type { OutboxEventPreparation } from "@jini-ai/db/events";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 
 interface ComposeContentStoresRequired {
   kernel: SiteStore["content"];
   mediaAccessEvidence: MediaAccessEvidence;
   clock: { nowIso(): string };
+  /** Stamps the co-persisted change-set event with its producer's trace parent, inside the insert. */
+  prepareOutboxEvent: NonNullable<OutboxEventPreparation["prepareOutboxEvent"]>;
 }
 
 export function composeContentStores(required: ComposeContentStoresRequired, _optional = {}) {
-  const { kernel, mediaAccessEvidence, clock } = required;
+  const { kernel, mediaAccessEvidence, clock, prepareOutboxEvent } = required;
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
   // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(kernel)` — both
@@ -29,7 +32,7 @@ export function composeContentStores(required: ComposeContentStoresRequired, _op
   // stateless wrappers over the shared `db`, so a second instance would behave identically, but one
   // instance matches this root's own stated convention). `changeSets` is hoisted for the identical
   // reason as `revertRegistry`'s `postRepo` above.
-  const changeSets = new SqliteChangeSetRepo({ store: kernel });
+  const changeSets = new SqliteChangeSetRepo({ store: kernel }, { prepareOutboxEvent });
   // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
   // apply loop's `media.apply()` must read and write through the same adapters every media route
   // uses. Both are stateless wrappers over the shared `db`, so a second instance would behave

@@ -464,7 +464,7 @@ function ThemeExploreShowAllToggle({ groups, t }: { groups: ThemeExploreFileGrou
       aria-controls="theme-explore-files-panel"
       onClick={groups.toggleExpanded}
     >
-      {groups.expanded ? t("Show fewer") : t("Show all ({count})").replace("{count}", String(groups.groupCount))}
+      {groups.expanded ? t("Show fewer") : t("Show all ({count})").replace("{count}", () => String(groups.groupCount))}
     </button>
   );
 }

@@ -18,6 +18,7 @@ import { importSharedSiteDiscovery, handleList, handleLocate, rescanSites } from
 import { handleAddSite, handleImportArchive } from "./project-ipc.import.ts";
 import { handleCreate, planNewSiteDir, handleTokenSignInPlugins } from "./project-ipc.create.ts";
 import { handleDelete } from "./project-ipc.delete.ts";
+import { sitePartition } from "./desktop-auth.ts";
 import { handleOpenExternal, handleStart, handleStop, handleGetPreview } from "./project-ipc.server.ts";
 import { handleRename } from "./project-ipc.rename.ts";
 import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
@@ -165,6 +166,8 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     | "isLiveServeRow"
     | "serializer"
     | "ctx"
+    | "trimRetiredSiteCache"
+    | "warn"
   > &
   O {
   const dir = tempDir();
@@ -192,6 +195,9 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     isLiveServeRow,
     serializer: { run: ({ fn }: { key: string; fn: () => unknown }) => fn() },
     ctx: {},
+    // No real Electron partition exists in these tests; the delete tests that care record calls.
+    trimRetiredSiteCache: async () => {},
+    warn: () => {},
     ...overrides,
   };
 }
@@ -681,6 +687,71 @@ test("handleDelete on an untracked id never calls deletePreview — there is no 
   await handleDelete({ id: "/sites/never-tracked", deps });
 
   assert.deepEqual(deleted, []);
+});
+
+/** A recording `trimRetiredSiteCache` that also notes whether the row was still tracked at call time. */
+function recordCacheTrims({ projectsPath }: { projectsPath: string }) {
+  const calls: { siteDir: string; partition: string; stillTracked: boolean }[] = [];
+  const trimRetiredSiteCache: ProjectIpcDeps["trimRetiredSiteCache"] = async ({ siteDir }) => {
+    const stillTracked = readTrackedSites({ projectsPath }).some((row) => row.siteDir === siteDir);
+    calls.push({ siteDir, partition: sitePartition({ siteDir }), stillTracked });
+  };
+  return { calls, trimRetiredSiteCache };
+}
+
+test("project removal clears only the retired site's web caches after untracking", async () => {
+  // Both completed removal branches: a created site whose folder is erased, and an adopted site
+  // whose folder is kept. Either way the card is gone, so its partition's cache can never be reused.
+  for (const branch of ["erased", "kept"] as const) {
+    const root = tempDir();
+    const removed = branch === "erased" ? writeSite(path.join(root, "removed"), "site-removed") : path.join(root, "removed");
+    if (branch === "kept") fs.mkdirSync(removed);
+    const kept = writeSite(path.join(root, "kept"), "site-kept");
+    const deps = baseDeps();
+    const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
+    deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
+    trackSite({ projectsPath: deps.projectsPath, siteDir: removed }, branch === "erased" ? { origin: SITE_ORIGIN.created, siteId: "site-removed" } : { origin: SITE_ORIGIN.adopted });
+    trackSite({ projectsPath: deps.projectsPath, siteDir: kept }, { origin: SITE_ORIGIN.created, siteId: "site-kept" });
+
+    await handleDelete({ id: removed, deps });
+
+    assert.deepEqual(recorder.calls, [{ siteDir: removed, partition: sitePartition({ siteDir: removed }), stillTracked: false }], `${branch}: exactly one trim, for the removed site, after untracking`);
+    assert.match(recorder.calls[0]?.partition ?? "", /^persist:tovu-site-/);
+    assert.notEqual(recorder.calls[0]?.partition, sitePartition({ siteDir: kept }));
+    assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [kept]);
+  }
+});
+
+test("a refused erase never touches the site's partition cache", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "busy"), "site-busy");
+  const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
+  const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
+  deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-busy" });
+
+  await assert.rejects(() => handleDelete({ id: siteDir, deps }), /Its card has been kept/);
+
+  assert.deepEqual(recorder.calls, [], "the kept card can be reopened with its sign-in and cache intact");
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [siteDir]);
+});
+
+test("cache cleanup failure does not turn completed project removal into failed deletion", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "private-owner-path"), "site-cache-fail");
+  const warnings: string[] = [];
+  const deps = baseDeps({
+    trimRetiredSiteCache: async () => { throw Object.assign(new Error(`EPERM: ${siteDir}/Partitions/Cache`), { code: "EPERM" }); },
+    warn: ({ message }) => warnings.push(message),
+  });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-cache-fail" });
+
+  await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
+
+  assert.equal(fs.existsSync(siteDir), false);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
+  assert.equal(warnings.length, 1, "the failure reaches the host diagnostic sink");
+  assert.equal(warnings[0]?.includes(siteDir), false, "no local path in the message");
+  assert.equal(warnings[0]?.includes("private-owner-path"), false, "no local path in the message");
+  assert.match(warnings[0] ?? "", /Details: EPERM$/, "the redacted cause (its code, never its message) reaches the sink");
 });
 
 test("handleOpenExternal throws when the project is not currently open", async () => {

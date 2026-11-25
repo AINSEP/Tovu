@@ -25,7 +25,7 @@ function rig() {
     restoreFromArtifact: async ({ artifactRef }: { artifactRef: string }) => { calls.push(`restore:${artifactRef}`); return { restartRequired: true }; },
   } as never;
   const urls: string[] = [];
-  const required = (env: Record<string, string>) => ({ env, dbOps, ids, recordTargetTag: async () => undefined, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
+  const required = (env: Record<string, string>) => ({ env, dbOps, ids, lock: { withLock: async <T>({ run }: { run: () => Promise<T> }) => run() }, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
   return { calls, urls, required, desktop: { app, health } };
 }
 
@@ -68,11 +68,12 @@ test("apply without the owner's approval for that version is refused before the 
 
 test("an approved apply backs up first, stages the approved version, then hands off; rollback restores the restore point", async () => {
   const r = rig();
-  const runtime = bindSiteUpdateRuntime(r.required(ENV), { desktop: r.desktop });
+  const runtime = bindSiteUpdateRuntime(r.required(ENV), { desktop: r.desktop, rehearseMigration: async () => ({ status: "ok" }) });
   assert.ok(runtime);
   const plan = { fromVersion: "1.2.0", toVersion: "1.3.0", notes: "n" };
-  await runSiteUpdate({ ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy: "owner-1", toVersion: "1.3.0" } });
+  const { backupId } = await runSiteUpdate({ ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy: "owner-1", toVersion: "1.3.0" } });
   assert.deepEqual(r.calls.slice(0, 3), ["capture", "stage:1.3.0", "apply:1.3.0"]);
-  await runtime.site.rollback({ to: "1.2.0", backupId: "rp-1" });
+  assert.ok(backupId);
+  await runtime.site.rollback({ to: "1.2.0", backupId });
   assert.deepEqual(r.calls.slice(-2), ["rollback:1.2.0", "restore:rp-1"]);
 });

@@ -71,11 +71,10 @@
 //   FP: wrappers that catch but are written as a named middleware. FN: named handler functions
 //   defined in another file; async functions handed to non-route callbacks.
 //
-// 6 replace-dollar-expansion: `.replace(a, b)` / `.replaceAll(a, b)` where b is not a function and not
-//   a plain string literal — an identifier, template with substitutions, call, or property — so a
-//   `$&`, `$'`, `` $` `` or `$1` in the data is expanded. Same-file `const X = 'literal'` is resolved and
-//   skipped. b that already escapes `$` (`.replace(/\$/g, '$$$$')`) is skipped.
-//   FP: replacement values that can never contain `$` (numbers, fixed enums from another file).
+// 6 replace-dollar-expansion: candidates with a nonliteral replacement in `.replace(a, b)` /
+//   `.replaceAll(a, b)`. Direct string/no-substitution template literals, inline callbacks and
+//   unambiguously resolved local function declarations or const callbacks are excluded.
+//   FP: nonliteral values that cannot contain `$`, and callable values not proven by this syntax walk.
 //   FN: none known for direct calls; calls through `String.prototype.replace.call` are missed.
 //
 // 7 secrets-in-logs: console.* calls and `<x>.log|info|warn|error|debug|trace|fatal(..)` where x is
@@ -528,44 +527,42 @@ function checkHungHandler(ctx) {
 // ---------- check 6: replace $ expansion ----------
 function checkReplace(ctx) {
   const { sf, emit } = ctx;
-  const consts = new Map();
-  walk(sf, (n) => { if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && ts.isStringLiteralLike(unwrap(n.initializer))) consts.set(n.name.text, unwrap(n.initializer).text); });
+  const bindings = new Map();
+  walk(sf, (n) => {
+    if (![K.FunctionDeclaration, K.FunctionExpression, K.VariableDeclaration, K.Parameter, K.ClassDeclaration, K.ImportClause, K.ImportSpecifier, K.NamespaceImport, K.BindingElement].includes(n.kind) || !n.name) return;
+    const functionScoped = ts.isParameter(n) || ts.isVariableDeclaration(n) && !(n.parent.flags & ts.NodeFlags.BlockScoped) && !ts.isCatchClause(n.parent);
+    let scope = ts.isFunctionExpression(n) ? n : n.parent;
+    while (scope && !ts.isSourceFile(scope) && !isFn(scope)) {
+      if (!functionScoped && [K.Block, K.CaseBlock, K.CatchClause, K.ForStatement, K.ForInStatement, K.ForOfStatement].includes(scope.kind)) break;
+      scope = scope.parent;
+    }
+    const callable = ts.isFunctionDeclaration(n) || ts.isVariableDeclaration(n) && !!(n.parent.flags & ts.NodeFlags.Const) && n.initializer && isFn(unwrap(n.initializer));
+    const declarations = bindings.get(scope) ?? new Map();
+    for (const name of ts.isIdentifier(n.name) ? [n.name.text] : words(n.name)) {
+      const matches = declarations.get(name) ?? [];
+      matches.push(callable);
+      declarations.set(name, matches);
+    }
+    bindings.set(scope, declarations);
+  });
   walk(sf, (n) => {
     if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression) || !/^(replace|replaceAll)$/.test(n.expression.name.text) || n.arguments.length !== 2) return;
     const b = unwrap(n.arguments[1]);
     if (ts.isArrowFunction(b) || ts.isFunctionExpression(b)) return;
-    if (ts.isIdentifier(b) && ctx.locals.has(b.text)) return; // a same-file replacer function
+    if (ts.isIdentifier(b)) {
+      for (let scope = b.parent; scope; scope = scope.parent) {
+        const matches = bindings.get(scope)?.get(b.text);
+        if (!matches) continue;
+        if (matches.length === 1 && matches[0]) return; // a same-file replacer function
+        break;
+      }
+    }
     if (ts.isStringLiteralLike(b)) return; // a literal `$1`/`$&` is the author's intent
-    if (cannotHaveDollar(b, consts)) return;
     const t = b.getText();
-    if (/\\\$\/g\s*,\s*["'`]\$\$\$\$/.test(t) || /["'`]\$\$\$\$["'`]/.test(t)) return; // already escapes $
     const kind = ts.isIdentifier(b) ? "identifier" : ts.isTemplateExpression(b) ? "template" : ts.isCallExpression(b) ? "call" : ts.isPropertyAccessExpression(b) || ts.isElementAccessExpression(b) ? "property" : "expression";
     const fn = namedEnclosing(n);
     emit({ file: ctx.file, line: lineOf(sf, n), symbol: fn ? fnName(fn) : "<module>", detail: `${n.expression.name.text}(${clean(n.arguments[0].getText()).slice(0, 50)}, <${kind}> ${clean(t).slice(0, 60)})` });
   });
-}
-// Values that cannot carry a `$`: literals without one, numbers, encodeURIComponent (it encodes `$`),
-// String()/toFixed() of number-named values, and templates/conditionals/`??` built only from those.
-const NUMERIC_NAME = /(count|Count|length|Length|size|Size|index|Index|version|Version|minutes|Minutes|seconds|Seconds|hours|Hours|days|Days|Ms|ms|num|Num|number|Number|total|Total|percent|Percent|port|Port|year|Year|^n|^i)$/;
-function cannotHaveDollar(e, consts) {
-  e = unwrap(e);
-  if (!e) return true;
-  if (ts.isStringLiteralLike(e)) return !e.text.includes("$");
-  if (ts.isNumericLiteral(e) || e.kind === K.TrueKeyword || e.kind === K.FalseKeyword) return true;
-  if (ts.isIdentifier(e)) return consts.has(e.text) ? !consts.get(e.text).includes("$") : NUMERIC_NAME.test(e.text);
-  if (ts.isPropertyAccessExpression(e)) return NUMERIC_NAME.test(e.name.text);
-  if (ts.isTemplateExpression(e)) return !e.head.text.includes("$") && e.templateSpans.every((sp) => !sp.literal.text.includes("$") && cannotHaveDollar(sp.expression, consts));
-  if (ts.isConditionalExpression(e)) return cannotHaveDollar(e.whenTrue, consts) && cannotHaveDollar(e.whenFalse, consts);
-  if (ts.isBinaryExpression(e) && [K.QuestionQuestionToken, K.BarBarToken].includes(e.operatorToken.kind)) return cannotHaveDollar(e.left, consts) && cannotHaveDollar(e.right, consts);
-  if (ts.isBinaryExpression(e) && e.operatorToken.kind === K.PlusToken) return cannotHaveDollar(e.left, consts) && cannotHaveDollar(e.right, consts);
-  if (ts.isCallExpression(e)) {
-    const name = calleeName(e);
-    if (name === "encodeURIComponent") return true;
-    if ((name === "String" || name === "Number") && e.arguments.length === 1) return name === "Number" || cannotHaveDollar(e.arguments[0], consts);
-    if (/^(toFixed|toPrecision)$/.test(name ?? "")) return true;
-    if (/^(toString|toLocaleString)$/.test(name ?? "") && ts.isPropertyAccessExpression(e.expression)) return cannotHaveDollar(e.expression.expression, consts);
-  }
-  return false;
 }
 
 // ---------- check 7: secrets in logs ----------
@@ -674,7 +671,7 @@ const TRADES = {
   "abort-not-reaching-writes": "Skips handlers that hand their whole context to another file; write verbs exclude builder-shaped names (*View, *Loader, *Ports, *Options...) and factories; UI .tsx handler maps are not tools.",
   "unenforced-permission": "Any authorize/permission/principal/actor/role/owner word, or handing the context to another file, counts as enforcement.",
   "hung-express-handler": "Only async functions written inline (or same-file named) in the route call; await x.catch(..) counts as covered; apps/desktop skipped (Express 5).",
-  "replace-dollar-expansion": "Literal replacements are the author's intent; number-named values, String()/toFixed() of them and encodeURIComponent output are treated as $-free.",
+  "replace-dollar-expansion": "Candidates exclude direct string/no-substitution template literals, inline callbacks and unambiguously resolved local function declarations or const callbacks; a nearer binding shadows an outer callable.",
   "secrets-in-logs": "Only console/log/logger receivers; descriptive names (has*/is*/*Name/*Id/*Env...), LLM and paging tokens, and anything inside redact/mask/hash/Boolean/typeof/comparisons are ignored.",
 };
 const md = [`# Bug-class audit — ${today}`, "", `Generated by \`development/scripts/bug-class-audit.mjs\`. Static syntax-tree heuristics, one file at a time; every row is a candidate to confirm, not a confirmed bug.`, "",

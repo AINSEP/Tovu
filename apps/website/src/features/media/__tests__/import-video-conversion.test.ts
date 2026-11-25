@@ -169,3 +169,32 @@ test("the video cap sits above Jini's import threshold, so the conversion is rea
   assert.equal(shouldTranscodeOnImport({ sizeBytes: VIDEO_UPLOAD_LIMIT_BYTES, contentType: "video/quicktime" }), true);
   assert.equal(uploadLimitFor({ contentType: "image/png" }), MAX_UPLOAD_BYTES);
 });
+
+// B-VIDEO-NOTE.T: the request that stored the original carries the fixed code; the cause stays in the sink.
+test("a failed video conversion returns the original and never serializes its cause", async () => {
+  const h = harness();
+  const canary = "CANARY-7f3 /opt/provider/ffmpeg said: quota exhausted";
+  const { transcoder, calls } = fakeTranscoder(new Error(canary));
+  const { store, notes } = wired(h, transcoder, { thresholdBytes: 10 });
+
+  const result = await store(videoUpload());
+
+  assert.equal(calls.length, 1, "the converter is attempted once");
+  assert.ok(await h.deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }), "the original still resolves");
+  assert.equal((result as { conversionNotice?: unknown }).conversionNotice, "web-copy-unavailable");
+  assert.deepEqual(Object.keys(result).sort(), ["conversionNotice", "media"]);
+  assert.ok(!JSON.stringify(result).includes("CANARY-7f3"), "the cause is never serialized into the result");
+  assert.equal((notes[0]!.cause as Error).message, canary, "the cause reaches only the injected diagnostic sink");
+});
+
+test("a converted, untouched, or non-video upload carries no conversion notice", async () => {
+  for (const [upload, threshold] of [[videoUpload(), 10], [videoUpload(), VIDEO_BYTES.byteLength]] as const) {
+    const h = harness();
+    const { transcoder } = fakeTranscoder({ ok: true, bytes: CONVERTED });
+    const { store } = wired(h, transcoder, { thresholdBytes: threshold });
+    assert.ok(!("conversionNotice" in await store(upload)));
+  }
+  const h = harness();
+  const { store } = wired(h, fakeTranscoder(new Error("never called")).transcoder, { thresholdBytes: 10 });
+  assert.ok(!("conversionNotice" in await store({ workspaceId: WORKSPACE_ID, bytes: PNG_BYTES, filename: "pixel.png", contentType: "image/png", createdByPrincipal: PRINCIPAL_ID })));
+});

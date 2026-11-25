@@ -57,7 +57,7 @@ it("Owner badge uses server owner classification or builtin role; never username
 
 it("rendered owner row keeps admin login, shows the Owner role, and hides Delete/Disable", async () => {
   const port = createFakeUsersPort({}, { users: [{ ...user, isOwner: true, isProtectedAccount: true }],
-    roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true }], meId: "owner" });
+    roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true, version: 1 }], meId: "owner" });
   render(<FetchQueryProvider><Users useUsersHook={() => useUsers({ port })} /></FetchQueryProvider>);
   // why: Jini 86e44994 dropped the "Owner" badge beside the username (the Roles column already shows it), so the row shows Owner once, in its Roles cell.
   await waitFor(() => expect(screen.getByRole("cell", { name: "Owner" })).toBeTruthy());
@@ -69,7 +69,7 @@ it("rendered owner row keeps admin login, shows the Owner role, and hides Delete
 });
 it("rendered admin sees only Manage on an owner target", async () => {
   const port = createFakeUsersPort({}, { users: [{ ...user, isOwner: true, isProtectedAccount: true }],
-    roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true }], meId: "another-admin" });
+    roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true, version: 1 }], meId: "another-admin" });
   render(<FetchQueryProvider><Users useUsersHook={() => useUsers({ port })} /></FetchQueryProvider>);
   await waitFor(() => expect(screen.getByRole("button", { name: "admin" })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: 'Actions for user "admin"' }));

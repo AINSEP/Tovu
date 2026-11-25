@@ -11,6 +11,7 @@ function deps(over: Partial<SiteUpdateToolDeps> & { running?: string; latest?: {
   const authorized: string[] = [];
   const toolDeps: SiteUpdateToolDeps = {
     authorize: async ({ permission }) => void authorized.push(permission),
+    readOwnerId: async () => "owner-1",
     runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => over.running ?? "1.2.0" },
     ...over,
   };

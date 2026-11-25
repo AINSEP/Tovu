@@ -67,8 +67,8 @@ const USER_B = {
   roleIds: [] as string[],
   policyIds: [] as string[],
 };
-const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false };
-const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false };
+const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false, version: 1 };
+const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, version: 1, isFrozen: false };
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 

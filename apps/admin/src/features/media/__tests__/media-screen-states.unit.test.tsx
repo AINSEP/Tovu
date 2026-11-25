@@ -78,6 +78,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     openUpload: vi.fn(),
     closeUpload: vi.fn(),
     uploadError: null,
+    conversionNotice: null,
     canUpload: false,
     altDraft: "",
     setAltDraft: vi.fn(),

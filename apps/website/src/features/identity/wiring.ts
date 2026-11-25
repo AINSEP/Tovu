@@ -1,5 +1,6 @@
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
@@ -344,10 +345,10 @@ export function createInMemoryIdentityRouteDeps(required: {
 }, _optional: Record<string, never> = {}): IdentityRouteDepsSlice {
   const repos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
-    users: new InMemoryUserRepo({}),
+    users: new InMemoryUserRepo({ assertVersionedWrite }),
     sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
     policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}),
     principalRoles: new InMemoryPrincipalRoleRepo({}),
@@ -402,10 +403,10 @@ export function createSqliteIdentityRouteDeps(
   const repos: IdentityRepos = {
     transactions: createIdentityTransactions({ kernel: db }),
     principals: new SqlitePrincipalRepo(db),
-    users: new SqliteUserRepo(db),
+    users: new SqliteUserRepo({ store: db, assertVersionedWrite }),
     sessions: new SqliteSessionRepo(db),
-    roles: new SqliteRoleRepo(db),
-    policies: new SqlitePolicyRepo(db),
+    roles: new SqliteRoleRepo({ store: db, assertVersionedWrite }),
+    policies: new SqlitePolicyRepo({ store: db, assertVersionedWrite }),
     policyPermissions: new SqlitePolicyPermissionRepo(db),
     rolePolicies: new SqliteRolePolicyRepo(db),
     principalRoles: new SqlitePrincipalRoleRepo(db),

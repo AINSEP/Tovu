@@ -8,7 +8,8 @@ import { ownerAccessFor, startServingRoutines, type ServingRoutines } from "./mo
 import { servingRoutineToolOptions, settingsLocaleFor } from "./modules/serving-routine-tools.js";
 import type { RoutineRunHandler } from "@jini-ai/daemon";
 
-import { startOutboxDrainer } from "#src/contracts/core/events/outbox-drainer";
+import { startOutboxDrainer, type OutboxQueueMetrics } from "#src/contracts/core/events/outbox-drainer";
+import { readOutboxQueueDepth } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
@@ -66,6 +67,21 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  */
 
 /**
+ * The drainer's queue-depth gauge ports, or nothing: no gauge without the durable content kernel or
+ * without metric admission by the observability port. The depth is this workspace's live outbox
+ * rows; no workspace, event, URL or payload label is attached.
+ * @returns `{ queueMetrics }` to spread into the drainer options, or `{}`.
+ */
+function outboxQueueMetrics({ routeDeps }: { routeDeps: Pick<NonNullable<Parameters<typeof createApp>[0]>, "contentKernel" | "workspaceId" | "observability"> }, _optional = {}): { queueMetrics?: OutboxQueueMetrics } {
+  const { contentKernel, workspaceId, observability } = routeDeps;
+  if (!contentKernel || observability.supportsMetric !== true) return {};
+  return { queueMetrics: {
+    readDepth: () => readOutboxQueueDepth({ store: contentKernel, workspaceId }),
+    metric: (required, optional) => observability.metric(required, optional),
+  } };
+}
+
+/**
  * Builds the site app and starts its background loops.
  *
  * @param routeDeps the serving process's composed deps; its `outbox`/`bus`/`clock` feed the
@@ -113,7 +129,7 @@ export function createServingApp(
   bindRoutines(routines.ready);
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
-    { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }
+    { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker, ...outboxQueueMetrics({ routeDeps }) }
   );
   // Unlike the drainer, the sweeper has no ordering dependency on `createApp` — it reads and writes
   // only `trashed_items` and the domain markers, and publishes nothing onto the bus. It starts here

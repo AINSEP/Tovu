@@ -166,7 +166,7 @@ function AdminTopbar({ sidebarOpen, setSidebarOpen, navLocale }: {
 }
 
 /** The column right of the sidebar: topbar, the routed `<main>` and the scroll buttons. */
-export function ShellMain({ sidebarOpen, setSidebarOpen, navLocale, agentPage, setContentEl, contentEl, content }: {
+export function ShellMain({ sidebarOpen, setSidebarOpen, navLocale, agentPage, setContentEl, contentEl, content, siteUpdateNotice }: {
   sidebarOpen: boolean;
   setSidebarOpen: (value: boolean | ((current: boolean) => boolean)) => void;
   navLocale: string;
@@ -174,6 +174,8 @@ export function ShellMain({ sidebarOpen, setSidebarOpen, navLocale, agentPage, s
   setContentEl: ReturnType<typeof useAgentPageBridge>["setContentEl"];
   contentEl: ReturnType<typeof useAgentPageBridge>["contentEl"];
   content: ReactNode;
+  /** Shell-level notice above the routed page; absent outside the authenticated shell. */
+  siteUpdateNotice?: ReactNode;
 }) {
   const contentNode = contentEl ?? null;
   return (
@@ -198,6 +200,7 @@ export function ShellMain({ sidebarOpen, setSidebarOpen, navLocale, agentPage, s
       <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPage}>
         {/* Keep page overlays in the same allowed root and page identity as their triggers. */}
         <KitProvider kit={tovuKit} agent={tovuAgentAttrs} overlayContainer={contentEl}>
+          {siteUpdateNotice}
           {content}
         </KitProvider>
       </main>

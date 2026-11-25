@@ -199,7 +199,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
      * it does substring matching is fine as long as this comment exists. If it needs to be better,
      * that is a real feature, not a tweak here.
      */
-    async search_published_entries(input: { query?: unknown }): Promise<{ entries: readonly PublicEntrySummary[]; truncated: boolean }> {
+    async search_published_entries(input: { query?: unknown }, _optional = {}): Promise<{ entries: readonly PublicEntrySummary[]; truncated: boolean; more?: string }> {
       const query = typeof input?.query === "string" ? input.query.trim().toLowerCase() : "";
       const entries = await readPublished();
       const matched = query.length === 0
@@ -207,7 +207,14 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
         : entries.filter(
             (e) => e.title.toLowerCase().includes(query) || e.slug.toLowerCase().includes(query),
           );
-      return { entries: matched.slice(0, limit).map(toSummary), truncated: matched.length > limit };
+      // An anonymous count must use the same visibility decision as returned rows.
+      const truncated = matched.length > limit;
+      const results = matched.slice(0, limit).map(toSummary);
+      return {
+        entries: results,
+        truncated,
+        ...(truncated ? { more: `Showing ${results.length} of ${matched.length} matching published entries. Narrow the search to see a different set.` } : {}),
+      };
     },
 
     /**
@@ -256,7 +263,7 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
   {
     name: "search_published_entries",
     description:
-      "Search this site's published posts and pages by title or slug. Returns summaries only, at most 20 by default; truncated: true means more matched. Omit query to list published entries.",
+      "Search this site's published posts and pages by title or slug. Returns summaries only, at most 20 by default; when truncated, more reports the matching published count and asks you to narrow the search. Omit query to list published entries.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "Text to match against title or slug." } },

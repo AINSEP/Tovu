@@ -98,7 +98,7 @@ function liveForeignServers({ deps, siteDir, ownPid }: { deps: Pick<ProjectIpcDe
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-export async function handleDelete({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
+export async function handleDelete({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites" | "trimRetiredSiteCache" | "warn"> }, _options = {}): Promise<void> {
   await deps.serializer.run({ key: id, fn: () => deleteProject({ id, deps }) });
 }
 
@@ -108,7 +108,7 @@ export async function handleDelete({ id, deps }: { id: string; deps: Pick<Projec
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
+async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites" | "trimRetiredSiteCache" | "warn"> }, _options = {}): Promise<void> {
   const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -148,7 +148,32 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   // (`site-preview-store.ts`'s own doc on why an orphan is otherwise unreachable, not merely
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview({ id });
+  // Last, and only once the row is untracked on either completed branch: a refused or failed erase
+  // keeps the card, and a kept card must reopen with its cache (and sign-in) exactly as it was.
+  await trimRetiredCache({ id, deps });
+}
 
+/** {@link deleteProject}'s cache retirement. The removal already completed, so a cache failure is a
+ * diagnostic, never a failed deletion; the message names no path (it would expose the owner's tree).
+ * @complexity O(1) beyond the port's own clear.
+ */
+async function trimRetiredCache(
+  { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "trimRetiredSiteCache" | "warn"> }, _options = {},
+): Promise<void> {
+  try { await deps.trimRetiredSiteCache({ siteDir: id }, {}); }
+  catch (error) {
+    deps.warn({ message: `tovu desktop: a removed website's browser cache could not be cleared. The website itself was removed. Details: ${cacheErrorCode({ error })}` });
+  }
+}
+
+/** The redacted detail for a cache failure: its errno code or class name only, because the message of a
+ * file-system error quotes the partition path under the owner's tree.
+ * @complexity O(1).
+ */
+function cacheErrorCode({ error }: { error: unknown }, _options = {}): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && /^[A-Z0-9_]{1,32}$/.test(code)) return code;
+  return error instanceof Error ? error.name : "unknown";
 }
 
 /** {@link deleteProject}'s erase gate (D-08): refuse while another app or instance serves the site.
