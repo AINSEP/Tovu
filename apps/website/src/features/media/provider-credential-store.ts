@@ -111,7 +111,7 @@ export function mediaProviderSetRevision({ records }: { records: readonly MediaP
 
 /** {@link getMediaProviderCredentials} plus its revision, both from ONE list read so they describe the same set. Never decrypts. @complexity O(n log n). */
 export async function getMediaProviderCredentialsModel(
-  { deps, workspaceId }: { deps: Pick<MediaProviderCredentialReadDeps, "repo">; workspaceId: UUID },
+  { deps, workspaceId }: { deps: { repo: Pick<MediaProviderCredentialRepoPort, "listByWorkspaceId"> }; workspaceId: UUID },
   _optional: Record<string, never> = {},
 ): Promise<MediaProviderCredentialReadModel> {
   const records = await deps.repo.listByWorkspaceId({ workspaceId });
