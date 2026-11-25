@@ -30,7 +30,7 @@ import type {
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
-import type { ThemeTier } from "../themes/api/themes-api.types";
+import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";

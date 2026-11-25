@@ -2,11 +2,11 @@ import { useConfirmRequest, type ConfirmDialogProps } from "@jini-ai/admin/react
 import { interpolate, type Translate } from "@jini-ai/core/text";
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import type { ChosenThemeHeldBack, HeldBackCheckResult, HeldBackTheme } from "../api/held-back-themes-api";
+import type { ChosenThemeHeldBack, HeldBackCheckResult, HeldBackTheme } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 import { ApiError } from "../../../lib/admin-http/request";
 import { heldBackFailure, isSectionUnavailable, type HeldBackFailure } from "../held-back-themes-failure";
 import { defaultHeldBackThemesPort } from "./held-back-themes-dependencies.hooks";
-import type { HeldBackThemesPort } from "./held-back-themes-port.hooks";
+import type { HeldBackThemesPort } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 
 /**
  * @file Everything the "Held back on import" section does (A452), so `HeldBackThemes.tsx` is markup.

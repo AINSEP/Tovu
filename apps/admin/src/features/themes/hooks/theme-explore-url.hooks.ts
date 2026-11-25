@@ -1,4 +1,4 @@
-import type { ThemeFileGroup } from "./theme-explore-port.hooks";
+import type { ThemeFileGroup } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 
 /**
  * @file One resolver for Explore's two read-side URL params (`?file=`, `?page=`) plus the one

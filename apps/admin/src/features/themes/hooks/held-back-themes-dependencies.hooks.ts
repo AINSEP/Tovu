@@ -1,7 +1,8 @@
 import { ApiError } from "@/lib/admin-http/request";
 
-import { heldBackThemesApi, type ChosenThemeHeldBack, type HeldBackCheckResult, type HeldBackTheme } from "../api/held-back-themes-api";
-import type { HeldBackThemesPort } from "./held-back-themes-port.hooks";
+import { heldBackThemesApi } from "../api/held-back-themes-api";
+import type { ChosenThemeHeldBack, HeldBackCheckResult, HeldBackTheme } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
+import type { HeldBackThemesPort } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 
 /**
  * @file The only place under `features/themes` that binds {@link HeldBackThemesPort} to the real

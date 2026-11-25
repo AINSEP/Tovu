@@ -1,6 +1,6 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 
 import { isActiveTheme } from "./rules";
 

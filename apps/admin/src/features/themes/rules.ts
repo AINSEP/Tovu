@@ -1,4 +1,5 @@
-import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
+import { NO_THEME_ID } from "./api/themes-api.types";
+import type { PresentationSettings, ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
