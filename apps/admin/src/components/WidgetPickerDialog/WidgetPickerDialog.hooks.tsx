@@ -9,7 +9,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";
 import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
-import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/widget-config-host-policy";
 import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
 import type { WidgetPickerPort } from "@jini-ai/admin/shell/components/WidgetPickerDialog/widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";

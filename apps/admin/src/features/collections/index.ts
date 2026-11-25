@@ -8,4 +8,3 @@
  */
 export { Collections } from "./CollectionsScreen";
 export { CollectionEntries } from "./CollectionEntriesScreen";
-export { CollectionEntryEditor } from "./CollectionEntryEditor";

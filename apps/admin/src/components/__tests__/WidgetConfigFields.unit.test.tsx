@@ -7,7 +7,8 @@ import { collectionsApi } from "../../features/collections/collections-host-port
 import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/forms-host-ports";
-import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
+import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/widget-config-host-policy";
 
 /**
  * @file First test file for `WidgetConfigFields.tsx` (0% before this pass — no test file existed).

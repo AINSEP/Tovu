@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WidgetsTransportPort } from '@jini-ai/admin/widgets/adapters/http';
 import { WIDGETS_LIBRARY_RESOURCE, WIDGETS_REGIONS_RESOURCE, widgetTypeLabel } from '@jini-ai/admin/widgets';
 import { createWidgetsHostPorts, createWidgetsTranslator, widgetsEvents, widgetsNavigation } from '../widgets-ports';
-import { WIDGET_TYPE_OPTIONS } from '../../../components/WidgetConfigFields/WidgetConfigFields';
+import { WIDGET_TYPE_OPTIONS } from '../../../components/WidgetConfigFields/widget-config-host-policy';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 afterEach(() => { resetContentRefreshBus(); window.history.replaceState(null, '', '/'); });

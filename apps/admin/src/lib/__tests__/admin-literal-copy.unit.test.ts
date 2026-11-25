@@ -116,6 +116,8 @@ it("production admin features and shared components add no untranslated JSX copy
   const baseline = JSON.parse(readFileSync(path.join(__dirname, "fixtures/admin-literal-copy.baseline.json"), "utf8")) as { sites: LiteralCopy[] };
   expect(Array.isArray(baseline.sites)).toBe(true);
   const actual = ["features", "components"].flatMap((directory) => scanCopySources({ root: SRC, directory: path.join(SRC, directory) }));
+  const entryMarkup = "../node_modules/@jini-ai/cms/src/react/collections/CollectionEntryEditor.tsx";
+  actual.push(...findLiteralCopy({ file: "react/collections/CollectionEntryEditor.tsx", source: readFileSync(path.resolve(SRC, entryMarkup), "utf8") }).map(site => ({ ...site, file: entryMarkup })));
   const additions = newLiteralCopy({ actual, baseline: baseline.sites });
   expect(additions, `Translate new copy through its owner:\n${additions.map(({ file, line, kind, text }) => `${file}:${line} ${kind} ${JSON.stringify(text)}`).join("\n")}`).toEqual([]);
   // The ratchet only shrinks: a resolved site left in the baseline would silently re-admit that literal.

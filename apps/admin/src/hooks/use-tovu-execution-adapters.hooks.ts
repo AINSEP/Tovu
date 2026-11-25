@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { ExecutionConfig } from '@jini-ai/core/contracts/execution';
 import type { ChatPaneAgent, ChatPaneAgentSelection, ChatPaneRuntimeAccess } from '@jini-ai/chat/react';
-import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/execution-config.hooks';
+import type { UseExecutionConfig } from '@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { effectiveExecutionConfig } from '@/lib/tovu-execution-policy';
 import { useTovuExecutionPolicy } from './use-tovu-execution-policy.hooks';

@@ -29,7 +29,7 @@
       "reason": "Exact brand, protocol, unit or editor notation."
     },
     {
-      "file": "features/collections/CollectionEntryEditor.tsx",
+      "file": "../node_modules/@jini-ai/cms/src/react/collections/CollectionEntryEditor.tsx",
       "line": 328,
       "kind": "placeholder",
       "text": "entry-slug",
