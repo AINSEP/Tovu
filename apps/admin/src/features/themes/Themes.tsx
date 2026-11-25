@@ -9,7 +9,7 @@ import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";

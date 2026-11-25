@@ -1,5 +1,5 @@
 import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
-import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentPeerView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { overwriteReplanIsConsistent, PublishPlanDriftError, canConfirmPlan, canRequestPlan, confirmationTokenFor, countSelectedPublishing, planOnScreen, reportOnScreen, publishOrderComparator, rowPublishesWithSelection, selectableRowKeys, sortPublishReportRows, summarizePublishReport, type CriteriaSelection, type PublishContentNotSupportedByLive, type PublishContentExecuteResult, type PublishContentOutcomeRow, type PublishContentPhase, type PublishContentPlanResult, type PublishContentReport, type PublishCriteria, type PublishReportRow, type PublishReportSummary, type PublishRequestResult, type PublishScope } from "@jini-ai/cms/publish/content/ui";
@@ -18,12 +18,11 @@ import { overwriteReplanIsConsistent, PublishPlanDriftError, canConfirmPlan, can
  * non-Error.
  *
  */
-import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 
-import { buildCriteriaPublishResult } from "./criteria-publish-result";
+import { buildCriteriaPublishResult } from "@jini-ai/cms/react/publish-content/criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
@@ -945,7 +944,7 @@ export function usePublishContentConfirm(props: {
     }
     criteriaSelectionRef.current = null;
     const siteLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? null;
-    onPlanned(buildCriteriaPublishResult({ rows: rows, selection: sel, siteLabel: siteLabel }));
+    onPlanned(buildCriteriaPublishResult({ rows: rows, selection: sel, siteLabel: siteLabel, nextStep: "Check the list in the Publish dialog, then click Publish." }));
   }, [phase, rows]);
 
   const { overwriteWarning, overwriteUnavailable } = publishOverwriteNotices({

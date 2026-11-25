@@ -1,7 +1,7 @@
 import "../../styles/native-domain-dialogs.css";
 import { Collections as CollectionsView } from "@jini-ai/admin/screens/collections/Collections";
 import { ServerLabel } from "@/components/status-labels";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 import { contentTypeMenuItems } from "./collections-host-ports";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";

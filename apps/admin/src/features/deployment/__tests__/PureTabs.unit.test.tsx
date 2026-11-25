@@ -1,7 +1,11 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import { HistoryTab } from "../HistoryTab";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../deployment-host-i18n";
+import { HistoryIcon } from "../deployment-visuals";
+import { HistoryTab } from "@jini-ai/devops/deploy/react";
 
 /**
  * @file `HistoryTab` — the tab left with no hook and no fetch (see its file's
@@ -20,7 +24,8 @@ import { HistoryTab } from "../HistoryTab";
 
 describe("HistoryTab", () => {
   it("renders a real empty state — no fabricated build/deploy rows", () => {
-    render(<HistoryTab />);
+    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />);
+    expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("href", "/admin/deployment?tab=static-site");
     expect(screen.getByText("No deploys yet")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -33,7 +38,7 @@ describe("HistoryTab", () => {
   });
 
   it("tags the empty-state region and its publish link for the AI assistant", () => {
-    render(<HistoryTab />);
+    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />);
     expect(document.querySelector('[data-agent-element="deployment-history-empty"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-history-publish-link"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("data-agent-element", "deployment-history-publish-link");

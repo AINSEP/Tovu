@@ -1,6 +1,6 @@
 import { act, render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
-import { PublishSectionButton } from "../PublishSectionButton";
+import { PublishSectionButton } from "../publish-section-button-binding";
 import { setPublishToLiveAvailable } from "../hooks/publish-availability.store";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setPublishToLiveAvailable({ next: true }); });

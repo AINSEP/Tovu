@@ -4,7 +4,7 @@ import { createElement, useMemo, type ReactElement, type ComponentType } from 'r
 import { redirects, type RedirectsReactOptions } from '@jini-ai/admin/redirects/react';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { deleteRedirectBody, importRulesLabel } from '@jini-ai/admin/screens/redirects/redirects-i18n';
-import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
+import { PublishSectionButton } from '../../features/publish-content/publish-section-button-binding';
 import { createRedirectsTranslator } from './redirects-ports';
 
 // The host Provider wraps the package Provider, so its element type is host-owned.

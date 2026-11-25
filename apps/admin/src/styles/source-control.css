@@ -1,6 +1,6 @@
 /* ================================================================================================
    Source Control page — a CONNECTION page (save a personal access token per provider), not git
-   integration. See `features/source-control/SourceControl.tsx`'s own header for the scope boundary
+   integration. See `features/source-control/source-control-panel.tsx`'s own header for the scope boundary
    and why this page is its own Operations entry rather than a Deployment tab.
 
    This file draws on the SAME design tokens `styles.css` defines (`--space-*`, `--surface*`,
