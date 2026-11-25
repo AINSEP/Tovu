@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test, beforeEach, afterEach } from 'node:test';
-import type { Express, Request, Response } from 'express';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import express from 'express';
 import { registerOwnerRecoveryRoutes } from '../owner-recovery-routes.js';
 import type { RouteDeps } from '#src/server/routes/types';
 
@@ -8,11 +10,15 @@ let savedOrigin: string | undefined;
 beforeEach(() => { savedOrigin = process.env.TOVU_PUBLIC_URL; delete process.env.TOVU_PUBLIC_URL; });
 afterEach(() => { if (savedOrigin === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = savedOrigin; });
 
-/** Direct invocation with injected admission: no listeners, timers, Electron or real sleeps. */
+// Driven through a real Express app over HTTP (not a hand-rolled req/res double), so the assertions
+// hold for whatever writes the reply: the status, the JSON body, the headers and what was read before it.
+// It replaces the earlier harness, "Direct invocation with injected admission: no listeners, timers, Electron or real sleeps.":
+// still no timers, Electron or real sleeps; the one listener is loopback-only and closed after each request.
 function fixture(options: { caller?: string; desktop?: boolean; allowed?: boolean; failedStore?: boolean; capability?: string; local?: boolean; forwarded?: boolean } = {}) {
-  type Handler = (req: Request, res: Response) => Promise<void>;
-  const handlers = new Map<string, Handler>();
-  const app = { post: (path: string, handler: Handler) => handlers.set(path, handler), get: (path: string, handler: Handler) => handlers.set(path, handler) } as unknown as Express;
+  const app = express();
+  // TLS is terminated in front of the app unless this request arrives forwarded (then plain http + x-forwarded-proto).
+  app.use((req, _res, next) => { if (!options.forwarded) Object.defineProperty(req, 'protocol', { value: 'https' }); next(); });
+  app.use(express.json());
   let writes = 0;
   const deps = { workspaceId: 'workspace', identityReady: Promise.resolve(), ownerPrincipalId: Promise.resolve('owner'),
     recoveryCodes: options.failedStore ? undefined : { clear: async () => { writes++; } },
@@ -23,17 +29,25 @@ function fixture(options: { caller?: string; desktop?: boolean; allowed?: boolea
     limiter: { check: async () => ({ allowed: options.allowed ?? true, retryAfterSeconds: 60 }) },
   });
   async function invoke(path: string, body: object = {}, crossSite = false) {
-    let status = 200, result: unknown;
-    const headers = new Map<string, string>();
-    const requestHeaders = { host: options.local ? 'localhost:4317' : 'site.test', origin: options.local ? 'https://localhost:4317' : 'https://site.test', ...(options.capability ? { 'x-tovu-desktop-owner-signin': options.capability } : {}), ...(options.forwarded ? { 'x-forwarded-proto': 'https' } : {}) };
-    const req = { body, headers: requestHeaders, protocol: options.forwarded ? 'http' : 'https', ip: '127.0.0.1', socket: options.local ? { localAddress: '127.0.0.1', remoteAddress: '127.0.0.1' } : {}, is: () => 'application/json',
-      get: (key: string) => (crossSite && key === 'origin' ? 'https://attacker.test' : (requestHeaders as Record<string, string>)[key]),
-    } as unknown as Request;
-    const res = { setHeader: (key: string, value: string) => headers.set(key, value), status: (code: number) => { status = code; return res; },
-      json: (value: unknown) => { result = value; return res; }, send: () => res,
-    } as unknown as Response;
-    await handlers.get(`/api/admin/v1/auth/${path}`)!(req, res);
-    return { status, result, headers };
+    const requestHeaders = { host: options.local ? 'localhost:4317' : 'site.test', origin: crossSite ? 'https://attacker.test' : options.local ? 'https://localhost:4317' : 'https://site.test', 'content-type': 'application/json', ...(options.capability ? { 'x-tovu-desktop-owner-signin': options.capability } : {}), ...(options.forwarded ? { 'x-forwarded-proto': 'https' } : {}) };
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise((resolve) => server.once('listening', resolve));
+    try {
+      const method = path === 'owner-recovery' ? 'GET' : 'POST';
+      const reply = await new Promise<{ status: number; text: string; headers: Headers }>((resolve, reject) => {
+        const request = http.request({ host: '127.0.0.1', port: (server.address() as AddressInfo).port, path: `/api/admin/v1/auth/${path}`, method, headers: requestHeaders }, (response) => {
+          let text = '';
+          response.setEncoding('utf8').on('data', (chunk: string) => { text += chunk; }).on('end', () => {
+            const headers = new Headers();
+            for (const [key, value] of Object.entries(response.headers)) if (typeof value === 'string') headers.set(key, value);
+            resolve({ status: response.statusCode ?? 0, text, headers });
+          });
+        });
+        request.on('error', reject);
+        request.end(method === 'POST' ? JSON.stringify(body) : undefined);
+      });
+      return { status: reply.status, result: reply.text ? JSON.parse(reply.text) as unknown : undefined, headers: reply.headers };
+    } finally { server.close(); }
   }
   return { invoke, writes: () => writes };
 }
