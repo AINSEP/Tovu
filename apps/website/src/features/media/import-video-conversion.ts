@@ -1,7 +1,10 @@
 import {
-  convertMediaVideo, shouldTranscodeOnImport, VideoConversionError,
-  type ConvertMediaVideoDeps, type MediaRecord,
+  convertMediaVideo, shouldTranscodeOnImport, uploadMedia, VideoConversionError,
+  type ConvertMediaVideoDeps, type MediaRecord, type MediaRepoPort, type UploadMediaDeps, type UploadMediaInput,
 } from "@jini-ai/cms/media";
+import type { Clock } from "@jini-ai/core/primitives";
+import { createDerivedMediaLink } from "./derived-media-link.js";
+import type { MediaConversionPorts } from "./tool-registrations.js";
 
 /**
  * @file Owner rule 2026-10-31: a .mov/.m4v up to 50 MB is kept exactly as uploaded; over 50 MB it is
@@ -81,4 +84,62 @@ export function withVideoConversionOnImport<Input extends UploadFacts>(
     await convertStoredUpload({ conversion, input, stored });
     return stored;
   };
+}
+
+/** The injected pieces of the owner's video import rule (2026-10-31); absent, an import never converts. */
+export interface VideoImportOptions {
+  /** The ffmpeg adapter built at the composition root; no transcoder means no conversion. */
+  ports: MediaConversionPorts;
+  /** Where the plain-words note goes when a conversion could not be made (see `ImportVideoConversion`). */
+  reportNote: ImportVideoConversion["reportNote"];
+  /** Overrides Jini's 50 MiB import threshold. */
+  thresholdBytes?: number | undefined;
+}
+
+/**
+ * The note sink the production mount passes: the owner-facing sentence and the raw cause both go to the
+ * operator log (the cause as a separate argument, never spliced into the sentence), because the upload
+ * response has no field for the owner to read. The sentence itself never carries the cause, see
+ * `describeSkippedConversion`. `warn` is injected (the mount passes `console.warn`). @complexity O(1).
+ */
+export function operatorLogVideoNote(
+  { warn }: { warn: (line: string, cause: unknown) => void },
+  _optional: Record<string, never> = {},
+): ImportVideoConversion["reportNote"] {
+  return ({ note, cause }) => warn(`[media-import] ${note}`, cause);
+}
+
+/** Builds the hook's conversion ports from the same repositories the import itself writes to, or
+ *  `undefined` when the host injected no converter. @complexity O(1). */
+function buildImportVideoConversion(
+  { uploadDeps, mediaRepo, clock, video }: { uploadDeps: UploadMediaDeps; mediaRepo: MediaRepoPort; clock: Clock; video: VideoImportOptions | undefined },
+  _optional: Record<string, never> = {},
+): ImportVideoConversion | undefined {
+  const transcoder = video?.ports.transcoder;
+  if (!video || !transcoder) return undefined;
+  return {
+    deps: { ...uploadDeps, transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo, clock }) },
+    reportNote: video.reportNote,
+    thresholdBytes: video.thresholdBytes,
+  };
+}
+
+/**
+ * THE one store-then-convert upload every import path uses (admin direct upload, admin URL import, the
+ * assistant's URL and local-file imports), so the owner's rule cannot be wired into some paths and
+ * forgotten in others. Same cap and ports as a bare `uploadMedia`; with no `video` it behaves as one.
+ * @complexity O(1) to build; each call is O(bytes) like `uploadMedia`.
+ */
+export function createConvertingUploader(
+  required: {
+    uploadDeps: UploadMediaDeps; maxUploadBytes: number;
+    mediaRepo: MediaRepoPort; clock: Clock;
+  },
+  optional: { video?: VideoImportOptions | undefined } = {},
+): (input: UploadMediaInput) => Promise<{ media: MediaRecord }> {
+  const { uploadDeps, maxUploadBytes, mediaRepo, clock } = required;
+  return withVideoConversionOnImport({
+    storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, { maxUploadBytes }),
+    conversion: buildImportVideoConversion({ uploadDeps, mediaRepo, clock, video: optional.video }),
+  });
 }

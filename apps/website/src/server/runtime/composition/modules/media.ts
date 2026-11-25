@@ -10,9 +10,7 @@ import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-ht
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
 import type { MediaRecord } from "#src/features/media/index";
-import { withVideoConversionOnImport, type ImportVideoConversion } from "#src/features/media/import-video-conversion";
-import { createDerivedMediaLink } from "#src/features/media/derived-media-link";
-import type { MediaConversionPorts } from "#src/features/media/tool-registrations";
+import { createConvertingUploader, type VideoImportOptions } from "#src/features/media/import-video-conversion";
 import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
@@ -200,30 +198,7 @@ function uploadedMediaKind(required: { kind: string; contentType: string }, _opt
   return "other";
 }
 
-/** The injected pieces of the owner's video import rule (2026-10-31); absent, uploads never convert. */
-export interface VideoImportOptions {
-  /** The ffmpeg adapter built at the composition root; no transcoder means no conversion. */
-  ports: MediaConversionPorts;
-  /** Where the plain-words note goes when a conversion could not be made (see `ImportVideoConversion`). */
-  reportNote: ImportVideoConversion["reportNote"];
-  /** Overrides Jini's 50 MiB import threshold. */
-  thresholdBytes?: number | undefined;
-}
-
-/** Builds the hook's conversion ports from the same repositories the upload itself writes to, or
- *  `undefined` when the host injected no converter. @complexity O(1). */
-function importVideoConversion(
-  { deps, uploadDeps, video }: { deps: MediaRouteDeps; uploadDeps: UploadMediaDeps; video: VideoImportOptions | undefined },
-  _optional: Record<string, never> = {},
-): ImportVideoConversion | undefined {
-  const transcoder = video?.ports.transcoder;
-  if (!video || !transcoder) return undefined;
-  return {
-    deps: { ...uploadDeps, transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: deps.mediaRepo, clock: deps.clock }) },
-    reportNote: video.reportNote,
-    thresholdBytes: video.thresholdBytes,
-  };
-}
+export type { VideoImportOptions };
 
 /**
  * `upload`: Jini `mediaUploadRoute` with the host's upload pipeline (50 MiB owner cap, document archive
@@ -248,14 +223,13 @@ export function registerAdminMediaUploadRoute(
     clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
     renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
   };
-  const storeUpload = (input: MediaUploadInput) => uploadMedia({
-    deps: uploadPorts,
-    input: { workspaceId: deps.workspaceId, ...input },
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  // The owner's video import size rule (a video over the import size is converted after it is stored, the original stays)
+  // is applied by the one shared uploader every import path uses; see import-video-conversion.ts.
+  const convertingUpload = createConvertingUploader({ uploadDeps: uploadPorts, maxUploadBytes: TOVU_MAX_UPLOAD_BYTES, mediaRepo: deps.mediaRepo, clock: deps.clock }, { video: videoImport });
+  const storeUpload = (input: MediaUploadInput) => convertingUpload({ workspaceId: deps.workspaceId, ...input });
   const uploadDeps = {
     ...mediaPortDeps({ deps }),
-    // A video over the owner's import size is converted after it is stored (the original stays); see import-video-conversion.ts.
-    storeUpload: withVideoConversionOnImport({ storeUpload, conversion: importVideoConversion({ deps, uploadDeps: uploadPorts, video: videoImport }) }),
+    storeUpload,
     recordContentType: ({ sha256, contentType }: { sha256: string; contentType: string }) => deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType }),
     onUploaded: ({ actorId, kind, contentType, byteLength }: { actorId: string; kind: MediaKind; contentType: string; byteLength: number }) => captureMediaUploaded({
       tracker: deps.tracker, actorId, byteLength, kind: uploadedMediaKind({ kind, contentType }), source: "admin",
@@ -329,17 +303,18 @@ export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImp
  *  @complexity O(1) setup; per request as the spec. */
 export function registerAdminMediaImportUrlRoute(
   { app, deps }: { app: Express; deps: MediaImportUrlRouteDeps },
-  optional: { logEgressRefusal?: (line: string) => void } = {},
+  optional: { logEgressRefusal?: (line: string) => void; videoImport?: VideoImportOptions } = {},
 ): void {
+  const convertingUpload = createConvertingUploader({
+    uploadDeps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES, mediaRepo: deps.mediaRepo, clock: deps.clock,
+  }, { video: optional.videoImport });
   mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: {
     ...mediaPortDeps({ deps }),
     // This is the dedicated MEDIA_IMPORT_EGRESS_POLICY client from composition, never the
     // credentialed-request client (which has a smaller cap and a different redirect policy).
     fetchImage: ({ url }) => fetchImage({ deps: { httpClient: deps.mediaImportHttpClient }, url }),
-    uploadMedia: (input) => uploadMedia({
-      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
-      input,
-    }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    uploadMedia: (input) => convertingUpload(input),
     mediaContentTypeStore: { set: (input) => deps.mediaContentTypeStore.set(input) },
     egressRefusalMessage: ({ error }) => egressRefusalMessage({ error }, { log: optional.logEgressRefusal }),
     toMediaResponse: async ({ media, contentType, byteSize }) => {
@@ -368,7 +343,7 @@ export function createMediaModule(
       registerAdminMediaListRoute({ app, deps });
       registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute({ app, deps }, { videoImport });
-      registerAdminMediaImportUrlRoute({ app, deps });
+      registerAdminMediaImportUrlRoute({ app, deps }, { videoImport });
       registerAdminMediaReplaceRoute({ app, deps });
       registerAdminMediaUpdateRoute({ app, deps });
       registerAdminMediaTrashRoute({ app, deps });

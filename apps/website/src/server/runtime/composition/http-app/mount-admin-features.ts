@@ -25,6 +25,7 @@ import { createFormsAdminModule } from "../modules/forms-admin.js";
 import { createRedirectsModule } from "../modules/redirects.js";
 import { createDatabaseRecoveryModule } from "../modules/database-recovery.js";
 import { createMediaConversionPorts } from "../media-video-ports.js";
+import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
 import { mountRoutes } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
 
@@ -64,7 +65,7 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // cannot be made is logged for the operator and never fails the upload (no owner-facing field exists on the upload response).
   mountRoutes({ app, mod: createMediaModule(routeDeps, { videoImport: {
     ports: createMediaConversionPorts(),
-    reportNote: ({ note, cause }) => console.warn(`[media-import] ${note}`, cause),
+    reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }),
   } }) });
   // The local admin Trash screen's 3 routes (design:
   // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Registered next to `media`
