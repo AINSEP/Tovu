@@ -28,7 +28,8 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
-import { createExecutionPort, selectedLocalCliReasoning } from "../../lib/execution-settings";
+import { createExecutionPort } from "../../lib/execution-settings";
+import { selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
 // `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
 import { useAssistantDockChrome, resolveAssistantConversationTitle, useChatsSeam } from "./hooks/dock-chrome.hooks";
@@ -260,7 +261,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
     // The Execution tab owns the "Reasoning effort" control, so this comes from the persisted
     // ledger rather than from the dock's own picker (which has no effort axis). Reading it here is
     // what turns a stored level into real CLI argv — see `useRunContext`'s own doc.
-    reasoning: selectedLocalCliReasoning(executionConfig),
+    reasoning: selectedLocalCliReasoning({ config: executionConfig }, {}),
     pluginRefIds: selectedPluginRefIds,
     selectedSkills: selectedSkills.selectedSkills,
     // Same id already passed to `<ChatPane conversationId={...}>` below — see `useRunContext`'s

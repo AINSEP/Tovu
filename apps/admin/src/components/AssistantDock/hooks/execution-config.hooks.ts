@@ -6,7 +6,8 @@ import { useExecutionConfig as useAdminExecutionConfig, useStoredAdminKey } from
 import type { DockExecutionConfigPort, ExecutionWrite, UseExecutionConfig } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
 import { useExecutionConfigLedger } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config-ledger.hooks";
 import { retryWhileUnreachable } from "@/lib/retry-unreachable";
-import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
+import { DEFAULT_EXECUTION_CONFIG, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";
 
 /**

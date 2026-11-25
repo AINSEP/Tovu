@@ -1,10 +1,10 @@
+import { resolveByokFooterStatusLine, type AdminByokSaveState } from "@jini-ai/integrations/react/admin-credentials/byok-footer-status";
+import { STORED_KEY_OTHER_PROVIDER_COPY } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AgentElementRole } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import {
-  resolveByokFooterStatusLine,
-  type AdminByokSaveState,
   type AdminExecutionCredentialController,
 } from "../hooks/use-admin-execution-credential.hooks";
 
@@ -123,7 +123,14 @@ export function AdminByokKeyFooter({ controller, agentHandle: handle, t,
   const sharedT = createAdminByokKeyPanelTranslator({ locale });
   const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine({ status: saveState.status, isStored: stored?.isSet ?? false }, { storedKeyIsForOtherEndpoint, t: t ?? ((key) => sharedT({ key })) });
+  const statusT = t ?? ((key: string) => sharedT({ key }));
+  const statusLine = resolveByokFooterStatusLine({ status: saveState.status, isStored: stored?.isSet ?? false, copy: {
+    saving: statusT("Saving…"),
+    saved: statusT("Saved to the server, encrypted."),
+    otherEndpoint: statusT(STORED_KEY_OTHER_PROVIDER_COPY),
+    stored: statusT("Stored on the server, encrypted. Paste a new key to replace it."),
+    enterKey: statusT("Paste your key, then press Save key."),
+  } }, { storedKeyIsForOtherEndpoint });
 
   return (
     <div className="assistant-key-footer">

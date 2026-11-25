@@ -1,3 +1,5 @@
+import { resolveByokFooterStatusLine } from "@jini-ai/integrations/react/admin-credentials/byok-footer-status";
+import { useExecutionCredential } from "@jini-ai/ui";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/core/contracts/execution";
@@ -33,11 +35,18 @@ const getAdminExecutionCredential = vi.fn();
 const setAdminExecutionCredential = vi.fn();
 
 import {
-  resolveByokFooterStatusLine,
   useAdminExecutionCredential,
   useWiredAdminExecutionCredential,
 } from "../use-admin-execution-credential.hooks";
 import { createFakeAdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
+
+const footerCopy = {
+  saving: "Saving…",
+  saved: "Saved to the server, encrypted.",
+  otherEndpoint: "Your saved key is for a different provider. Paste a key for this one.",
+  stored: "Stored on the server, encrypted. Paste a new key to replace it.",
+  enterKey: "Paste your key, then press Save key.",
+};
 
 const LEGACY_STORAGE_KEY = "tovu:execution-credentials:v1";
 
@@ -104,7 +113,7 @@ describe("useAdminExecutionCredential — host error copy", () => {
   ])("preserves or supplies the operator message for %s", async (error, message) => {
     const port = createFakeAdminExecutionCredentialPort({ onSave: () => { throw error; } });
     const onByokChange = vi.fn();
-    const { result } = renderHook(() => useAdminExecutionCredential({ byok: byok({ apiKey: "sk-keep-this-key" }), onByokChange }, port));
+    const { result } = renderHook(() => useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-keep-this-key" }), onByokChange }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}));
     await waitFor(() => expect(result.current.stored).toEqual(unsetView()));
     await act(async () => { await result.current.saveKey(); });
     expect(result.current.saveState).toEqual({ status: "error", message });
@@ -438,7 +447,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
       stored: setView({ masked: "••••live" }),
     });
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok(), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok(), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
 
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -451,7 +460,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
     const port = createFakeAdminExecutionCredentialPort();
     const onByokChange = vi.fn();
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed" }), onByokChange }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-typed" }), onByokChange }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
 
@@ -473,7 +482,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
     });
     const onByokChange = vi.fn();
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed" }), onByokChange }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-typed" }), onByokChange }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
 
@@ -491,7 +500,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
     window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
     const port = createFakeAdminExecutionCredentialPort();
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok(), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok(), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
 
@@ -534,7 +543,7 @@ describe("saveKey — edits made while the save is in flight survive", () => {
     };
     const onByokChange = vi.fn();
     const { result, rerender } = renderHook(
-      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ input: { byok: b, onByokChange }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { b: byok({ apiKey: "sk-a1b2c3", model: "m1" }) } },
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -573,7 +582,7 @@ describe("saveKey — edits made while the save is in flight survive", () => {
     };
     const onByokChange = vi.fn();
     const { result, rerender } = renderHook(
-      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ input: { byok: b, onByokChange }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { b: byok({ apiKey: "sk-a1b2c3" }) } },
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -674,39 +683,39 @@ describe("useAdminExecutionCredential — the two buttons write disjoint patches
 // combinations without a render at all.
 describe("resolveByokFooterStatusLine", () => {
   it("reports 'Saving…' while saving, regardless of isStored", () => {
-    expect(resolveByokFooterStatusLine({ status: "saving", isStored: false })).toBe("Saving…");
-    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true })).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: false, copy: footerCopy }, {})).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true, copy: footerCopy }, {})).toBe("Saving…");
   });
 
   it("reports the saved confirmation once saved", () => {
-    expect(resolveByokFooterStatusLine({ status: "saved", isStored: false })).toBe("Saved to the server, encrypted.");
+    expect(resolveByokFooterStatusLine({ status: "saved", isStored: false, copy: footerCopy }, {})).toBe("Saved to the server, encrypted.");
   });
 
   it("distinguishes 'stored' from 'never stored' while idle", () => {
-    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true })).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
-    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false })).toBe("Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true, copy: footerCopy }, {})).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false, copy: footerCopy }, {})).toBe("Paste your key, then press Save key.");
   });
 
   it("returns null on error — the footer renders the error via a separate element", () => {
-    expect(resolveByokFooterStatusLine({ status: "error", isStored: false })).toBeNull();
+    expect(resolveByokFooterStatusLine({ status: "error", isStored: false, copy: footerCopy }, {})).toBeNull();
   });
 
   it("asks for this provider's key while idle when the stored key belongs to another endpoint", () => {
-    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe(
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true, copy: footerCopy }, { storedKeyIsForOtherEndpoint: true })).toBe(
       "Your saved key is for a different provider. Paste a key for this one.",
     );
     // Progress and confirmation still win: they describe the press, not the stored row.
-    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe("Saving…");
-    expect(resolveByokFooterStatusLine({ status: "saved", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe("Saved to the server, encrypted.");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true, copy: footerCopy }, { storedKeyIsForOtherEndpoint: true })).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saved", isStored: true, copy: footerCopy }, { storedKeyIsForOtherEndpoint: true })).toBe("Saved to the server, encrypted.");
   });
 
   it("translates the line it returns through t", () => {
     const t = (key: string) => `[es] ${key}`;
-    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: true, t })).toBe(
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true, copy: { saving: t(footerCopy.saving), saved: t(footerCopy.saved), otherEndpoint: t(footerCopy.otherEndpoint), stored: t(footerCopy.stored), enterKey: t(footerCopy.enterKey) } }, { storedKeyIsForOtherEndpoint: true })).toBe(
       "[es] Your saved key is for a different provider. Paste a key for this one.",
     );
-    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false }, { storedKeyIsForOtherEndpoint: false, t })).toBe("[es] Paste your key, then press Save key.");
-    expect(resolveByokFooterStatusLine({ status: "error", isStored: false }, { storedKeyIsForOtherEndpoint: false, t })).toBeNull();
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false, copy: { saving: t(footerCopy.saving), saved: t(footerCopy.saved), otherEndpoint: t(footerCopy.otherEndpoint), stored: t(footerCopy.stored), enterKey: t(footerCopy.enterKey) } }, { storedKeyIsForOtherEndpoint: false })).toBe("[es] Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine({ status: "error", isStored: false, copy: { saving: t(footerCopy.saving), saved: t(footerCopy.saved), otherEndpoint: t(footerCopy.otherEndpoint), stored: t(footerCopy.stored), enterKey: t(footerCopy.enterKey) } }, { storedKeyIsForOtherEndpoint: false })).toBeNull();
   });
 });
 
@@ -732,7 +741,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
     async (_label, protocol, baseUrl) => {
       const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
       const { result } = renderHook(() =>
-        useAdminExecutionCredential({ byok: byok({ protocol, providerId: protocol, baseUrl }), onByokChange: vi.fn() }, port),
+        useAdminExecutionCredential({ input: { byok: byok({ protocol, providerId: protocol, baseUrl }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
       );
       await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
 
@@ -742,7 +751,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
       expect(result.current.canDiscoverModels).toBe(false);
       expect(result.current.apiKeyStoredExternally).toBe(false);
       expect(result.current.apiKeyPlaceholder).toBeUndefined();
-      expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: result.current.storedKeyIsForOtherEndpoint })).toBe(
+      expect(resolveByokFooterStatusLine({ status: "idle", isStored: true, copy: footerCopy }, { storedKeyIsForOtherEndpoint: result.current.storedKeyIsForOtherEndpoint })).toBe(
         "Your saved key is for a different provider. Paste a key for this one.",
       );
     },
@@ -751,7 +760,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
   it("on Google itself the stored key still counts: mask shown, discovery and Test connection allowed", async () => {
     const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ protocol: "google", providerId: "google", baseUrl: GOOGLE }), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ protocol: "google", providerId: "google", baseUrl: GOOGLE }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
 
@@ -764,7 +773,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
   it("follows the form: Google -> OpenAI hides the mask and blocks discovery; a typed OpenAI key allows both probes again", async () => {
     const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
     const { result, rerender } = renderHook(
-      ({ config }: { config: ByokConfig }) => useAdminExecutionCredential({ byok: config, onByokChange: vi.fn() }, port),
+      ({ config }: { config: ByokConfig }) => useAdminExecutionCredential({ input: { byok: config, onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { config: byok({ protocol: "google", providerId: "google", baseUrl: GOOGLE }) } },
     );
     await waitFor(() => expect(result.current.apiKeyPlaceholder).toBe("••••mw4w"));
@@ -785,7 +794,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
   it("claims nothing before the stored view loads, so the server still answers for that first probe", async () => {
     const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ protocol: "openai", providerId: "openai", baseUrl: OPENAI }), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ protocol: "openai", providerId: "openai", baseUrl: OPENAI }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
 
     expect(result.current.stored).toBeNull();
@@ -825,7 +834,7 @@ describe("useAdminExecutionCredential — stored: an older read never overwrites
       },
     };
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     // The mount GET (load #1) is left pending on purpose.
     await waitFor(() => expect(loads.length).toBe(1));
@@ -875,7 +884,7 @@ describe("useAdminExecutionCredential — stored: an older read never overwrites
       },
     };
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(loads.length).toBe(1)); // the mount GET, left pending
 
@@ -971,7 +980,7 @@ describe("useAdminExecutionCredential — the three writes to the one credential
       apiKey: "",
     });
     const { result, rerender } = renderHook(
-      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ input: { byok: b, onByokChange: vi.fn() }, port: server.port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { b: byok({ model: "model-a" }) } },
     );
     await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
@@ -1017,7 +1026,7 @@ describe("useAdminExecutionCredential — the three writes to the one credential
       apiKey: "",
     });
     const { result, rerender } = renderHook(
-      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ input: { byok: b, onByokChange: vi.fn() }, port: server.port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { b: byok({ model: "model-a" }) } },
     );
     await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
@@ -1057,7 +1066,7 @@ describe("useAdminExecutionCredential — the three writes to the one credential
       apiKey: "",
     });
     const { result, rerender } = renderHook(
-      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ input: { byok: b, onByokChange: vi.fn() }, port: server.port, useExecutionCredentialHook: useExecutionCredential }, {}),
       { initialProps: { b: byok({ apiKey: "sk-new-key", model: "model-a" }) } },
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -1100,7 +1109,7 @@ describe("useAdminExecutionCredential — the three writes to the one credential
       },
     };
     const { result } = renderHook(() =>
-      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-abcde" }), onByokChange: vi.fn() }, port),
+      useAdminExecutionCredential({ input: { byok: byok({ apiKey: "sk-abcde" }), onByokChange: vi.fn() }, port: port, useExecutionCredentialHook: useExecutionCredential }, {}),
     );
     await waitFor(() => expect(result.current.stored).not.toBeNull());
 

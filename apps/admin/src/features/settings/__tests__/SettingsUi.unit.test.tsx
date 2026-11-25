@@ -1,3 +1,4 @@
+import { useExecutionCredential } from "@jini-ai/ui";
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -332,7 +333,7 @@ describe("Execution tab — a Google key saved, the form moved to another provid
     render(
       <SettingsUi
         useSettingsUiHook={useLiveSettingsUi}
-        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential(input, credentialPort)}
+        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential({ input: input, port: credentialPort, useExecutionCredentialHook: useExecutionCredential }, {})}
       />,
     );
     return probes;

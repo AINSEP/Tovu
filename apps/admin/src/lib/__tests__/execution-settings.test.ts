@@ -69,26 +69,8 @@ vi.mock("../admin-http/request", async (importOriginal) => ({
   ApiError: FakeApiError,
 }));
 
-import {
-  DEFAULT_EXECUTION_CONFIG,
-  buildByokConfigFromLedger,
-  buildLocalCliConfigFromLedger,
-  clearLegacyLocalCredential,
-  createExecutionPort,
-  hasTypedAdminKey,
-  hasUsableAdminKey,
-  loadAdminExecutionCredential,
-  loadExecutionConfig,
-  readByokProtocol,
-  readByokProviderId,
-  readExecutionMode,
-  readLegacyLocalCredential,
-  reconcileExecutionConfigRefresh,
-  resetLocalAgentDetectionCache,
-  saveAdminExecutionCredential,
-  saveExecutionConfig,
-  selectedLocalCliReasoning,
-} from "../execution-settings";
+import { DEFAULT_EXECUTION_CONFIG, clearLegacyLocalCredential, createExecutionPort, loadAdminExecutionCredential, loadExecutionConfig, readLegacyLocalCredential, resetLocalAgentDetectionCache, saveAdminExecutionCredential, saveExecutionConfig } from "../execution-settings";
+import { buildByokConfigFromLedger, buildLocalCliConfigFromLedger, hasTypedAdminKey, hasUsableAdminKey, readByokProtocol, readByokProviderId, readExecutionMode, reconcileExecutionConfigRefresh, selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 const LEGACY_STORAGE_KEY = "tovu:execution-credentials:v1";
@@ -341,22 +323,22 @@ describe("buildLocalCliConfigFromLedger", () => {
 describe("selectedLocalCliReasoning", () => {
   it("returns the selected agent's own reasoning pick", () => {
     expect(
-      selectedLocalCliReasoning({
+      selectedLocalCliReasoning({ config: {
         ...DEFAULT_EXECUTION_CONFIG,
         localCli: { agentId: "claude", reasoningByAgentId: { claude: "max", codex: "low" } },
-      }),
+      } }, {}),
     ).toBe("max");
   });
 
   it("returns '' when no agent is picked, or the picked agent has no reasoning entry", () => {
     expect(
-      selectedLocalCliReasoning({
+      selectedLocalCliReasoning({ config: {
         ...DEFAULT_EXECUTION_CONFIG,
         localCli: { agentId: null, reasoningByAgentId: { claude: "max" } },
-      }),
+      } }, {}),
     ).toBe("");
     expect(
-      selectedLocalCliReasoning({ ...DEFAULT_EXECUTION_CONFIG, localCli: { agentId: "codex" } }),
+      selectedLocalCliReasoning({ config: { ...DEFAULT_EXECUTION_CONFIG, localCli: { agentId: "codex" } } }, {}),
     ).toBe("");
   });
 });
@@ -743,7 +725,7 @@ describe("reconcileExecutionConfigRefresh — the 2026-08-05 autosave key-wipe f
 
   it("preserves the operator's in-memory apiKey instead of the reload's always-empty one", () => {
     const current: ExecutionConfig = { ...loaded, byok: { ...loaded.byok, apiKey: "sk-typed-not-yet-saved" } };
-    const result = reconcileExecutionConfigRefresh(current, loaded);
+    const result = reconcileExecutionConfigRefresh({ current: current, loaded: loaded }, {});
     expect(result.byok.apiKey).toBe("sk-typed-not-yet-saved");
   });
 
@@ -753,7 +735,7 @@ describe("reconcileExecutionConfigRefresh — the 2026-08-05 autosave key-wipe f
       byok: { ...loaded.byok, apiKey: "sk-typed", model: "stale-model" },
       localCli: { agentId: "claude" },
     };
-    const result = reconcileExecutionConfigRefresh(current, loaded);
+    const result = reconcileExecutionConfigRefresh({ current: current, loaded: loaded }, {});
     expect(result.mode).toBe(loaded.mode);
     expect(result.byok.model).toBe(loaded.byok.model);
     expect(result.localCli).toEqual(loaded.localCli);
@@ -761,7 +743,7 @@ describe("reconcileExecutionConfigRefresh — the 2026-08-05 autosave key-wipe f
 
   it("is a no-op when nothing is typed — an empty apiKey reconciles to an empty apiKey", () => {
     const current: ExecutionConfig = { ...loaded, byok: { ...loaded.byok, apiKey: "" } };
-    expect(reconcileExecutionConfigRefresh(current, loaded).byok.apiKey).toBe("");
+    expect(reconcileExecutionConfigRefresh({ current: current, loaded: loaded }, {}).byok.apiKey).toBe("");
   });
 });
 

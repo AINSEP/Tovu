@@ -2,7 +2,7 @@ import { useAssistantTransport, type AssistantTransportInput, type AssistantTran
 
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
-import { selectedLocalCliReasoning } from "@/lib/execution-settings";
+import { selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { localCliSelectionFromConfig } from "../execution-config-write";
 import { getResumeCapableAgentIds } from "./agents-inventory.hooks";
 
@@ -22,7 +22,7 @@ export const tovuAssistantTransportOptions: AssistantTransportOptions = {
   // (Here "this file" is `agents-inventory.hooks.ts`, where `getResumeCapableAgentIds` is defined;
   // the hook that passes both to the factory now lives in `@jini-ai/admin`'s `assistant-transport.hooks`.)
   getResumeCapableAgentIds,
-  selectedLocalCliReasoning,
+  selectedLocalCliReasoning: (config) => selectedLocalCliReasoning({ config }, {}),
   localCliSelectionFromConfig,
 };
 
