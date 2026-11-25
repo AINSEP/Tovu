@@ -55,6 +55,12 @@ import { credentialSaveCatalog } from "../../features/custom-credentials/credent
 import { providerStatusAgentToolCatalog } from "../../features/plugin-runtime/provider-status-tool.js";
 import { catalog as credentialCopyCatalog } from "../../features/custom-credentials/credential-copy-tool.js";
 import { catalog as siteGuideCatalog } from "../../server/runtime/composition/site-guide-tools.js";
+import { catalog as agentPauseCatalog } from "../../server/runtime/composition/agent-pause-tools.js";
+import { siteUpdateCatalog } from "../../features/site-update/tools.js";
+import { storageAgentToolCatalog } from "../../features/storage/agent-tools.js";
+import { convertVideoToolDefinition } from "@jini-ai/cms/media";
+import { withLargeUploadRouting } from "@jini-ai/cms/media/site/large-upload-routing";
+import { LARGE_UPLOAD_ROUTING } from "../../features/media/large-upload-routing-copy.js";
 import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/tool-registrations.js";
@@ -95,8 +101,15 @@ import { imageTransformAgentToolCatalog } from "../../features/image-transform/t
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
-import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
-const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
+import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
+// The published model enum is derived from the deps' live provider registry (`toAssistantRegistryDeps`
+// composes the host registry, which carries provider-plugin models such as xAI's), else the built-in
+// projection — the same rule `buildMediaGenerationRegistrations` applies.
+function fixtureImageModelIds(): readonly string[] {
+  const registry = toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }).mediaProviderRegistry;
+  return registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
+}
+const mediaGenerationAgentToolCatalog = () => buildMediaGenerationAgentToolCatalog({ imageModelIds: fixtureImageModelIds(), mediaAssetReadToolId: "content_read.media_asset" });
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { buildMediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
@@ -266,7 +279,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   members: membersAgentToolCatalog,
   newsletter: newsletterAgentToolCatalog,
   "newsletter-delivery": newsletterDeliveryAgentToolCatalog,
-  media: mediaAgentToolCatalog,
+  // `media_convert_video` is Jini-owned and wired whenever the host injects a transcoder (the manifest does).
+  media: [...mediaAgentToolCatalog, convertVideoToolDefinition],
   widgets: widgetsAgentToolCatalog,
   menus: menusAgentToolCatalog,
   database: getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[],
@@ -309,8 +323,14 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "credential-copy": credentialCopyCatalog,
   "provider-status": providerStatusAgentToolCatalog,
   "site-guide": [...siteGuideCatalog.values()] as unknown as AgentToolDefinition[],
+  // 9ab2fbb4f (H4): `resume_agent_work`, the owner-approved release of the agent-pause hold.
+  "agent-pause": [...agentPauseCatalog.values()] as unknown as AgentToolDefinition[],
+  // bf3cea774 (bt2-todos): site-update tools (the runtime is host-composed; the catalog is fixed).
+  "site-update": siteUpdateCatalog,
+  // eae21fbc5 (ST-15c): `site_storage_report`/`site_storage_cleanup` over the serving storage port.
+  "system-storage": storageAgentToolCatalog as unknown as AgentToolDefinition[],
   "assistant-history": [...assistantHistoryToolCatalog.values()],
-  "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
+  "media-generation": mediaGenerationAgentToolCatalog() as unknown as AgentToolDefinition[],
   "media-providers": mediaProvidersAgentToolCatalog as unknown as AgentToolDefinition[],
   "media-import": mediaImportAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-server-logs": serverLogsAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -434,8 +454,11 @@ test("every wired registration publishes the inputSchema from its catalog entry 
     // A batchable tool publishes its catalog contract plus `items` — asserted against the REAL
     // derivation (`applyBatchInputs`, including combined approval plans), in the order the assembly applies it (batch, then rewrite).
     // load_agent_plugin is run-scoped: both roots append it after the assembly's batch pass.
-    const [batchable] = id === "load_agent_plugin" ? [] : resolveBatchableTools({ registrations: [{ ...registration, descriptor: catalogDescriptor }] });
-    const [expectedRegistration] = applyBatchInputs({ registrations: [{ ...registration, descriptor: catalogDescriptor }] }, { tools: batchable ? [batchable] : [] });
+    // d2a385c79 (A212): the media build appends the large-upload routing sentence to `media_upload_asset`
+    // before the batch pass — the same real helper, applied in the same order.
+    const routed = withLargeUploadRouting({ registration: { ...registration, descriptor: catalogDescriptor }, routingText: LARGE_UPLOAD_ROUTING });
+    const [batchable] = id === "load_agent_plugin" ? [] : resolveBatchableTools({ registrations: [routed] });
+    const [expectedRegistration] = applyBatchInputs({ registrations: [routed] }, { tools: batchable ? [batchable] : [] });
     const expected = rewrite(expectedRegistration!).descriptor;
     // Jini batch metadata uses Symbols; the published contract is the JSON wire schema (87a7e2e39).
     assert.deepEqual(JSON.parse(JSON.stringify(registration.descriptor.inputSchema)), JSON.parse(JSON.stringify(expected.inputSchema)), `${id}'s published schema must be its catalog entry's, not a second copy`);

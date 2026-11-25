@@ -213,7 +213,10 @@ export function buildMediaRegistrationsForTovu(
  * this retry does not.
  */
 export function contributeMediaTools(ports: MediaConversionPorts = {}): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort }, AssistantSurfaceDeps> {
-  return { domain: "media", build: (routeDeps, surfaces) => buildMediaRegistrationsForTovu(routeDeps, surfaces, ports), risk: mediaDerivedRisk };
+  // `media_convert_video` is wired exactly when a transcoder is injected, so it is classified exactly
+  // then: it writes a new derived asset (Jini's own classification of the same handler).
+  const risk = ports.transcoder ? new Map([...mediaDerivedRisk, [CONVERT_VIDEO_TOOL_ID, "mutates-durable-state" as const]]) : mediaDerivedRisk;
+  return { domain: "media", build: (routeDeps, surfaces) => buildMediaRegistrationsForTovu(routeDeps, surfaces, ports), risk };
 }
 
 export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

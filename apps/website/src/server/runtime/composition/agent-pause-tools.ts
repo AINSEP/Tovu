@@ -15,7 +15,7 @@ export const RESUME_AGENT_WORK_TOOL_ID = "resume_agent_work";
 const DOMAIN = "agent-pause";
 const EMPTY_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 
-const catalog = indexCatalogById({ catalog: [{
+export const catalog = indexCatalogById({ catalog: [{
   name: RESUME_AGENT_WORK_TOOL_ID,
   description: "Resumes work an AGENT created (webhooks, scheduled posts and sends) that the admin assistant switch paused. Shows the owner an approval card and resumes only if they confirm; declining leaves everything paused. Takes no input.",
   sideEffects: "mutates-durable-state" as const, authorization: { permission: "admin.assistant.use" }, inputSchema: EMPTY_SCHEMA,
