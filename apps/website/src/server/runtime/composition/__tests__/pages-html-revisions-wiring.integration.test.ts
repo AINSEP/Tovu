@@ -48,15 +48,23 @@ function pagesWriteHtml(routeDeps: RootDeps): ToolRegistration {
   return registration;
 }
 
-async function writeThroughTool(routeDeps: RootDeps, id: string): Promise<void> {
+/**
+ * Writes through the real tool on the basis the model would have read: the guard requires
+ * `expectedVersion`, so the fixture reads the row's current version rather than the tool relaxing it.
+ */
+async function writeThroughTool(routeDeps: RootDeps, id: string): Promise<Record<string, unknown>> {
+  const basis = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+  assert.ok(basis, "the page must exist before the tool writes it");
   const ctx: ToolExecutionContext = {
     executionId: "exec-pages-wiring",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-pages-wiring" },
-    input: { id, html: HTML },
+    input: { id, html: HTML, expectedVersion: basis.version },
     signal: new AbortController().signal,
   };
-  await pagesWriteHtml(routeDeps).handler(ctx);
+  const result = (await pagesWriteHtml(routeDeps).handler(ctx)) as Record<string, unknown>;
+  assert.equal(result.written, true, "the fixture's write must actually land");
+  return result;
 }
 
 async function assertLedgered(routeDeps: RootDeps, id: string): Promise<void> {
@@ -88,4 +96,37 @@ test("createRouteDeps (in-memory root): pages_write_html appends its html state 
   await writeThroughTool(deps, "page-m");
 
   await assertLedgered(deps, "page-m");
+});
+
+/**
+ * P1-T2.T — each root records the tool's write as one scoped `page-html` change set AND has the
+ * matching non-forceable `page-html/update` reverter on its one revert registry, bound to the page
+ * store the write used. Either half missing leaves a recorded Undo that cannot be resolved, or a
+ * reverter nothing ever records for.
+ */
+test("both composition roots record and can resolve a page-html change set", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-pages-html-changeset-wiring-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sqlite = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
+  await sqlite.identityReady;
+  const roots: Array<[string, RootDeps]> = [["in-memory", createRouteDeps()], ["sqlite", sqlite]];
+  for (const [label, deps] of roots) {
+    await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-cs", title: "Landing", kind: "page", bodyJson: DOC } });
+    const before = (await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: "page-cs" }))!.version;
+    const result = await writeThroughTool(deps, "page-cs");
+    assert.equal(typeof result.changeSetId, "string", `${label}: a committed write names its change set`);
+    const recorded = await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: result.changeSetId as string });
+    assert.ok(recorded, `${label}: the change set is stored in this root's ledger`);
+    assert.equal(recorded.items.length, 1, `${label}: exactly one scoped item`);
+    const [item] = recorded.items;
+    assert.equal(item!.entityType, "page-html");
+    assert.equal(item!.operation, "update");
+    assert.equal(item!.entityId, "page-cs");
+    assert.equal(item!.entityVersionAtApply, before + 1, `${label}: the post-write version the reverter's CAS will check`);
+    assert.deepEqual(item!.inversePayload, { format: "doc", bodyJson: DOC }, `${label}: the pre-conversion doc, not rendered HTML`);
+    const reverter = deps.revertRegistry.resolve("page-html", "update");
+    assert.ok(reverter, `${label}: the root registers the page-html reverter`);
+    assert.deepEqual(reverter.policy, { permission: "pages.edit_html", authorizationEntityType: "post", allowForce: false });
+    assert.equal(await reverter.currentVersion({ workspaceId: deps.workspaceId, entityId: "page-cs" }), before + 1, `${label}: resolves the live scoped page`);
+  }
 });

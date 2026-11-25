@@ -8,12 +8,20 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
+import express from "express";
+
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createPost } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+import { registerAdminChangeSetRevertRoute } from "#src/server/runtime/composition/modules/change-sets";
+import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createPageHtmlReverter } from "../html-reverter.js";
 import type { PagesHtmlDocumentStorePort } from "../html-document-store.js";
 
@@ -44,20 +52,33 @@ const DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type: "tex
 
 let executions = 0;
 
-function toolsFor(deps: RootDeps, authorize: Authorize = allowAll): Map<string, ToolRegistration> {
+type Surfaces = { surfaceExchanges: ReturnType<typeof createSurfaceExchangeStore> };
+
+function toolsFor(deps: RootDeps, authorize: Authorize, surfaces: Surfaces): Map<string, ToolRegistration> {
   contributions.contributors.clear({});
   installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
-  const registrations = buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter, authorize } as AssistantToolRegistryDeps, { surfaces: undefined, options: { contributions } });
+  const registrations = buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter, authorize } as AssistantToolRegistryDeps, { surfaces, options: { contributions } });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 
+/**
+ * Runs one real tool call. `change_sets_revert` goes through the real human-confirmation exchange:
+ * the channel answers `confirm` for the calling principal only, so the Undo under test is the
+ * confirmed path production takes, never a bypass of the approval gate.
+ */
 async function call(deps: RootDeps, toolId: string, input: Record<string, unknown>, authorize: Authorize = allowAll): Promise<Record<string, unknown>> {
-  const registration = toolsFor(deps, authorize).get(toolId);
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const registration = toolsFor(deps, authorize, surfaces).get(toolId);
   assert.ok(registration, `${toolId} must be registered`);
   executions += 1;
   const ctx = { executionId: `exec-undo-${executions}`, principal: { id: PRINCIPAL }, run: { id: "run-undo" }, input, signal: new AbortController().signal };
-  return (await registration.handler(ctx)) as Record<string, unknown>;
+  const emitSurface = async () => {
+    const exchangeId = surfaces.surfaceExchanges.findTypedAnswerTarget({ principalId: PRINCIPAL, toolId });
+    assert.ok(exchangeId, "confirmation must open a principal-bound exchange");
+    assert.deepEqual(surfaces.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { decision: "confirm" } }, { toolId }), { ok: true });
+  };
+  return (await registration.handler(ctx, { emitSurface })) as Record<string, unknown>;
 }
 
 async function row(deps: RootDeps, id: string) {
@@ -176,6 +197,21 @@ for (const [label, makeRoot] of ROOTS) {
     assert.equal((await row(deps, "p-race")).bodyHtml, NEWER);
   });
 
+  // The gateway's version preflight is not the only guard: the reverter's own restore keeps the
+  // recorded version as its compare-and-set basis, so a save that lands after the preflight (or a
+  // caller that skips it) still cannot be overwritten with raw HTML.
+  test(`${label}: the reverter itself refuses a page that moved past the recorded version`, async (t) => {
+    const deps = await makeRoot(t);
+    const version = await seedPage(deps, "p-own-cas", RAW_PRIOR);
+    const written = await call(deps, "pages_write_html", { id: "p-own-cas", html: NEXT, expectedVersion: version });
+    const item = (await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string }))?.items[0];
+    assert.ok(item);
+    await humanSave(deps, "p-own-cas", NEWER);
+    const reverter = createPageHtmlReverter({ store: deps.pagesHtmlStore, postRepo: deps.postRepo });
+    await assert.rejects(reverter.applyInverse({ workspaceId: deps.workspaceId, item }, { actorId: PRINCIPAL }), RevertConflictError);
+    assert.equal((await row(deps, "p-own-cas")).bodyHtml, NEWER);
+  });
+
   test(`${label}: matching live HTML at the recorded version reverts the change set without bumping the page`, async (t) => {
     const deps = await makeRoot(t);
     const version = await seedPage(deps, "p-same", RAW_PRIOR);
@@ -241,4 +277,100 @@ test("sqlite root: change-set insert failure leaves the row, version, revisions,
   assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-fail" }), revisionsBefore);
   assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-fail" }), refsBefore);
   assert.deepEqual(await drain(), [], "no outbox row survives the rolled-back write");
+});
+
+/**
+ * The in-memory root's fault boundary, asserted as it really is (P1-T2.T stop condition, reported,
+ * not patched). `InMemoryPostRepo.transaction` is snapshot-and-restore over posts, revisions and
+ * autosaves only. The entry-reference index and the outbox are independent in-memory stores, and
+ * Jini's `InMemoryChangeSetRepo.insert` pushes its rows before awaiting the outbox, so a failure
+ * inside the outer transaction does NOT roll those back here. The sqlite root joins every
+ * participant to one transaction (witness above). No compensating write papers over the gap: these
+ * tests pin it so a fix (or a regression) shows up as a deliberate diff. Proven below: the
+ * outbox-after-insert seam leaves an orphan change set. Not observable with this fixture: a stale
+ * entry-reference row, because the form marker it writes indexes no reference in this root.
+ */
+const NEXT_WITH_REF = `<section data-agent-element="hero" data-agent-role="region"><div data-embed-type="form" data-embed-config="{&quot;formDefinitionId&quot;:&quot;form-ref-1&quot;}"></div></section>`;
+
+test("in-memory root: change-set insert failure rolls back the row, version and revisions", async (t) => {
+  const deps = createRouteDeps();
+  const version = await seedPage(deps, "p-mem-fail", RAW_PRIOR);
+  const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-mem-fail" });
+  const refsBefore = await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-mem-fail" });
+  const realInsert = deps.changeSets.insert.bind(deps.changeSets);
+  deps.changeSets.insert = async () => { throw new Error("injected change-set insert failure"); };
+  t.after(() => { deps.changeSets.insert = realInsert; });
+
+  await assert.rejects(call(deps, "pages_write_html", { id: "p-mem-fail", html: NEXT_WITH_REF, expectedVersion: version }));
+  const after = await row(deps, "p-mem-fail");
+  assert.equal(after.bodyHtml, RAW_PRIOR, "rolled back: the post row");
+  assert.equal(after.version, version, "rolled back: the version");
+  assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-mem-fail" }), revisionsBefore, "rolled back: revisions");
+  assert.equal((await pageHtmlSets(deps)).length, 0, "nothing recorded: the insert itself failed");
+  // The entry-reference index is outside the snapshot (see the block comment above), but this
+  // markup indexes no reference in this root even on a committed write, so the fixture cannot
+  // observe that half of the gap; it only pins that the index is not disturbed here.
+  assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-mem-fail" }), refsBefore);
+});
+
+test("in-memory root: an outbox failure after the change-set rows are pushed rolls the page back but leaves the change set", async (t) => {
+  const deps = createRouteDeps();
+  const version = await seedPage(deps, "p-mem-outbox", RAW_PRIOR);
+  const realEnqueue = deps.outbox.enqueue.bind(deps.outbox);
+  deps.outbox.enqueue = async () => { throw new Error("injected outbox failure"); };
+  t.after(() => { deps.outbox.enqueue = realEnqueue; });
+
+  await assert.rejects(call(deps, "pages_write_html", { id: "p-mem-outbox", html: NEXT, expectedVersion: version }));
+  deps.outbox.enqueue = realEnqueue;
+  const after = await row(deps, "p-mem-outbox");
+  assert.equal(after.bodyHtml, RAW_PRIOR, "rolled back: the post row");
+  assert.equal(after.version, version, "rolled back: the version");
+  assert.equal((await pageHtmlSets(deps)).length, 1, "NOT rolled back (memory gap): the change-set rows pushed before the outbox await");
+});
+
+/**
+ * The mounted admin endpoint over the real in-memory root: the outer `changeset.revert` grant is
+ * not raw-HTML write authority, and an operator force never overwrites a newer save with raw HTML.
+ * The policy comes from the registered `page-html` reverter, never from the request body.
+ */
+async function mountedRevert(t: TestContext, authorize: Authorize) {
+  const deps = createRouteDeps();
+  deps.authorize = authorize;
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps });
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminChangeSetRevertRoute({ app, deps });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const revert = (changeSetId: string, body: Record<string, unknown> = {}) => fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/change-sets/${changeSetId}/revert`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  return { deps, revert };
+}
+
+test("mounted admin revert: a caller with changeset.revert but without pages.edit_html gets 403 and the HTML stays", async (t) => {
+  const noHtml: Authorize = async ({ permission }) => ({ allowed: permission !== "pages.edit_html", reason: "test" });
+  const { deps, revert } = await mountedRevert(t, noHtml);
+  const version = await seedPage(deps, "p-http-perm", RAW_PRIOR);
+  const written = await call(deps, "pages_write_html", { id: "p-http-perm", html: NEXT, expectedVersion: version });
+  const res = await revert(written.changeSetId as string);
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string };
+  assert.ok(!JSON.stringify(body).includes("<h1>"), "no stored HTML in the refusal");
+  assert.equal((await row(deps, "p-http-perm")).bodyHtml, NEXT);
+  assert.equal((await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string }))?.changeSet.status, "applied");
+});
+
+test("mounted admin revert: force on a stale page-html change is 403 with plain recovery words and keeps the newer HTML", async (t) => {
+  const { deps, revert } = await mountedRevert(t, allowAll);
+  const version = await seedPage(deps, "p-http-force", RAW_PRIOR);
+  const written = await call(deps, "pages_write_html", { id: "p-http-force", html: NEXT, expectedVersion: version });
+  await humanSave(deps, "p-http-force", NEWER);
+  const res = await revert(written.changeSetId as string, { force: true });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /can't be forced back over a newer version/);
+  assert.match(body.error, /edit it again/);
+  assert.equal((await row(deps, "p-http-force")).bodyHtml, NEWER);
+  assert.equal((await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string }))?.changeSet.status, "applied");
 });
