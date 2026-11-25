@@ -15,7 +15,7 @@ export const defaultExternalMcpToolPickerPort: ExternalMcpToolPickerPort = {
   probe: ({ serverId }, _options = {}) => integrationsApi.probeExternalMcpServer({ serverId }),
 };
 
-/** The picker's transport bound to this host's integrations route and request errors. */
+/** The zero-port half of the pair — what the component actually calls. Binds the picker's transport to this host's integrations route and request errors. */
 export const useWiredExternalMcpToolPicker: UseWiredExternalMcpToolPicker = (deps) =>
   useExternalMcpToolPicker({ port: defaultExternalMcpToolPickerPort, errors: EXTERNAL_MCP_PROBE_ERRORS, ...deps });
 
