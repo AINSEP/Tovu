@@ -1,5 +1,11 @@
 (function () {
-  var STORAGE_KEY = "tovu-theme:relay";
+  // Duplicating a theme already rewrites its /theme-assets/<id>/ URLs, so the id in this script's own
+  // URL names the copy. Keying storage by it gives each copy its own saved choice instead of sharing
+  // (and overwriting) the original's. Stock ids and the static-export fallback (no such URL segment)
+  // resolve to "tovu-theme:relay", so existing visitors keep their saved preference.
+  var scriptUrl = document.currentScript && document.currentScript.src ? document.currentScript.src : "";
+  var themeIdMatch = /\/theme-assets\/([^/]+)\//.exec(scriptUrl);
+  var STORAGE_KEY = (themeIdMatch ? themeIdMatch[1] : "tovu-theme") + ":relay";
   var root = document.documentElement;
 
   function apply({ mode }, _optional = {}) {
