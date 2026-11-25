@@ -40,6 +40,6 @@ test("a copied current DB rejects an old history without losing data and reopens
     assert.deepEqual(reopened.$client.prepare("SELECT * FROM fixture_content").all(),
       [{ id: "draft", body: "keep this disposable content" }]);
     assert.deepEqual(reopened.$client.prepare("SELECT id, value FROM database_write_watermark").all(), [{ id: 1, value: 0 }]);
-    assert.equal(reopened.$client.prepare("SELECT id FROM tovu_migrations").all().length, 48);
+    assert.equal(reopened.$client.prepare("SELECT id FROM tovu_migrations").all().length, 49);
   } finally { closeSqliteConnection({ source: reopened }); }
 });
