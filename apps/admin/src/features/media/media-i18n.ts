@@ -6,6 +6,7 @@
  * does (K3) goes in `productEntries` below, never into the Jini package.
  */
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { FILE_TOO_LARGE_COPY } from "./upload-size-copy";
 import { createMediaDictionary } from "@jini-ai/admin/screens/media/media-i18n/create-media-dictionary";
 
 /** `MEDIA_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
@@ -37,5 +38,13 @@ const MEDIA_PRODUCT_ENTRIES: Record<string, Record<string, string>> = {
   "ur": { "This file is larger than 50 MB. Choose a smaller file or ask the assistant to convert it.": "یہ فائل 50 MB سے بڑی ہے۔ چھوٹی فائل منتخب کریں یا اسسٹنٹ سے اسے تبدیل کرنے کو کہیں۔", "This video may not play in Chrome.": "ہو سکتا ہے یہ ویڈیو Chrome میں نہ چلے۔" },
   "bn": { "This file is larger than 50 MB. Choose a smaller file or ask the assistant to convert it.": "এই ফাইলটি 50 MB-এর চেয়ে বড়। ছোট ফাইল বেছে নিন অথবা সহকারীকে এটি রূপান্তর করতে বলুন।", "This video may not play in Chrome.": "এই ভিডিওটি Chrome-এ নাও চলতে পারে।" },
 };
+
+/** Only the size-refusal sentence, per locale: Library binds it too, so one translation serves every upload surface. */
+export const UPLOAD_SIZE_PRODUCT_ENTRIES: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(MEDIA_PRODUCT_ENTRIES).flatMap(([locale, entries]) => {
+    const copy = entries[FILE_TOO_LARGE_COPY];
+    return copy === undefined ? [] : [[locale, { [FILE_TOO_LARGE_COPY]: copy }]];
+  }),
+);
 
 export const { dictionary: MEDIA_DICT, t } = createMediaDictionary({ commonDictionary: COMMON_I18N, productEntries: MEDIA_PRODUCT_ENTRIES });

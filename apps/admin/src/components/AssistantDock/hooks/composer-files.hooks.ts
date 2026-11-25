@@ -1,4 +1,5 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { describeUploadOverLimit } from "@jini-ai/core/text";
 import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import { partitionChatPackages } from "@jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind";
 import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
@@ -10,6 +11,7 @@ import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { createBrowserWorkingDirectoryAccess } from "@jini-ai/admin/shell/lib/browser-working-directory-access";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
+import { fileSizeRefusal } from "@/features/media/upload-size-copy";
 
 /**
  * Builds the `uploadAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>`. Injectable
@@ -37,16 +39,42 @@ import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
 export const CHAT_ATTACHMENT_MAX_BYTES = MAX_UPLOAD_BYTES;
 export const CHAT_ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
 
-export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
+type AttachmentUploader = ReturnType<typeof createDaemonAttachmentUploader>;
+
+/**
+ * Wraps the uploader so a file over its own limit is refused with the host's copy: the ordinary 50 MB limit gets
+ * the translated sentence, while the larger video limit keeps its plain "That file is N MB; the limit is M MB."
+ * wording (converting cannot bring a file under it). The uploader would refuse the same first file with English
+ * text, so checking here first changes only the wording, never which files are accepted.
+ *
+ * @complexity O(files) per call; the wrapped uploader's cost is unchanged.
+ */
+export function withSizeRefusalCopy(
+  { uploader, t }: { uploader: AttachmentUploader; t: (key: string) => string },
+  _optional: Record<string, never> = {},
+): AttachmentUploader {
+  return async (files, options) => {
+    const oversize = files.find((file) => file.size > uploadLimitForFile(file));
+    if (oversize) {
+      const limitBytes = uploadLimitForFile(oversize);
+      throw new Error(fileSizeRefusal({ t, limitBytes, fallback: describeUploadOverLimit({ fileBytes: oversize.size, limitBytes }) }));
+    }
+    return options === undefined ? uploader(files) : uploader(files, options);
+  };
+}
+
+export function useAttachmentUploader({ t }: { t: (key: string) => string }, _optional: Record<string, never> = {}): AttachmentUploader {
   return useMemo(
-    () =>
-      createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
+    () => withSizeRefusalCopy({
+      uploader: createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
         maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
         maxAttachmentBytesFor: uploadLimitForFile,
 
         maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
       }),
-    [],
+      t,
+    }),
+    [t],
   );
 }
 
@@ -133,9 +161,9 @@ export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | un
   return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync }), []);
 }
 
-export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}
+export function useAttachmentUploaderSeam({ override, t }: { override: typeof useAttachmentUploader | undefined; t: (key: string) => string }, _options: Record<string, never> = {}
 ): ReturnType<typeof createDaemonAttachmentUploader> {
-  return (override ?? useAttachmentUploader)();
+  return (override ?? useAttachmentUploader)({ t });
 }
 
 export function useAttachmentValidatorSeam({ override }: { override: typeof useAttachmentValidator | undefined }, _options: Record<string, never> = {}
