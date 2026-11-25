@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
-import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
+import { isSameOriginBrowserWrite, type JsonRouteAuthorizeScope, type RouteHostContext, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { RouteDeps } from "#src/server/routes/types";
@@ -341,15 +341,32 @@ export function adminPortsFor(
  * @complexity O(1) setup; per request as `createAdminJsonRoutePorts`.
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
   const { forwardRejection, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
+  // Refused at registration, as `mountAdminRawRoute` does: a guarded spec without the host's
+  // origin policy would otherwise answer every request with a redacted 500 after the session gate.
+  if (required.spec.requireSameOrigin && !required.origin) throw new Error(`admin route ${required.spec.path}: requireSameOrigin needs the host's origin context — pass \`origin\` to the mount`);
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...(required.origin ? { adapter: required.origin } : {}) });
 }
+
+/**
+ * The admin same-origin write policy: a browser write whose `Origin` is exactly this server's host
+ * (and whose fetch metadata, when sent, agrees) — the rule `site-share-password.ts` applies by hand.
+ * A request without `Origin` is refused, so a cross-site form or script can never reach the handler.
+ */
+export const adminSameOriginWrites: RouteHostContext = {
+  originPolicy: {
+    isSameOrigin: ({ req }) => {
+      const header = (name: string): string | undefined => { const value = req.headers[name]; return Array.isArray(value) ? value[0] : value; };
+      return isSameOriginBrowserWrite({ origin: header("origin"), host: header("host"), fetchSite: header("sec-fetch-site") });
+    },
+  },
+};
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
  *  `mountJsonRoute` only calls `app[spec.method](path, handler)`; a new use of `app` there fails

@@ -4,6 +4,25 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 import { createLazyChatRunLedger, type ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 import { createTenantScopedChatStore } from "./tenant-scope.js";
+import { createChatBulkDeletion } from "@jini-ai/chat/store/sqlite";
+import type { ChatOwnerScope } from "@jini-ai/chat/store";
+
+/** Conversation ids a client currently has open; `undefined` keeps every candidate as "unknown". */
+export type OpenConversations = () => Promise<ReadonlySet<string> | undefined>;
+/** One owner's preview/apply bulk chat deletion (Jini `createChatBulkDeletion`). */
+export type ChatBulkDeletion = ReturnType<typeof createChatBulkDeletion>;
+/** Builds the bulk deletion for exactly one owner scope. */
+export type ChatBulkDeletionFor = (required: { scope: ChatOwnerScope; openConversations: OpenConversations }) => ChatBulkDeletion;
+
+/**
+ * Per-owner bulk chat deletion over the site's chat kernel — the same kernel `createChatStoreFactory`
+ * uses, so a delete joins the store's own locks. Never mounted without an owner scope.
+ * @complexity O(1) per call; the deletion's own preview/apply are bounded by its preview limit.
+ */
+export function createChatBulkDeletionFor({ store, now }: { store: ChatKernel | SqliteConnectionSource; now: () => number }, _optional = {}): ChatBulkDeletionFor {
+  const kernel = chatKernel({ store });
+  return ({ scope, openConversations }) => createChatBulkDeletion({ kernel, scope, now, openConversations });
+}
 
 /**
  * @file The two ways a composition root supplies chat history, kept together so the difference
