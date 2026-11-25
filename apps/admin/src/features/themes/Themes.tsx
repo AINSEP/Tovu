@@ -3,8 +3,7 @@ import { Icon, Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
-import { NO_THEME_ID } from "./api/themes-api.types";
-import type { PresentationSettings, ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
@@ -12,7 +11,7 @@ import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
 import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 
-import { useThemeCardPreview } from "@jini-ai/cms/react/themes/hooks/use-theme-card-preview.hooks";
+import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
 import { useWiredHeldBackThemes, type UseHeldBackThemesHook } from "./hooks/use-held-back-themes.hooks";

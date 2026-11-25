@@ -1,4 +1,4 @@
-import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";

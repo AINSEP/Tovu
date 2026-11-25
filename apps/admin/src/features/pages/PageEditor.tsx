@@ -1,8 +1,8 @@
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
-import { useThemePreviewFrame, useThemePreviewReloadButton } from "../themes/hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
+import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
-import { ConfirmDialog, ThemePreviewReloadControl } from "@jini-ai/admin/react";
+import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { PageExternalChangeBanner } from "@jini-ai/cms/react/pages/PageExternalChangeBanner";
@@ -30,7 +30,7 @@ import type {
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
-import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
@@ -594,7 +594,7 @@ function PageEditorToolbarEnd({
   const pickerValue = pagePickerValue({ templateChoice, availableTemplates });
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? <WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} /> : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
           <ViewTemplateButton

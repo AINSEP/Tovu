@@ -14,8 +14,9 @@
  * single spaces, trim, split on `/\s+/`, count non-empty tokens.
  *
  * Architectural role:
- * Implemented (tasks.md T019) against the certified suite in
- * `__tests__/unit/word-count.unit.test.ts`, which pins the tokenization algorithm exactly.
+ * Implemented (tasks.md T019) against the certified suite. The tokenization algorithm itself
+ * (`countWords`) moved to `@jini-ai/plugins`, whose `count-words.test.ts` pins it exactly; the
+ * host suite `__tests__/unit/word-count.unit.test.ts` keeps the manifest contract and the hook binding.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";

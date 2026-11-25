@@ -1,6 +1,5 @@
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { HeldBackApprovalResult, HeldBackCheckResult, HeldBackRestoreResult, HeldBackThemesList } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 
 /**
  * @file The admin API calls behind the Themes screen's "Held back on import" section (A452).
@@ -10,6 +9,59 @@ import type { HeldBackApprovalResult, HeldBackCheckResult, HeldBackRestoreResult
  * travels in the request BODY, never the URL, and the path is `held-back-themes` rather than
  * `themes/...` (`GET themes/:themeId` is registered earlier and would swallow it).
  */
+
+/** One theme set aside by a site import. */
+export interface HeldBackTheme {
+  /** Quarantine id, with a slash (`static/foo`); the key for check and restore. */
+  id: string;
+  /** The manifest's name, else the folder name. */
+  name: string;
+  tier: "static" | "declarative";
+  /** It came from the site's `__original-themes__` catalogue rather than its live themes. */
+  original: boolean;
+  files: number;
+  bytes: number;
+}
+
+/** The theme the site had chosen before import swapped it for the default one. */
+export interface ChosenThemeHeldBack {
+  themeId: string;
+  name: string;
+  /** The theme visitors see instead. */
+  fallbackThemeId: string;
+}
+
+export interface HeldBackThemesList {
+  themes: HeldBackTheme[];
+  /** `null` unless the chosen theme is still held back and the owner has not picked another since. */
+  chosenThemeHeldBack: ChosenThemeHeldBack | null;
+}
+
+/** The server's fresh safety check of one held-back theme. */
+export interface HeldBackCheckResult {
+  themeId: string;
+  passes: boolean;
+  /** Plain-words reasons; empty when `passes`. */
+  problems: string[];
+  /** Fingerprint of the checked files — only when `passes`; restore must echo it back. */
+  digest: string | null;
+  /** A live theme folder already exists where this one would go. */
+  nameTaken: boolean;
+  /** The plan the approval card confirms — only when `passes`; `null` otherwise. */
+  approval: { planId: string; planHash: string } | null;
+}
+
+/** The server's record of the approval card's answer; only an approval carries a token. */
+export interface HeldBackApprovalResult {
+  approved: boolean;
+  /** Single-use, bound to this person, workspace, theme and digest. */
+  confirmationToken?: string;
+}
+
+export interface HeldBackRestoreResult {
+  theme: { id: string; name: string; status: "valid" | "invalid" };
+  restoredFrom: string;
+}
 
 const BASE_PATH = `/workspaces/${WORKSPACE_ID}/held-back-themes`;
 

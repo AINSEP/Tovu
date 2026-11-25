@@ -1,7 +1,7 @@
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
-import type { AdminThemeSummary, PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";

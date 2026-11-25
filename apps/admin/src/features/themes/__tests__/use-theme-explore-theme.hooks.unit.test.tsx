@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useThemeExploreTheme } from "../hooks/use-theme-explore-theme.hooks";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
-import type { ThemesPort } from "@jini-ai/core/contracts/site/cms-admin-theme-registry";
+import type { ThemesPort } from "../hooks/themes-port.hooks";
 
 describe("Explore theme resolution", () => {
   it("keeps an explicit theme and does not query the registry settings", () => {

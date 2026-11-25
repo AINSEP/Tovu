@@ -1,8 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { heldBackThemesApi } from "../api/held-back-themes-api";
-import type { HeldBackTheme } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
+import { heldBackThemesApi, type HeldBackTheme } from "../api/held-back-themes-api";
 import { createFakeHeldBackThemesPort, defaultHeldBackThemesPort, heldBackApiError } from "../hooks/held-back-themes-dependencies.hooks";
 import { heldBackFailure } from "../held-back-themes-failure";
 import { useHeldBackThemes } from "../hooks/use-held-back-themes.hooks";

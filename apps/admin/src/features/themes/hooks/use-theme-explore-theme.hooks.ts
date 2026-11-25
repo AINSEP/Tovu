@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
-import type { ThemesPort } from "@jini-ai/core/contracts/site/cms-admin-theme-registry";
+import type { ThemesPort } from "./themes-port.hooks";
 
 /** Resolve a bare /themes/explore before mounting the file editor. An empty detail ID would
  * request the registry route (/themes/), whose response has no files array to map.

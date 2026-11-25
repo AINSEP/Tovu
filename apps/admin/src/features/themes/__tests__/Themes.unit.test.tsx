@@ -4,8 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";
-import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
-import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 
 /**
  * These tests drive the Themes screen through `useThemesHook` and never meant to touch the network, so

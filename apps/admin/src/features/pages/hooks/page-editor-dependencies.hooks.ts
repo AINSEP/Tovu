@@ -1,5 +1,5 @@
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
-import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";

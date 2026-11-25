@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminThemeSummary, PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import {
   loadedPostForm,

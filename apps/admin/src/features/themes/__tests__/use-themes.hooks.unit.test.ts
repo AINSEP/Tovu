@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
-import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";

@@ -1,7 +1,7 @@
-import type { PresentationSettings, ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
+import type { PresentationSettings, ThemeTier } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import { trashApi } from "@/features/trash/api/trash-api";
-import type { ThemesPort } from "@jini-ai/core/contracts/site/cms-admin-theme-registry";
+import type { ThemesPort } from "./themes-port.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { trimChars } from "@jini-ai/core/primitives";
 

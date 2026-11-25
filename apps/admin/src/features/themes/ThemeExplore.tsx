@@ -1,9 +1,8 @@
 import { createThemePublishClick } from "./ThemeExplore.hooks";
 import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
-import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
-import { useThemePreviewReloadButton } from "./hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
-import { ConfirmDialog, RowMenu, ThemePreviewReloadControl } from "@jini-ai/admin/react";
+import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { CodeWithLines, CodeWrapToggle, Icon, Toast, useCodeWrap } from "@jini-ai/ui";
 
@@ -890,7 +889,7 @@ function ThemeExplorePreviewControls({
   return (
     <>
       <DevicePreviewToggle device={device} setDevice={setDevice} t={t} />
-      <WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} disabled={previewSrc === null} />
+      <WiredThemePreviewReloadButton disabled={previewSrc === null} />
       <button
         type="button"
         ref={fullscreenTriggerRef}
