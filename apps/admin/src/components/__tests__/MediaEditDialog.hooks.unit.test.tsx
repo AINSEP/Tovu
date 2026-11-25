@@ -1,3 +1,4 @@
+import type { MediaHtmlAttributeError } from "@jini-ai/admin/media";
 import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,7 +10,7 @@ import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
 import { describeMediaHtmlAttributeError } from "@jini-ai/admin/screens/media/rules";
 
 /** The host collaborators `useWiredMediaEditDialog` injects; these tests pin the same ones with a fixed locale. */
-const hostDeps = { translate: mediaT, describeHtmlAttributeError: describeMediaHtmlAttributeError, htmlAttributePolicy: embedPolicy };
+const hostDeps = { translate: mediaT, describeHtmlAttributeError: ({ error, locale }: { error: MediaHtmlAttributeError; locale: string }) => describeMediaHtmlAttributeError({ error, locale, translate: mediaT }), htmlAttributePolicy: embedPolicy };
 import { defaultAdminLocalePort } from "../../hooks/admin-locale-dependencies.hooks";
 
 /**

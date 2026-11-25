@@ -146,7 +146,7 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
   it("translates every literal t() key in Media.tsx and rules.ts, plus the order-option labels, in every locale", () => {
     const keys = new Set(MEDIA_ORDER_OPTIONS.map((option) => option.label));
     for (const filename of ["Media.tsx", "rules.ts"]) {
-      const source = ts.createSourceFile(filename, readFileSync(resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
+      const source = ts.createSourceFile(filename, readFileSync(filename === "rules.ts" ? resolve(process.cwd(), "node_modules/@jini-ai/admin/src/screens/media/rules.ts") : resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
       function visit(node: ts.Node) {
         if (ts.isCallExpression(node)) {
           const callee = node.expression;
