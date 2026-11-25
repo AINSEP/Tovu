@@ -4,7 +4,7 @@ import type { AuthErrorNoticeProps, AuthPasskeySignInProps, LoginApiErrorPort, O
 import { OwnerRecoverySignIn as OwnerRecoverySignInScreen } from "@jini-ai/admin/screens/auth/OwnerRecoverySignIn";
 import { useOwnerRecoverySignIn } from "@jini-ai/admin/screens/auth/OwnerRecoverySignIn.hooks";
 import type { Translate } from "@jini-ai/core/text";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { ApiError } from "@/lib/admin-http/request";
 import { ownerPasskeySignInPort } from "../../lib/owner-clients";
 import { ownerRecoveryFailure, ownerRecoveryPort } from "../../lib/owner-clients";

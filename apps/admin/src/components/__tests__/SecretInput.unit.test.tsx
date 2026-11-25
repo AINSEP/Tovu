@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
-import { SecretInput, secretToggleLabels } from "../SecretInput/SecretInput";
+import { SecretInput, secretToggleLabels } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 
 /**
  * @file The shared eye toggle every admin password/token/key field uses: hidden by default, flips

@@ -1,5 +1,5 @@
 import { CredentialHint } from "@/components/CredentialHint";
-import { SecretInput } from "@/components/SecretInput/SecretInput";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
 import { OnboardingChipField } from "@jini-ai/ui";
 import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
