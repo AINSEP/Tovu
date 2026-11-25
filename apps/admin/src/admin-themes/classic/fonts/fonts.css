@@ -1,0 +1,24 @@
+/* Unmodified OFL variable fonts, served from this theme instead of Google Fonts so opening the admin
+   makes no third-party request. Same files and weight ranges as the desktop shell's own copy
+   (apps/desktop/src/renderer/app.css); each family's licence text sits beside its font file. */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('./dm-sans-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('./space-grotesk-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./jetbrains-mono-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+}
