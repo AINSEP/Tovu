@@ -6,7 +6,7 @@ import test from "node:test";
 import { beginAuthorizationCode, completeAuthorizationCode } from "@jini-ai/oauth";
 import { tovuOAuthMessages } from "../endpoint-safety.js";
 import { createPendingAuthorizationStore } from "@jini-ai/oauth";
-import type { OAuthProviderDescriptor } from "../ports.js";
+import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 import {
   createTestOAuthPorts,
   assertOAuthRejects,

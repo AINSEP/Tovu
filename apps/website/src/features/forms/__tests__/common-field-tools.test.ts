@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
@@ -19,7 +20,7 @@ test("assistant tools create/edit a dropdown with options and persist only decla
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
   };
   const registry = createToolRegistry({});
-  for (const registration of buildFormsRegistrations(deps)) registry.register(registration);
+  for (const registration of buildFormsRegistrations(deps, { deriveDuplicateName })) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "formsfields" });

@@ -1,3 +1,6 @@
+import { useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -31,6 +34,13 @@ import {
   presetFor,
   settle,
 } from "@/lib/__tests__/stored-credential-endpoint.test-helpers";
+
+const requiredAdminExecutionModeHooks = {
+  useAdminExecutionCredentialHook: useWiredAdminExecutionCredential,
+  useAdminLocaleHook: useAdminLocale,
+  useTovuSettingsExecutionHook: useTovuSettingsExecution,
+  useExecutionPolicy: useTovuExecutionPolicy,
+};
 
 /**
  * @file First direct test for `AdminExecutionMode` (previously unexported, no test file of its own —
@@ -91,7 +101,7 @@ describe("D-21 execution detection scope", () => {
     vi.stubGlobal("tovuFiles", desktop ? { getPathForFile: () => "" } : undefined);
     vi.stubGlobal("tovuVoice", undefined);
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController({
           port: { current: {
             detectLocalAgents: async () => [],
@@ -111,7 +121,7 @@ describe("D-21 execution detection scope", () => {
 describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () => {
   it("renders the migration prompt from the injected fake, not from a real credential round trip", () => {
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController()}
         useAdminExecutionCredentialHook={() =>
           fakeAdminExecutionCredentialController({ legacyKey: "sk-legacy-from-fake" })
@@ -132,7 +142,7 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     //
     // `mode: "byok"` because the default is `local-cli`, which renders the CLI grid and no card.
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() =>
           fakeExecutionModeController({ execution: makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" }) })
         }
@@ -145,7 +155,7 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
   });
 
   it("still renders normally when the credential hook is left at its default", () => {
-    render(<AdminExecutionMode useAdminExecutionModeHook={() => fakeExecutionModeController()} />);
+    render(<AdminExecutionMode {...requiredAdminExecutionModeHooks} useAdminExecutionModeHook={() => fakeExecutionModeController()} />);
     // No migration prompt (nothing to fake a legacy key with), but the execution form itself renders.
     expect(screen.queryByText(/We found a saved key in this browser/)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /^Local CLI/ })).toHaveAttribute("aria-selected", "true");
@@ -159,7 +169,7 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     // alongside `AdminByokSettingsFooter`'s own "Settings saved." line, stacking two confirmations
     // under one button press. Both landing on "saved" here reproduces that overlap.
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() =>
           fakeExecutionModeController({
             execution: makeSlice<ExecutionConfig>(
@@ -205,7 +215,7 @@ describe("AdminExecutionMode — OpenAI selected while the saved key is Google's
       return fakeExecutionModeController({ port: { current: probes }, execution: makeSlice(value, { onChange: setValue }) });
     }
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={useLiveExecutionMode}
         useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential(input, credentialPort)}
         {...(t ? { t } : {})}
@@ -297,7 +307,7 @@ describe("AdminExecutionMode — local CLI save line and BYOK write-through", ()
     [{ status: "saved" } as const, "Saved."],
   ])("shows the ledger's %o state as one status line in Local CLI mode", (saveState, text) => {
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController({ execution: makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG, { saveState }) })}
         useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
       />,
@@ -307,7 +317,7 @@ describe("AdminExecutionMode — local CLI save line and BYOK write-through", ()
 
   it("shows a failed Local CLI save's message", () => {
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController({
           execution: makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG, { saveState: { status: "error", message: "Ledger write refused." } }),
         })}
@@ -321,7 +331,7 @@ describe("AdminExecutionMode — local CLI save line and BYOK write-through", ()
     const execution = makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" });
     let input: { byok: ByokConfig; onByokChange: (byok: ByokConfig) => void } | undefined;
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController({ execution })}
         useAdminExecutionCredentialHook={(received) => { input = received; return fakeAdminExecutionCredentialController(); }}
       />,
@@ -336,7 +346,7 @@ describe("AdminExecutionMode — local CLI save line and BYOK write-through", ()
     const execution: SettingsSlice<ExecutionConfig> = { ...makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG), value: null };
     let input: { byok: ByokConfig; onByokChange: (byok: ByokConfig) => void } | undefined;
     render(
-      <AdminExecutionMode
+      <AdminExecutionMode {...requiredAdminExecutionModeHooks}
         useAdminExecutionModeHook={() => fakeExecutionModeController({ execution })}
         useAdminExecutionCredentialHook={(received) => { input = received; return fakeAdminExecutionCredentialController(); }}
       />,

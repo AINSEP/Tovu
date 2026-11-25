@@ -1,3 +1,14 @@
+import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { createElement } from "react";
 import { Media } from "./panel-pages";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
@@ -15,5 +26,5 @@ export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<strin
   // Legacy Media owns `/admin/media` in every build until owner visual-parity sign-off.
   // Pass its existing tab prop through so direct links and its tab buttons use the same URL.
   // `?id=` names one item whose detail dialog opens (use-media-item-link.hooks.ts).
-  return createElement(Media, { tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
+  return createElement(Media, { useMediaHook: useWiredMedia, useMediaTabsHook: useMediaTabs, useMediaPreviewHook: useWiredMediaPreview, useEditMediaPanelHook: useWiredEditMediaPanel, useEditMediaModalHook: useEditMediaModal, useAdminKitValuesHook: useAdminKitValues, useMediaCardMetadataHook: useMediaCardMetadata, useMediaCardDetailsHook: useMediaCardDetails, useMediaGridSizeHook: useMediaGridSize, useAdminThemeBoundaryHook: useAdminThemeBoundary, useMediaItemLinkHook: useMediaItemLink, tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
 }

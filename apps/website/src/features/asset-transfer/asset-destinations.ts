@@ -19,7 +19,7 @@ import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "@jini
 import { resolveFsFilePath } from "../fs-files/fs-files.js";
 import { preparePickedFolderBatch, type FsFilesToolDeps, type PreparedWriteBatch } from "../fs-files/tool-registrations.js";
 
-export type AssetToolDeps = FsFilesToolDeps & ThemeToolDeps & MediaImportToolDeps & { documentArchiveReader?: DocumentArchiveReaderPort };
+export type AssetToolDeps = FsFilesToolDeps & ThemeToolDeps & MediaImportToolDeps & { documentArchiveReader?: DocumentArchiveReaderPort; resolvePublicUrls: Parameters<typeof persistImportedMedia>[0]["resolvePublicUrls"] };
 export interface AssetFile { path: string; bytes: Buffer; sourceUrl?: string }
 export interface AssetDestination { kind: "site" | "theme" | "media" | "library" | "picked"; themeId?: string }
 export interface PreparedAssets { destination: AssetDestination; files: AssetFile[]; skipped: string[]; batch?: PreparedWriteBatch }
@@ -114,7 +114,7 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
     const media = [];
     for (const file of files) {
       const contentType = validateImageBytes({ source: file.path, bytes: file.bytes, bytesTruncated: false });
-      media.push((await persistImportedMedia({ routeDeps: deps, actorId: ctx.principal.id, sourceUrl: file.sourceUrl ?? "", input: { workspaceId: deps.workspaceId, bytes: file.bytes, filename: file.path, contentType, createdByPrincipal: ctx.principal.id } })).media);
+      media.push((await persistImportedMedia({ routeDeps: deps, resolvePublicUrls: deps.resolvePublicUrls, actorId: ctx.principal.id, sourceUrl: file.sourceUrl ?? "", input: { workspaceId: deps.workspaceId, bytes: file.bytes, filename: file.path, contentType, createdByPrincipal: ctx.principal.id } })).media);
     }
     return { written: files.map(({ path }) => path), skipped, media };
   }

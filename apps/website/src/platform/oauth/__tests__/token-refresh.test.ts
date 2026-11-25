@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { OAuthError } from "@jini-ai/oauth";
-import type { OAuthTokenSet } from "../ports.js";
+import type { OAuthTokenSet } from "@jini-ai/oauth";
 import { createTokenRefresher, isTokenDueForRefresh, type TokenRefreshPort } from "@jini-ai/oauth";
 import { assertOAuthRejects, createTestClock } from "./helpers.js";
 

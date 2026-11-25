@@ -1,4 +1,4 @@
-import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
@@ -23,19 +23,19 @@ import {
   mediaShapeBadges,
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
-import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
+import type { useWiredMedia, MediaController } from "./hooks/use-media.hooks";
 import { t as mediaTranslate } from "./media-i18n";
-import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import type { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
 import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
-import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
-import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
-import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
-import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
-import { useAdminKitValues } from "@jini-ai/admin/react/kit";
-import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
-import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
-import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import type { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
+import type { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import type { useWiredEditMediaPanel, EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
+import type { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import type { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import type { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
+import type { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import type { useMediaTabs, MediaContentTabId, MediaTabId, MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
 import { mediaProvidersPort } from "./media-providers-port";
@@ -210,7 +210,7 @@ interface MediaPreviewProps {
    * `useMediaPreview(item, deps)` — this component has no reason to see `deps` itself, matching
    * `PostsProps.usePostsHook`'s own shape.
    */
-  useMediaPreviewHook?: typeof useWiredMediaPreview;
+  useMediaPreviewHook: typeof useWiredMediaPreview;
   /** Translator closure — see `Media()`'s own `t` for where this comes from; threaded through the
    *  lightbox too, since it remounts this same component for its enlarged view. */
   t: (key: string) => string;
@@ -240,7 +240,7 @@ interface MediaPreviewProps {
  * that stage already renders a "Download original" link, and the lightbox would show nothing more
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
-  const { useMediaPreviewHook = useWiredMediaPreview, t } = props;
+  const { useMediaPreviewHook, t } = props;
   const preview = useMediaPreviewHook(props.item, t);
   const { stage, src, altText, handleImageError, handleVideoError } = preview;
 
@@ -349,7 +349,7 @@ interface EditMediaPanelProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useEditMediaPanelHook?: typeof useWiredEditMediaPanel;
+  useEditMediaPanelHook: typeof useWiredEditMediaPanel;
   /** Translator closure — see `Media()`'s own `t`. */
   t: (key: string) => string;
   /** Applied to this panel's own `<h2>` so `EditMediaModal`'s wrapping `<dialog>` can point its
@@ -364,7 +364,7 @@ interface EditMediaPanelProps {
  *  its own card chrome: the dialog itself supplies the surface/border/shadow (`media.css`'s
  *  `.media-edit-dialog`), so this component's own root is a plain content wrapper. */
 function EditMediaPanel(props: EditMediaPanelProps) {
-  const { item, onSaved, onCancel, useEditMediaPanelHook = useWiredEditMediaPanel, t, titleId } = props;
+  const { item, onSaved, onCancel, useEditMediaPanelHook, t, titleId } = props;
   const {
     draft,
     setTitle,
@@ -683,6 +683,7 @@ function MediaEditCopyRow(props: {
 const EDIT_MEDIA_MODAL_TITLE_ID = "media-edit-modal-title";
 
 interface EditMediaModalProps {
+  useEditMediaPanelHook: typeof useWiredEditMediaPanel;
   /** The item currently being edited, or `null` while closed — mirrors
    *  `ThemePageDetailsModalProps.row`'s null-is-closed convention. */
   item: AdminMedia | null;
@@ -692,9 +693,9 @@ interface EditMediaModalProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useEditMediaModalHook?: typeof useEditMediaModal;
+  useEditMediaModalHook: typeof useEditMediaModal;
   /** Host kit values hook (injected so tests can supply the native-dialog helpers). */
-  useAdminKitValuesHook?: typeof useAdminKitValues;
+  useAdminKitValuesHook: typeof useAdminKitValues;
   /** Translator closure — see `Media()`'s own `t`; forwarded to the `EditMediaPanel` this wraps. */
   t: (key: string) => string;
 }
@@ -714,7 +715,7 @@ interface EditMediaModalProps {
  * the new item, preserving the 2026-08-12 audit fix (`MediaLibraryPanel`'s own comment on this same
  * `key` has the full incident writeup).
  */
-function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEditMediaModal, useAdminKitValuesHook = useAdminKitValues, t }: EditMediaModalProps) {
+function EditMediaModal({ item, onSaved, onCancel, useEditMediaPanelHook, useEditMediaModalHook, useAdminKitValuesHook, t }: EditMediaModalProps) {
   // The Jini hook takes the native-dialog helpers as required args; bind them from the host kit here.
   const { openLightboxDialog, closeLightboxDialog } = useAdminKitValuesHook();
   const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook({
@@ -731,13 +732,14 @@ function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEd
       {...agentHandle({ handle: "media-edit-dialog" }, { role: "region", label: "Edit this asset's metadata, presented as a modal" })}
     >
       {item ? (
-        <EditMediaPanel key={item.id} item={item} onSaved={onSaved} onCancel={onCancel} t={t} titleId={EDIT_MEDIA_MODAL_TITLE_ID} />
+        <EditMediaPanel useEditMediaPanelHook={useEditMediaPanelHook} key={item.id} item={item} onSaved={onSaved} onCancel={onCancel} t={t} titleId={EDIT_MEDIA_MODAL_TITLE_ID} />
       ) : null}
     </dialog>
   );
 }
 
 interface MediaLightboxProps {
+  useMediaPreviewHook: typeof useWiredMediaPreview;
   /** The full grid list, not just the open item, so the lightbox can count the set and clamp
    *  prev/next from the same data its caller already has in scope. */
   items: AdminMedia[];
@@ -790,7 +792,7 @@ function MediaLightbox(props: MediaLightboxProps) {
               React keeps the instance, so a PDF that fell all the way through to `"unsupported"`
               leaves the next asset stuck on the placeholder even when it is a perfectly good
               image. The grid cards never hit this — each card owns its own instance. */}
-          <MediaPreview key={item.id} item={item} t={t} />
+          <MediaPreview useMediaPreviewHook={props.useMediaPreviewHook} key={item.id} item={item} t={t} />
         </div>
       ) : null}
     </Lightbox>
@@ -993,16 +995,26 @@ function MediaPurgeDialog({
 }
 
 export interface MediaProps {
+  useMediaPreviewHook: typeof useWiredMediaPreview;
+  useEditMediaPanelHook: typeof useWiredEditMediaPanel;
+  useEditMediaModalHook: typeof useEditMediaModal;
+  useAdminKitValuesHook: typeof useAdminKitValues;
+  useMediaCardMetadataHook: typeof useMediaCardMetadata;
+  useMediaCardDetailsHook: typeof useMediaCardDetails;
+  useMediaGridSizeHook: typeof useMediaGridSize;
+  useAdminThemeBoundaryHook: typeof useAdminThemeBoundary;
+  useMediaItemLinkHook: typeof useMediaItemLink;
+
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useMediaHook?: typeof useWiredMedia;
+  useMediaHook: typeof useWiredMedia;
   /**
    * Dependency injection seam for tests — same convention, no port (see `use-media-tabs.hooks.ts`'s
    * own doc for why this pure-UI-state hook has no `useWiredX()` pair to default to instead).
    */
-  useMediaTabsHook?: typeof useMediaTabs;
+  useMediaTabsHook: typeof useMediaTabs;
   /** The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See `use-media-tabs.hooks.ts`'s `resolveActiveTab`. */
   tabId?: string | null;  /** The `?id=` query value — the one media item whose detail (metadata) dialog the URL opens.
@@ -1014,8 +1026,8 @@ export interface MediaProps {
  *  (owner design, 2026-11-01 — the shape and length used to be badges on the picture). Parts that
  *  do not apply are left out, so an image has no length and an unloaded one no size yet. Each part
  *  stays its own element so a part can be found by its text. */
-function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
-  const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
+function MediaCardMetadata(props: { useMediaCardMetadataHook: typeof useMediaCardMetadata; item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
+  const metadata = props.useMediaCardMetadataHook({ item: props.item }, { locale: props.locale });
   const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
@@ -1046,10 +1058,11 @@ interface MediaCardMenuProps {
  * loaded shape feeds two places: how the picture fits, and the "1440×900 · 0:38" part of the card's
  * second info row (owner design, 2026-11-01 — they were badges on the picture).
  */
-function MediaCard({ item, handle, onExpand, menu, t }: {
+function MediaCard({ item, handle, onExpand, menu, t, useMediaPreviewHook, useMediaCardMetadataHook }: {
+  useMediaPreviewHook: typeof useWiredMediaPreview; useMediaCardMetadataHook: typeof useMediaCardMetadata;
   item: AdminMedia; handle: string | undefined; onExpand: () => void; menu: MediaCardMenuProps; t: (key: string) => string;
 }) {
-  const preview = useWiredMediaPreview(item, t);
+  const preview = useMediaPreviewHook(item, t);
   return (
     <div className="media-card">
       <div className="media-card-preview">
@@ -1083,7 +1096,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
             items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale, translate: mediaTranslate })}
           />
         </div>
-        <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
+        <MediaCardMetadata useMediaCardMetadataHook={useMediaCardMetadataHook} item={item} locale={menu.locale} shape={preview.shape} t={t} />
       </div>
     </div>
   );
@@ -1097,6 +1110,9 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
  * instead.
  */
 function MediaGridOrEmpty({
+  useMediaCardDetailsHook,
+  useMediaPreviewHook,
+  useMediaCardMetadataHook,
   activeTab,
   visibleMedia,
   mediaExpandHandles,
@@ -1111,6 +1127,9 @@ function MediaGridOrEmpty({
   rowSavingId,
   onRequestPurge,
 }: {
+  useMediaCardDetailsHook: typeof useMediaCardDetails;
+  useMediaPreviewHook: typeof useWiredMediaPreview;
+  useMediaCardMetadataHook: typeof useMediaCardMetadata;
   gridSize: MediaGridSize;
   activeTab: MediaContentTabId;
   visibleMedia: AdminMedia[];
@@ -1125,7 +1144,7 @@ function MediaGridOrEmpty({
   rowSavingId: string | null;
   onRequestPurge: (item: AdminMedia | null) => void;
 }) {
-  const { isPhone, openDetails } = useMediaCardDetails({ onToggleEdit });
+  const { isPhone, openDetails } = useMediaCardDetailsHook({ onToggleEdit });
   if (visibleMedia.length === 0) {
     if (activeTab === "all") {
       return (
@@ -1145,6 +1164,8 @@ function MediaGridOrEmpty({
     <div className="media-grid" data-size={gridSize}>
       {visibleMedia.map((item, index) => (
         <MediaCard
+          useMediaPreviewHook={useMediaPreviewHook}
+          useMediaCardMetadataHook={useMediaCardMetadataHook}
           key={item.id}
           item={item}
           handle={mediaExpandHandles[index]}
@@ -1194,6 +1215,13 @@ function MediaLibraryPanel(
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
+    useMediaPreviewHook: typeof useWiredMediaPreview;
+    useEditMediaPanelHook: typeof useWiredEditMediaPanel;
+    useEditMediaModalHook: typeof useEditMediaModal;
+    useAdminKitValuesHook: typeof useAdminKitValues;
+    useMediaCardMetadataHook: typeof useMediaCardMetadata;
+    useMediaCardDetailsHook: typeof useMediaCardDetails;
+    useMediaGridSizeHook: typeof useMediaGridSize;
   },
 ) {
   const {
@@ -1232,7 +1260,7 @@ function MediaLibraryPanel(
     t,
     locale,
   } = props;
-  const [gridSize, setGridSize] = useMediaGridSize({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
+  const [gridSize, setGridSize] = props.useMediaGridSizeHook({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
 
   return (
     <>
@@ -1279,11 +1307,14 @@ function MediaLibraryPanel(
           This surface was wrongly recorded as already covered by the `panels.tsx` `key=` sweep —
           it is not router-driven, so that sweep never reached it. See `EditMediaModal`'s own doc
           comment for why the `key` lives on `EditMediaPanel`, not on the `<dialog>` around it. */}
-      <EditMediaModal item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
+      <EditMediaModal useEditMediaPanelHook={props.useEditMediaPanelHook} useEditMediaModalHook={props.useEditMediaModalHook} useAdminKitValuesHook={props.useAdminKitValuesHook} item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
 
       {showsUntypedMediaNote({ media, tab: activeTab }) ? <UntypedMediaNote t={t} /> : null}
 
       <MediaGridOrEmpty
+        useMediaCardDetailsHook={props.useMediaCardDetailsHook}
+        useMediaPreviewHook={props.useMediaPreviewHook}
+        useMediaCardMetadataHook={props.useMediaCardMetadataHook}
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}
@@ -1304,6 +1335,7 @@ function MediaLibraryPanel(
           different array would open the wrong asset (and mis-clamp its prev/next arrows) on
           every filtered tab. */}
       <MediaLightbox
+        useMediaPreviewHook={props.useMediaPreviewHook}
         items={visibleMedia}
         activeIndex={lightboxIndex}
         onNavigate={setLightboxIndex}
@@ -1392,8 +1424,8 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
  * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
  * unmoved. Glass follows the document scheme through the shared controller boundary instead.
  */
-function ExternalProvidersPanel({ locale }: { locale: string }) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+function ExternalProvidersPanel({ locale, useAdminThemeBoundaryHook }: { locale: string; useAdminThemeBoundaryHook: typeof useAdminThemeBoundary }) {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   return (
     <I18nProvider
       initialLocale={locale}
@@ -1484,12 +1516,12 @@ export function Media(props: MediaProps) {
   // call site.
   // Keep both injection seams. Forwarding resolvers previously isolated the default branches
   // for the complexity gate; Media is small enough to resolve them directly.
-  const useMediaHook = props.useMediaHook ?? useWiredMedia;
-  const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
+  const useMediaHook = props.useMediaHook;
+  const useMediaTabsHook = props.useMediaTabsHook;
   const controller = useMediaHook();
   const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
-  const { notFound } = useMediaItemLink({
+  const { notFound } = props.useMediaItemLinkHook({
     itemId: props.itemId,
     activeTab,
     media,
@@ -1521,7 +1553,7 @@ export function Media(props: MediaProps) {
   if (activeTab === "external-providers") {
     return (
       <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
-        <ExternalProvidersPanel locale={controller.locale} />
+        <ExternalProvidersPanel locale={controller.locale} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
       </MediaPageShell>
     );
   }
@@ -1543,6 +1575,13 @@ export function Media(props: MediaProps) {
           from, and the lightbox/edit/row-menu wiring below cannot drift per tab. */}
       {notFound ? <div className="notice">{t("That media item wasn't found.")}</div> : null}
       <MediaLibraryPanel
+        useMediaPreviewHook={props.useMediaPreviewHook}
+        useEditMediaPanelHook={props.useEditMediaPanelHook}
+        useEditMediaModalHook={props.useEditMediaModalHook}
+        useAdminKitValuesHook={props.useAdminKitValuesHook}
+        useMediaCardMetadataHook={props.useMediaCardMetadataHook}
+        useMediaCardDetailsHook={props.useMediaCardDetailsHook}
+        useMediaGridSizeHook={props.useMediaGridSizeHook}
         {...controller}
         media={media}
         activeTab={activeTab}

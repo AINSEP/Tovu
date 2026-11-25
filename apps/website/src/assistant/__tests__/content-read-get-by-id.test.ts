@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 /**
@@ -291,7 +292,7 @@ function formsDeps() {
 }
 
 test("forms (real handler): read one definition by formId; a miss is the exact not-found text", async () => {
-  const formDefinition = card(buildFormsRegistrations(formsDeps() as unknown as Parameters<typeof buildFormsRegistrations>[0]), "content_read.form_definition");
+  const formDefinition = card(buildFormsRegistrations(formsDeps() as unknown as Parameters<typeof buildFormsRegistrations>[0], { deriveDuplicateName }), "content_read.form_definition");
   const result = (await formDefinition.handler(executionContext({ formId: "form-2" }))) as { definitions: Array<{ id: string; slug: string }> };
   assert.deepEqual(result.definitions.map((row) => [row.id, row.slug]), [["form-2", "signup"]]);
   await assert.rejects(formDefinition.handler(executionContext({ formId: "form-9" })), {

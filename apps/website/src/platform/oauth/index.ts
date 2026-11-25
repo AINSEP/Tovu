@@ -1,7 +1,4 @@
 /**
- * @file OAuth value contracts re-exported from `@jini-ai/oauth`.
- * The definitions belong to Jini/packages/oauth/src/ports.ts.
- *
  * `authorization_code` (PKCE, RFC 7636) and `device_code` (RFC 8628) are first-class
  * grants. Self-hosted installs may lack a reachable callback; device grant also works
  * in chat because there is no redirect return leg. Self-hosted clients usually cannot
@@ -23,6 +20,3 @@
  * request options, including redirect refusal. The entropy seam makes tests deterministic
  * without weakening production `node:crypto` randomness.
  */
-
-export type { OAuthClient } from "@jini-ai/core/contracts/oauth";
-export type { OAuthClientAuthMethod, OAuthFetch, OAuthGrantKind, OAuthProviderDescriptor, OAuthRandomBytes, OAuthTokenSet } from "@jini-ai/oauth";

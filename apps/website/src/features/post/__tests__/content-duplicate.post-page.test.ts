@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -101,7 +102,7 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: contributePostDuplicateHandlers,
+    listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
   });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
@@ -111,7 +112,7 @@ test("content_duplicate is wired, and this domain contributes both 'post' and 'p
   const registrations = registrationsFor(deps);
   assert.ok(registrations.has("content_duplicate"));
   assert.deepEqual(
-    contributePostDuplicateHandlers().map((c) => c.resource).sort(),
+    contributePostDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource).sort(),
     ["page", "post"],
   );
 });
@@ -342,3 +343,23 @@ for (const resource of ["post", "page"] as const) {
     assert.equal(await postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "api" }), null);
   });
 }
+
+test("numbered post names skip occupied counters using the shared copy policy", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { title: "Landing 2", kind: "post" });
+  await seedPost(postRepo, { id: "base", title: "Landing", slug: "landing", kind: "post" });
+  await seedPost(postRepo, { id: "occupied", title: "Landing 3", slug: "landing-3", kind: "post" });
+  const result = await call(tool(registrationsFor(deps), "content_duplicate"), { resource: "post", id: "source-1" }) as { post: { title: string } };
+  assert.equal(result.post.title, "Landing 4");
+});
+
+test("post duplicate naming preserves the exhaustion message", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { title: "Landing 2", kind: "post" });
+  const [stored] = await postRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(stored);
+  postRepo.list = async () => Array.from({ length: 1001 }, (_, index) => ({ ...stored, id: `occupied-${index}`, title: index === 0 ? "Landing" : `Landing ${index + 1}` }));
+  await assert.rejects(call(tool(registrationsFor(deps), "content_duplicate"), { resource: "post", id: "source-1" }), {
+    message: "no free name could be derived from 'Landing' after 1000 attempts — give the copy an explicit name",
+  });
+});

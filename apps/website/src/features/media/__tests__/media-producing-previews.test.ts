@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -56,8 +57,8 @@ test("every registered media-producing tool returns the same inline image previe
     ...buildMediaRegistrationsForTovu(deps, { surfaceExchanges: createSurfaceExchangeStore({
       scheduler: createTimeoutScheduler({}), clock: deps.clock, idGenerator: deps.idGen, defaultChannel: "mcp-ui",
     }) }),
-    ...buildMediaGenerationRegistrations(deps),
-    ...buildMediaImportRegistrations(deps),
+    ...buildMediaGenerationRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }),
+    ...buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }),
   ];
   const upload = registrations.find(tool => tool.descriptor.id === "media_upload_asset")!;
   registrations.push(buildPromoteChatAttachmentTool({

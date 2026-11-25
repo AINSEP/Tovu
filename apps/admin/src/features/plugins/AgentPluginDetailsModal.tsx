@@ -1,6 +1,6 @@
 import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
-import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
+import type { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
@@ -8,22 +8,25 @@ import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPlu
 import { useHostAdminSurfaceFrame } from "./hooks/use-host-admin-surface-frame.hooks";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
-import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
+import type { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 import {
-  useWiredAgentPluginDetailsModal,
-  useAgentPluginDetailsView,
+  type useWiredAgentPluginDetailsModal,
+  type useAgentPluginDetailsView,
   type AgentPluginDetailsModalController,
 } from "./hooks/use-agent-plugin-details-modal.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginDetailsModalProps {
+  readonly useAgentPluginMemoryHook: typeof useWiredAgentPluginMemory;
+  readonly useAgentPluginDetailsViewHook: typeof useAgentPluginDetailsView;
+  readonly useAgentPluginSurfacesHook: typeof useAgentPluginSurfaces;
   readonly plugin: InspectedAgentPlugin;
   /** `AgentPlugins`' bound translator — the modal's title copy. */
   readonly t: Translate;
   readonly onClose: () => void;
   /** Injectable seam for the listing. Defaults to the real {@link useWiredAgentPluginDetailsModal};
    *  a test can pass a fake to exercise the modal's rendering with a fixed file list/selection. */
-  readonly useDetails?: (required: { pluginId: string }, optional?: Record<string, never>) => AgentPluginDetailsModalController;
+  readonly useDetails: (...args: Parameters<typeof useWiredAgentPluginDetailsModal>) => AgentPluginDetailsModalController;
   /** Plugin-owned admin surfaces (2026-10-20); a test passes a typed fake. */
   readonly surfacesPort?: AgentPluginSurfacesPort;
 }
@@ -39,11 +42,11 @@ export interface AgentPluginDetailsModalProps {
  * Since 2026-10-20 each admin surface the plugin contributes (for example its "Manage connection"
  * screen) is one more view after Memory, titled by the plugin and rendered sandboxed.
  */
-export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
-  const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
-  const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
+export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails, useAgentPluginMemoryHook, useAgentPluginDetailsViewHook, useAgentPluginSurfacesHook, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
+  const memory = useAgentPluginMemoryHook({ pluginId: plugin.id });
+  const view = useAgentPluginDetailsViewHook({ displayName: plugin.displayName, t, memoryT: memory.t });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails({ pluginId: plugin.id });
-  const listed = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
+  const listed = useAgentPluginSurfacesHook({ pluginId: plugin.id, port: surfacesPort });
   // Opened from "Manage": the row already listed the screens, so the first render has their tabs
   // (the shell picks its starting view once, at mount).
   const surfaces = listed.length > 0 ? listed : plugin.surfaces ?? [];

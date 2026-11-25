@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -125,4 +126,28 @@ test("held-back restore refuses a live themes parent that is redirected by a lin
   );
   assert.deepEqual(fs.readdirSync(elsewhere), []);
   assert.ok(fs.lstatSync(path.join(dir, "theme.json")).isFile());
+});
+
+test("held-back checks use code-unit file order for the approved digest", t => {
+  const { siteDir, themesDir, held } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const dir = path.join(held, "declarative", "minimal-declarative");
+  placeTheme(dir);
+  fs.writeFileSync(path.join(dir, "Z.css"), "upper-case-path");
+  fs.writeFileSync(path.join(dir, "a.css"), "lower-case-path");
+  const paths = (fs.readdirSync(dir, { recursive: true }) as string[]).filter(file => fs.statSync(path.join(dir, file)).isFile()).sort();
+  const expected = createHash("sha256");
+  for (const file of paths) {
+    const bytes = fs.readFileSync(path.join(dir, file));
+    expected.update(`${file}\0${bytes.byteLength}\0${createHash("sha256").update(bytes).digest("hex")}\n`);
+  }
+  const observed: string[] = [];
+  const check = checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/minimal-declarative", explainThemeTree: required => {
+    observed.push(...required.files);
+    return explainThemeTree(required);
+  } });
+  assert.equal(check.passes, true);
+  assert.deepEqual(observed, paths.map(file => `themes/declarative/minimal-declarative/${file}`));
+  assert.ok(paths.indexOf("Z.css") < paths.indexOf("a.css"));
+  assert.equal(check.digest, expected.digest("hex"));
 });

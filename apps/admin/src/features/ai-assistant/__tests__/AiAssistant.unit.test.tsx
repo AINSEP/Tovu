@@ -1,3 +1,11 @@
+import { useAdminExecutionMode } from "@/features/ai-assistant/hooks/use-admin-execution-mode.hooks";
+import { useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
+import { useAdminLocale, useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
+import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
+import { useWiredAiAssistant, useAiAssistantTab } from "@/features/ai-assistant/hooks/use-ai-assistant.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useWiredAiAssistantLocaleSync } from "@/features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks";
 import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,6 +13,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiAssistant } from "../AiAssistant";
 import { getNav } from "@/nav";
 import { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
+
+const requiredAiAssistantHooks = {
+  useAdminExecutionModeHook: useAdminExecutionMode,
+  useAdminExecutionCredentialHook: useWiredAdminExecutionCredential,
+  useAdminLocaleHook: useAdminLocale,
+  useTovuSettingsExecutionHook: useTovuSettingsExecution,
+  useExecutionPolicy: useTovuExecutionPolicy,
+  useAiAssistantHook: useWiredAiAssistant,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useAiAssistantTabHook: useAiAssistantTab,
+  useWiredAdminLocaleHook: useWiredAdminLocale,
+  useAiAssistantLocaleSyncHook: useWiredAiAssistantLocaleSync,
+};
 
 /**
  * @file The "AI Assistant" admin screen — the public assistant's master switch plus the
@@ -75,7 +96,7 @@ function theSwitch(): HTMLInputElement {
 it("wcmp: the visitor Widget selector defaults to React and saves Lightweight without enabling visitors", async () => {
   const state = serveSettings({ publicEnabled: false, widget: "react" });
   const user = userEvent.setup();
-  render(<AiAssistant />);
+  render(<AiAssistant {...requiredAiAssistantHooks} />);
   const select = await screen.findByRole("combobox", { name: "Widget" });
   expect(select).toHaveValue("react");
   expect(screen.getByRole("option", { name: "React (~210 KB)" })).toBeInTheDocument();
@@ -92,7 +113,7 @@ it("wcmp: the visitor Widget selector defaults to React and saves Lightweight wi
 describe("the public on/off switch", () => {
   it("renders unchecked for a site that has never turned the assistant on", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
     expect(theSwitch().checked).toBe(false);
@@ -100,14 +121,14 @@ describe("the public on/off switch", () => {
 
   it("renders checked when the server says the assistant is live", async () => {
     serveSettings({ publicEnabled: true });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await waitFor(() => expect(theSwitch().checked).toBe(true));
   });
 
   it("persists a toggle through a PUT and re-renders from the response", async () => {
     const state = serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await waitFor(() => expect(theSwitch()).toBeEnabled());
 
     await userEvent.click(theSwitch());
@@ -123,7 +144,7 @@ describe("the public on/off switch", () => {
 
   it("follows a successful server response even when it disagrees with the requested toggle", async () => {
     serveSettings({ publicEnabled: false }, { returnedEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await waitFor(() => expect(theSwitch()).toBeEnabled());
     await userEvent.click(theSwitch());
     // Enabled again means the save has settled; checking false before that could pass on initial state.
@@ -136,7 +157,7 @@ describe("the public on/off switch", () => {
 
   it("turns back off, which is the control's whole reason for existing", async () => {
     const state = serveSettings({ publicEnabled: true });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await waitFor(() => expect(theSwitch().checked).toBe(true));
 
     await userEvent.click(theSwitch());
@@ -147,7 +168,7 @@ describe("the public on/off switch", () => {
 
   it("keeps visitor enable disabled until a key is stored and never writes through that gate", async () => {
     const state = serveSettings({ publicEnabled: false }, { hasStoredKey: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     // The redesign repeats the reason beside the status pill and under the gated switch.
     await waitFor(() => expect(within(screen.getByRole("status")).getByText("Save a key in step 1 first.")).toBeInTheDocument());
     expect(theSwitch()).toBeDisabled();
@@ -161,7 +182,7 @@ describe("the public on/off switch", () => {
 
   it("does NOT claim the assistant changed state when the save fails", async () => {
     serveSettings({ publicEnabled: true }, { failWrites: true });
-    const { container } = render(<AiAssistant />);
+    const { container } = render(<AiAssistant {...requiredAiAssistantHooks} />);
     await waitFor(() => expect(theSwitch().checked).toBe(true));
 
     await userEvent.click(theSwitch());
@@ -175,7 +196,7 @@ describe("the public on/off switch", () => {
 
   it("explains that off means no bundle and no endpoint, not a hidden widget", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
     expect(screen.getByText(/loads no assistant code and has no chat endpoint/i)).toBeInTheDocument();
@@ -196,7 +217,7 @@ describe("the public on/off switch", () => {
       if (String(url).includes("/assistant/execution/models")) return jsonResponse({ ok: true, models: [] });
       return serveVisitorSettings(url, init);
     });
-    const { container } = render(<AiAssistant />);
+    const { container } = render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await userEvent.click(await screen.findByRole("button", { name: "Admin AI Assistant" }));
     expect(await screen.findByText("Stored on the server, encrypted. Paste a new key to replace it.")).toBeInTheDocument();
@@ -206,7 +227,7 @@ describe("the public on/off switch", () => {
 
   it("surfaces a permission failure in the operator's language", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "nope", code: "FORBIDDEN" }, 403));
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await waitFor(() => expect(screen.getByText(/you do not have permission/i)).toBeInTheDocument());
   });
@@ -230,7 +251,7 @@ describe("the not-yet-built roadmap accordion", () => {
 
   it("lists all three unbuilt controls, each marked as not implemented", async () => {
     serveSettings({ publicEnabled: false });
-    const { container } = render(<AiAssistant />);
+    const { container } = render(<AiAssistant {...requiredAiAssistantHooks} />);
     await openRoadmapTab();
 
     // Scoped to the <summary> rows rather than a document-wide text query: the same phrases
@@ -247,7 +268,7 @@ describe("the not-yet-built roadmap accordion", () => {
 
   it("renders every roadmap item as an inert unchecked box — no fake toggles", async () => {
     serveSettings({ publicEnabled: false });
-    const { container } = render(<AiAssistant />);
+    const { container } = render(<AiAssistant {...requiredAiAssistantHooks} />);
     await openRoadmapTab();
 
     // Scoped to `.assistant-roadmap`, the same way the summary-row test above is, rather than
@@ -265,7 +286,7 @@ describe("the not-yet-built roadmap accordion", () => {
 
   it("expands to a one-line explanation of what each missing control would do", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await openRoadmapTab();
 
     for (const copy of [/per-day and per-conversation spend ceilings/i, /recent conversation counts, and spend to date/i]) {
@@ -284,7 +305,7 @@ describe("the not-yet-built roadmap accordion", () => {
 
   it("warns, before anyone flips the switch, that there is no cost ceiling yet", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await openRoadmapTab();
 
     expect(screen.getByText(/without a cost ceiling/i)).toBeInTheDocument();
@@ -298,7 +319,7 @@ describe("?tab= deep linking", () => {
 
   it("opens directly on the tab named by the tabId prop", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant tabId="admin" />);
+    render(<AiAssistant {...requiredAiAssistantHooks} tabId="admin" />);
 
     await waitFor(() =>
       expect(screen.getByRole("checkbox", { name: "Open the assistant panel" })).toBeInTheDocument(),
@@ -329,14 +350,14 @@ describe("?tab= deep linking", () => {
     // passing an unrecognized id straight through would render a controlled-but-matchless tab and
     // show no panel at all, not the default (visitor) tab.
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant tabId="not-a-real-tab" />);
+    render(<AiAssistant {...requiredAiAssistantHooks} tabId="not-a-real-tab" />);
 
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
   });
 
   it("defaults to the visitor tab when no tabId is supplied at all", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
 
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
   });
@@ -344,7 +365,7 @@ describe("?tab= deep linking", () => {
   it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
     serveSettings({ publicEnabled: false });
     const user = userEvent.setup();
-    render(<AiAssistant />);
+    render(<AiAssistant {...requiredAiAssistantHooks} />);
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
 
     await user.click(screen.getByTestId("settings-dialog-nav-admin"));

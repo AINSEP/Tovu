@@ -1,3 +1,10 @@
+import { useWiredAgentPluginDetailsModal, useAgentPluginDetailsView } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
+import { useAgentPluginUpdate } from "@/features/plugins/hooks/use-agent-plugin-update.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
+import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
 import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -13,6 +20,23 @@ import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
+
+
+const requiredAgentPluginUpdateSlotHooks = {
+  useAgentPluginUpdateHook: useAgentPluginUpdate,
+};
+
+const requiredAgentPluginsHooks = {
+  useDetails: useWiredAgentPluginDetailsModal,
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+  useAgentPluginUpdateHook: useAgentPluginUpdate,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useAgentPluginTabHook: useAgentPluginTab,
+  useAgentPluginInstallHook: useAgentPluginInstall,
+  useAgentPluginConfirmationHook: useAgentPluginConfirmation,
+};
 
 /**
  * @file The Agent Plugins lifecycle fields on screen (2026-10-21): a row this Tovu cannot run or
@@ -49,7 +73,7 @@ function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
 describe("Agent Plugin rows — compatibility and Update", () => {
   it("only an operator-installed row with its digest offers Update; bundled rows never do", async () => {
     const port = createFakeAgentPluginInstallPort({ row: UPLOADED });
-    render(<AgentPlugins useAgentPluginsHook={() => controllerFor([UPLOADED, BUNDLED, NO_DIGEST])} agentPluginInstallPort={port} />);
+    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={() => controllerFor([UPLOADED, BUNDLED, NO_DIGEST])} agentPluginInstallPort={port} />);
     expect(await screen.findByRole("button", { name: "Update Note Taker" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: "Update Site Compliance" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Update Old Server" })).toBeNull();
@@ -74,7 +98,7 @@ describe("Agent Plugin rows — compatibility and Update", () => {
 
 describe("AgentPluginUpdateControl, composed by its wired slot", () => {
   async function openAndUpload(port: ReturnType<typeof createFakeAgentPluginInstallPort>, onUpdated = vi.fn()) {
-    render(<AgentPluginUpdateSlot plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row-note-taker" onUpdated={onUpdated} port={port} />);
+    render(<AgentPluginUpdateSlot {...requiredAgentPluginUpdateSlotHooks} plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row-note-taker" onUpdated={onUpdated} port={port} />);
     const toggle = screen.getByRole("button", { name: "Update Note Taker" });
     expect(toggle).toHaveAttribute("data-agent-element", "row-note-taker-update");
     await userEvent.click(toggle);
@@ -102,7 +126,7 @@ describe("AgentPluginUpdateControl, composed by its wired slot", () => {
   });
 
   it("closes again from the same button", async () => {
-    render(<AgentPluginUpdateSlot plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row" onUpdated={vi.fn()} port={createFakeAgentPluginInstallPort({ row: UPLOADED })} />);
+    render(<AgentPluginUpdateSlot {...requiredAgentPluginUpdateSlotHooks} plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row" onUpdated={vi.fn()} port={createFakeAgentPluginInstallPort({ row: UPLOADED })} />);
     const toggle = screen.getByRole("button", { name: "Update Note Taker" });
     await userEvent.click(toggle);
     await userEvent.click(toggle);

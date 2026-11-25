@@ -1,7 +1,32 @@
+import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "../Media";
+
+const requiredMediaHooks = {
+  useMediaHook: useWiredMedia,
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -20,7 +45,7 @@ describe("legacy media cards", () => {
         : url.includes("/users") ? { users: [] } : { media: [item] };
       return new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
     }));
-    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const title = await screen.findByRole("button", { name: "Metadata photo.png" });
     const card = title.closest(".media-card")!;

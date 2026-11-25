@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
@@ -226,7 +227,7 @@ test('t10 media failed outcome emission still returns the persisted safe result'
 test('t10 media generation missing key names the human setup tool in its refusal', async () => {
   const f = fixture();
   const deps = { ...f.deps, env: {}, generateMedia: async () => assert.fail('missing credential must not call a vendor') } as unknown as MediaGenerationToolDeps;
-  const registration = buildMediaGenerationRegistrations(deps).find(r => r.descriptor.id === 'media_generate_asset'); assert.ok(registration);
+  const registration = buildMediaGenerationRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find(r => r.descriptor.id === 'media_generate_asset'); assert.ok(registration);
   const result = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { prompt: 'Cover image', model: 'gpt-image-2' }, signal: new AbortController().signal }) as { generated: boolean; credentialSetup: unknown };
   assert.equal(result.generated, false);

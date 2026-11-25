@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createHttpClient, EgressRefusedError } from "@jini-ai/platform/http/guarded";
@@ -31,6 +32,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
+import { persistImportedMedia, type MediaImportToolDeps } from "../../media-import/tool-registrations.js";
 import { buildMediaGenerationRegistrations, contributeMediaGenerationTools, type MediaGenerationToolDeps } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
@@ -70,7 +72,7 @@ class BrokenKeyring implements KeyringPort {
  */
 
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
+contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
 
 const WORKSPACE_ID = "ws-media-generation-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -796,7 +798,48 @@ test("a plugin vendor with no saved credential gets the same credential-setup di
 
 test("construction over metadata-only deps (no registry) publishes the built-in enum", () => {
   const { mediaProviderRegistry: _omitted, ...bare } = fakeRouteDeps().deps as unknown as Record<string, unknown>;
-  const registration = buildMediaGenerationRegistrations(bare as unknown as MediaGenerationToolDeps).find((r) => r.descriptor.id === "media_generate_asset");
+  const registration = buildMediaGenerationRegistrations(bare as unknown as MediaGenerationToolDeps, { resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === "media_generate_asset");
   assert.ok(registration);
   assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
+});
+
+for (const variant of ["rendition", "original", "no-transform"] as const) {
+  test(`import and generation preserve the same saved-media ${variant} URL`, async () => {
+    const generated = fakeRouteDeps({ env: { OPENAI_API_KEY: "fixture-key" } });
+    const imported = fakeRouteDeps();
+    const bytes = variant === "original" ? Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') : FAKE_PNG_BYTES;
+    const generationDeps = generated.deps as unknown as MediaGenerationToolDeps;
+    generationDeps.generateMedia = async () => ({ bytes, providerNote: "fixture", providerId: "openai", usedStubFallback: false, warnings: [] });
+    if (variant !== "no-transform") {
+      await seedPublicTransform(generated.transformDefinitionRepo);
+      await seedPublicTransform(imported.transformDefinitionRepo);
+    }
+    const generatedResult = await wired("media_generate_asset", generated.deps).handler(executionContext({ prompt: "Shared" })) as { media: { slug: string; sha256: string; publicUrl: string | null } };
+    const importedResult = await persistImportedMedia({
+      resolvePublicUrls: resolveMediaPublicUrls,
+      routeDeps: imported.deps as unknown as MediaImportToolDeps, actorId: PRINCIPAL_ID, sourceUrl: "",
+      input: { workspaceId: WORKSPACE_ID, bytes, filename: "Shared.png", contentType: variant === "original" ? "image/svg+xml" : "image/png", createdByPrincipal: PRINCIPAL_ID },
+    });
+    assert.equal(generatedResult.media.slug, importedResult.media.slug);
+    assert.equal(generatedResult.media.sha256, importedResult.media.sha256);
+    const expected = variant === "no-transform" ? null : `/m/${generatedResult.media.slug}/${variant === "original" ? "original.svg" : "public.v1/image.webp"}?v=${generatedResult.media.sha256.slice(0, 12)}`;
+    assert.equal(generatedResult.media.publicUrl, expected);
+    assert.equal(importedResult.media.publicUrl, expected);
+  });
+}
+
+test("import and generation propagate public-URL lookup failure after saving", async () => {
+  const failure = new Error("public URL lookup unavailable");
+  const generated = fakeRouteDeps({ env: { OPENAI_API_KEY: "fixture-key" } });
+  const imported = fakeRouteDeps();
+  generated.mediaContentTypeStore.getMany = async () => { throw failure; };
+  imported.mediaContentTypeStore.getMany = async () => { throw failure; };
+  await assert.rejects(wired("media_generate_asset", generated.deps).handler(executionContext({ prompt: "Shared" })), error => error === failure);
+  await assert.rejects(persistImportedMedia({
+    resolvePublicUrls: resolveMediaPublicUrls,
+    routeDeps: imported.deps as unknown as MediaImportToolDeps, actorId: PRINCIPAL_ID, sourceUrl: "",
+    input: { workspaceId: WORKSPACE_ID, bytes: FAKE_PNG_BYTES, filename: "Shared.png", contentType: "image/png", createdByPrincipal: PRINCIPAL_ID },
+  }), error => error === failure);
+  assert.equal((await generated.mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, 1);
+  assert.equal((await imported.mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, 1);
 });

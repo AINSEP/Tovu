@@ -14,11 +14,10 @@ import {
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
-import { buildFormsToolRegistrations, duplicateFormDefinition, formsDerivedRisk, type FormCollectionRegistry, type FormCommandExecutorPort, type FormsPackageToolDeps, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { buildFormsToolRegistrations, duplicateFormDefinition, formsDerivedRisk, type DeriveDuplicateName, type FormCollectionRegistry, type FormCommandExecutorPort, type FormsPackageToolDeps, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/forms";
-import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
 import type { FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
@@ -53,7 +52,7 @@ export interface FormsToolDeps {
  * call time, never copied here. The audited write wrappers (permission, reserved slugs, the
  * admin-editor wording), the slug rule and the duplicate-name search are the host's.
  */
-function toPackageDeps({ routeDeps }: { routeDeps: FormsToolDeps }, _optional = {}): FormsPackageToolDeps {
+function toPackageDeps({ routeDeps, deriveDuplicateName }: { routeDeps: FormsToolDeps; deriveDuplicateName: DeriveDuplicateName }, _optional = {}): FormsPackageToolDeps {
   return {
     get formCollectionProviders() { return routeDeps.formCollectionProviders; },
     get executeCommand() { return routeDeps.executeCommand; },
@@ -73,8 +72,8 @@ function toPackageDeps({ routeDeps }: { routeDeps: FormsToolDeps }, _optional = 
   };
 }
 
-export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildFormsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
+export function buildFormsRegistrations(routeDeps: FormsToolDeps, { deriveDuplicateName }: { deriveDuplicateName: DeriveDuplicateName }): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildFormsToolRegistrations({ deps: toPackageDeps({ routeDeps, deriveDuplicateName }) }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
@@ -87,13 +86,13 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
  * `domain-no-direct-assistant-tool-registration` rule bans any non-type-only `features/** ->
  * assistant/**` import, so this function returns plain data and imports only the registry's TYPE.
  */
-export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerContributor<FormsToolDeps>[] {
+export function contributeFormsDuplicateHandlers({ deriveDuplicateName }: { deriveDuplicateName: DeriveDuplicateName }, _optional = {}): DuplicateResourceHandlerContributor<FormsToolDeps>[] {
   return [
     {
       resource: "form",
       build: (routeDeps, _optional = {}) => ({
         permission: "admin.forms.manage",
-        duplicate: (input, _optional = {}) => duplicateFormDefinition({ deps: toPackageDeps({ routeDeps }), input }),
+        duplicate: (input, _optional = {}) => duplicateFormDefinition({ deps: toPackageDeps({ routeDeps, deriveDuplicateName }), input }),
       }),
     },
   ];
@@ -109,6 +108,6 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
  * `widgets` off the static `DOMAIN_SLICES` array first, `assistant -> widgets -> forms -> assistant`
  * cannot close.
  */
-export function contributeFormsTools(): ToolContributor<FormsToolDeps, unknown> {
-  return { domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk };
+export function contributeFormsTools({ deriveDuplicateName }: { deriveDuplicateName: DeriveDuplicateName }, _optional = {}): ToolContributor<FormsToolDeps, unknown> {
+  return { domain: "forms", build: (routeDeps) => buildFormsRegistrations(routeDeps, { deriveDuplicateName }), risk: formsDerivedRisk };
 }

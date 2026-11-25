@@ -1,3 +1,6 @@
+import { useAgentPluginDetailsView } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -6,6 +9,12 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
 import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+
+const requiredAgentPluginDetailsModalHooks = {
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+};
 
 /**
  * @file `AgentPluginDetailsModal`'s own rendering behavior is already covered end-to-end through
@@ -21,7 +30,7 @@ const identity = (key: string) => key;
 
 describe("AgentPluginDetailsModal details-hook injection", () => {
   it("shows the maturity pill in the package inspector", async () => {
-    render(<AgentPluginDetailsModal
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks}
       plugin={{ ...PLUGIN, maturity: "untested" }} onClose={vi.fn()} t={identity}
       useDetails={() => ({ files: [], selectedFile: null, selectFile: vi.fn() })}
     />);
@@ -41,7 +50,7 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
       };
     }
 
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
     // The selected file's folder starts expanded, so the file row is visible under it.
     expect(screen.getByRole("treeitem", { name: "fake" })).toHaveAttribute("aria-expanded", "true");
@@ -54,7 +63,7 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
       return { files: [], selectedFile: null, selectFile: vi.fn() };
     }
 
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory"]);
   });
@@ -70,7 +79,7 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
       };
     }
 
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("No files to show for this plugin.");
   });
@@ -103,7 +112,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   it("defaults every file to wrapped, markdown and non-markdown alike", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
+      <AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
     );
 
     // alpha.md is selected by default and defaults wrapped, via the grid renderer.
@@ -126,7 +135,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
     }
 
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeLongLineDetails} />,
+      <AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeLongLineDetails} />,
     );
 
     // WrappedFileContent lays out one CSS grid row per source line (`.jini-code-viewer__line-number` paired with its
@@ -141,7 +150,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   it("switches renderers and aria-pressed when the toggle is clicked, in both directions", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
+      <AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
     );
     const toggle = screen.getByRole("button", { name: WRAP_TOGGLE_NAME });
 
@@ -161,7 +170,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
 
   it("resets a manual override to the new file's own default instead of carrying it across", async () => {
     const user = userEvent.setup();
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
 
     // alpha.md defaults wrapped; override it off.
     await user.click(screen.getByRole("button", { name: WRAP_TOGGLE_NAME }));
@@ -174,7 +183,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   });
 
   it("keeps the toggle's own label out of the heading's accessible name", () => {
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
 
     // The toggle sits in the same header row but outside the <h3> for exactly this reason — see
     // `AgentPlugins.unit.test.tsx`'s own exact-name heading assertion, which this protects.

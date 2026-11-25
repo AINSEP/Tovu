@@ -88,6 +88,6 @@ export function buildImageTransformRegistrations(routeDeps: ImageTransformToolDe
 }
 
 /** Contributes `image_transform` — registered once by `tool-catalog-manifest.ts`. */
-export function contributeImageTransformTools(): ToolContributor<ImageTransformToolDeps, AssistantSurfaceDeps> {
-  return { domain: "image-transform", build: buildImageTransformRegistrations, risk: imageTransformDerivedRisk };
+export function contributeImageTransformTools({ resolvePublicUrls }: Pick<AssetToolDeps, "resolvePublicUrls">, _optional = {}): ToolContributor<Omit<ImageTransformToolDeps, "resolvePublicUrls">, AssistantSurfaceDeps> {
+  return { domain: "image-transform", build: (deps, surfaces) => buildImageTransformRegistrations({ ...deps, resolvePublicUrls }, surfaces), risk: imageTransformDerivedRisk };
 }

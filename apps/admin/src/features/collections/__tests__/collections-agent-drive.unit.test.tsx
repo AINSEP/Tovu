@@ -1,3 +1,5 @@
+import { useWiredCollectionEntryEditor } from "@/features/collections/hooks/use-collection-entry-editor.hooks";
+import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
@@ -9,6 +11,11 @@ import { CollectionEntries } from "../CollectionEntriesScreen";
 import { Collections } from "../CollectionsScreen";
 import type { CollectionsController } from "@jini-ai/admin/screens/collections/hooks/use-collections.hooks";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
+
+const requiredCollectionEntryEditorHooks = {
+  useCollectionEntryEditorHook: useWiredCollectionEntryEditor,
+  useJsonFieldControlHook: useJsonFieldControl,
+};
 
 /**
  * @file Regression test for this batch's agent-control tagging on the `collections` feature
@@ -93,7 +100,7 @@ describe("driving a new entry's editor through page.* verbs", () => {
       return Promise.reject(new Error(`unmocked route: ${url}`));
     });
     const { container } = render(<FetchQueryProvider>
-      <CollectionEntryEditor contentTypeKey="articles" entryId="e1" />
+      <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId="e1" />
     </FetchQueryProvider>);
     expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
     const handles = await handlesOf(createDomPageDriver({ root: container, pages: {} }), { role: "button" });
@@ -107,7 +114,7 @@ describe("driving a new entry's editor through page.* verbs", () => {
 
     const { container } = render(
       <FetchQueryProvider>
-        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+        <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} />
       </FetchQueryProvider>,
     );
     await screen.findByLabelText("Entry title");
@@ -126,7 +133,7 @@ describe("driving a new entry's editor through page.* verbs", () => {
 
     const { container } = render(
       <FetchQueryProvider>
-        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+        <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} />
       </FetchQueryProvider>,
     );
     await screen.findByLabelText("Entry title");

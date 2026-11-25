@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -46,6 +47,7 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: { newId: () => "card-1" }, defaultChannel: "mcp-ui" });
   const permissions: string[] = []; const requests: HttpRequest[] = [];
   const deps: AssetToolDeps = {
+    resolvePublicUrls: resolveMediaPublicUrls,
     workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }), clock, idGen: { newId: () => `asset-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),

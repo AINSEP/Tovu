@@ -38,7 +38,7 @@ function walkHeldBackTree(required: { dir: string }): HeldBackTree {
   const tree: HeldBackTree = { files: [], bytes: 0, links: [], tooLarge: false };
   const pending: WalkFolder[] = [{ abs: required.dir, rel: "", depth: 0 }];
   while (pending.length && !tree.tooLarge) walkFolder({ tree, folder: pending.pop()!, pending });
-  tree.files.sort((a, b) => compareText(a.relativePath, b.relativePath));
+  tree.files.sort((a, b) => compareText({ a: a.relativePath, b: b.relativePath }));
   tree.links.sort();
   return tree;
 }
@@ -46,7 +46,7 @@ function walkHeldBackTree(required: { dir: string }): HeldBackTree {
 interface WalkFolder { abs: string; rel: string; depth: number }
 
 /** Code-unit order, so the digest never depends on the host's locale. */
-function compareText(a: string, b: string): number {
+function compareText({ a, b }: { a: string; b: string }, _optional = {}): number {
   if (a === b) return 0;
   return a < b ? -1 : 1;
 }

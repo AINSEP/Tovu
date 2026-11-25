@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OAuthError, type OAuthErrorCode } from "@jini-ai/oauth";
-import type { OAuthClient, OAuthProviderDescriptor } from "../ports.js";
+import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
+import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 
 /**
  * @file Shared doubles for the `src/platform/oauth/` tests.

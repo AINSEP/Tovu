@@ -1,9 +1,9 @@
 import { createAiAssistantTranslator, useHostAssistantRestartAllowed } from "./AiAssistant.hooks";
-import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
-import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
-import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
+import type { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
+import type { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { isDesktopAdmin, localCliScopeCopy } from '../settings/ai-agent-presentation';
 import { hostLocalCliScopeLabel } from '../../integrations/jini-admin/settings-execution-copy';
 import {
@@ -39,22 +39,22 @@ import {
   visitorKeyFooterLines,
 } from "./rules";
 import "./ai-assistant.css";
-import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
+import type { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart } from "./hooks/assistant-daemon-restart-dependencies.hooks";
-import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import type { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
 import {
-  useAiAssistantTab,
+  type useAiAssistantTab,
   resolveAiAssistantTabSubtitle,
-  useWiredAiAssistant,
+  type useWiredAiAssistant,
 } from "./hooks/use-ai-assistant.hooks";
 import { useWiredVisitorCredentialForm } from "./hooks/visitor-credential-form-dependencies.hooks";
 import { useStoredCredentialHint } from "@jini-ai/admin/shell/hooks/use-credential-hint.hooks";
 import { storedCredentialHint } from "@/lib/credential-copy";
-import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
+import type { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -204,8 +204,10 @@ function RoadmapChecklist({ t }: { t: (key: string) => string }) {
  * full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
  */
 interface AdminExecutionModeProps {
-  useExecutionPolicy?: typeof useTovuExecutionPolicy;
-  useAdminExecutionModeHook?: typeof useAdminExecutionMode;
+  useAdminLocaleHook: typeof useAdminLocale;
+  useTovuSettingsExecutionHook: typeof useTovuSettingsExecution;
+  useExecutionPolicy: typeof useTovuExecutionPolicy;
+  useAdminExecutionModeHook: typeof useAdminExecutionMode;
   /**
    * Dependency injection seam for tests — same convention as `useAdminExecutionModeHook` above, and
    * the same seam `SettingsUi.tsx`'s own `useAdminExecutionCredentialHook` prop opens over the SAME
@@ -213,7 +215,7 @@ interface AdminExecutionModeProps {
    * pass; the two mounts must stay consistent (see this component's own "must never disagree" doc
    * above), so both convert together rather than one seaming ahead of the other.
    */
-  useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
+  useAdminExecutionCredentialHook: typeof useWiredAdminExecutionCredential;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). */
   t?: (key: string) => string;
 }
@@ -230,19 +232,6 @@ interface AdminExecutionModeProps {
 function resolveT({ override }: { override: ((key: string) => string) | undefined }, _options: Record<string, never> = {}): (key: string) => string {
   return override ?? ((key: string) => key);
 }
-function resolveAdminExecutionModeHook(
-  { override }: { override: typeof useAdminExecutionMode | undefined },
-  _options: Record<string, never> = {},
-): typeof useAdminExecutionMode {
-  return override ?? useAdminExecutionMode;
-}
-function resolveAdminExecutionCredentialHook(
-  { override }: { override: typeof useWiredAdminExecutionCredential | undefined },
-  _options: Record<string, never> = {},
-): typeof useWiredAdminExecutionCredential {
-  return override ?? useWiredAdminExecutionCredential;
-}
-
 /** Exported (unlike `AdminAssistantSwitch`) so `AdminExecutionMode.unit.test.tsx` can drive its two
  *  DI seams directly, the same way `VisitorCredentialForm` is exported for its own test file. */
 export function AdminExecutionMode(props: AdminExecutionModeProps) {
@@ -250,12 +239,12 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
   // props object — `{}` when no attributes are given, never `undefined` — and every field on
   // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
-  const useAdminExecutionModeHook = resolveAdminExecutionModeHook({ override: props.useAdminExecutionModeHook });
-  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
+  const useAdminExecutionModeHook = props.useAdminExecutionModeHook;
+  const useAdminExecutionCredentialHook = props.useAdminExecutionCredentialHook;
   const t = resolveT({ override: props.t });
   const { port, execution } = useAdminExecutionModeHook();
-  const locale = useAdminLocale();
-  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
+  const locale = props.useAdminLocaleHook();
+  const executionPolicy = props.useTovuSettingsExecutionHook({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
@@ -573,7 +562,9 @@ export function VisitorCredentialSettingsFooter({
 export { visitorCredentialApiKeyPlaceholder } from "./rules";
 
 interface VisitorCredentialFormProps {
-  useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
+  useStoredCredentialHintHook: typeof useStoredCredentialHint;
+  useAdminLocaleHook: typeof useAdminLocale;
+  useVisitorCredentialFormHook: typeof useWiredVisitorCredentialForm;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
    *  finding "Provider"/the intro copy by their exact English text. */
@@ -581,9 +572,11 @@ interface VisitorCredentialFormProps {
 }
 
 export function VisitorCredentialForm({
-  useVisitorCredentialFormHook = useWiredVisitorCredentialForm,
+  useVisitorCredentialFormHook,
+  useStoredCredentialHintHook,
+  useAdminLocaleHook,
   t = (key: string) => key,
-}: VisitorCredentialFormProps = {}) {
+}: VisitorCredentialFormProps) {
   const {
     loadState,
     config,
@@ -619,7 +612,7 @@ export function VisitorCredentialForm({
    * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
    */
   const providerSelectId = useId();
-  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint, storedCredentialHint, useAdminLocale });
+  const apiKeyPlaceholder = useStoredCredentialHintHook({ stored, storedKeyIsForOtherEndpoint, storedCredentialHint, useAdminLocale: useAdminLocaleHook });
 
   if (loadState.status === "loading") return <p role="status">{t("Loading saved settings…")}</p>;
   if (loadState.status === "error") return <p role="alert">{t(loadState.message)}</p>;
@@ -712,6 +705,10 @@ export function VisitorCredentialForm({
   );
 }
 
+export function BoundVisitorCredentialForm(props: Omit<VisitorCredentialFormProps, "useStoredCredentialHintHook" | "useAdminLocaleHook">) {
+  return <VisitorCredentialForm {...props} useStoredCredentialHintHook={useStoredCredentialHint} useAdminLocaleHook={useAdminLocale} />;
+}
+
 /**
  * Bridges `AiAssistant`'s own `locale` to the mounted `I18nProvider`'s active locale. Renders
  * nothing; see `hooks/use-ai-assistant-locale-sync.hooks.ts` for the full rationale (an
@@ -723,18 +720,19 @@ export function VisitorCredentialForm({
  */
 function AiAssistantLocaleSync({
   locale,
-  useAiAssistantLocaleSyncHook = useWiredAiAssistantLocaleSync,
+  useAiAssistantLocaleSyncHook,
 }: {
   locale: string;
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
-  useAiAssistantLocaleSyncHook?: typeof useWiredAiAssistantLocaleSync;
+  useAiAssistantLocaleSyncHook: typeof useWiredAiAssistantLocaleSync;
 }) {
   useAiAssistantLocaleSyncHook({ locale });
   return null;
 }
 
 /** The "admin" tab's body: the three switches, then execution mode, then the daemon restart. */
-function AdminAssistantTabPanel({ t }: { t: Translate }) {
+function AdminAssistantTabPanel(props: AdminExecutionModeProps & { t: Translate }) {
+  const { t } = props;
   return (
     <>
       {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
@@ -744,7 +742,7 @@ function AdminAssistantTabPanel({ t }: { t: Translate }) {
         <AdminSubagents t={t} {...adminSubagentsBindings} />
         <AdminPermanentDeletes t={t} {...adminPermanentDeletesBindings} />
       </div>
-      <AdminExecutionMode t={t} />
+      <AdminExecutionMode {...props} />
       <AssistantDaemonRestart t={t} useAssistantDaemonRestartHook={useWiredAssistantDaemonRestart}
         useRestartAllowedHook={useHostAssistantRestartAllowed}
         description={t(
@@ -754,7 +752,11 @@ function AdminAssistantTabPanel({ t }: { t: Translate }) {
   );
 }
 
-export interface AiAssistantProps {
+export interface AiAssistantProps extends Pick<AdminExecutionModeProps, "useAdminLocaleHook" | "useTovuSettingsExecutionHook" | "useExecutionPolicy" | "useAdminExecutionModeHook" | "useAdminExecutionCredentialHook"> {
+  useAdminThemeBoundaryHook: typeof useAdminThemeBoundary;
+  useAiAssistantTabHook: typeof useAiAssistantTab;
+  useWiredAdminLocaleHook: typeof useWiredAdminLocale;
+  useAiAssistantLocaleSyncHook: typeof useWiredAiAssistantLocaleSync;
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
@@ -765,7 +767,7 @@ export interface AiAssistantProps {
    * `AdminExecutionMode`, `VisitorCredentialForm`) take the same seam over their own hooks, for the
    * same reason — this is the screen with the most independent state in the app.
    */
-  useAiAssistantHook?: typeof useWiredAiAssistant;
+  useAiAssistantHook: typeof useWiredAiAssistant;
   /**
    * The `?tab=` query value from `panels.tsx`'s `ai-assistant` route (`URLSearchParams.get` returns
    * `null` when the param is absent). Drives which tab the inline shell opens on — same seam and same
@@ -774,10 +776,11 @@ export interface AiAssistantProps {
   tabId?: string | null;
 }
 
-export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function AiAssistant(props: AiAssistantProps) {
+  const { useAiAssistantHook, tabId } = props;
+  const themeBoundary = props.useAdminThemeBoundaryHook({}, {});
   const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
-  const { activeTabId, onTabChange } = useAiAssistantTab({ tabId });
+  const { activeTabId, onTabChange } = props.useAiAssistantTabHook({ tabId });
 
   /**
    * The one `useWiredAdminLocale()` call for this whole screen — every subcomponent below (
@@ -788,7 +791,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `AboutPanel({ t })` uses, for the same reason (a component that isn't a descendant of the
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
-  const locale = useWiredAdminLocale();
+  const locale = props.useWiredAdminLocaleHook();
   const t = createAiAssistantTranslator({ locale });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
@@ -824,7 +827,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       // per-tool Auto | Ask first | Off list. See `VisitorAssistantTabs`.
       panel: (
         <VisitorAssistantTabs t={t} {...visitorAssistantTabsBindings} toolsPanel={<VisitorToolsPanel t={t} {...visitorToolsPanelBindings} />} providerPanel={
-          <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip}
+          <VisitorAssistantPanel t={t} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip}
             useVisitorCredentialFormHook={useWiredVisitorCredentialForm} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
             controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
         } />
@@ -841,7 +844,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
           <path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4" />
         </TabIcon>
       ),
-      panel: <AdminAssistantTabPanel t={t} />,
+      panel: <AdminAssistantTabPanel {...props} t={t} />,
     },
     {
       id: "roadmap",
@@ -902,7 +905,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
         too, not just the literal strings this file passes in as props above.
       */}
       <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
-        <AiAssistantLocaleSync locale={locale} />
+        <AiAssistantLocaleSync locale={locale} useAiAssistantLocaleSyncHook={props.useAiAssistantLocaleSyncHook} />
         {/*
           Classic's light pin is REQUIRED, not cosmetic. With the attribute absent entirely the shell's stylesheet falls
           through to its dark variant, which is why this panel rendered dark inside an otherwise-light

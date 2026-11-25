@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -56,7 +57,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   });
   const putSpy = t.mock.method(deps.blobStore, "put");
   function registration() {
-    const found = buildMediaImportRegistrations(deps).find((r) => r.descriptor.id === TOOL);
+    const found = buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === TOOL);
     assert.ok(found, "media_import_local_file must be wired");
     return found;
   }
@@ -220,7 +221,7 @@ test("catalog schema, domain registration and derived risk declare a permission-
   assert.doesNotMatch(definition.description, /retry with root 'custom'/);
   assert.equal(f.registration().descriptor.readOnly, false);
   assert.equal(f.mediaImportDerivedRisk.get(TOOL), "mutates-durable-state");
-  assert.equal(f.contributeMediaImportTools().domain, "media-import");
+  assert.equal(f.contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }).domain, "media-import");
   assert.equal(TOVU_MAX_UPLOAD_BYTES, 50 * 1024 * 1024);
 });
 

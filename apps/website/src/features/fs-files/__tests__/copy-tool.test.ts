@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +21,7 @@ function folder(dir: string, count: number, bytes: Buffer = Buffer.from("asset")
 }
 
 test("copy catalog, metadata and risk declarations register one generic recipe surface", () => {
-  assert.equal(contributeFilesCopyTools().domain, "files-copy");
+  assert.equal(contributeFilesCopyTools({ resolvePublicUrls: resolveMediaPublicUrls }).domain, "files-copy");
   assert.equal(filesCopyDerivedRisk.get("files_copy"), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId.files_copy?.approval, { class: "edit", confirmation: "policy" });
 });

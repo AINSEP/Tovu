@@ -135,6 +135,7 @@ import { deriveDuplicateName } from "#src/features/content-duplication/copy-nami
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { createMediaConversionPorts, createMediaVideoToolPorts } from "./media-video-ports.js";
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { saveMediaCredential, contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
@@ -512,17 +513,17 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
-  contributions.contributors.register({ contribution: contributeFilesCopyTools() });
-  contributions.contributors.register({ contribution: contributeFormsTools() });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
+  contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
-  contributions.contributors.register({ contribution: contributeImageTransformTools() });
+  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
-  contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
+  contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });
-  contributions.contributors.register({ contribution: contributeMediaImportTools({ videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
+  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
@@ -745,8 +746,8 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
   // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
   for (const contributor of [
-    ...contributePostDuplicateHandlers(),
-    ...contributeFormsDuplicateHandlers(),
+    ...contributePostDuplicateHandlers({ deriveDuplicateName }),
+    ...contributeFormsDuplicateHandlers({ deriveDuplicateName }),
     ...contributeMediaDuplicateHandlers({ deriveDuplicateName, ...UPLOAD_CAPS }),
   ]) {
     registerDuplicateResourceHandler(contributor);

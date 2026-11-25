@@ -7,11 +7,11 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { ServerLabel } from "@/components/status-labels";
 
 import { navigateToRecoveryWithDeepLink } from "@jini-ai/admin/screens/database/hooks/use-timeline-section.hooks";
-import { useWiredTimelineSection } from "./hooks/timeline-section-dependencies.hooks";
+import type { useWiredTimelineSection } from "./hooks/timeline-section-dependencies.hooks";
 import type { MigrateForwardSectionController } from "@jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks";
-import { useWiredMigrateForwardSection } from "./hooks/migrate-forward-section-dependencies.hooks";
-import { useWiredSchemaStateSection } from "./hooks/schema-state-section-dependencies.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { useWiredMigrateForwardSection } from "./hooks/migrate-forward-section-dependencies.hooks";
+import type { useWiredSchemaStateSection } from "./hooks/schema-state-section-dependencies.hooks";
+import type { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -97,7 +97,7 @@ export interface TimelineSectionProps {
    *  for `useCustomSelect`. Mirrored below (`MigrateForwardSectionProps`) since each section owns
    *  independent state. Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see
    *  `timeline-section-dependencies.hooks.ts`'s own `useWiredTimelineSection`. */
-  useTimelineSectionHook?: typeof useWiredTimelineSection;
+  useTimelineSectionHook: typeof useWiredTimelineSection;
 }
 
 /** The Timeline's filter bar. Pure presentation, no branching of its own beyond the
@@ -270,7 +270,7 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
   );
 }
 
-function TimelineSection({ useTimelineSectionHook = useWiredTimelineSection }: TimelineSectionProps) {
+function TimelineSection({ useTimelineSectionHook }: TimelineSectionProps) {
   const {
     rows,
     nextCursor,
@@ -318,7 +318,7 @@ function TimelineSection({ useTimelineSectionHook = useWiredTimelineSection }: T
 export interface MigrateForwardSectionProps {
   /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-migrate-forward-
    *  section-dependencies.hooks.ts`'s own `useWiredMigrateForwardSection`. */
-  useMigrateForwardSectionHook?: typeof useWiredMigrateForwardSection;
+  useMigrateForwardSectionHook: typeof useWiredMigrateForwardSection;
 }
 
 /** step === "idle": the entry point into the ceremony. */
@@ -413,7 +413,7 @@ function migrateForwardStep(props: {
   return null;
 }
 
-function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateForwardSection }: MigrateForwardSectionProps) {
+function MigrateForwardSection({ useMigrateForwardSectionHook }: MigrateForwardSectionProps) {
   const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t, locale } = useMigrateForwardSectionHook();
 
   return (
@@ -454,7 +454,7 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateF
 
 export interface SchemaStateWarningBannerProps {
   /** Same dependency-injection seam as the three sections above. */
-  useSchemaStateSectionHook?: typeof useWiredSchemaStateSection;
+  useSchemaStateSectionHook: typeof useWiredSchemaStateSection;
 }
 
 /**
@@ -472,7 +472,7 @@ export interface SchemaStateWarningBannerProps {
  * `warning.tone` selects between `.notice.error` and `.notice.warning`, both already in
  * `styles.css` — no new CSS.
  */
-function SchemaStateWarningBanner({ useSchemaStateSectionHook = useWiredSchemaStateSection }: SchemaStateWarningBannerProps) {
+function SchemaStateWarningBanner({ useSchemaStateSectionHook }: SchemaStateWarningBannerProps) {
   const { warning, t } = useSchemaStateSectionHook();
   if (!warning) return null;
 
@@ -490,19 +490,23 @@ function SchemaStateWarningBanner({ useSchemaStateSectionHook = useWiredSchemaSt
  *  cyclomatic/cognitive score counts a ternary or `&&` written directly in its JSX, not one
  *  delegated to a plain function like this.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function databaseTabPanel(activeTabId: DatabaseTabId) {
-  if (activeTabId === "migrate-forward") return <MigrateForwardSection />;
-  return <TimelineSection />;
+function databaseTabPanel(activeTabId: DatabaseTabId, props: DatabaseProps) {
+  if (activeTabId === "migrate-forward") return <MigrateForwardSection useMigrateForwardSectionHook={props.useMigrateForwardSectionHook} />;
+  return <TimelineSection useTimelineSectionHook={props.useTimelineSectionHook} />;
 }
 
 export interface DatabaseProps {
+  useAdminLocaleHook: typeof useAdminLocale;
+  useTimelineSectionHook: typeof useWiredTimelineSection;
+  useMigrateForwardSectionHook: typeof useWiredMigrateForwardSection;
+  useSchemaStateSectionHook: typeof useWiredSchemaStateSection;
   /** The `?tab=` query value from `panels.tsx`'s `database` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See {@link resolveDatabaseTabId}. */
   tabId?: string | null;
 }
 
 export function Database(props: DatabaseProps) {
-  const locale = useAdminLocale();
+  const locale = props.useAdminLocaleHook();
   const activeTabId = resolveDatabaseTabId({ tabId: props.tabId });
 
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
@@ -523,7 +527,7 @@ export function Database(props: DatabaseProps) {
           </p>
         </div>
       </div>
-      <SchemaStateWarningBanner />
+      <SchemaStateWarningBanner useSchemaStateSectionHook={props.useSchemaStateSectionHook} />
       <TabBar
         ariaLabel={t({ locale: locale, key: "Database" })}
         tabs={tabs}
@@ -531,7 +535,7 @@ export function Database(props: DatabaseProps) {
         onChange={(nextTabId) => navigateDatabaseTab({ nextTabId })}
         containerHandle="database-tab-bar"
       />
-      {databaseTabPanel(activeTabId)}
+      {databaseTabPanel(activeTabId, props)}
     </div>
   );
 }

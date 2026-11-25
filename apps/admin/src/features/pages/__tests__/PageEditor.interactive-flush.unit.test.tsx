@@ -1,3 +1,5 @@
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
 import { forwardRef, useState, type Ref } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +11,11 @@ import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.ho
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";
+
+const requiredPageEditorHooks = {
+  useTabBarKeyboardHook: useTabBarKeyboard,
+  useThemePreviewFrameHook: useThemePreviewFrame,
+};
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -148,7 +155,7 @@ describe("PageEditor — Interactive flush ref wiring", () => {
   it("attaches usePageEditor's interactiveEditorRef onto the real InteractiveHtmlEditor", () => {
     const ctrl = controller();
     const usePageEditorHook = () => ctrl;
-    render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
+    render(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={usePageEditorHook} />);
 
     expect(captured).toBe(ctrl.interactiveEditorRef);
   });
@@ -158,7 +165,7 @@ describe("PageEditor — Interactive flush ref wiring", () => {
 describe("PageEditor — scroll event routing", () => {
   it("passes the rendered HTML textarea's scroll position to its controller", () => {
     const ctrl = controller({ view: "html" });
-    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    render(<PageEditor {...requiredPageEditorHooks} slug="about" usePageEditorHook={() => ctrl} />);
     const textarea = screen.getByRole("textbox", { name: "Page HTML" });
     expect(ctrl.htmlTextareaRef).toHaveBeenCalledWith(textarea);
     textarea.scrollTop = 220;
@@ -169,7 +176,7 @@ describe("PageEditor — scroll event routing", () => {
 
   it.each(["draft", "published"] as const)("passes the %s preview iframe's load to its controller", (status) => {
     const ctrl = controller({ view: "preview", page: { ...BASE_PAGE, status }, status });
-    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    render(<PageEditor {...requiredPageEditorHooks} slug="about" usePageEditorHook={() => ctrl} />);
     const iframe = screen.getByTitle("Page preview");
     fireEvent.load(iframe);
     expect(ctrl.onPreviewFrameLoad).toHaveBeenCalledExactlyOnceWith(iframe);
@@ -193,7 +200,7 @@ describe("PageEditor — recovered content remount", () => {
     });
     const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
     const usePageEditorHook = ({ routeSlug }: { routeSlug: string }) => usePageEditor({ routeSlug, deps });
-    const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
+    const view = render(<PageEditor {...requiredPageEditorHooks} slug="about" usePageEditorHook={usePageEditorHook} />);
     try {
       await screen.findByRole("button", { name: "Restore" });
       fireEvent.click(screen.getByRole("tab", { name: "Interactive" }));

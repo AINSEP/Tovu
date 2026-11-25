@@ -1,3 +1,4 @@
+import { useProviderSettingsFocus } from "@/features/plugins/PluginProviderSettingsDialog";
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,6 +8,10 @@ import { PluginRow } from "../PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginProviderSettings } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-provider-settings.hooks";
 import { describeApiError } from "../rules";
+
+const requiredPluginProviderSettingsDialogHooks = {
+  useProviderSettingsFocusHook: useProviderSettingsFocus,
+};
 
 /**
  * @file The provider plugin settings card (2026-10-26) over the fake port: declared fields render,
@@ -29,7 +34,7 @@ function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPlugin
 
 function dialogWith(port: ReturnType<typeof createFakePluginsPort>, { onClose = () => {}, onSaved = () => {} }: { onClose?: () => void; onSaved?: () => void } = {}) {
   const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
-  return render(<PluginProviderSettingsDialog plugin={{ id: "observability-opentelemetry", name: "OpenTelemetry" }} agentHandleBase="row-otel" onClose={onClose} onSaved={onSaved} useSettings={useSettings} />);
+  return render(<PluginProviderSettingsDialog {...requiredPluginProviderSettingsDialogHooks} plugin={{ id: "observability-opentelemetry", name: "OpenTelemetry" }} agentHandleBase="row-otel" onClose={onClose} onSaved={onSaved} useSettings={useSettings} />);
 }
 
 /** The control itself: the secret's eye button is also labelled "Show <label>". */
@@ -47,7 +52,7 @@ function posthogCard(overrides: Partial<AdminPluginProviderSettings["fields"][nu
 function posthogDialog(providerSettings: Record<string, AdminPluginProviderSettings>, onSaved = () => {}) {
   const port = createFakePluginsPort({ providerSettings });
   const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
-  render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="row-posthog" onClose={() => {}} onSaved={onSaved} useSettings={useSettings} />);
+  render(<PluginProviderSettingsDialog {...requiredPluginProviderSettingsDialogHooks} plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="row-posthog" onClose={() => {}} onSaved={onSaved} useSettings={useSettings} />);
   return port;
 }
 
@@ -179,7 +184,7 @@ describe("PluginProviderSettingsDialog", () => {
     ] });
     const port = createFakePluginsPort({ providerSettings: { "analytics-posthog": posthog } });
     const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
-    render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} onSaved={() => {}} useSettings={useSettings} />);
+    render(<PluginProviderSettingsDialog {...requiredPluginProviderSettingsDialogHooks} plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} onSaved={() => {}} useSettings={useSettings} />);
     const apiKey = await findControl(/Project API key/);
     expect(control(/PostHog host/).getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-host");
     // Secrets deliberately strip addressing, even when a manifest supplies a camelCase name.

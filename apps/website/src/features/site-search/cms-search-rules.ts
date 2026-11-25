@@ -9,13 +9,21 @@ import type { CmsSearchDocumentRules } from "@jini-ai/search/site/cms-document-s
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { isLiveAt } from "@jini-ai/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
-import { toRecord } from "../post/read-model.js";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 
-export const CMS_SEARCH_RULES: CmsSearchDocumentRules<ContentDatabase> = {
-  isLiveAt: (required) => isLiveAt(required),
-  postPublicPath: (required) => postPublicPath(required),
-  toSearchText: ({ row }) => toPostSearchDocument(toRecord(row)),
-  resolveMemberAccess: (required) => resolvePostMemberAccess(required),
-};
+export function createCmsSearchRules(
+  { toPostRecord }: {
+    toPostRecord: (
+      row: Parameters<CmsSearchDocumentRules<ContentDatabase>["toSearchText"]>[0]["row"],
+    ) => Parameters<typeof toPostSearchDocument>[0];
+  },
+  _optional: Record<string, never> = {},
+): CmsSearchDocumentRules<ContentDatabase> {
+  return {
+    isLiveAt: (required) => isLiveAt(required),
+    postPublicPath: (required) => postPublicPath(required),
+    toSearchText: ({ row }) => toPostSearchDocument(toPostRecord(row)),
+    resolveMemberAccess: (required) => resolvePostMemberAccess(required),
+  };
+}

@@ -1,3 +1,7 @@
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useWiredTimelineSection } from "@/features/database/hooks/timeline-section-dependencies.hooks";
+import { useWiredMigrateForwardSection } from "@/features/database/hooks/migrate-forward-section-dependencies.hooks";
+import { useWiredSchemaStateSection } from "@/features/database/hooks/schema-state-section-dependencies.hooks";
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
@@ -9,6 +13,13 @@ import type { MigrateForwardSectionController } from "@jini-ai/admin/screens/dat
 import type { SchemaStateSectionController } from "@jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminLedgerRow } from "@jini-ai/admin/core";
+
+const requiredDatabaseHooks = {
+  useAdminLocaleHook: useAdminLocale,
+  useTimelineSectionHook: useWiredTimelineSection,
+  useMigrateForwardSectionHook: useWiredMigrateForwardSection,
+  useSchemaStateSectionHook: useWiredSchemaStateSection,
+};
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for
@@ -142,7 +153,7 @@ function renderDatabase(overrides: {
   timelineRef.current = t;
   migrateForwardRef.current = m;
   schemaStateRef.current = s;
-  render(<Database tabId={resolveDefaultTabId(overrides)} />);
+  render(<Database {...requiredDatabaseHooks} tabId={resolveDefaultTabId(overrides)} />);
   return { timeline: t, migrateForward: m, schemaState: s };
 }
 
@@ -297,7 +308,7 @@ describe("TimelineSection — filter form", () => {
         setOutcome(value);
         setOutcomeState(value);
       } });
-      return <Database tabId="timeline" />;
+      return <Database {...requiredDatabaseHooks} tabId="timeline" />;
     }
     render(<StatefulDatabase />);
     const input = screen.getByLabelText("Outcome");

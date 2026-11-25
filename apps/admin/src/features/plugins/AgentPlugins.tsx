@@ -1,5 +1,5 @@
-import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
-import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import type { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
+import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
@@ -9,6 +9,7 @@ import { useId } from "react";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
+import type { AgentPluginDetailsModalProps } from "./AgentPluginDetailsModal";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
@@ -16,13 +17,13 @@ import { AgentPluginManageButton } from "./AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
-import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
+import type { useWiredAgentPlugins, AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
-import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
-import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
+import type { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
+import type { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
 
-import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
+import type { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
@@ -90,25 +91,26 @@ function AgentPluginsStatus({
  * each operator-installed row composes its update state (`useAgentPluginUpdate`) here and
  * `AgentPluginUpdateControl` only renders what it is handed.
  */
-export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port }: {
+export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port, useAgentPluginUpdateHook }: {
   plugin: AgentPluginListRow;
   expectedOldDigest: string;
   t: Translate;
   agentHandleBase: string;
   onUpdated: (plugin: AgentPluginListRow) => void;
   port: AgentPluginInstallPort;
+  useAgentPluginUpdateHook: typeof useAgentPluginUpdate;
 }) {
-  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
+  const update = useAgentPluginUpdateHook({ plugin, expectedOldDigest, port, t, onUpdated });
   return <AgentPluginUpdateControl update={update} t={t} agentHandleBase={agentHandleBase} />;
 }
 
 /** A row's Update slot, or nothing. Bundled rows never get one: they update with Tovu itself
  *  (`updatableAgentPluginDigest`). @complexity O(1). */
-function updateSlotFor(required: { plugin: AgentPluginListRow; controller: AgentPluginsController; agentHandleBase: string; port: AgentPluginInstallPort }, _optional: Record<string, never> = {}) {
-  const { plugin, controller, agentHandleBase, port } = required;
+function updateSlotFor(required: { plugin: AgentPluginListRow; controller: AgentPluginsController; agentHandleBase: string; port: AgentPluginInstallPort; useAgentPluginUpdateHook: typeof useAgentPluginUpdate }, _optional: Record<string, never> = {}) {
+  const { plugin, controller, agentHandleBase, port, useAgentPluginUpdateHook } = required;
   const expectedOldDigest = updatableAgentPluginDigest({ plugin });
   if (!expectedOldDigest) return undefined;
-  return <AgentPluginUpdateSlot plugin={plugin} expectedOldDigest={expectedOldDigest} t={controller.t} agentHandleBase={agentHandleBase} onUpdated={controller.onInstalled} port={port} />;
+  return <AgentPluginUpdateSlot useAgentPluginUpdateHook={useAgentPluginUpdateHook} plugin={plugin} expectedOldDigest={expectedOldDigest} t={controller.t} agentHandleBase={agentHandleBase} onUpdated={controller.onInstalled} port={port} />;
 }
 
 /** The row list itself, scoped to whichever tab is rendering it. Rendered only when there is at
@@ -127,6 +129,7 @@ function AgentPluginList({
   uninstallNoteId,
   stateControlFor,
   updatePort,
+  useAgentPluginUpdateHook,
 }: {
   agentPlugins: AgentPluginListRow[];
   controller: AgentPluginsController;
@@ -134,6 +137,7 @@ function AgentPluginList({
   stateControlFor: (plugin: AgentPluginListRow) => AgentPluginRowStateControl;
   /** The upload transport an operator-installed row's Update control sends through. */
   updatePort: AgentPluginInstallPort;
+  useAgentPluginUpdateHook: typeof useAgentPluginUpdate;
 }) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`). Derived from each id alone (see that function's own
@@ -167,7 +171,7 @@ function AgentPluginList({
           ) : undefined}
           uninstallNoteId={uninstallNoteId}
           agentHandleBase={rowHandles[index]}
-          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index], port: updatePort })}
+          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index], port: updatePort, useAgentPluginUpdateHook })}
         />
       ))}
     </ul>
@@ -196,11 +200,13 @@ function AgentPluginListPanel({
   emptyMessage,
   visiblePlugins,
   updatePort,
+  useAgentPluginUpdateHook,
 }: {
   controller: AgentPluginsController;
   uninstallNoteId: string;
   stateControlFor: (plugin: AgentPluginListRow) => AgentPluginRowStateControl;
   updatePort: AgentPluginInstallPort;
+  useAgentPluginUpdateHook: typeof useAgentPluginUpdate;
   sectionLabel: string;
   lede: string;
   emptyMessage: string;
@@ -226,6 +232,7 @@ function AgentPluginListPanel({
           uninstallNoteId={uninstallNoteId}
           stateControlFor={stateControlFor}
           updatePort={updatePort}
+          useAgentPluginUpdateHook={useAgentPluginUpdateHook}
         />
       ) : null}
       {/* `.agent-plugins-footnotes` (styles.css): section-wide facts, not per-plugin details, so
@@ -256,7 +263,7 @@ function AgentPluginListPanel({
 
 type AgentPluginListPanelProps = Pick<
   Parameters<typeof AgentPluginListPanel>[0],
-  "controller" | "uninstallNoteId" | "stateControlFor" | "updatePort"
+  "controller" | "uninstallNoteId" | "stateControlFor" | "updatePort" | "useAgentPluginUpdateHook"
 >;
 
 /**
@@ -345,14 +352,19 @@ function MarketplacePanel({ t }: { t: Translate }) {
   );
 }
 
-export interface AgentPluginsProps {
+export interface AgentPluginsProps extends Pick<AgentPluginDetailsModalProps, "useDetails" | "useAgentPluginMemoryHook" | "useAgentPluginDetailsViewHook" | "useAgentPluginSurfacesHook"> {
+  useAdminThemeBoundaryHook: typeof useAdminThemeBoundary;
+  useAgentPluginTabHook: typeof useAgentPluginTab;
+  useAgentPluginInstallHook: typeof useAgentPluginInstall;
+  useAgentPluginConfirmationHook: typeof useAgentPluginConfirmation;
+  useAgentPluginUpdateHook: typeof useAgentPluginUpdate;
   /** The route's guarded `?tab=` value, matching the sibling Plugins screen. */
   tabId?: string | null;
   /**
    * Dependency injection seam for tests — the same convention `PostsProps.usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useAgentPluginsHook?: typeof useWiredAgentPlugins;
+  useAgentPluginsHook: typeof useWiredAgentPlugins;
   /** The "Add a plugin" upload transport; tests pass `createFakeAgentPluginInstallPort`. */
   agentPluginInstallPort?: AgentPluginInstallPort;
 }
@@ -389,22 +401,19 @@ export interface AgentPluginsProps {
  *     switch's off state is reachable again and a switched-off bundled plugin can be turned on
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
-export function AgentPlugins({
-  tabId,
-  useAgentPluginsHook = useWiredAgentPlugins,
-  agentPluginInstallPort = defaultAgentPluginInstallPort,
-}: AgentPluginsProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const tab = useAgentPluginTab({ tabId });
+export function AgentPlugins(props: AgentPluginsProps) {
+  const { tabId, useAgentPluginsHook, agentPluginInstallPort = defaultAgentPluginInstallPort } = props;
+  const themeBoundary = props.useAdminThemeBoundaryHook({}, {});
+  const tab = props.useAgentPluginTabHook({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
-  const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
+  const installController = props.useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
   const { pendingDisable, setPendingDisable, pendingDisablePlugin, onRequestToggleEnabled, onRequestRemove } =
-    useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
+    props.useAgentPluginConfirmationHook({ agentPlugins, onToggleEnabled });
 
   const tabs: SettingsDialogTab[] = [
     {
@@ -417,6 +426,7 @@ export function AgentPlugins({
         <InstalledOnlyPanel
           controller={controller}
           updatePort={agentPluginInstallPort}
+          useAgentPluginUpdateHook={props.useAgentPluginUpdateHook}
           uninstallNoteId={uninstallNoteId}
           stateControlFor={(plugin) => ({ kind: "toggle", onToggleEnabled: () => onRequestToggleEnabled(plugin) })}
         />
@@ -432,6 +442,7 @@ export function AgentPlugins({
         <DownloadedPanel
           controller={controller}
           updatePort={agentPluginInstallPort}
+          useAgentPluginUpdateHook={props.useAgentPluginUpdateHook}
           uninstallNoteId={uninstallNoteId}
           stateControlFor={(plugin) => ({
             kind: "remove-or-enable",
@@ -486,7 +497,7 @@ export function AgentPlugins({
           fullscreenEnabled={false}
           labels={{ kicker: t("Plugins") }}
         />
-        {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
+        {inspectedPlugin ? <AgentPluginDetailsModal useDetails={props.useDetails} useAgentPluginMemoryHook={props.useAgentPluginMemoryHook} useAgentPluginDetailsViewHook={props.useAgentPluginDetailsViewHook} useAgentPluginSurfacesHook={props.useAgentPluginSurfacesHook} plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
             origin={pendingDisablePlugin.origin}

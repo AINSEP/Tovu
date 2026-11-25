@@ -1,3 +1,14 @@
+import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +19,20 @@ import { FormsControllerContext } from "@jini-ai/admin/forms/react";
 import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
 import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
+
+const requiredMediaHooks = {
+  useMediaHook: useWiredMedia,
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 /**
  * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `@jini-ai/ui/fetch-query` actually
@@ -484,7 +509,7 @@ describe("media", () => {
     vi.stubGlobal("fetch", fn);
     render(
       <FetchQueryProvider>
-        <Media />
+        <Media {...requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
@@ -502,7 +527,7 @@ describe("media", () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>
-        <Media />
+        <Media {...requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
@@ -711,7 +736,7 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>
-        <Media />
+        <Media {...requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("T");

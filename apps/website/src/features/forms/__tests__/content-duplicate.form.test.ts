@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -49,7 +50,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["admin.forms.manage"]) {
 
 function duplicateTool(deps: FormsToolDeps): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: contributeFormsDuplicateHandlers,
+    listResourceHandlers: () => contributeFormsDuplicateHandlers({ deriveDuplicateName }),
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(found, "expected 'content_duplicate' to be wired");
@@ -97,7 +98,7 @@ async function seedForm(repo: InMemoryFormDefinitionRepo, overrides: Record<stri
 }
 
 test("'form' is a supported resource of content_duplicate", async () => {
-  assert.deepEqual(contributeFormsDuplicateHandlers().map((c) => c.resource), ["form"]);
+  assert.deepEqual(contributeFormsDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource), ["form"]);
 });
 
 test("copying a form defaults the name to the source's own name with a numeric suffix, derives a matching free slug, and deep-copies fields and notify", async () => {
@@ -248,4 +249,24 @@ test('duplicating an HTML form preserves authoring mode and markup', async () =>
   const result = await call(duplicateTool(deps), { resource: 'form', id: 'source-form' }) as { definition: FormView };
   const copy = await formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: result.definition.id }) as unknown as { mode: string; html: string };
   assert.equal(copy.mode, 'html'); assert.match(copy.html, /Original introduction/);
+});
+
+test("numbered form names skip occupied counters using the shared copy policy", async () => {
+  const { deps, formDefinitionRepo } = fakeRouteDeps();
+  await seedForm(formDefinitionRepo, { name: "Landing 2" });
+  await seedForm(formDefinitionRepo, { id: "base", name: "Landing", slug: "landing" });
+  await seedForm(formDefinitionRepo, { id: "occupied", name: "Landing 3", slug: "landing-3" });
+  const { definition } = await call(duplicateTool(deps), { resource: "form", id: "source-form" }) as { definition: FormView };
+  assert.equal(definition.name, "Landing 4");
+});
+
+test("form duplicate naming preserves the exhaustion message", async () => {
+  const { deps, formDefinitionRepo } = fakeRouteDeps();
+  await seedForm(formDefinitionRepo, { name: "Landing 2" });
+  const [stored] = await formDefinitionRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(stored);
+  formDefinitionRepo.list = async () => Array.from({ length: 1001 }, (_, index) => ({ ...stored, id: `occupied-${index}`, name: index === 0 ? "Landing" : `Landing ${index + 1}` }));
+  await assert.rejects(call(duplicateTool(deps), { resource: "form", id: "source-form" }), {
+    message: "no free name could be derived from 'Landing' after 1000 attempts — give the copy an explicit name",
+  });
 });

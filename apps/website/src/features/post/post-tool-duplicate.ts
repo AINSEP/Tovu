@@ -9,7 +9,7 @@ import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { executeCommand } from "@jini-ai/cms/core/commands";
 import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
-import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
+import type { DeriveDuplicateName } from "@jini-ai/cms/forms";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
 import { toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
 import { postToolViewDeps } from "./post-tool-view-deps.js";
@@ -28,7 +28,7 @@ import type { PostToolDeps } from "./post-tool-deps.js";
  * 2026-09-08 — see the shared module's own header for why this is an accepted O(n) scan rather than
  * a new port method), then {@link deriveDuplicateName}'s own bounded search.
  */
-async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: PostRecord): Promise<string> {
+async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: PostRecord, deriveDuplicateName: DeriveDuplicateName): Promise<string> {
   const existingTitles = new Set(
     (await routeDeps.postRepo.list({ workspaceId: routeDeps.workspaceId }))
       .filter((post) => post.kind === source.kind)
@@ -61,7 +61,7 @@ async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: Post
  * O(1) repo/command-gateway calls.
  */
 async function duplicatePostOrPage(
-  { routeDeps, guardKind, input }: { routeDeps: PostToolDeps; guardKind: PostKind; input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } } },
+  { routeDeps, guardKind, input, deriveDuplicateName }: { routeDeps: PostToolDeps; deriveDuplicateName: DeriveDuplicateName; guardKind: PostKind; input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } } },
   _optional: Record<string, never> = {}
 ): Promise<Record<string, unknown>> {
   const sourceId = input.id;
@@ -90,7 +90,7 @@ async function duplicatePostOrPage(
     throw new PostValidationError("status must be 'draft' or 'published'");
   }
 
-  const title = input.overrides.title ?? (await deriveDefaultDuplicateTitle(routeDeps, source));
+  const title = input.overrides.title ?? (await deriveDefaultDuplicateTitle(routeDeps, source, deriveDuplicateName));
   const slug = input.overrides.slug;
   const status: PostStatus = overrideStatus ?? "draft";
 
@@ -219,20 +219,20 @@ async function readDuplicateBody(routeDeps: PostToolDeps, source: PostRecord, so
  * this domain's own `contributePostTools` history already fought to close. This function only
  * returns data; it imports the registry's TYPE, never its register function.
  */
-export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContributor<PostToolDeps>[] {
+export function contributePostDuplicateHandlers({ deriveDuplicateName }: { deriveDuplicateName: DeriveDuplicateName }, _optional = {}): DuplicateResourceHandlerContributor<PostToolDeps>[] {
   return [
     {
       resource: "post",
       build: (routeDeps, _optional = {}) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input, _optional = {}) => duplicatePostOrPage({ routeDeps, guardKind: "post", input }),
+        duplicate: (input, _optional = {}) => duplicatePostOrPage({ routeDeps, guardKind: "post", input, deriveDuplicateName }),
       }),
     },
     {
       resource: "page",
       build: (routeDeps, _optional = {}) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input, _optional = {}) => duplicatePostOrPage({ routeDeps, guardKind: "page", input }),
+        duplicate: (input, _optional = {}) => duplicatePostOrPage({ routeDeps, guardKind: "page", input, deriveDuplicateName }),
       }),
     },
   ];

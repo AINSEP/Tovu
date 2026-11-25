@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -76,7 +77,7 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
   });
 
   const registry = createToolRegistry({});
-  for (const registration of buildMediaImportRegistrations(routeDeps)) registry.register(registration);
+  for (const registration of buildMediaImportRegistrations(routeDeps, { resolvePublicUrls: resolveMediaPublicUrls })) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
 

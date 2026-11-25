@@ -1,3 +1,13 @@
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { render, screen } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
@@ -7,6 +17,19 @@ import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+
+const requiredMediaHooks = {
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Media.tsx` — same shape as
@@ -95,7 +118,7 @@ function renderMedia(overrides: Partial<MediaController> = {}) {
   // edit-panel tests, keeps this helper one shape for the whole file.
   const { container } = render(
     <FetchQueryProvider>
-      <Media useMediaHook={() => controller} />
+      <Media {...requiredMediaHooks} useMediaHook={() => controller} />
     </FetchQueryProvider>,
   );
   return { controller, container };

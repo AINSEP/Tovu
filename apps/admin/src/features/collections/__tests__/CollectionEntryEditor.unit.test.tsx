@@ -1,9 +1,16 @@
+import { useWiredCollectionEntryEditor } from "@/features/collections/hooks/use-collection-entry-editor.hooks";
+import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 import { render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
+
+const requiredCollectionEntryEditorHooks = {
+  useCollectionEntryEditorHook: useWiredCollectionEntryEditor,
+  useJsonFieldControlHook: useJsonFieldControl,
+};
 
 /**
  * @file `CollectionEntryEditor` — pins the accessibility fix for the audit's placeholder-only
@@ -63,7 +70,7 @@ describe("new entry — title and slug fields", () => {
 
     render(
       <FetchQueryProvider>
-        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+        <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} />
       </FetchQueryProvider>
     );
 
@@ -76,7 +83,7 @@ describe("new entry — title and slug fields", () => {
 
     render(
       <FetchQueryProvider>
-        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+        <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} />
       </FetchQueryProvider>
     );
 
@@ -89,7 +96,7 @@ describe("new entry — title and slug fields", () => {
 
     render(
       <FetchQueryProvider>
-        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+        <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} />
       </FetchQueryProvider>
     );
 
@@ -127,7 +134,7 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       t: ({ key }, _optional = {}) => key,
     };
     render(
-      <CollectionEntryEditor
+      <CollectionEntryEditor {...requiredCollectionEntryEditorHooks}
         contentTypeKey="does-not-matter"
         entryId={null}
         useCollectionEntryEditorHook={() => controller}
@@ -164,7 +171,7 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       t: ({ key }, _optional = {}) => spanish[key] ?? key,
     };
     render(
-      <CollectionEntryEditor contentTypeKey="articles" entryId={null} useCollectionEntryEditorHook={() => controller} />
+      <CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="articles" entryId={null} useCollectionEntryEditorHook={() => controller} />
     );
 
     expect(screen.getByLabelText("Título de la entrada")).toHaveAttribute("placeholder", "Título de la entrada");

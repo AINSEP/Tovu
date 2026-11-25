@@ -15,7 +15,7 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { sniffContentType, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
-import { resolveMediaPublicUrls } from "../media/public-urls.js";
+import type { MediaPublicUrlDeps } from "@jini-ai/cms/media/site/contracts";
 import { createConvertingUploader, type VideoImportOptions } from "../media/index.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
@@ -25,7 +25,7 @@ import { FS_FOLDER_READ_RECOVERY } from "@tovu/contracts/fs-folder-recovery";
 import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
-import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort, type MediaRecord } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 
@@ -54,6 +54,11 @@ const LOCAL_FILE_IMPORT_RECOVERY = FS_FOLDER_READ_RECOVERY;
 
 /** This host's media-import catalog: the Jini builder bound to fs-files' root ids and recovery text. */
 export const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: LOCAL_FILE_IMPORT_RECOVERY, mediaAssetReadToolId: "content_read.media_asset" });
+
+type ResolvePublicUrls = (
+  required: { deps: MediaPublicUrlDeps & { workspaceId: string }; assets: readonly MediaRecord[] },
+  optional?: Record<string, never>,
+) => Promise<Map<string, string | null>>;
 
 export interface MediaImportToolDeps {
   tracker?: Tracker;
@@ -224,10 +229,10 @@ export function resolveLocalImportRequest(
  * @complexity O(n) in the uploaded bytes for hashing/storage; fixed-count repository operations.
  */
 export async function persistImportedMedia(
-  required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string },
+  required: { routeDeps: MediaImportToolDeps; resolvePublicUrls: ResolvePublicUrls; input: UploadMediaInput; sourceUrl: string; actorId: string },
   optional: { videoImport?: VideoImportOptions | undefined } = {},
 ): Promise<{ media: ImportedMediaView }> {
-  const { routeDeps, input, sourceUrl, actorId } = required;
+  const { routeDeps, input, sourceUrl, actorId, resolvePublicUrls } = required;
   // The same store-then-convert upload as the admin routes (owner video import rule 2026-10-31).
   const { media } = await createConvertingUploader({
     uploadDeps: {
@@ -241,7 +246,7 @@ export async function persistImportedMedia(
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
   captureMediaUploaded({ tracker: routeDeps.tracker, actorId, byteLength: input.bytes.byteLength, kind: "image", source: "assistant" });
-  const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [media] });
+  const urls = await resolvePublicUrls({ deps: routeDeps, assets: [media] });
   return {
     media: {
       id: media.id, slug: media.slug, title: media.title, alt: media.alt, caption: media.caption,
@@ -296,7 +301,7 @@ async function requireMediaPermission(
   { entityType: "media", ...(entityId === undefined ? {} : { entityId }) });
 }
 
-function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps, resolvePublicUrls: ResolvePublicUrls): ToolHandler {
   return async (ctx) => {
   const input = requireInputRecord({ input: ctx.input });
   refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
@@ -325,7 +330,7 @@ function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHand
       ctx.signal.throwIfAborted();
       const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, UPLOAD_CAPS);
       if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
-      const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [saved] });
+      const urls = await resolvePublicUrls({ deps: routeDeps, assets: [saved] });
       const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
       return withChatPreview({ routeDeps, bytes: source.bytes, contentType: source.contentType, result });
     },
@@ -333,7 +338,7 @@ function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHand
 };
 }
 
-function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined): ToolHandler {
+function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined, resolvePublicUrls: ResolvePublicUrls): ToolHandler {
   return async (ctx): Promise<unknown> => {
   const input = requireInputRecord({ input: ctx.input });
   const root = requireString({ input, key: "root" });
@@ -355,7 +360,7 @@ function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps, video
       if (filename === undefined) throw new Error("Media import path has no filename");
       ctx.signal.throwIfAborted();
       const result = await persistImportedMedia({
-        routeDeps, actorId: ctx.principal.id,
+        routeDeps, resolvePublicUrls, actorId: ctx.principal.id,
         input: {
           workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
           provenance: { kind: 'upload', path: request.relativePath },
@@ -370,7 +375,7 @@ function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps, video
 };
 }
 
-function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined): ToolHandler {
+function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined, resolvePublicUrls: ResolvePublicUrls): ToolHandler {
   return async (ctx): Promise<unknown> => {
   const input = requireInputRecord({ input: ctx.input });
   const url = requireString({ input, key: "url" });
@@ -387,7 +392,7 @@ function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps, videoIm
 
         ctx.signal.throwIfAborted();
         const result = await persistImportedMedia({
-          routeDeps, actorId: ctx.principal.id,
+          routeDeps, resolvePublicUrls, actorId: ctx.principal.id,
           input: {
             workspaceId: routeDeps.workspaceId,
             provenance: { kind: 'url', url: fetched.url.href },
@@ -412,13 +417,13 @@ function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps, videoIm
  */
 export function buildMediaImportRegistrations(
   routeDeps: MediaImportToolDeps,
-  { videoImport }: { videoImport?: VideoImportOptions | undefined } = {},
+  { videoImport, resolvePublicUrls }: { videoImport?: VideoImportOptions | undefined; resolvePublicUrls: ResolvePublicUrls },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     /** Authorize before fetching; the admin's shared service owns blob staging and atomic versioning. */
-    media_replace_file: createMediaReplaceFileHandler(routeDeps),
-    media_import_local_file: createMediaImportLocalFileHandler(routeDeps, videoImport),
-    media_import_from_url: createMediaImportFromUrlHandler(routeDeps, videoImport),
+    media_replace_file: createMediaReplaceFileHandler(routeDeps, resolvePublicUrls),
+    media_import_local_file: createMediaImportLocalFileHandler(routeDeps, videoImport, resolvePublicUrls),
+    media_import_from_url: createMediaImportFromUrlHandler(routeDeps, videoImport, resolvePublicUrls),
 
   };
 
@@ -437,7 +442,7 @@ export function buildMediaImportRegistrations(
  * not by importing this module.
  */
 export function contributeMediaImportTools(
-  { videoImport }: { videoImport?: VideoImportOptions | undefined } = {},
+  { videoImport, resolvePublicUrls }: { videoImport?: VideoImportOptions | undefined; resolvePublicUrls: ResolvePublicUrls },
 ): ToolContributor<MediaImportToolDeps, unknown> {
-  return { domain: DOMAIN, build: (routeDeps) => buildMediaImportRegistrations(routeDeps, { videoImport }), risk: mediaImportDerivedRisk };
+  return { domain: DOMAIN, build: (routeDeps) => buildMediaImportRegistrations(routeDeps, { videoImport, resolvePublicUrls }), risk: mediaImportDerivedRisk };
 }

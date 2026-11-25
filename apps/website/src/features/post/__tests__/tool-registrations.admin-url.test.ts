@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -183,7 +184,7 @@ test("content_duplicate's 'page' resource returns adminUrl for the newly created
   await seedPost(postRepo, { id: "source-1", slug: "original", kind: "page" });
   const registrations = new Map(
     buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-      listResourceHandlers: contributePostDuplicateHandlers,
+      listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
     }).map((r) => [r.descriptor.id, r]),
   );
 

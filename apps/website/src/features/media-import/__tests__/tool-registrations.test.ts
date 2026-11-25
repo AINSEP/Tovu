@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry, batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "@jini-ai/core";
@@ -52,7 +53,7 @@ const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegis
  */
 
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeMediaImportTools() });
+contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
 
 const WORKSPACE_ID = "ws-media-import-tools";
 const PRINCIPAL_ID = "principal-under-test";

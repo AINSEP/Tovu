@@ -1,9 +1,34 @@
+import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+
+const requiredMediaHooks = {
+  useMediaHook: useWiredMedia,
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 /** Clicking a card's picture opens the shared lightbox at that item; prev/next cycle. */
 
@@ -31,7 +56,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("media preview click opens lightbox", () => {
   it("clicking the picture itself opens the lightbox at that item, and next/prev cycle", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
 
@@ -51,7 +76,7 @@ describe("media preview click opens lightbox", () => {
   // the lightbox, where the video plays at its real shape.
   it("video cards: the still frame (no controls) opens the lightbox, which plays it with controls", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
     fireEvent.error(card.querySelector(".media-card-preview img")!);

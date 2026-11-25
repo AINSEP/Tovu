@@ -1,3 +1,5 @@
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
@@ -8,6 +10,11 @@ import { createFakePageEditorPort } from "../../pages/hooks/page-editor-dependen
 import { createFakeThemeCanvasPort } from "../../pages/hooks/theme-canvas-dependencies.hooks";
 import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "../theme-preview-refresh";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+
+const requiredPageEditorHooks = {
+  useTabBarKeyboardHook: useTabBarKeyboard,
+  useThemePreviewFrameHook: useThemePreviewFrame,
+};
 
 // Only jsdom's unimplemented DOM submit is observed; services are injected fakes, no module mocks.
 afterEach(() => {
@@ -43,7 +50,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
   });
   render(
     <FetchQueryProvider>
-      <PageEditor slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
+      <PageEditor {...requiredPageEditorHooks} slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(screen.getByTitle("Page preview")).toBeTruthy());

@@ -1,3 +1,6 @@
+import { useAgentPluginDetailsView } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 // @vitest-environment jsdom
 import { render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from '@testing-library/user-event';
@@ -7,6 +10,12 @@ import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPlug
 import { AgentPluginDetailsModal } from '../AgentPluginDetailsModal';
 import { useAgentPluginMemory } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-memory.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks';
+
+const requiredAgentPluginDetailsModalHooks = {
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+};
 
 const memoryPort = vi.hoisted(() => ({ read: vi.fn(), saveNote: vi.fn() }));
 vi.mock('../hooks/agent-plugin-memory-dependencies.hooks', () => ({ defaultAgentPluginMemoryPort: memoryPort }));
@@ -64,7 +73,7 @@ test('empty memory explains both named sections, and populated memory renders ea
 });
 
 test('Memory and Package files switch the header and selected ARIA tab together in both directions', async () => {
-  render(<AgentPluginDetailsModal plugin={{ id: 'higgsfield-media', displayName: 'Higgsfield Media' }} t={t}
+  render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={{ id: 'higgsfield-media', displayName: 'Higgsfield Media' }} t={t}
     onClose={vi.fn()} useDetails={() => ({ files: [], selectedFile: null, selectFile: vi.fn() })} />);
   const packageTab = screen.getByRole('tab', { name: 'Package files' });
   const memoryTab = screen.getByRole('tab', { name: 'Memory' });
