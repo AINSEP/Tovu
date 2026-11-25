@@ -5,7 +5,8 @@
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { checkForUpdateFromFeed, runSiteUpdate, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
+import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
+import { checkForUpdateFromFeed, runSiteUpdate, type SiteUpdateCallOptions, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
 import { approvalToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import type { IdGenerator } from "@jini-ai/core/primitives";
 import { toolMetadata } from "../../contracts/core/tool-metadata/site-update.js";
@@ -19,6 +20,8 @@ export interface SiteUpdateCheckRuntime {
   ids: IdGenerator;
   /** The version the live site reports right now. */
   runningVersion(): Promise<string>;
+  /** Read-only safe projection of the supervisor's last attempt. Absent: this host keeps no update journal. */
+  readLastAttempt?: ((required: Record<string, never>, optional?: SiteUpdateCallOptions) => Promise<SiteUpdateStatusReply["lastAttempt"]>) | undefined;
 }
 
 /** Everything one platform supplies to check for and apply an update. */
