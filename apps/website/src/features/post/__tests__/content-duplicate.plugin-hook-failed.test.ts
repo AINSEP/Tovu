@@ -30,7 +30,7 @@ import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const WORKSPACE_ID = "ws-duplicate-plugin-hook";
 const NOW = "2026-10-05T00:00:00.000Z";
@@ -82,7 +82,7 @@ async function duplicate(deps: AssistantToolRegistryDeps, input: unknown) {
   const harness = { run, lifecycle, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: "p" }) };
   return delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: `tu-${++toolUseCounter}`, toolId: "content_duplicate", input },
-    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
+    deps: { ...harness, reportInternalError: createRouteIncidentReporter().reportInternalError } as never,
   });
 }
 

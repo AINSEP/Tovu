@@ -18,7 +18,7 @@ import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations } from "../../features/theme/tool-registrations.js";
 import { type ThemeToolDeps } from "../../features/theme/asset-operations.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "../../server/__tests__/helpers/route-incident-reporter.js";
 
 /**
  * @file Regression test for the bug report: `theme_list_files` called with a malformed/wrong
@@ -71,7 +71,7 @@ test("theme_list_files normalizes theme_id to themeId end to end and reports the
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { theme_id: "plain" } },
-    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   // A separator alias is unambiguous, so the forgiving gate repairs it before domain validation.
@@ -92,7 +92,7 @@ test("theme_list_files called with themeId missing entirely is also a 400 BAD_RE
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
-    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.deepEqual(result, {
@@ -106,7 +106,7 @@ test("a well-formed theme_list_files call still succeeds end to end (the fix doe
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "plain" } },
-    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.equal(result.ok, true);
@@ -125,7 +125,7 @@ test("an unknown themeId (a shape rejection decorated with the tool's schema) is
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "nope" } },
-    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.equal(result.ok, false);
@@ -142,7 +142,7 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
     app.use(express.json());
     const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
     // 100 KB: the byte size of the default `express.json()` parser above; the list derives its body limit from it.
-    mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
+    mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024, errors: createRouteIncidentReporter().errors }) }) });
 
     // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
     // stream: no listening socket, and no stub of the adapter's status or JSON writers.
@@ -199,7 +199,7 @@ test("theme_list_files without themeId, through the gateway that holds the regis
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
-    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry },
+    deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry },
   });
 
   assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: `${MISSING_THEME_ID}${LIST_VALID_THEMES}` } });

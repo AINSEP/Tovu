@@ -25,7 +25,8 @@ import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -118,7 +119,7 @@ test("BRIDGE: the persisted tool_result event, the route reply and the one host 
   const loggedArgs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: createReporterRouteInternalError({ reporter: recording.reporter }), lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
   );
 
   assert.equal(result.ok, false);
@@ -142,8 +143,9 @@ test("BRIDGE: the persisted tool_result event, the route reply and the one host 
 test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR", async (t) => {
   const registry = createToolRegistry({});
   registerThrowingTool(registry);
+  const recording = recordingReporter();
   const toolExecutor = createAssistantToolExecutor({
-    registry, reporter: recordingReporter().reporter,
+    registry, reporter: recording.reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
@@ -151,7 +153,7 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: createReporterRouteInternalError({ reporter: recording.reporter }), lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
   );
 
   assert.equal(result.ok, false);
@@ -159,6 +161,8 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   assert.equal(result.error.code, "TOOL_EXECUTION_FAILED");
   assert.match(result.error.message, new RegExp(`^Error ${FIXED_ID}: upstream call failed`));
   containsNoSecret(result.error.message);
+  // The tool's stamped id is reused: the route wrote no second record for the one failure.
+  assert.deepEqual(hostRecordIds(recording.entries), [FIXED_ID]);
 });
 
 test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring", async () => {
@@ -169,12 +173,13 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError,
+  const incidents = createRouteIncidentReporter();
+
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: incidents.reportInternalError,
       lifecycle,
       toolExecutor,
       resolvePrincipal: () => PRINCIPAL,
       isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}),
-      onInternalError: () => undefined,
     } }
   );
 
@@ -182,6 +187,13 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
   containsNoSecret(JSON.stringify(result));
+  // The route's one incident: exactly one host record, under the id the model was shown, with no secret in it.
+  assert.match(result.error.requestId ?? "", /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+  assert.equal(incidents.entries.length, 1, "exactly one host record");
+  assert.deepEqual(hostRecordIds(incidents.entries), [result.error.requestId]);
+  containsNoSecret(JSON.stringify(incidents.entries));
+  // The tracker report is handed the raw error by contract (its adapter redacts on export), so it is matched by id, not scanned for secrets.
+  assert.deepEqual(incidents.reports.map((report) => report.context.incidentId), [result.error.requestId]);
 });
 
 // ---------------------------------------------------------------------------
@@ -224,7 +236,7 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+  registerMcpUiToolCallsRoute({ app, errors: createRouteIncidentReporter().errors, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

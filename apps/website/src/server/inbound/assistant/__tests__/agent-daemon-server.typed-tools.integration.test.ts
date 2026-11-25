@@ -21,7 +21,7 @@ import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-del
 import { PERMANENT_DELETE_TOOLS } from "../../../../contracts/headless/index.js";
 import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** Evaluate the host's real composition expressions without its database/listener/process boot.
@@ -121,6 +121,7 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     },
   } });
   const requests: { path: string; principalId: string; body?: Record<string, unknown> }[] = [];
+  const incidents = createRouteIncidentReporter();
   /** Invoke the existing route specifications directly, retaining parsing, read-only checks,
    * principal resolution, cancellation and executor dispatch. Only HTTP framing is replaced. */
   const dispatchRequest = async ({ path, init, body, principalId }: {
@@ -133,8 +134,8 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     assert.equal(path, "/api/delegated-tool-calls");
     const parsed = delegatedToolExecuteRoute.parse({ body, params: {}, query: {} });
     assert.ok(parsed.ok);
-    const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: reportRouteInternalError,
-      lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }), onInternalError: () => {},
+    const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: incidents.reportInternalError,
+      lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }),
     } }, init.signal ? { signal: init.signal } : {});
     return result.ok ? Response.json(result.value) : Response.json({ error: result.error }, { status: 403 });
   };

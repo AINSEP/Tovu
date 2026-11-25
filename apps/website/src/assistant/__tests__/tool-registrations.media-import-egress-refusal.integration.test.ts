@@ -17,7 +17,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../../features/media-import/tool-registrations.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Regression test for SEC-05 (2026-09-07): an SSRF / egress-policy refusal raised while
@@ -87,7 +87,7 @@ async function executeImport(clientError: Error, url: string, log?: (line: strin
   const { toolExecutor, lifecycle } = buildDelegatedToolDeps(clientError, log);
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
-  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "media_import_from_url", input: { url } }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
+  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "media_import_from_url", input: { url } }, deps: { reportInternalError: createRouteIncidentReporter().reportInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
 }
 
 test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR", async () => {

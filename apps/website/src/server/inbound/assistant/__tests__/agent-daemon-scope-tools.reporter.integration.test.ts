@@ -8,7 +8,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
 import { delegatedToolErrorDisclosure, TOOL_ERROR_ID_PATTERN } from "#src/assistant/tool-recovery-preset";
@@ -50,7 +50,7 @@ async function scopeCall({ tracking }: { tracking: boolean }) {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-scope-reporter" });
   const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: {} }, deps: {
-    lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, reportInternalError: reportRouteInternalError,
+    lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, reportInternalError: createReporterRouteInternalError({ reporter: ports.reporter }),
     ...delegatedToolErrorDisclosure({ reporter: ports.reporter }, {}),
   } }, {});
   return { ...ports, result };

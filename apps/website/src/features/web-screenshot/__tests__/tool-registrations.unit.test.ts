@@ -16,7 +16,7 @@ import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screensho
 import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "../tool-registrations.js";
 import type { PageCapturePort } from "@jini-ai/core/contracts/site/web-screenshot";
 import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type WebScreenshotPorts } from "@jini-ai/integrations/web-screenshot/web-screenshot";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
@@ -90,7 +90,7 @@ test("CLI path: through the real ToolExecutor and the daemon's read-only delegat
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-shot-1", toolId: WEB_SCREENSHOT_TOOL_ID, input: { url: "https://example.com/" }, requireReadOnly: true },
-    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
+    deps: { ...routeDeps, reportInternalError: createRouteIncidentReporter().reportInternalError } as never,
   });
 
   assert.equal(result.ok, true, JSON.stringify(result).slice(0, 300));

@@ -19,7 +19,7 @@ import { daemonRouteHost, mountJiniRoutes } from "../../platform/express/jini-ro
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createRunScopedCredentials, type RunScopedCredentials } from "../daemon-access.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "../../server/__tests__/helpers/route-incident-reporter.js";
 
 /**
  * @file The run-scoped credential a spawned `jini-mcp` bridge presents to the agent daemon
@@ -53,6 +53,7 @@ interface Harness {
 }
 
 async function bootDaemon(): Promise<Harness> {
+  const incidents = createRouteIncidentReporter();
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const owners = createRunOwnerRegistry({}, {});
   /** Twin of `agent-daemon-server.ts`'s `principalByRunId`: live runs only. */
@@ -83,7 +84,7 @@ async function bootDaemon(): Promise<Harness> {
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   // 100 KiB: the default limit of the `express.json()` parser above.
-  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024, errors: incidents.errors }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -319,6 +320,7 @@ async function scopeHarness({ exempt = false } = {}) {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const owners = createRunOwnerRegistry({}, {});
   const live = new Map<string, string>();
+  const incidents = createRouteIncidentReporter();
   const credentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => live.get(runId) }, {});
   async function start(principalId: string) {
     const { run } = await lifecycle.start({ contextRef: contextRefFor(principalId, "scope-test") });
@@ -387,7 +389,7 @@ async function scopeHarness({ exempt = false } = {}) {
         answer.body = { error: parsed.error };
         return answer;
       }
-      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: reportRouteInternalError,
+      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: incidents.reportInternalError,
         lifecycle, toolExecutor,
         resolvePrincipal: ({ request: { runId } }) => {
           const id = live.get(runId);
@@ -403,8 +405,8 @@ async function scopeHarness({ exempt = false } = {}) {
     if (!await passes(requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}))) return answer;
     const runId = String(req.params.runId);
     const result = method === "POST"
-      ? await runCancelRoute.handle({ input: { runId }, deps: { reportInternalError: reportRouteInternalError, lifecycle } })
-      : await runStatusRoute.handle({ input: runId, deps: { reportInternalError: reportRouteInternalError, lifecycle } });
+      ? await runCancelRoute.handle({ input: { runId }, deps: { reportInternalError: incidents.reportInternalError, lifecycle } })
+      : await runStatusRoute.handle({ input: runId, deps: { reportInternalError: incidents.reportInternalError, lifecycle } });
     answer.status = result.ok ? 200 : 404;
     answer.body = result.ok ? result.value : { error: result.error };
     return answer;

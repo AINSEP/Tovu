@@ -16,7 +16,7 @@ import { createRecordingReporter } from "@jini-ai/core/errors/testing";
 import type { LogDiagnosticRecord } from "@jini-ai/core/primitives";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -63,9 +63,8 @@ async function harness(registry: ToolRegistry = createToolRegistry({})): Promise
           lifecycle,
           toolExecutor,
           resolvePrincipal: () => PRINCIPAL,
-          onInternalError: () => undefined,
           ...delegatedToolErrorDisclosure({ reporter }, {}),
-          reportInternalError: reportRouteInternalError,
+          reportInternalError: createReporterRouteInternalError({ reporter }),
           ...overrides,
         } }, { signal: signal }
       ),
