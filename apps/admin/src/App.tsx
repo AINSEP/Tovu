@@ -1,4 +1,7 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { siteUpdateNoticeSlot } from "./integrations/jini-admin/site-update-notice";
+import { useTovuSiteUpdateStatus } from "./integrations/jini-admin/site-update-notice.hooks";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
 import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
@@ -738,6 +741,8 @@ function AdminShell({
   if (checking) return <div className="boot-screen">{tApp({ locale: navLocale, key: "Loading Tovu…" })}</div>;
   if (!user) return <Login onLogin={handleLogin} useAdminLocaleHook={props.useAdminLocaleHook} />;
 
+  // Below the authenticated shell so login and boot screens cause no release-feed traffic; unknown
+  // permissions mount nothing (unlike the nav fallback above).
   const content: ReactNode = renderRoute({ route, siteSection, access: { permissions: effectivePermissions, locale: navLocale }, useAdminLocaleHook: props.useAdminLocaleHook });
 
   return (
@@ -762,7 +767,8 @@ function AdminShell({
             page, intercepting clicks, whenever the drawer is closed). */}
         <SidebarBackdrop open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <ShellMain sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} agentPage={agentPageId(route)}
-          setContentEl={shellContent.setContentEl} contentEl={shellContent.contentEl} content={content} />
+          setContentEl={shellContent.setContentEl} contentEl={shellContent.contentEl} content={content}
+          siteUpdateNotice={siteUpdateNoticeSlot({ user, effectivePermissions, workspaceId: WORKSPACE_ID, locale: navLocale, useSiteUpdateStatusHook: useTovuSiteUpdateStatus })} />
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
             decides, not a ternary here. */}
         <AssistantChrome enabled={adminAssistantEnabled} dock={dock} agentBridge={shellContent.agentBridge} principalId={user.id}

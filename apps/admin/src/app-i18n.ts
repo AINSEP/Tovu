@@ -25,6 +25,8 @@ import { createDictionaryTranslator } from '@jini-ai/core/text';
 
 const APP_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "La versión {latest} del software del sitio está disponible. Este sitio usa {runningVersion}.",
+    "What changed": "Qué ha cambiado",
     "Scroll to top": "Ir al principio", "Scroll to bottom": "Ir al final",
     Dismiss: "Descartar",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "El correo no está configurado: no se envían enlaces de inicio de sesión, confirmaciones ni avisos de formularios.",
@@ -36,6 +38,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Pide acceso al propietario del sitio si necesitas esta sección.",
   },
   id: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Versi {latest} perangkat lunak situs tersedia. Situs ini menjalankan {runningVersion}.",
+    "What changed": "Yang berubah",
     "Scroll to top": "Gulir ke atas", "Scroll to bottom": "Gulir ke bawah",
     Dismiss: "Tutup",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Email belum diatur: tautan masuk, konfirmasi, dan notifikasi formulir tidak dikirim.",
@@ -47,6 +51,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Minta akses kepada pemilik situs jika Anda memerlukan bagian ini.",
   },
   de: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Version {latest} der Website-Software ist verfügbar. Diese Website läuft mit {runningVersion}.",
+    "What changed": "Was sich geändert hat",
     "Scroll to top": "Nach oben scrollen", "Scroll to bottom": "Nach unten scrollen",
     Dismiss: "Verwerfen",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-Mail ist nicht eingerichtet: Anmeldelinks, Bestätigungen und Formularbenachrichtigungen werden nicht gesendet.",
@@ -91,6 +97,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Peça acesso ao proprietário do site se precisar desta seção.",
   },
   ru: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Доступна версия {latest} программного обеспечения сайта. Сайт работает на версии {runningVersion}.",
+    "What changed": "Что изменилось",
     "Scroll to top": "Прокрутить вверх", "Scroll to bottom": "Прокрутить вниз",
     Dismiss: "Скрыть",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Почта не настроена: ссылки для входа, подтверждения и уведомления форм не отправляются.",
@@ -102,6 +110,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Если вам нужен этот раздел, обратитесь к владельцу сайта.",
   },
   fa: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "نسخه {latest} نرم‌افزار سایت در دسترس است. این سایت نسخه {runningVersion} را اجرا می‌کند.",
+    "What changed": "چه چیزی تغییر کرده است",
     "Scroll to top": "رفتن به بالا", "Scroll to bottom": "رفتن به پایین",
     Dismiss: "نادیده گرفتن",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ایمیل راه‌اندازی نشده است: پیوندهای ورود، تأییدیه‌ها و اعلان‌های فرم ارسال نمی‌شوند.",
@@ -113,6 +123,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اگر به این بخش نیاز دارید، از مالک سایت دسترسی بخواهید.",
   },
   ar: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "الإصدار {latest} من برنامج الموقع متاح. يعمل هذا الموقع بالإصدار {runningVersion}.",
+    "What changed": "ما الذي تغيّر",
     "Scroll to top": "التمرير إلى الأعلى", "Scroll to bottom": "التمرير إلى الأسفل",
     Dismiss: "تجاهل",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "البريد الإلكتروني غير مُعدّ: لا تُرسل روابط تسجيل الدخول والتأكيدات وإشعارات النماذج.",
@@ -124,6 +136,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اطلب الوصول من مالك الموقع إذا كنت بحاجة إلى هذا القسم.",
   },
   ja: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "サイトソフトウェアのバージョン {latest} が利用できます。このサイトは {runningVersion} で動作しています。",
+    "What changed": "変更内容",
     "Scroll to top": "一番上へ", "Scroll to bottom": "一番下へ",
     Dismiss: "閉じる",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "メールが未設定です：サインインリンク、確認メール、フォーム通知は送信されません。",
@@ -135,6 +149,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "このセクションが必要な場合は、サイトのオーナーに依頼してください。",
   },
   ko: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "사이트 소프트웨어 버전 {latest}을(를) 사용할 수 있습니다. 이 사이트는 {runningVersion}에서 실행 중입니다.",
+    "What changed": "변경 사항",
     "Scroll to top": "맨 위로", "Scroll to bottom": "맨 아래로",
     Dismiss: "닫기",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "이메일이 설정되지 않았습니다: 로그인 링크, 확인 메일, 양식 알림이 발송되지 않습니다.",
@@ -146,6 +162,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "이 섹션이 필요하면 사이트 소유자에게 요청하세요.",
   },
   pl: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Dostępna jest wersja {latest} oprogramowania witryny. Ta witryna działa na wersji {runningVersion}.",
+    "What changed": "Co się zmieniło",
     "Scroll to top": "Przewiń na górę", "Scroll to bottom": "Przewiń na dół",
     Dismiss: "Odrzuć",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Poczta nie jest skonfigurowana: linki logowania, potwierdzenia i powiadomienia z formularzy nie są wysyłane.",
@@ -157,6 +175,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Jeśli potrzebujesz tej sekcji, poproś o dostęp właściciela witryny.",
   },
   hu: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Elérhető a webhelyszoftver {latest} verziója. Ez a webhely a(z) {runningVersion} verziót futtatja.",
+    "What changed": "Mi változott",
     "Scroll to top": "Ugrás a tetejére", "Scroll to bottom": "Ugrás az aljára",
     Dismiss: "Elvetés",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Az e-mail nincs beállítva: a bejelentkezési linkek, megerősítések és űrlapértesítések nem kerülnek elküldésre.",
@@ -168,6 +188,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Ha szükséged van erre a részre, kérj hozzáférést a webhely tulajdonosától.",
   },
   fr: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "La version {latest} du logiciel du site est disponible. Ce site utilise la version {runningVersion}.",
+    "What changed": "Ce qui a changé",
     "Scroll to top": "Aller en haut", "Scroll to bottom": "Aller en bas",
     Dismiss: "Ignorer",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’e-mail n’est pas configuré : les liens de connexion, les confirmations et les notifications de formulaires ne sont pas envoyés.",
@@ -179,6 +201,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Demandez l'accès au propriétaire du site si vous avez besoin de cette section.",
   },
   uk: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Доступна версія {latest} програмного забезпечення сайту. Сайт працює на версії {runningVersion}.",
+    "What changed": "Що змінилося",
     "Scroll to top": "Прокрутити вгору", "Scroll to bottom": "Прокрутити вниз",
     Dismiss: "Приховати",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Пошту не налаштовано: посилання для входу, підтвердження та сповіщення форм не надсилаються.",
@@ -190,6 +214,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Якщо вам потрібен цей розділ, зверніться до власника сайту.",
   },
   tr: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "Site yazılımının {latest} sürümü kullanılabilir. Bu site {runningVersion} sürümünü çalıştırıyor.",
+    "What changed": "Neler değişti",
     "Scroll to top": "Başa git", "Scroll to bottom": "Sona git",
     Dismiss: "Kapat",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-posta kurulmadı: giriş bağlantıları, onaylar ve form bildirimleri gönderilmiyor.",
@@ -201,6 +227,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Bu bölüme ihtiyacınız varsa site sahibinden erişim isteyin.",
   },
   th: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "ซอฟต์แวร์เว็บไซต์เวอร์ชัน {latest} พร้อมใช้งานแล้ว เว็บไซต์นี้ใช้เวอร์ชัน {runningVersion}",
+    "What changed": "มีอะไรเปลี่ยนแปลง",
     "Scroll to top": "เลื่อนไปด้านบนสุด", "Scroll to bottom": "เลื่อนไปด้านล่างสุด",
     Dismiss: "ปิด",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ยังไม่ได้ตั้งค่าอีเมล: ไม่มีการส่งลิงก์ลงชื่อเข้าใช้ การยืนยัน และการแจ้งเตือนจากแบบฟอร์ม",
@@ -212,6 +240,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "หากต้องการใช้ส่วนนี้ โปรดขอสิทธิ์จากเจ้าของเว็บไซต์",
   },
   it: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "È disponibile la versione {latest} del software del sito. Questo sito usa la versione {runningVersion}.",
+    "What changed": "Cosa è cambiato",
     "Scroll to top": "Torna su", "Scroll to bottom": "Vai in fondo",
     Dismiss: "Ignora",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’email non è configurata: link di accesso, conferme e notifiche dei moduli non vengono inviati.",
@@ -223,6 +253,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Chiedi l'accesso al proprietario del sito se ti serve questa sezione.",
   },
   hi: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "साइट सॉफ़्टवेयर का संस्करण {latest} उपलब्ध है। यह साइट {runningVersion} पर चल रही है।",
+    "What changed": "क्या बदला",
     "Scroll to top": "ऊपर जाएँ", "Scroll to bottom": "नीचे जाएँ",
     Dismiss: "खारिज करें",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ईमेल सेट अप नहीं है: साइन-इन लिंक, पुष्टिकरण और फ़ॉर्म सूचनाएं नहीं भेजी जातीं।",
@@ -234,6 +266,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "यदि आपको इस अनुभाग की आवश्यकता है, तो साइट के स्वामी से पहुँच माँगें।",
   },
   ur: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "سائٹ سافٹ ویئر کا ورژن {latest} دستیاب ہے۔ یہ سائٹ {runningVersion} پر چل رہی ہے۔",
+    "What changed": "کیا بدلا",
     "Scroll to top": "اوپر جائیں", "Scroll to bottom": "نیچے جائیں",
     Dismiss: "مسترد کریں",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ای میل سیٹ اپ نہیں ہے: سائن ان لنکس، تصدیقات اور فارم اطلاعات نہیں بھیجی جاتیں۔",
@@ -245,6 +279,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اگر آپ کو اس حصے کی ضرورت ہے تو سائٹ کے مالک سے رسائی مانگیں۔",
   },
   bn: {
+    "Version {latest} of the site software is available. This site runs {runningVersion}.": "সাইট সফটওয়্যারের সংস্করণ {latest} পাওয়া যাচ্ছে। এই সাইটটি {runningVersion} চালাচ্ছে।",
+    "What changed": "কী বদলেছে",
     "Scroll to top": "উপরে যান", "Scroll to bottom": "নিচে যান",
     Dismiss: "খারিজ করুন",
     "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ইমেইল সেট আপ করা হয়নি: সাইন-ইন লিংক, নিশ্চিতকরণ এবং ফর্ম বিজ্ঞপ্তি পাঠানো হয় না।",
