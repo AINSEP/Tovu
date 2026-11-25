@@ -295,3 +295,24 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
   ]);
   assert.deepEqual(await repo.claimDue({ now: REAL_DUE, leaseOwner: "retry", leaseUntil: "2026-10-01T00:01:00.000Z", limit: 10 }), []);
 });
+
+test("a row stamped under the old 60-day window keeps its stamped purgeAfter: the sweep does not clamp it to the current window", async () => {
+  // Rule (write-service `computePurgeAfter` + trash-retention.ts): purgeAfter is stamped at trash time and the sweep
+  // claims only rows whose stamp is due, so shortening the window never shortens what a row was already promised.
+  const db = openContentDb(":memory:");
+  const client = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
+  const day = 24 * 60 * 60 * 1000;
+  const trashedAt = new Date(Date.parse(REAL_DUE) - 40 * day).toISOString();
+  assert.ok(Date.parse(trashedAt) + TRASH_RETENTION_DAYS * day < Date.parse(REAL_DUE), "past the current window, so a clamp would purge it");
+  const repo = new SqliteTrashRepo({ store: client });
+  await repo.insert({ row: {
+    id: "trash-old-window", workspaceId: REAL_WS, entityType: "menu", entityId: "menu-old", trashedAt,
+    purgeAfter: new Date(Date.parse(trashedAt) + 60 * day).toISOString(),
+    actorPrincipalId: "principal-1", actorPluginId: null, displayTitle: "Old menu", displaySubtitle: null, entityVersion: 1, priorMarker: "published",
+  } });
+  const sweep = createTrashSweep({ repo, adapters: new Map(), transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work), entityPolicy: () => true });
+  const report = await sweep({ now: REAL_DUE, leaseOwner: "sweeper-1", leaseUntil: "2026-10-01T00:05:00.000Z", limit: 10 });
+
+  assert.equal(report.claimed, 0);
+  assert.equal((await repo.findByIds({ workspaceId: REAL_WS, ids: ["trash-old-window"] })).length, 1);
+});

@@ -31,7 +31,9 @@ export interface StorageClient {
   cleanup(required: { dryRun: boolean; classes?: readonly RetentionPolicyKind[]; previewToken?: string }, optional?: Record<string, never>): Promise<StoragePass>;
 }
 
-type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestInit } & Pick<AuthenticatedAdminRequestOptions, "basePath">) => Promise<T>;
+/** The real `request` signature: `basePath` rides in `optional.options`. A narrower hand-written type once put it
+ *  beside `init`, where `request` never reads it, and the cast hid that the page was calling `/api/admin/v1/report`. */
+type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestInit; options?: Pick<AuthenticatedAdminRequestOptions, "basePath"> }) => Promise<T>;
 
 /**
  * Builds the client over a host `request`.
@@ -40,13 +42,13 @@ type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestI
 export function createStorageClient({ request: send }: { request: AdminRequest }, _optional: Record<string, never> = {}): StorageClient {
   const basePath = "/api/admin/storage" as const;
   return {
-    report: () => send<StorageReport>({ path: "/report" }, { basePath }),
+    report: () => send<StorageReport>({ path: "/report" }, { options: { basePath } }),
     cleanup: ({ dryRun, classes, previewToken }) => send<StoragePass>({ path: "/cleanup" }, {
-      basePath,
+      options: { basePath },
       init: { method: "POST", body: JSON.stringify({ dryRun, ...(classes === undefined ? {} : { classes }), ...(previewToken === undefined ? {} : { previewToken }) }) },
     }),
   };
 }
 
 /** The live client over this admin's `request`. */
-export const storageClient: StorageClient = createStorageClient({ request: request as AdminRequest }, {});
+export const storageClient: StorageClient = createStorageClient({ request }, {});

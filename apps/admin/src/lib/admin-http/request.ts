@@ -81,6 +81,27 @@ function unreachableApiMessage(_required: Record<string, never>, { status }: { s
   return `cannot reach the Tovu API${detail} — is the server running?`;
 }
 
+/** The server's per-response correlation header (`observability-middleware.ts`); every answer carries it, a 404 too. */
+const REQUEST_ID_HEADER = "x-request-id";
+
+/**
+ * Copy for an application that answered with an empty error. A read changed nothing, so telling the
+ * operator to "check whether your change was saved" after a failed page load sends them hunting for a
+ * write that never happened (live-found on the Storage page, 2026-11-25); a read says nothing changed.
+ * Both name the response's request ID when it has one, since that is what makes a report findable.
+ * @complexity O(1).
+ */
+export function requestFailedMessage(
+  { method, path, status }: { method: string; path: string; status: number },
+  { requestId }: { requestId?: string } = {},
+): string {
+  const report = requestId ? `report error ID ${requestId}.` : "report this problem.";
+  if (method === "GET" || method === "HEAD") {
+    return `The API could not load ${method} ${path} (HTTP ${status}). Nothing was changed. Try again; if it keeps failing, ${report}`;
+  }
+  return `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and ${report}`;
+}
+
 type UnauthenticatedListener = () => void;
 const unauthenticatedListeners = new Set<UnauthenticatedListener>();
 
@@ -170,7 +191,7 @@ const adminHttp = createAdminHttp<ApiError, AdminApiBasePath, "page">({
     messages: {
       timeout: () => timeoutApiMessage(),
       unreachable: ({ status }) => unreachableApiMessage({}, status === undefined ? {} : { status }),
-      requestFailed: ({ method, path, status }) => redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text,
+      requestFailed: ({ method, path, status }, { headers } = {}) => redactSecretShapes({ text: requestFailedMessage({ method, path, status }, { requestId: headers?.get(REQUEST_ID_HEADER) ?? undefined }) }).text,
     },
     reconnect: serverReconnect,
     shouldRetry: (required) => shouldRetryAfterReconnect(required),
