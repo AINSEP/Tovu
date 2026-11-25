@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { describeApiError } from "@/lib/admin-http/request";
+import { sizeRefusalFromError } from "../upload-size-copy";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "@jini-ai/admin/screens/media/rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -288,7 +289,9 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const media = list.data?.media ?? null;
   const uploadFailure = readError ?? uploadMutation.error;
   // Local FileReader errors bypass the mutation; translate known copy while retaining diagnostics.
-  const uploadError = uploadFailure ? translate({ locale, key: describeApiError({ e: uploadFailure, fallback: "upload failed" }) }) : null;
+  // A typed size refusal gets the owner copy; every other failure keeps the generic description.
+  const uploadError = uploadFailure ? (sizeRefusalFromError({ t: (key) => translate({ locale, key }), error: uploadFailure })
+    ?? translate({ locale, key: describeApiError({ e: uploadFailure, fallback: "upload failed" }) })) : null;
   const error = visibleMediaError({
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,
