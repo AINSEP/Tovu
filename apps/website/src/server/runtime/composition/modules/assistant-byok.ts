@@ -535,7 +535,7 @@ export function createAssistantByokModule(
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
-  installFirstPartyToolContributors({ contributions }, { readAdmissions: () => serverFederation.admissions(),
+  installFirstPartyToolContributors({ contributions }, { env: process.env, readAdmissions: () => serverFederation.admissions(),
     readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });

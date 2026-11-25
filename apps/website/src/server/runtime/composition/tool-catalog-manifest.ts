@@ -128,7 +128,7 @@ import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-regis
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaTools, contributeMediaViewVideoTools, type MediaConversionPorts, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -387,6 +387,8 @@ export function installFirstPartyToolContributors(
     readExternalMcpToolNames,
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
+    env = process.env,
+    mediaConversionPorts = createMediaConversionPorts({ env }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
   }: {
     deployOpsRegistry?: DeployOpsRegistry;
@@ -400,11 +402,15 @@ export function installFirstPartyToolContributors(
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
     chatAttachmentsDir?: string;
     mediaVideoPorts?: MediaVideoToolPorts;
+    /** Binary-discovery environment for the video converter (`FFMPEG_PATH`, `PATH`); defaults to the process's. */
+    env?: NodeJS.ProcessEnv;
+    /** One converter bundle per catalog, shared by `media_convert_video` and the import tools. */
+    mediaConversionPorts?: MediaConversionPorts;
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
   installStatusAndAgentTools(contributions, () => findPublishCandidate);
-  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
+  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts, mediaConversionPorts });
   installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate });
   installWebReadTools(contributions, { createHttpClient, observability });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
@@ -474,7 +480,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   } } });
 }
 
-function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts }) {
+function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts, mediaConversionPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts; mediaConversionPorts: MediaConversionPorts }) {
 
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
@@ -516,13 +522,13 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeFormsTools() });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
-  contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
+  contributions.contributors.register({ contribution: contributeMediaTools(mediaConversionPorts) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }) });
   contributions.contributors.register({ contribution: contributeImageTransformTools() });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });
-  contributions.contributors.register({ contribution: contributeMediaImportTools({ videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
+  contributions.contributors.register({ contribution: contributeMediaImportTools({ videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });

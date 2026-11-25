@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { MediaTranscoderPort } from "@jini-ai/cms/media";
-import { createFfmpegMediaTranscoder } from "@jini-ai/cms/media/node";
+import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, VIDEO_TRANSCODE_THRESHOLD_BYTES, sniffContentType, type MediaTranscoderPort } from "@jini-ai/cms/media";
+import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../index.js";
 import { contributeMediaTools } from "../tool-registrations.js";
+import { withVideoConversionOnImport } from "../import-video-conversion.js";
+import { createMediaConversionPorts } from "#src/server/runtime/composition/media-video-ports";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 
 const WORKSPACE_ID = "ws-convert";
@@ -74,7 +76,10 @@ test("media_convert_video saves a web copy, keeps the original and links the cop
 test("with no ffmpeg on the host the tool says so in plain words and saves nothing", async () => {
   const deps = harness();
   const original = await seedVideo(deps);
-  const transcoder = createFfmpegMediaTranscoder({ findBinaries: async () => undefined }, {});
+  const transcoder = createFfmpegMediaTranscoder({
+    findBinaries: async () => undefined, runProcess: async () => { throw new Error("must not run"); }, lock: { tryAcquire: () => () => undefined },
+    sniffContentType, maxInputBytes: VIDEO_TRANSCODE_MAX_INPUT_BYTES, messages: VIDEO_CONVERSION_MESSAGES, env: {},
+  }, {});
   const tool = registrations(deps, { transcoder }).find((r) => r.descriptor.id === TOOL_ID);
   assert.ok(tool);
 
@@ -90,4 +95,44 @@ test("the tool keeps the approval Jini declares and is discoverable by search", 
   assert.deepEqual(registration?.descriptor.metadata?.approval, { class: "edit", confirmation: "direct" });
   assert.deepEqual(nativeToolMetadata.approvals[TOOL_ID], { class: "edit", confirmation: "direct" });
   assert.match(nativeToolMetadata.keywords[TOOL_ID] ?? "", /\bmov\b/);
+});
+
+// Why-comment — relocating the adapter does not change approval or the original-file guarantee.
+test("no local converter binary gives the existing plain refusal and creates no row", async () => {
+  const deps = harness();
+  const original = await seedVideo(deps);
+  // An absolute FFMPEG_PATH that does not exist makes discovery find nothing, even on a machine that has ffmpeg on its PATH.
+  const { transcoder } = createMediaConversionPorts({ env: { PATH: "", FFMPEG_PATH: "/nonexistent-dir/ffmpeg" } });
+  assert.ok(transcoder);
+  const tool = registrations(deps, { transcoder }).find((r) => r.descriptor.id === TOOL_ID);
+  assert.ok(tool);
+
+  const out = await invoke(tool, { mediaId: original.id }) as { converted: boolean; error: { message: string } };
+
+  assert.equal(out.converted, false);
+  assert.match(out.error.message, /^Video conversion needs ffmpeg on this computer\. \(ERR-[0-9A-F-]+\)$/);
+  assert.equal((await deps.mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, 1, "no row was created");
+});
+
+test("exactly 50 MiB is kept unchanged and the next byte reaches the injected converter", async () => {
+  // The import hook both the upload route and the import tools share; the threshold is Jini's own default, not an injected small one.
+  const sizes = [VIDEO_TRANSCODE_THRESHOLD_BYTES, VIDEO_TRANSCODE_THRESHOLD_BYTES + 1];
+  const converted: number[] = [];
+  for (const size of sizes) {
+    const deps = harness();
+    const { clock, idGen, mediaRepo, assetBlobRepo: blobRepo, assetRenditionRepo: renditionRepo, blobStore } = deps;
+    const storeUpload = (input: Parameters<typeof uploadMedia>[0]["input"]) => uploadMedia({ deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore, maxUploadBytes: size, maxVideoUploadBytes: size }, input });
+    const calls: number[] = [];
+    const transcoder: MediaTranscoderPort = { transcode: async ({ input }) => { calls.push(input.byteLength); return { ok: true, bytes: CONVERTED }; } };
+    const store = withVideoConversionOnImport({ storeUpload, conversion: {
+      deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore, transcoder, linkDerivedMedia: async () => undefined },
+      reportNote: () => undefined,
+    } });
+    const bytes = new Uint8Array(size);
+    bytes.set(MOV_AS_MP4, 0);
+    await store({ workspaceId: WORKSPACE_ID, bytes, filename: "Big.mov", contentType: "video/mp4", createdByPrincipal: PRINCIPAL_ID });
+    converted.push(calls.length);
+    assert.equal((await mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, calls.length === 0 ? 1 : 2, `size ${size}: original kept${calls.length ? " plus one copy" : " alone"}`);
+  }
+  assert.deepEqual(converted, [0, 1], "50 MiB stays as uploaded; one byte more is sent to the converter");
 });
