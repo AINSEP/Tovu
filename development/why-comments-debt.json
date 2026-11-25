@@ -13932,6 +13932,130 @@
     {
       "id": "fc550fc2e03a",
       "reason": "x8 O10: the hand-written `authorized` helper of the mail credential PUT is gone; the admin mount's workspace + `direct` authorize ports do it, restated beside `authorization: \"direct\"` in registerAdminMailProviderCredentialSaveRoute."
+    },
+    {
+      "id": "a93b31618315",
+      "reason": "moved to Jini packages/user-management/src/admin-http/owner/mfa-routes.ts (reworded: the spec's own copy of the comment adds that anything else is rethrown to the host's failure writer; Tovu's failure() keeps the \"storage exceptions never disclose secrets\" half)"
+    },
+    {
+      "id": "0c6953daec35",
+      "reason": "moved to Jini packages/user-management/src/admin-http/owner/mfa-routes.ts (reworded: \"refused by Jini\" now \"refused by the service\")"
+    },
+    {
+      "id": "26a2fb1a4622",
+      "reason": "moved to Jini packages/user-management/src/admin-http/owner/mfa-routes.ts (reworded: \"Jini owns password/factor proof\" now \"the service owns password/factor proof\"; complexity line kept)"
+    },
+    {
+      "id": "482bbb6b19f0",
+      "reason": "obsolete: a one-line import note (\"Jini owns LocalBufferSink via the host adapter\") on a deleted hand-written import; the file now imports only the AnalyticsSinkPort type and the LocalBufferSink/SqliteBufferSink rationale lives in Jini packages/analytics/src/admin-http/routes/recent-hits.ts header"
+    },
+    {
+      "id": "d31ca51be5d3",
+      "reason": "moved to Jini packages/analytics/src/admin-http/routes/recent-hits.ts header (reworded: product paths and the route-registrar mirror note neutralised; \"NOT a dashboard\" and the authorization-gap rationale kept verbatim), and the Tovu file header now documents the host binding and wire envelope"
+    },
+    {
+      "id": "1f92ff852306",
+      "reason": "obsolete: described the deleted hand-written rejectUnlessAuthorized helper; the admin mount's workspace 404, session principal and authorize ports (mountAdminJsonRoute) do it, and the per-verb permission split is restated in the file header and the spec (Jini packages/cms/src/admin-http/routes/fs-files/custom-root.ts)"
+    },
+    {
+      "id": "fe6d6a002301",
+      "reason": "reworded in place (same file, previewHandler): now documents the http-kit raw mount handler capture and the buffered Response / status().type().send() refusal writers"
+    },
+    {
+      "id": "4994a44cab18",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/posts/template-preview.ts (near-verbatim: \"apps/admin/src/lib/api.ts\" now \"the admin app's API client\")"
+    },
+    {
+      "id": "5a11102c369e",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/posts/template-preview.ts beside PREVIEW_CSP (reworded: file paths now \"the admin app's pages rules\")"
+    },
+    {
+      "id": "bacfcc19a8b7",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/posts/template-preview.ts handler (reworded: express.json()/app.ts now \"the host's JSON parser\", req.body now raw.body)"
+    },
+    {
+      "id": "d45661881374",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/posts/template-preview.ts handler beside the Cache-Control: no-store header (reworded: theme-page-preview.ts now \"the theme page preview\")"
+    },
+    {
+      "id": "44c9bd257e00",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/posts/template-preview.ts (reworded: now beside the two spec handles, scoped through the host mount's bodyParsers; Tovu keeps the express.urlencoded registration itself)"
+    },
+    {
+      "id": "3136ee910581",
+      "reason": "reworded in place (same file header): now documents that the save is the spec mounted here with afterWorkspace and failureByPhase opt-ins; the obsolete \"stays hand-written\" claim and its one-failure-copy-per-mount reason are gone because failureByPhase now supplies the two copies"
+    },
+    {
+      "id": "5806e0a8e999",
+      "reason": "reworded in place (same file, registerSitesConfigSaveRoute doc): \"save the sites settings\", now noting it mounts Jini's spec over this host's workspace, folder probe and patch rules; complexity line kept"
+    },
+    {
+      "id": "acd9c5dfb814",
+      "reason": "obsolete: explained a re-export of readDockerfileSource kept for the route file's old public surface; the re-export is deleted and the file imports the function from @jini-ai/devops directly"
+    },
+    {
+      "id": "663ddcdf48d7",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/system/dockerfile-source.ts header (reworded: host-owned fs read/write, If-Match/ETag decision record kept, gate-order paragraph added); the Tovu header now points at the spec"
+    },
+    {
+      "id": "324635aea054",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/system/dockerfile-source.ts (parse body validator doc; reworded: writeDockerfileSourceWithIfMatch now \"the host's write\")"
+    },
+    {
+      "id": "6c602e0ade28",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/system/dockerfile-source.ts (wire body doc; near-verbatim, \"domain snapshot\" now \"the snapshot\")"
+    },
+    {
+      "id": "327ff6bf7a63",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/system/dockerfile-source.ts (write handler doc: If-Match checked before the body; reworded as a doc comment)"
+    },
+    {
+      "id": "9ff6c311ea9b",
+      "reason": "moved to Jini Jini packages/cms/src/admin-http/routes/themes/preview.ts header (reworded: \"Tovu Starter\" now \"the starter\"; product-specific file paths neutralised); the Tovu header points at the spec"
+    },
+    {
+      "id": "80a00f444373",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/agent-plugin-surfaces/export-files.ts (reworded: \"one lifecycle catalog scan\" now \"one catalog scan\"; rest verbatim)"
+    },
+    {
+      "id": "914ebe661406",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/complete-sign-in.ts (extended: now also spells out the accepted token / challenge id + six-digit code forms)"
+    },
+    {
+      "id": "e87014ba148a",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/complete-sign-in.ts header (reworded: \"tovu_member_session\"/\"tovu_session\" now \"the host's member session cookie\"/\"the admin session cookie\")"
+    },
+    {
+      "id": "ad3913f6f6bb",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/oidc-callback.ts (reworded: \"calls S2 only\" now \"calls the protocol only\"; fixed redirect/sealed continuation/error redirect wording neutralised)"
+    },
+    {
+      "id": "ac7aa13d6795",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/oidc-start.ts (reworded: authorization-URL proof note moved onto the begin dep, the refusal sentence kept, \"/signin\" now \"the host's sign-in page\")"
+    },
+    {
+      "id": "a7de39f17e97",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/sign-in.ts header (near-verbatim: resolveClientIp now \"the host-resolved client address\", acceptance paragraph added)"
+    },
+    {
+      "id": "0f5fa33ee864",
+      "reason": "moved to Jini Jini packages/cms/src/public-http/routes/members/unlink-identity.ts (near-verbatim: adds that the raw answer APPENDS the session cookie)"
+    },
+    {
+      "id": "b296a70d911f",
+      "reason": "moved to Jini packages/analytics/src/public-http/routes/analytics-ingest.ts header (near-verbatim; \"@jini-ai/analytics\" now \"the analytics ingest engine\"; per-request closure paragraph added); the Tovu header points at the spec"
+    },
+    {
+      "id": "75bee0f817e1",
+      "reason": "moved to Jini packages/user-management/src/public-http/routes/newsletter/confirm.ts (near-verbatim, plus @complexity); the Tovu header restates the no-session-cookie rule"
+    },
+    {
+      "id": "30e3995185b0",
+      "reason": "moved to Jini packages/user-management/src/public-http/routes/newsletter/unsubscribe.ts (near-verbatim, newsletter-confirm.ts now confirm.ts); the Tovu header restates the RFC 8058 one-click and no-cookie points"
+    },
+    {
+      "id": "faf8842aee1f",
+      "reason": "reworded in place (same file, registerSitesHomeRoutes doc): all three sites-settings routes are now Jini specs, so \"PUT config stays hand-written\" is obsolete; the save is mounted by registerSitesConfigSaveRoute"
     }
   ]
 }
