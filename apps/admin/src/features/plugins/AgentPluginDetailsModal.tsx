@@ -1,5 +1,5 @@
 import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
-import { AgentPluginMaturity } from "./AgentPluginMaturity";
+import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
