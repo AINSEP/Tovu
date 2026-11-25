@@ -43,6 +43,7 @@ export const CHANGE_SET_TABLES = { changeSets: "change_sets", changeSetItems: "c
 export class SqliteChangeSetRepo extends SqlChangeSetRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super({ kernel: schemaErasedKernel({ store }), tables: CHANGE_SET_TABLES }, {});
+    // Migration 0047 gave every content.db `change_sets.actor_kind`, so the attribution kind is read and written.
+    super({ kernel: schemaErasedKernel({ store }), tables: CHANGE_SET_TABLES }, { actorKindColumn: true });
   }
 }

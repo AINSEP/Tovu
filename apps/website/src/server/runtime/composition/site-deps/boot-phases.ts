@@ -169,7 +169,7 @@ export function composeInstrumentedContentPhase(required: ComposeInstrumentedCon
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   const { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeMailHttp({ workspaceId, customCredentialSetRepo, siteAssistantSecretSealer, observability, agentPluginLifecycle, externalMcpServerRepo, runtimeMode, settingsRepo, clock, idGen, settingsPrincipals, identity, siteTitleReady, kernel, originRegistry, overrides });
-  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel, mediaAccessEvidence });
+  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel, mediaAccessEvidence, clock });
   return { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient, postRepo, changeSets, mediaRepo, assetBlobRepo };
 }
 

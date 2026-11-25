@@ -41,6 +41,7 @@ import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 import { startOwnParentWatchdog } from "@jini-ai/sidecar";
 import { formatParentWatchdogEvent } from "./server/runtime/boot/parent-watchdog-report.js";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { readTovuBootEnv, type TovuBootConfig } from "./server/runtime/configuration/env-schema.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -56,16 +57,24 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
  * SPIKE: on the SQLite runtime, the sample Tier-3 store plugin is activated at boot — it declares
  * its own table through the never-brick dataModule seam, seeds products, and surfaces them at /store.
  */
-let port = Number(process.env.PORT ?? 3000);
-const autoStartPort = process.env.TOVU_START_AUTO_PORT === "1";
+// Read once, at module load, before any listener, store or child process below is opened: a
+// present-but-invalid PORT stops boot here (naming the variable, never its value) instead of
+// reaching the listener as NaN. Unset values keep this entry's own defaults.
+function readWebsiteBootEnv(): TovuBootConfig<"website"> {
+  try { return readTovuBootEnv({ env: process.env, scope: "website", warn: ({ message }) => { console.warn(message); } }); }
+  catch (error) { reportFatalBootFailure({ error }); throw error; }
+}
+const bootEnv = readWebsiteBootEnv();
+let port = bootEnv.PORT ?? 3000;
+const autoStartPort = bootEnv.TOVU_START_AUTO_PORT === "1";
 delete process.env.TOVU_START_AUTO_PORT;
-const useMemory = process.env.TOVU_DB === "memory";
+const useMemory = bootEnv.TOVU_DB === "memory";
 // LAN-bind plan (2026-09-23): `undefined` is this entry point's OWN existing default (Node's own
 // all-interfaces bind) — unchanged, per the plan's Decision (a container has to listen on every
 // interface; Docker, compose and every container host run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
-const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
+const bindHost = resolveBindHost({ raw: bootEnv.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
 
 // Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
 // from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd
@@ -254,7 +263,7 @@ async function openSiteDeps(_optional = {}) {
   const opened: { store: SiteStore | undefined } = { store: undefined };
   // The in-memory root scans no plugin folder unless one is named: an explicit TOVU_PLUGINS_DIR
   // (journeys, local opt-in installs) gets the same installer the SQLite root always has.
-  const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
+  const memoryOptions = useMemory && bootEnv.TOVU_PLUGINS_DIR ? { installDir: resolvePath(bootEnv.TOVU_PLUGINS_DIR) } : {};
   const deps = useMemory
     ? createRouteDeps(memoryOptions)
     : await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (opened.store = store) } });

@@ -317,7 +317,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "media-video-view": mediaVideoCatalog as unknown as AgentToolDefinition[],
   "agent-plugins-install": agentPluginsInstallCatalog as unknown as AgentToolDefinition[],
   "agent-plugin-guidance": agentPluginGuidanceCatalog,
-  "media-view": buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset" }) as unknown as AgentToolDefinition[],
+  "media-view": buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }) as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],

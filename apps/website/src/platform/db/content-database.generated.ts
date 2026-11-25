@@ -190,6 +190,7 @@ export interface ChangeSetsTable {
   id: string;
   workspace_id: string;
   actor_id: string | null;
+  actor_kind: string | null;
   status: string;
   summary: string;
   idempotency_key: string | null;
@@ -416,6 +417,7 @@ export interface MediaTable {
   captions_media_id: string | null;
   captions_srclang: string | null;
   captions_label: string | null;
+  description: string | null;
 }
 
 export interface MediaSlugHistoryTable {

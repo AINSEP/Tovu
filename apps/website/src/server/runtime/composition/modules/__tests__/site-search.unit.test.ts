@@ -508,7 +508,7 @@ async function assertBoundSearchPortStructure({ ports, httpClient }: { readonly 
   assert.equal(await ports.isPluginActive({ pluginId: "other" }), false);
   assert.equal(ports.siteId, WS, "v1: the workspace id is the site id");
   assert.equal(ports.workspaceId, WS);
-  assert.deepEqual(ports.sources.map(s => s.collection), ["post", "page"]);
+  assert.deepEqual(ports.sources.map(s => s.collection), ["post", "page", "media_image"]);
   assert.equal(typeof ports.indexState.counts, "function");
   assert.equal(typeof ports.targets.promote, "function");
   assert.equal(typeof ports.access.visibleKeys, "function");

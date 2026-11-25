@@ -17,6 +17,7 @@ import type { ReactElement } from "react";
 import { Media } from "../Media";
 import { renderMediaPanel } from "../../../media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -29,7 +30,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**

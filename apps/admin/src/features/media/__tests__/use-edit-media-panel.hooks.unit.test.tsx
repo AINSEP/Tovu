@@ -81,6 +81,35 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
+  it("a blank description is an explicit clear and an untouched one is never sent", async () => {
+    const item = { ...ITEM, description: "A red barn in snow." };
+    const port = createFakeMediaPort({ media: [item] });
+    const update = vi.spyOn(port, "updateMedia");
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    expect(result.current.description).toBe("A red barn in snow.");
+    act(() => { result.current.setTitle("Barn"); });
+    await act(async () => { await result.current.save(); });
+    expect(update).toHaveBeenLastCalledWith({ id: "m1" }, { title: "Barn" });
+    act(() => { result.current.setDescription("  "); });
+    await act(async () => { await result.current.save(); });
+    expect(update).toHaveBeenLastCalledWith({ id: "m1" }, { title: "Barn", description: "" });
+  });
+
+  it("an undescribed asset gains a typed description and a blank one stays omitted", async () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const update = vi.spyOn(port, "updateMedia");
+    const onCancel = vi.fn();
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel }, { port, locale: "en" }), { wrapper });
+    expect(result.current.description).toBe("");
+    act(() => { result.current.setDescription(" "); });
+    await act(async () => { await result.current.save(); });
+    expect(update).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalledOnce();
+    act(() => { result.current.setDescription("Two horses by a fence."); });
+    await act(async () => { await result.current.save(); });
+    expect(update).toHaveBeenLastCalledWith({ id: "m1" }, { description: "Two horses by a fence." });
+  });
+
   it("clears stored CSS, HTML attributes and dimensions when their inputs are blank", async () => {
     const item = { ...ITEM, cssClass: "framed", htmlAttributes: 'data-motion="fade-in"', width: 640, height: 480 };
     const port = createFakeMediaPort({ media: [item] });

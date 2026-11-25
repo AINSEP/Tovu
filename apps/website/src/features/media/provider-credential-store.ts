@@ -11,7 +11,7 @@ import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { createHash } from "node:crypto";
 import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
-import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
+import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope, resolveMediaCredentialIds } from "./provider-credential-vault.js";
 
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 
@@ -68,8 +68,13 @@ function toView(record: MediaProviderCredentialRecord): MediaProviderCredentialV
     ...(record.model === null ? {} : { model: record.model }), ...keyMarkers(record) };
 }
 
+/** Keyed by write id: a canonical row shadows its legacy rows, and a lone legacy row reports under the canonical id. */
 function toMap(records: readonly MediaProviderCredentialRecord[]): MediaProviderCredentialMap {
-  return Object.fromEntries(records.map(record => [record.providerId, toView(record)]));
+  const stored = new Set(records.map(record => record.providerId));
+  return Object.fromEntries(records.flatMap(record => {
+    const { writeId } = resolveMediaCredentialIds({ providerId: record.providerId });
+    return writeId !== record.providerId && stored.has(writeId) ? [] : [[writeId, toView(record)]];
+  }));
 }
 
 export interface MediaProviderCredentialReadDeps {
@@ -256,6 +261,32 @@ async function sealNewProviderKeys(
   return fresh;
 }
 
+/**
+ * A metadata-only edit of a canonical id with no canonical row yet carries its legacy key forward: the
+ * legacy envelope is opened under its OWN stored identity, then sealed as a NEW canonical envelope
+ * (expected revision null, so the transaction's CAS refuses a racing canonical writer). Never a ciphertext copy.
+ * @complexity At most one probe read per alias id and one open + seal per migrated provider.
+ */
+async function migrateLegacyProviderKeys(deps: MediaProviderCredentialSaveDeps, input: SaveMediaProviderCredentialsInput): Promise<Map<string, VaultPutRecord>> {
+  const migrated = new Map<string, VaultPutRecord>();
+  const { vault: repoVault } = deps.repo;
+  if (!repoVault) return migrated;
+  const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
+    storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  for (const [providerId, entry] of Object.entries(input.providers)) {
+    if (entry.apiKey !== undefined && entry.apiKey !== "") continue;
+    const storedId = await selectStoredCredentialId({ vault: repoVault, workspaceId: input.workspaceId, providerId });
+    if (storedId === null || storedId === providerId) continue;
+    const legacy = await openStoredCredential({ vault: repoVault, sealer: deps.sealer, workspaceId: input.workspaceId, storedId });
+    if (legacy === null) continue;
+    migrated.set(providerId, await vault.prepare({ ...mediaVaultScope({ workspaceId: input.workspaceId, providerId }),
+      id: mediaVaultId({ providerId }), expectedRevision: null, provider: providerId, label: providerId,
+      meta: { baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }) },
+      payload: { apiKey: legacy.apiKey }, hintToken: legacy.apiKey }));
+  }
+  return migrated;
+}
+
 /** Pure merge against the transaction's snapshot; hints and envelope travel as one private unit. */
 function buildProviderUpsertRow(input: {
   workspaceId: UUID; providerId: string; entry: MediaProviderCredentialInput;
@@ -324,6 +355,7 @@ export async function saveMediaProviderCredentials(
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
   const sealedByProviderId = await sealNewProviderKeys(deps, input, policy);
+  const migratedByProviderId = await migrateLegacyProviderKeys(deps, input);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
@@ -338,7 +370,9 @@ export async function saveMediaProviderCredentials(
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
     const upserts = entries.map(([providerId, entry]) =>
       buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,
-        existing: existingByProviderId.get(providerId), fresh: sealedByProviderId.get(providerId), now })
+        existing: existingByProviderId.get(providerId), now,
+        // A migrated legacy key applies only while the snapshot still has no canonical row.
+        fresh: sealedByProviderId.get(providerId) ?? (existingByProviderId.has(providerId) ? undefined : migratedByProviderId.get(providerId)) })
     );
     return {
       upserts,
@@ -445,9 +479,27 @@ export async function resolveMediaProviderCredential(
   input: { workspaceId: UUID; providerId: string }
 ): Promise<ResolvedMediaProviderCredential | null> {
   if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault, providerId: input.providerId }) }, kind: "media-provider",
+  const storedId = await selectStoredCredentialId({ vault: deps.repo.vault, workspaceId: input.workspaceId, providerId: input.providerId });
+  if (storedId === null) return null;
+  return openStoredCredential({ vault: deps.repo.vault, sealer: deps.sealer, workspaceId: input.workspaceId, storedId });
+}
+
+/** The FIRST STORED row among the provider's credential ids, not the first that decrypts: a canonical
+ *  row wins even with no key. A provider without legacy ids keeps its single exact-provider read. */
+async function selectStoredCredentialId({ vault, workspaceId, providerId }: { vault: VaultRepoPort; workspaceId: string; providerId: string }, _optional = {}): Promise<string | null> {
+  const { readIds } = resolveMediaCredentialIds({ providerId });
+  if (readIds.length === 1) return readIds[0] ?? providerId;
+  for (const id of readIds) {
+    if ((await vault.list(mediaVaultScope({ workspaceId, providerId: id })))[0]) return id;
+  }
+  return null;
+}
+
+/** Opens the selected row under ITS stored id, provider scope and AAD; `null` for a keyless row. */
+async function openStoredCredential({ vault: repoVault, sealer, workspaceId, storedId }: { vault: VaultRepoPort; sealer: SecretSealerPort; workspaceId: string; storedId: string }, _optional = {}): Promise<ResolvedMediaProviderCredential | null> {
+  const vault = createTovuStoreVault({ sealer, repo: { vault: mediaProviderVault({ vault: repoVault, providerId: storedId }) }, kind: "media-provider",
     storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
-  const resolved = await vault.findOne(mediaVaultScope(input));
+  const resolved = await vault.findOne(mediaVaultScope({ workspaceId, providerId: storedId }));
   if (!resolved?.payload) return null;
   if (typeof resolved.payload.apiKey !== "string") throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   return { apiKey: resolved.payload.apiKey, baseUrl: resolved.summary.meta.baseUrl as string | null,

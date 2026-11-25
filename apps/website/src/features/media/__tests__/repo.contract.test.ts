@@ -445,6 +445,46 @@ for (const each of mediaDialects) test(`[${each.name}] save() lets a row keep re
  */
 /** Raw-row cases the domain API cannot produce itself: imported or pre-backfill data, and a write the database skips. */
 for (const each of eachDialect({ tables: ["media", "media_slug_history", "asset_blobs", "asset_renditions"], make: (kernel) => kernel })) {
+  test(`[${each.name}] image description survives create CAS update and reopen`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    const created = makeMedia({ captions: null, description: "A red barn in a snowy field." });
+    assert.deepEqual(await repo.insertIfAbsent(created), { applied: true });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id }), created);
+    const edited = { ...created, description: "A red barn at dusk, two horses by the fence.", version: 2 };
+    assert.deepEqual(await repo.saveIfVersion({ record: edited, ifVersion: 1 }), { applied: true });
+    const reopened = new SqlMediaRepo(kernel);
+    assert.deepEqual(await reopened.findById({ workspaceId: WORKSPACE_ID, id: created.id }), edited);
+    const cleared = { ...edited, description: "", version: 3 };
+    assert.deepEqual(await reopened.saveIfVersion({ record: cleared, ifVersion: 2 }), { applied: true });
+    assert.equal((await new SqlMediaRepo(kernel).findById({ workspaceId: WORKSPACE_ID, id: created.id }))?.description, "", "blank is an explicit clear, not never-described");
+  });
+
+  test(`[${each.name}] replacement cannot retain the previous video's codec`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    const blobs = new SqlAssetBlobRepo(kernel);
+    const find = () => new SqlMediaRepo(kernel).findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    const created = makeMedia({ source: { sha256: "a".repeat(64), contentType: "video/quicktime", provenance: { kind: "upload", path: "clip.mov" }, videoCodec: "hevc" } });
+    assert.deepEqual(await repo.insertIfAbsent(created), { applied: true });
+    assert.equal((await find())?.source.videoCodec, "hevc", "the probe result survives reopen");
+    await blobs.save(makeAssetBlob({ id: "blob-b", sha256: "b".repeat(64), storageKey: "blobs/b" }));
+    await blobs.save(makeAssetBlob({ id: "blob-c", sha256: "c".repeat(64), storageKey: "blobs/c" }));
+    const base = { workspaceId: WORKSPACE_ID, id: "media-1", originalRenditionId: "rendition-1", updatedAt: "2026-07-18T00:00:00.000Z" };
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 1, sha256: "b".repeat(64), storageKey: "blobs/b",
+      contentType: "video/mp4", provenance: { kind: "upload", path: "clip.mp4" } }), { applied: true });
+    const unknown = await find();
+    assert.equal(unknown?.source.sha256, "b".repeat(64));
+    assert.equal(unknown?.source.videoCodec, undefined, "new bytes with no probe result must not keep the old HEVC hint");
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 2, sha256: "c".repeat(64), storageKey: "blobs/c",
+      contentType: "video/mp4", provenance: { kind: "upload", path: "other.mp4" }, videoCodec: "h264" }), { applied: true });
+    assert.equal((await find())?.source.videoCodec, "h264");
+    // Rollback restores the previous source verbatim, so its (absent) hint comes back with it, not the newer one.
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 3, sha256: "b".repeat(64), storageKey: "blobs/b",
+      restore: { version: 2, updatedAt: base.updatedAt, source: unknown!.source } }), { applied: true });
+    assert.equal((await find())?.source.videoCodec, undefined, "rollback must not keep the replaced video's codec");
+  });
+
   test(`[${each.name}] a pre-backfill row with a NULL slug reads back under its own id`, async () => {
     const kernel = each.make();
     const repo = new SqlMediaRepo(kernel);

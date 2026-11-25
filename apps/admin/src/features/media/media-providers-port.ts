@@ -1,4 +1,4 @@
-import { createMediaProvidersPort } from "@jini-ai/admin/screens/media/media-providers-port";
+import { createMediaProviderCatalogPort, createMediaProvidersPort } from "@jini-ai/admin/screens/media/media-providers-port";
 
 import { mediaApi } from "./api/media-api";
 
@@ -16,3 +16,6 @@ import { mediaApi } from "./api/media-api";
  * renders the way the fake did (the fake had to be ref-held because each call built a fresh store).
  */
 export const mediaProvidersPort = createMediaProvidersPort({ mediaApi });
+
+/** The catalog port the External Providers tab takes its cards (and its count) from; bound once like {@link mediaProvidersPort}. */
+export const mediaProviderCatalogPort = createMediaProviderCatalogPort({ mediaApi });

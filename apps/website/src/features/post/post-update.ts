@@ -9,7 +9,8 @@ import { postPublicPath } from "#src/platform/routing/index";
 import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "@jini-ai/cms/posts/post-write-fields";
 import { isAutomaticPostSlug } from "@jini-ai/cms/posts/slug";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
+import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent, postEventActor } from "@jini-ai/cms/posts/post-write-effects";
+import type { MutationActor } from "@jini-ai/core/contracts/events";
 import { isDeepStrictEqual } from "node:util";
 
 export interface UpdatePostInput {
@@ -67,6 +68,8 @@ export interface UpdatePostInput {
   expectedVersion?: number;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
   actorId?: UUID;
+  /** See {@link CreatePostInput.actor}. */
+  actor?: MutationActor | undefined;
   /** Same optional-with-null-default contract as {@link CreatePostInput.delegatedByWorkspaceId}. */
   delegatedByWorkspaceId?: UUID | null;
   /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
@@ -234,6 +237,8 @@ export async function updatePost(
   _optional: UpdatePostOptional = {}
 ): Promise<{ post: PublicPostRecord; revisionId: string | null; previousRevisionId: string | null }> {
   const { deps, input } = required;
+  // The channel vouches for the kind, the principal authorizes: an actor naming somebody else is refused before any write.
+  postEventActor({ actorId: input.actorId, actor: input.actor });
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
   // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
@@ -293,8 +298,8 @@ export async function updatePost(
     const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
     // Inside the transaction (2026-10-21): committing the edit without its event (a crash, a failed
     // enqueue) would push `updatedAt` past a pending go-live and lose that announcement for good.
-    await enqueueContentWrite({ outbox: deps.outbox, post, actorId: input.actorId, source: input.analyticsSource, operation: "saved" });
-    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now, actorId: input.actorId, source: input.analyticsSource });
+    await enqueueContentWrite({ outbox: deps.outbox, post, actorId: input.actorId, source: input.analyticsSource, operation: "saved", actor: input.actor });
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now, actorId: input.actorId, source: input.analyticsSource, actor: input.actor });
     return { post, revisionId, previousRevisionId };
   } });
 }

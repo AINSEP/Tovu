@@ -11,7 +11,7 @@ test('every registered image-returning viewer is excluded from batching', () => 
   // Coordinator F5 decision: viewer images must reach the model; Jini batch item JSON drops them.
   // Viewer-owned catalogs define the class independently of the host's batching opt-out list.
   // Optional write previews are cosmetic; web_fetch_page already refuses screenshot batch items.
-  const viewers = [...buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: 'content_read.media_asset' }), ...mediaViewVideoAgentToolCatalog,
+  const viewers = [...buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: 'content_read.media_asset', mediaMetadataWriteToolId: 'media_update_metadata' }), ...mediaViewVideoAgentToolCatalog,
     ...webScreenshotAgentToolCatalog, ...demoImageAgentToolCatalog];
   const registrations: ToolRegistration[] = viewers.map(({ name, inputSchema }) => ({
     descriptor: { id: name, inputSchema, sideEffects: 'none', readOnly: true },

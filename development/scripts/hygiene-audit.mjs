@@ -72,6 +72,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { collectEnvReads } from "./lib/env-reads.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -316,38 +317,8 @@ function jsxHits(sf, file) {
 }
 
 // ---------- 4. env reads ----------
-function envReads(sf, consts) {
-  const reads = []; // [name, source, line]
-  const aliases = new Set();
-  const isProcEnv = (e) => { e = unwrap(e); return ts.isPropertyAccessExpression(e) && e.name.text === "env" && /^(globalThis\.)?process$/.test(e.expression.getText()); };
-  // injected env objects: `env.X`, `deps.env.X`, `env[NAME]` — plus aliases of process.env
-  const isEnvObj = (e) => { e = unwrap(e); return (ts.isIdentifier(e) && (e.text === "env" || aliases.has(e.text))) || (ts.isPropertyAccessExpression(e) && e.name.text === "env" && !isProcEnv(e) && !isMetaEnv(e)); };
-  const isMetaEnv = (e) => { e = unwrap(e); return ts.isPropertyAccessExpression(e) && e.name.text === "env" && e.expression.getText() === "import.meta"; };
-  const visit = (n) => {
-    if (ts.isVariableDeclaration(n) && n.initializer && isProcEnv(n.initializer)) {
-      if (ts.isIdentifier(n.name)) aliases.add(n.name.text);
-      else if (ts.isObjectBindingPattern(n.name)) for (const el of n.name.elements) { const k = el.propertyName ?? el.name; if (ts.isIdentifier(k) || ts.isStringLiteral(k)) reads.push([k.text, "destructure", lineOf(sf, el)]); }
-    }
-    if (ts.isPropertyAccessExpression(n)) {
-      const e = n.expression;
-      if (isProcEnv(e)) reads.push([n.name.text, "process.env", lineOf(sf, n)]);
-      else if (isMetaEnv(e)) reads.push([n.name.text, "import.meta.env", lineOf(sf, n)]);
-      else if (ts.isIdentifier(e) && aliases.has(e.text)) reads.push([n.name.text, "alias", lineOf(sf, n)]);
-      else if (isEnvObj(e) && /^[A-Z][A-Z0-9_]{2,}$/.test(n.name.text)) reads.push([n.name.text, "env-param", lineOf(sf, n)]);
-    } else if (ts.isElementAccessExpression(n) && (isProcEnv(n.expression) || isEnvObj(n.expression))) {
-      const a = unwrap(n.argumentExpression);
-      const k = strOf(a) ?? (ts.isIdentifier(a) && typeof consts.get(a.text) === "string" ? consts.get(a.text) : undefined);
-      const direct = isProcEnv(n.expression) || (ts.isIdentifier(n.expression) && aliases.has(n.expression.text));
-      if (k && /^[A-Z_][A-Z0-9_]*$/.test(k)) reads.push([k, direct ? "process.env[]" : "env-param[]", lineOf(sf, n)]);
-      else if (direct) reads.push([ts.isIdentifier(a) ? `<dynamic:${a.text}>` : "<dynamic>", "dynamic", lineOf(sf, n)]);
-    } else if (ts.isStringLiteral(n) && /^(TOVU|JINI)_[A-Z0-9_]{2,}$/.test(n.text) && !ts.isImportDeclaration(n.parent) && !ts.isExportDeclaration(n.parent)) {
-      reads.push([n.text, "name-literal", lineOf(sf, n)]);
-    }
-    ts.forEachChild(n, visit);
-  };
-  visit(sf);
-  return reads;
-}
+// The walk lives in ./lib/env-reads.mjs so check-env-schema.mjs enforces the same inventory.
+function envReads(sf, consts) { return collectEnvReads({ ts, sourceFile: sf, consts }); }
 
 // ---------- 5. comment path citations ----------
 function comments(sf) {

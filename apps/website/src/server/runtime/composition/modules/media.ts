@@ -15,6 +15,8 @@ import { MEDIA_PROVIDERS_REVISION_REQUEST_HEADER } from "@jini-ai/cms/admin-http
 import { mediaPutProvidersRoute, type MediaProvidersSaveOutcome } from "@jini-ai/cms/admin-http/routes/media/put-providers";
 import { mediaPatchProviderRoute } from "@jini-ai/cms/admin-http/routes/media/patch-provider";
 import { mediaDeleteProviderRoute } from "@jini-ai/cms/admin-http/routes/media/delete-provider";
+import { mediaProviderCatalogRoute } from "#src/server/inbound/admin-http/routes/media/provider-catalog";
+import { projectMediaProviderCatalog } from "#src/features/media-generation/media-provider-catalog";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
@@ -33,12 +35,15 @@ import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
+import { mediaGridRoute, type MediaGridRouteDeps } from "@jini-ai/cms/admin-http/routes/media/grid";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
+import type { SqlMediaRepo } from "#src/platform/db/repos/media-repo";
 import { findMediaWhereUsed } from "@jini-ai/cms/media/site/where-used";
 import type { RouteDeps } from "#src/server/routes/types";
 import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
 import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-http/routes/media/replace";
 import { mediaUploadRoute, type MediaUploadInput } from "@jini-ai/cms/admin-http/routes/media/upload";
-import { readDocumentText, replaceMediaFile, type MediaKind, type UploadMediaDeps } from "@jini-ai/cms/media";
+import { readDocumentText, replaceMediaFile, type MediaKind, type UploadMediaDeps, type VideoCodecProbePort } from "@jini-ai/cms/media";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
@@ -182,12 +187,15 @@ const MEDIA_WRITE_FAILURE: FailureOptions = { operation: "routes/media/route-gua
 
 /** `replace`: Jini `mediaReplaceRoute` with the host's transactional file switch (50 MiB owner cap) and the
  *  stored-asset describer bound. Its hand-written check used `authorizeDirectOrRespond` (`"direct"`). */
-export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMediaReplaceRoute(
+  { app, deps }: { app: Express; deps: MediaRouteDeps },
+  { videoCodecProbe }: { videoCodecProbe?: VideoCodecProbePort | undefined } = {},
+): void {
   const replaceDeps = {
     ...mediaPortDeps({ deps }),
     mediaRepo: deps.mediaRepo,
     ...UPLOAD_CAPS,
-    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, UPLOAD_CAPS),
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
   };
   mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
@@ -278,6 +286,13 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
   mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
+/** GET the admin provider cards, projected per request from the live registry generation uses, so a
+ *  plugin vendor mounted after boot is listed exactly when it can generate. */
+export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry });
+  mountAdminJsonRoute({ app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
+};
+
 /** The legacy whole-set PUT: its `If-Match` basis is compared by the store INSIDE the writer boundary
  *  (`saveMediaProviderCredentials`' planner), and a mismatch answers `stale` with nothing written. The
  *  saved answer is re-read in one list so the map and its revision describe the same stored set. */
@@ -331,6 +346,45 @@ export const registerAdminMediaWhereUsedRoute = ({ app, deps }: { app: Express; 
 /** The `RouteDeps` slice the URL import reads: the asset routes' deps plus the dedicated egress client. */
 export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
 
+/** The bounded grid queries; the durable SQL media repo provides them, in-memory doubles do not. */
+type MediaGridQueries = Pick<SqlMediaRepo, "listGridPage" | "findGridItem">;
+
+/** The repo's bounded grid queries, or a plain 501 when this store has none. Read per
+ *  request so a test's later replacement of the repo or one of its methods is honoured.
+ *  @complexity O(1). */
+function gridQueries({ repo }: { repo: MediaRouteDeps["mediaRepo"] }, _optional: Record<string, never> = {}): MediaGridQueries {
+  const candidate = repo as Partial<MediaGridQueries>;
+  if (typeof candidate.listGridPage === "function" && typeof candidate.findGridItem === "function") return repo as unknown as MediaGridQueries;
+  // Never fall back to a full-library read and slice it: that is the unbounded path this route replaces.
+  return rejectRoute({ status: 501, error: "this media store cannot answer grid pages" });
+}
+
+/** DTO enrichment for exactly the answered rows: recorded content types only (no byte sniffing on a
+ *  grid read), public URLs and blob sizes. @complexity O(n) in `media.length` plus the batch lookups. */
+async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: readonly MediaRecord[] }, _optional: Record<string, never> = {}): ReturnType<MediaGridRouteDeps["enrichMedia"]> {
+  const sha256s = [...new Set(media.filter((item) => item.kind !== "document").map((item) => item.source.sha256))];
+  const [contentTypesBySha256, publicUrlsById, byteSizesBySha256] = await Promise.all([
+    deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s }),
+    resolveMediaPublicUrls({ deps, assets: media }),
+    resolveMediaByteSizes({ deps, media }),
+  ]);
+  return { contentTypesBySha256, publicUrlsById, byteSizesBySha256 };
+}
+
+/** GET grid (Jini spec `mediaGridRoute`): one bounded page or one exact asset, beside the full list.
+ *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Both
+ *  orders page: alphabetical is decided in the repo over a bounded id + title key set, because no SQL
+ *  collation reproduces the admin's `localeCompare` title order (`media-grid-query.ts`).
+ *  @complexity O(1) setup; per request one bounded page read plus the summary aggregate. */
+export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ app, spec: mediaGridRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    readPage: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional),
+    findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
+    enrichMedia: ({ media }) => enrichGridMedia({ deps, media }),
+  } }, mountOptions({ operation: "routes/media/grid", authorization: "direct" }));
+};
+
 /** POST import-url (Jini spec `mediaImportUrlRoute`). It read `deps.authorize` directly, so it mounts
  *  with `authorizeDirectOrRespond` semantics. `logEgressRefusal` receives an egress refusal's full
  *  diagnosis; without it, the operator console does.
@@ -375,10 +429,11 @@ export function createMediaModule(
     name: "media",
     registerRoutes: ({ app }, _options = {}) => {
       registerAdminMediaListRoute({ app, deps });
+      registerAdminMediaGridRoute({ app, deps });
       registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute({ app, deps }, { videoImport });
       registerAdminMediaImportUrlRoute({ app, deps }, { videoImport });
-      registerAdminMediaReplaceRoute({ app, deps });
+      registerAdminMediaReplaceRoute({ app, deps }, { videoCodecProbe: videoImport?.ports.videoCodecProbe });
       registerAdminMediaUpdateRoute({ app, deps });
       registerAdminMediaTrashRoute({ app, deps });
       registerAdminMediaDeleteRoute({ app, deps });
@@ -386,6 +441,7 @@ export function createMediaModule(
       registerAdminMediaTextRoute({ app, deps });
       registerMediaRenditionRoute({ app, deps });
       registerMediaOriginalVideoRoute({ app, deps });
+      registerAdminMediaProviderCatalogRoute({ app, deps });
       registerAdminMediaGetProvidersRoute({ app, deps });
       registerAdminMediaPutProvidersRoute({ app, deps });
       registerAdminMediaPatchProviderRoute({ app, deps });

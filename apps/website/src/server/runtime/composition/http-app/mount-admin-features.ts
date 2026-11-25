@@ -64,7 +64,7 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // The owner's video import rule (2026-10-31) gets the same ffmpeg adapter the assistant's convert tool uses; a conversion that
   // cannot be made is logged for the operator and never fails the upload (no owner-facing field exists on the upload response).
   mountRoutes({ app, mod: createMediaModule(routeDeps, { videoImport: {
-    ports: createMediaConversionPorts(),
+    ports: createMediaConversionPorts({ env: process.env }),
     reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }),
   } }) });
   // The local admin Trash screen's 3 routes (design:

@@ -9,9 +9,8 @@ import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { translateRetiredPluginRefs } from "#src/features/agent-plugins/bundled-catalog";
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
-import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
+import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
-import { guardUserText } from "@jini-ai/chat/core";
 import { AttachmentUnavailableError, prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createContributionRegistry, formatErrorForLog } from "@jini-ai/core";
@@ -91,6 +90,7 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { resolveMessages } from "./assistant-byok-history.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
@@ -130,12 +130,6 @@ export const FEDERATION_TURN_WAIT_MS = 5_000;
 export const FEDERATION_STILL_CONNECTING_NOTE =
   "External MCP servers are still connecting, so their tools may not be searchable yet. If a tool you need is missing, say so and suggest asking again in a moment.";
 
-/** Bounds one BYOK turn's history the same way `assistant-transport.ts`'s `MAX_TRANSCRIPT_TURNS`
- *  bounds the daemon path's flattened prompt — each turn is a fresh provider request billed for its
- *  whole input, so an unbounded history would make every later message in a long chat more
- *  expensive than the last. */
-const MAX_HISTORY_MESSAGES = 40;
-
 /** Raises the bound each `run*ToolTurn` adapter would otherwise take from its own
  *  `DEFAULT_MAX_TOOL_TURNS` (8 — verified directly in all four of `@jini-ai/agent-runtime`'s
  *  `providers/{anthropic-messages,openai-chat,azure-chat,google-messages}.ts`, each of which reads
@@ -165,10 +159,6 @@ function beginStream(req: Request, res: Response): void {
     "x-accel-buffering": "no",
   });
   res.flushHeaders?.();
-}
-
-function isPlainMessage(value: unknown): value is { role: unknown; content: unknown; secretRedacted?: unknown } {
-  return typeof value === "object" && value !== null;
 }
 
 /**
@@ -201,57 +191,6 @@ export function toWireSurfacePayload({ emission, toolUseId }: { emission: Surfac
     type: emission.channel,
     ...(emission.channel === "mcp-ui" ? { toolUseId } : {}),
   };
-}
-
-/** Validate the BYOK wire entry before either current-turn selection or redaction. @complexity O(1). */
-function readByokHistoryMessage({ entry }: { entry: unknown }, _options = {}): (ProviderChatMessage & { secretRedacted: unknown }) | null {
-  if (!isPlainMessage(entry)) return null;
-  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
-  if (role === null) return null;
-  if (typeof entry.content !== "string" || entry.content.length === 0) return null;
-  return { role, content: entry.content, secretRedacted: entry.secretRedacted };
-}
-
-/** ES2022-compatible reverse scan; malformed user entries never claim the current turn. @complexity O(n). */
-function lastUserMessageIndex({ entries }: { entries: readonly unknown[] }, _options = {}): number {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = readByokHistoryMessage({ entry: entries[index] }, {});
-    if (entry && entry.role === "user") return index;
-  }
-  return -1;
-}
-
-/** One raw history entry -> a valid {@link ProviderChatMessage}, or `null` if it isn't one — the single
- *  per-entry validation `resolveMessages` below loops over. Always redacts user text; only the
- *  current user turn receives a notice. Does not mutate the entry or perform I/O.
- *  @complexity Redaction cost in the message content; constant validation work. */
-function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; currentUserTurn: boolean }, _optional = {}): ProviderChatMessage | null {
-  const message = readByokHistoryMessage({ entry }, {});
-  if (message === null) return null;
-  const { role, content, secretRedacted } = message;
-  const modelContent = role === "user" ? guardUserText({ text: content }, {
-    modelNote: currentUserTurn ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: secretRedacted === true,
-  }) : content;
-  return { role, content: modelContent };
-}
-
-/** Validates and bounds the client-supplied history. Fail-soft on individual malformed entries
- *  (dropped, not rejected) — mirrors `site-assistant.ts`'s own `resolveBoundedHistory` posture for
- *  the sibling visitor-assistant route: history is passive background context the caller did not
- *  just author this instant, so a malformed entry degrades the turn's context rather than the whole
- *  request.
- *  @complexity O(n) entries plus per-message redaction cost; O(n) output space, no I/O. */
-export function resolveMessages({ raw }: { raw: unknown }, _optional = {}): ProviderChatMessage[] {
-  if (!Array.isArray(raw)) return [];
-  // Redact every user turn, but notify only for the latest valid user message. Historical flags
-  // and raw historical secrets must not turn an unrelated request into another rotation warning.
-  const currentUserIndex = lastUserMessageIndex({ entries: raw }, {});
-  const messages: ProviderChatMessage[] = [];
-  for (const [index, entry] of raw.entries()) {
-    const message = toByokChatMessage({ entry, currentUserTurn: index === currentUserIndex }, {});
-    if (message) messages.push(message);
-  }
-  return messages.slice(-MAX_HISTORY_MESSAGES);
 }
 
 /**
@@ -535,7 +474,7 @@ export function createAssistantByokModule(
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
-  installFirstPartyToolContributors({ contributions }, { readAdmissions: () => serverFederation.admissions(),
+  installFirstPartyToolContributors({ contributions }, { env: process.env, readAdmissions: () => serverFederation.admissions(),
     readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });

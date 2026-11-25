@@ -1972,3 +1972,29 @@ New / confirmed open (verify-first witnesses landed as `todo`, not failing tests
 - Pre-existing (merge-21): `publish-credentials.tw4.pins.test.ts` imports `features/deployments/publish-credentials/repo.memory.ts`, removed in `44d47bd5c`.
 - Pre-existing (merge-21, not this run): Tovu `tool-registrations.contracts.test.ts` cannot load (`features/mail-status/delivery-agent-tools.js` missing); publish-content peers tests import a missing `PublishContentPeerDuplicateLabelError`; `federate-mcp` provisioning and `mail-send.golden` reds; Jini guard HW3 in `admin/src/shell/lib/shell-failure-log.ts`, 12 complexity ratchet entries, admin/user-management API-baseline drift.
 - **b-g4-onto-merge-22-media-move** (merge-23, FIXED): merge-22 moved the admin media API client, the media-providers port and the Security other-credentials port into Jini (`@jini-ai/admin/screens/media/*`, `@jini-ai/admin/security/host/hooks/other-credentials-port.hooks`); the B135/B136 per-provider PATCH/DELETE client methods and `MediaProviderRowsPort` behaviour now live in those Jini factories (branch `integ/wip24-b-g4-jini`), Tovu keeps thin bindings. Jini test `screens/media/__tests__/media-providers-port.unit.test.ts`.
+
+## b-g5b (cloud run 2026-11-25)
+
+### `g5b-agent-routine-runs-while-assistant-off` — OPEN (logged, not fixed)
+
+An agent-created routine still runs while the assistant switch is off. Tovu composes no routine runner
+that consults `agentPauseGate` before a routine fires, and Jini's `Routine` / `RoutineCreateInput` have
+no creator-kind field, so a host cannot tell agent routines from person routines. Witness:
+`apps/website/src/server/runtime/composition/__tests__/assistant-off-artifacts.test.ts` (three routine
+sub-tests marked `todo: "P3 lane: ..."`). Owner lane: P3.
+
+### `g5b-postgres-schema-hand-edited` — FIXED (Tovu, P10-M5.T commit)
+
+`schema.postgres.ts` is generated, but merge-21 carried hand-added 0044 lines, so the drift test was red.
+Regenerated; the 0044 why-comments stay in `schema.sqlite.ts`, the source of truth.
+
+### `g5b-media-description-dropped-by-jini` — FIXED (Jini follow-up commit to P10-M5.J)
+
+The admin PATCH body parser, import/generate tool input schemas and admin `MediaMetadataPatch` dropped
+`description`. Fixed test-first; blank clears, omitted is unchanged.
+
+### `g5b-stale-env-access-debt-rows` — OPEN (pre-existing, Jini)
+
+`scripts/env-access-debt.json` has 2 stale HW9 rows (`packages/cli/src/daemon-url.ts`,
+`packages/devops/src/local-dev/node-runtime.ts`) whose code no longer reads `process.env`, so
+`scripts/__tests__/check-env-access.test.ts` "is current" expects 81 and gets 79. Unchanged since merge-21.

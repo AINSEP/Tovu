@@ -22,7 +22,7 @@ export function bindContentTargetInputs(
   { registrations, routeDeps, beforeLookup }: Parameters<NonNullable<AssistantToolContributions["contentTargetInputs"]>>[0], _options = {},
 ) {
   const permissions = new Map([...postAgentToolCatalog, ...postPreviewAgentToolCatalog, ...pagesAgentToolCatalog,
-    ...mediaAgentToolCatalog, ...buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset" }), ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
+    ...mediaAgentToolCatalog, ...buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }), ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
     .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor({ toolId: tool.name }), tool.authorization.permission] as const]));
   return applyContentTargetInputs({ registrations, deps: {
     workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize, mediaRepo: routeDeps.mediaRepo, beforeLookup,

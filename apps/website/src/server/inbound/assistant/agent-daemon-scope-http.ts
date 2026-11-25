@@ -3,7 +3,7 @@ import express from "express";
 import type { Principal } from "@jini-ai/core";
 import { stopRunsForToolAccessChange, type createAgentExecutor, type ToolExecutor, type RunLifecycle, type UserMessageDelivery, type ToolAccessRun } from "@jini-ai/daemon";
 import { frontendRequestRoutes, agentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes, type createFrontendControl, type RunStartHandler, type RunMessageRequest, type DelegatedToolExecuteRequest } from "@jini-ai/daemon/http";
-import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { bearerTokenFromHeader, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createRunScopedCredentials, createRunOwnerRegistry, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireRunOwnership, createOwnedRunListHandler } from "#src/assistant/daemon-access";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
@@ -18,6 +18,7 @@ import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../../platform/express/jini-routes.js";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
+import { createDaemonOriginPolicy } from "./daemon-origin-policy.js";
 import { registerToolAccessLoweringRoute } from "./tool-access-lowering-route.js";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import type { AgentDaemonCoreDeps } from "../../runtime/composition/agent-daemon-core-deps.js";
@@ -65,10 +66,8 @@ export function createScopeApp(required: ScopeAppPorts, _optional = {}) {
   const app = express();
   mountIntake({ ...required, app });
   mountGuards({ ...required, app, resolveDiscoveryCaller: req => resolveDiscoveryCaller(required, req) });
-const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
-  // These are the environment names the previously imported http-kit origin guard read.
-  // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
+// The resolved website listener port is injected here; see `daemon-origin-policy.ts`.
+const adapter: RouteHostContext = { originPolicy: createDaemonOriginPolicy({ port, env }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
   const ports = { ...required, app, routeHost, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
     resolvePrincipal: ({ request }: { request: DelegatedToolExecuteRequest }) => resolvePrincipal({ principalByRunId: required.principalByRunId, request }) };
   mountRunRoutes(ports);

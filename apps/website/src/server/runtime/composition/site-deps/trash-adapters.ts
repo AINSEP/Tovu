@@ -11,6 +11,8 @@ import { assertUserAccountAction } from "@jini-ai/user-management/identity/delet
 import { createCommentTrashAdapter } from "#src/features/trash/index";
 import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { createMediaTrashAdapter } from "#src/features/trash/index";
+import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
+import { createMediaSearchChangeSink } from "#src/features/media/media-search-source";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createPostTrashAdapter } from "#src/features/trash/index";
 import { createRedirectTrashAdapter } from "#src/features/trash/index";
@@ -72,6 +74,9 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
       MEDIA_ENTITY_TYPE,
       createMediaTrashAdapter({
         db: kernel,
+        // Trash and restore here flip `media.status` in SQL, not through the media repo, so they
+        // report to the same site-search change sink, inside the marker flip's transaction.
+        changes: createMediaSearchChangeSink({ outbox: new SqliteOutboxAdapter({ store: kernel }), nowIso: () => clock.nowIso() }),
         // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
         // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
         // reimplementing it in SQL and silently orphaning bytes.

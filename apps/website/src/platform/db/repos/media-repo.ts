@@ -8,8 +8,10 @@ import { mediaFileReplacementRecord, type MediaRecord, type MediaFileReplacement
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
-import type { VersionedMediaRepoPort, AssetBlobRepoPort, AssetRenditionRepoPort, TransformDefinitionRepoPort, AssetBlobRecord, AssetBlobStatus, AssetRenditionRecord, MediaStatus, TransformDefinitionRecord } from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort, AssetBlobRepoPort, AssetRenditionRepoPort, TransformDefinitionRepoPort, AssetBlobRecord, AssetBlobStatus, AssetRenditionRecord, TransformDefinitionRecord } from "@jini-ai/cms/media";
 import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
+import { toMediaRecord } from "./media-record-row.js";
+import { readMediaGridItem, readMediaGridPage, type MediaGridAfter, type MediaGridItemQuery, type MediaGridPageQuery } from "./media-grid-query.js";
 
 /**
  * @file ADR-046 Phase 1 — THE durable adapters for the `media` library's four route-consumed repo
@@ -33,41 +35,6 @@ import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
  */
 
 type ContentQueries = Kysely<ContentDatabase>;
-
-function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | null }): MediaRecord {
-  return {
-    id: row.id,
-    // selectAll works on both schemas; absence/NULL is honest legacy unknown attribution.
-    ...(row.created_by != null ? { createdBy: row.created_by } : {}),
-    workspaceId: row.workspace_id,
-    kind: row.kind === "document" ? "document" : "media",
-    originalFilename: row.original_filename ?? null,
-    title: row.title,
-    // `row.slug` is nullable in the DB (see `schema.sqlite.ts`'s doc: backfilled out of band, not on
-    // write) but `MediaRecord.slug` is non-nullable in the domain model — every row this repo
-    // itself ever writes always has a real slug (`save()`'s values below never omit it), so a `null`
-    // here can only mean a genuinely pre-backfill row. Falling back to the row's own `id` rather
-    // than `""`/`"untitled"` keeps the fallback ALREADY unique (ids are primary keys) without a
-    // repo-layer uniqueness check of its own.
-    slug: row.slug ?? row.id,
-    alt: row.alt,
-    caption: row.caption,
-    credit: row.credit,
-    source: { sha256: row.source_sha256, ...(row.source_metadata_json ? JSON.parse(row.source_metadata_json) : {}) },
-    status: row.status as MediaStatus,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    version: row.version,
-    width: row.width,
-    height: row.height,
-    cssClass: row.css_class,
-    htmlAttributes: row.html_attributes,
-    // G7-9: a track needs both the `.vtt` asset and its language; either missing reads as none.
-    captions: row.captions_media_id && row.captions_srclang
-      ? { assetId: row.captions_media_id, srclang: row.captions_srclang, label: row.captions_label ?? null }
-      : null,
-  };
-}
 
 /**
  * Extracted so `save`, `saveIfVersion`, and `insertIfAbsent` persist the IDENTICAL columns from the
@@ -97,6 +64,7 @@ function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind"
     captions_media_id: record.captions?.assetId ?? null,
     captions_srclang: record.captions?.srclang ?? null,
     captions_label: record.captions?.label ?? null,
+    description: record.description ?? null,
   };
 }
 
@@ -160,10 +128,37 @@ function slugLockKey(workspaceId: UUID): string {
   return `media_slugs:${workspaceId}`;
 }
 
+/**
+ * A committed media row change, reported from INSIDE the write's own transaction (P10-M5.T2). The
+ * marker is deterministic per committed write (`v<version>:<updatedAt>`, or `removed:` for a purge),
+ * so a retried report of the same write is the same change.
+ */
+export interface MediaChangeSink {
+  /** Runs after the write's rows, inside its transaction: what it writes (an outbox row) commits or
+   *  rolls back with the media write, and a throw rolls the media write back. */
+  changed(required: { workspaceId: string; mediaId: string; kind: string; marker: string }): Promise<void>;
+}
+
+/** The deterministic per-write marker a {@link MediaChangeSink} receives. @complexity O(1). */
+export function mediaChangeMarker({ version, updatedAt }: { version: number; updatedAt: string }, _optional: Record<string, never> = {}): string {
+  return `v${version}:${updatedAt}`;
+}
+
 export class SqlMediaRepo implements VersionedMediaRepoPort {
   protected readonly kernel: ContentKernel;
-  constructor(kernel: ContentKernel) {
+  private readonly changes: MediaChangeSink | undefined;
+  /** @param optional.changes told of every committed row change inside that write's transaction. */
+  constructor(kernel: ContentKernel, optional: { changes?: MediaChangeSink } = {}) {
     this.kernel = kernel;
+    this.changes = optional.changes;
+  }
+
+  /** Reports a committed write to the sink; called last inside the write's transaction. @complexity O(1) plus the sink. */
+  private async reportChange(required: { record: Pick<MediaRecord, "workspaceId" | "id" | "kind" | "version" | "updatedAt"> }, _optional: Record<string, never> = {}): Promise<void> {
+    const { record } = required;
+    // A file an admin can read is not necessarily a public search document: the sink, not this
+    // repo, decides which changes matter; the repo only guarantees the report commits with the write.
+    await this.changes?.changed({ workspaceId: record.workspaceId, mediaId: record.id, kind: record.kind ?? "media", marker: mediaChangeMarker(record) });
   }
 
   /** Creation stamps provenance/MIME, privacy kind and original filename. Metadata/Trash
@@ -176,7 +171,9 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
     const columns = await listColumns({ kernel: this.kernel, table: "media" });
-    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType, ...(record.source.private ? { private: true } : {}) }),
+    // Compatibility depends on the codec, not the filename or container, so the probe result is kept beside the type.
+    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType,
+      ...(record.source.videoCodec ? { videoCodec: record.source.videoCodec } : {}), ...(record.source.private ? { private: true } : {}) }),
       kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };
   }
@@ -247,6 +244,11 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     return rows.map(toMediaRecord);
   }
 
+  /** One bounded grid page (`media-grid-query.ts`): filtered in SQL before `limit + 1`; never calls `list()`. */
+  readonly listGridPage = (required: MediaGridPageQuery, optional: MediaGridAfter = {}) => readMediaGridPage({ kernel: this.kernel, ...required }, optional);
+  /** The one ordinary asset with `id` inside `tab`, or `null`, with the workspace summary; never a page scan. */
+  readonly findGridItem = (required: MediaGridItemQuery, _optional: Record<string, never> = {}) => readMediaGridItem({ kernel: this.kernel, ...required });
+
   /**
    * S2a (readable slugs, 2026-09-23): the read, the retired-slug conflict check, the write, and the
    * slug-history move (reclaim the new slug out of history if it was retired; retire the row's PRIOR
@@ -286,6 +288,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           }
           if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
           await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow?.slug ?? null, newSlug: record.slug, retiredAt: record.updatedAt });
+          await this.reportChange({ record });
         });
       });
     } catch (err) {
@@ -331,6 +334,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           if (updated.length === 0) return { applied: false };
           if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
           await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow.slug, newSlug: record.slug, retiredAt: record.updatedAt });
+          await this.reportChange({ record });
           return { applied: true };
         });
       });
@@ -379,6 +383,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           await db.insertInto('asset_renditions').values({ id: required.originalRenditionId,
             workspace_id: required.workspaceId, asset_id: required.id, transform_name: 'original',
             version: 1, storage_key: required.storageKey, created_at: required.updatedAt }).execute();
+          await this.reportChange({ record: updated });
           return { applied: true };
         });
       });
@@ -427,6 +432,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           // already taken) must leave `media_slug_history` exactly as it was, same "no partial
           // effect on a refused write" rule every other branch here follows.
           if (inserted.length > 0 && claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
+          if (inserted.length > 0) await this.reportChange({ record });
           return { applied: inserted.length > 0 };
         });
       });
@@ -440,8 +446,14 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
   async remove(required: { workspaceId: UUID; id: UUID }): Promise<void> {
     await this.kernel.transaction(async () => {
       await this.kernel.run(async (db) => {
-        await db.deleteFrom("media").where("workspace_id", "=", required.workspaceId).where("id", "=", required.id).execute();
+        const removed = await db.deleteFrom("media").where("workspace_id", "=", required.workspaceId).where("id", "=", required.id)
+          .returning(["kind", "version", "updated_at"]).executeTakeFirst();
         await db.deleteFrom("media_slug_history").where("workspace_id", "=", required.workspaceId).where("media_id", "=", required.id).execute();
+        // Only a row that was actually deleted is a purge; the marker names the removed version.
+        if (removed) {
+          await this.changes?.changed({ workspaceId: required.workspaceId, mediaId: required.id, kind: removed.kind,
+            marker: `removed:${mediaChangeMarker({ version: Number(removed.version), updatedAt: removed.updated_at })}` });
+        }
       });
     });
   }

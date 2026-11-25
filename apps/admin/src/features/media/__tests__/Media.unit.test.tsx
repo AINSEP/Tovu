@@ -13,10 +13,13 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-w
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
 import { Media } from "../Media";
+import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -29,7 +32,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**
@@ -104,10 +107,18 @@ const TWO_ACTIVE_RESPONSE = { media: [ACTIVE_ITEM, { ...TRASHED_ITEM, status: "a
 /** Routes a mocked `fetch` call on method + a distinguishing URL substring — see
  *  `Dashboard.unit.test.tsx`'s identical helper for why (order/count-coupled mocks silently
  *  mis-assert the moment a call is added or reordered). */
+async function answerGrid({ url, list }: { url: string; list: { handler: () => Promise<Response> } | undefined }): Promise<Response> {
+  if (!list) throw new Error(`Media test: no list route to derive ${url} from`);
+  const { media } = (await (await list.handler()).json()) as { media: AdminMedia[] };
+  return jsonResponse(gridResponseBody({ url, media }));
+}
+
 function routeFetch(routes: Array<{ method?: string; match: string; handler: () => Promise<Response> }>) {
   return (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const method = (init?.method ?? "GET").toUpperCase();
+    // A grid page is the server's filtered, ordered, counted answer; the stub derives it from its list route.
+    if (isGridUrl({ url })) return answerGrid({ url, list: routes.find((r) => r.match === "/media" && (r.method ?? "GET") === "GET") });
     const entry = routes.find((r) => url.includes(r.match) && (r.method ?? "GET") === method);
     if (!entry) return Promise.reject(new Error(`Media test: no mocked route for ${method} ${url}`));
     return entry.handler();
@@ -225,6 +236,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     const uploaded = { ...ACTIVE_ITEM, id: "media-new", title: "New Photo", slug: "new-photo" };
     let uploadedBody: unknown = null;
     let items = [ACTIVE_ITEM];
+    const gridReads: string[] = [];
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
@@ -233,13 +245,15 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
         items = [uploaded, ...items];
         return Promise.resolve(jsonResponse({ media: uploaded }));
       }
-      if (url === "/api/admin/v1/workspaces/workspace-local/media" && method === "GET") {
-        return Promise.resolve(jsonResponse({ media: items }));
+      if (isGridUrl({ url }) && method === "GET") {
+        gridReads.push(url);
+        return Promise.resolve(jsonResponse(gridResponseBody({ url, media: items as AdminMedia[] })));
       }
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
     const { container } = renderScreen();
     await waitForCard(container, "Sunset Photo.png");
+    const gridReadsBeforeUpload = gridReads.length;
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
     await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
@@ -248,6 +262,9 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
 
     await waitForCard(container, "New Photo.png");
     expect(uploadedBody).toEqual({ filename: "new.png", contentType: "image/png", dataBase64: "AAEC/f7/", alt: "New photo alt" });
+    // The new card arrived through a re-read of the grid's page one, not a client-side insert.
+    expect(gridReads.length).toBeGreaterThan(gridReadsBeforeUpload);
+    expect(new URL(gridReads.at(-1)!, "http://localhost").searchParams.get("tab")).toBe("all");
     await waitFor(() => expect(fileInput.files).toHaveLength(0));
     expect(fileInput).toHaveValue("");
     expect(screen.getByText("No file chosen")).toBeInTheDocument();

@@ -11,7 +11,7 @@ import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen } from "@/__tests__/render-with-jini-kits";
+import { render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,8 @@ import { Media } from "../Media";
 import { sortMediaByOrder } from "@jini-ai/admin/screens/media/rules";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -31,7 +33,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**
@@ -157,12 +159,22 @@ function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
+/** The grid route's answer: the SERVER orders by the `orderBy` the screen asks for, the screen re-sorts nothing. */
 function mockList(items: AdminMedia[]) {
   fetchMock.mockImplementation((input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+    if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: items })));
     return Promise.resolve(jsonResponse({ media: items }));
   });
+}
+
+/** The `orderBy` of every grid request the screen made, in order. */
+function requestedOrders(): string[] {
+  return fetchMock.mock.calls
+    .map(([input]) => (typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url))
+    .filter((url) => isGridUrl({ url }))
+    .map((url) => new URL(url, "http://localhost").searchParams.get("orderBy") ?? "");
 }
 
 beforeEach(() => {
@@ -189,6 +201,7 @@ describe("Media screen order-by control", () => {
 
     await screen.findByText("Zebra Zoo");
     expect(renderedCardTitles()).toEqual(["Mango Tart", "apple pie", "Zebra Zoo"]);
+    expect(requestedOrders()).toEqual(["created"]);
   });
 
   it("re-orders the grid to alphabetical when the operator picks it from the dropdown", async () => {
@@ -199,7 +212,8 @@ describe("Media screen order-by control", () => {
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText("Order by"), "alphabetical");
 
-    expect(renderedCardTitles()).toEqual(["apple pie", "Mango Tart", "Zebra Zoo"]);
+    await waitFor(() => expect(renderedCardTitles()).toEqual(["apple pie", "Mango Tart", "Zebra Zoo"]));
+    expect(requestedOrders()).toEqual(["created", "alphabetical"]);
   });
 
   it("switches back to Created when re-selected, proving the control is not a one-way/fixed default", async () => {
@@ -210,10 +224,11 @@ describe("Media screen order-by control", () => {
     const user = userEvent.setup();
     const select = screen.getByLabelText("Order by");
     await user.selectOptions(select, "alphabetical");
-    expect(renderedCardTitles()).toEqual(["apple pie", "Mango Tart", "Zebra Zoo"]);
+    await waitFor(() => expect(renderedCardTitles()).toEqual(["apple pie", "Mango Tart", "Zebra Zoo"]));
 
     await user.selectOptions(select, "created");
-    expect(renderedCardTitles()).toEqual(["Mango Tart", "apple pie", "Zebra Zoo"]);
+    await waitFor(() => expect(renderedCardTitles()).toEqual(["Mango Tart", "apple pie", "Zebra Zoo"]));
+    expect(requestedOrders()).toContain("created");
   });
 });
 

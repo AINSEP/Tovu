@@ -108,28 +108,28 @@ describeEachDialect(
     test("two providers coexist in one workspace under the composite key", async () => {
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ providerId: "openai" }));
-      await repo.upsert(makeRecord({ providerId: "grok" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo" }));
 
       const ids = (await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((row) => row.providerId).sort();
-      assert.deepEqual(ids, ["grok", "openai"]);
+      assert.deepEqual(ids, ["leonardo", "openai"]);
     });
 
     test("listByWorkspaceId never returns another workspace's rows", async () => {
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "openai" }));
-      await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "grok" }));
+      await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "leonardo" }));
 
       assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["openai"]);
-      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).map((r) => r.providerId), ["grok"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).map((r) => r.providerId), ["leonardo"]);
     });
 
     test("deleteByProviderIds removes only the named ids", async () => {
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ providerId: "openai" }));
-      await repo.upsert(makeRecord({ providerId: "grok" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo" }));
       await repo.upsert(makeRecord({ providerId: "fal" }));
 
-      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok", "fal"] });
+      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["leonardo", "fal"] });
 
       assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["openai"]);
     });
@@ -154,19 +154,19 @@ describeEachDialect(
 
     test("deleteByProviderIds on ids with no rows is harmless", async () => {
       const repo = await makeRepo();
-      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "grok"] });
+      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "leonardo"] });
       assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
     });
 
     test("replaceWorkspace commits every upsert and the tombstone delete together", async () => {
       const repo = await makeRepo();
-      await repo.upsert(makeRecord({ providerId: "grok" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo" }));
 
       const written = await repo.replaceWorkspace({
         workspaceId: WORKSPACE,
         plan: () => ({
           upserts: [makeRecord({ providerId: "openai", model: "dall-e-3" })],
-          tombstoneProviderIds: ["grok"],
+          tombstoneProviderIds: ["leonardo"],
         }),
       });
 
@@ -177,7 +177,7 @@ describeEachDialect(
 
     test("replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)", async () => {
       const repo = await makeRepo();
-      await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo", model: "kept" }));
 
       await assert.rejects(
         () =>
@@ -189,7 +189,7 @@ describeEachDialect(
                 // Duplicate identity fails CAS AFTER the first write, proving batch rollback.
                 makeRecord({ providerId: "openai", model: "duplicate" }),
               ],
-              tombstoneProviderIds: ["grok"],
+              tombstoneProviderIds: ["leonardo"],
             }),
           }),
         /Secrets vault: conflict/
@@ -198,7 +198,7 @@ describeEachDialect(
       const rows = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       assert.deepEqual(
         rows.map((r) => r.providerId).sort(),
-        ["grok"],
+        ["leonardo"],
         "the openai row written before the failure must roll back, and the planned tombstone must not be reached"
       );
       assert.equal(rows[0]?.model, "kept");
@@ -206,7 +206,7 @@ describeEachDialect(
 
     test("replaceWorkspace applies nothing when the planner itself throws", async () => {
       const repo = await makeRepo();
-      await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo", model: "kept" }));
 
       await assert.rejects(
         () =>
@@ -278,7 +278,7 @@ describeEachDialect(
       const slow = saveMediaProviderCredentials({ ...deps, sealer: {
         open: sealer.open.bind(sealer),
         seal: async (input) => { entered(); await gate; return sealer.seal(input); },
-      } }, { workspaceId: WORKSPACE, providers: { openai: { model: "edited" }, grok: { apiKey: "xai-new-3333" } } });
+      } }, { workspaceId: WORKSPACE, providers: { openai: { model: "edited" }, leonardo: { apiKey: "xai-new-3333" } } });
       try {
         await sealing;
         await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-rotated-9999" } } });
@@ -289,24 +289,24 @@ describeEachDialect(
       assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), {
         apiKey: "sk-rotated-9999", baseUrl: null, model: "edited",
       });
-      assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "grok" }))?.apiKey, "xai-new-3333");
+      assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "leonardo" }))?.apiKey, "xai-new-3333");
     });
 
     test("replaceWorkspace never reads or tombstones another workspace's rows", async () => {
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "openai" }));
-      await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "grok" }));
+      await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "leonardo" }));
 
       let seenByPlanner: string[] = [];
       await repo.replaceWorkspace({
         workspaceId: WORKSPACE,
         plan: ({ existing }) => {
           seenByPlanner = existing.map((row) => row.providerId);
-          return { upserts: [], tombstoneProviderIds: ["grok", "openai"] };
+          return { upserts: [], tombstoneProviderIds: ["leonardo", "openai"] };
         },
       });
 
-      assert.deepEqual(seenByPlanner, ["grok"]);
+      assert.deepEqual(seenByPlanner, ["leonardo"]);
       assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).map((r) => r.providerId), ["openai"]);
       assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
     });
@@ -319,7 +319,7 @@ describeEachDialect(
       // the event loop at which such a state exists.
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ providerId: "openai", model: "old" }));
-      await repo.upsert(makeRecord({ providerId: "grok", model: "old" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo", model: "old" }));
 
       const modelsNow = async (): Promise<string> =>
         (await repo.listByWorkspaceId({ workspaceId: WORKSPACE }))
@@ -341,7 +341,7 @@ describeEachDialect(
         plan: () => ({
           upserts: [
             makeRecord({ providerId: "openai", model: "new" }),
-            makeRecord({ providerId: "grok", model: "new" }),
+            makeRecord({ providerId: "leonardo", model: "new" }),
           ],
           tombstoneProviderIds: [],
         }),
@@ -352,7 +352,7 @@ describeEachDialect(
       assert.ok(observations.length > 0);
       for (const observed of observations) {
         assert.ok(
-          observed === "grok:old,openai:old" || observed === "grok:new,openai:new",
+          observed === "leonardo:old,openai:old" || observed === "leonardo:new,openai:new",
           `uncommitted half-replaced state was observable: ${observed}`
         );
       }
@@ -363,23 +363,23 @@ describeEachDialect(
       // This pins the runtime behaviour behind it: a planner cast past that type does not quietly write
       // a partial map or leave the transaction hanging open — it aborts and rolls back.
       const repo = await makeRepo();
-      await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+      await repo.upsert(makeRecord({ providerId: "leonardo", model: "kept" }));
 
       await assert.rejects(() =>
         repo.replaceWorkspace({
           workspaceId: WORKSPACE,
           plan: (async () => ({
             upserts: [makeRecord({ providerId: "openai" })],
-            tombstoneProviderIds: ["grok"],
+            tombstoneProviderIds: ["leonardo"],
           })) as unknown as Parameters<typeof repo.replaceWorkspace>[0]["plan"],
         })
       );
 
-      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["grok"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["leonardo"]);
 
       // ...and the connection is usable afterwards, proving the aborted transaction really closed.
       await repo.upsert(makeRecord({ providerId: "openai" }));
-      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId).sort(), ["grok", "openai"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId).sort(), ["leonardo", "openai"]);
     });
   }
 );

@@ -1453,13 +1453,16 @@ describe("useLocalCliDaemonPrewarm", () => {
   });
 });
 
+// One stable translator, like the dock's memoized one: the uploader is memoized on it.
+const identityT = (key: string) => key;
+
 describe("useAttachmentUploader", () => {
   it("returns a callable uploader — the real createDaemonAttachmentUploader output", async () => {
     const file = new File(["attachment bytes"], "notes.txt", { type: "text/plain" });
     const attachment = { path: "attachments/notes.txt", name: "notes.txt", mimeType: "text/plain", size: file.size };
     const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ attachment }), { status: 200 }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { result } = renderHook(() => useAttachmentUploader());
+    const { result } = renderHook(() => useAttachmentUploader({ t: identityT }));
 
     expect(typeof result.current).toBe("function");
     const signal = new AbortController().signal;
@@ -1482,8 +1485,8 @@ describe("useAttachmentUploader", () => {
     }
     const maxFile = 50 * 1024 * 1024;
     const options = { batchId: "turn-limit", signal: new AbortController().signal };
-    const { result, rerender } = renderHook(() => useAttachmentUploader());
-    await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("That file is 50.1 MB; the limit is 50 MB.");
+    const { result, rerender } = renderHook(() => useAttachmentUploader({ t: identityT }));
+    await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("This file is larger than 50 MB. Choose a smaller file or ask the assistant to convert it.");
     expect(fetchSpy).not.toHaveBeenCalled();
     // The per-turn total is the shared contracts limit: one full-size video plus one 50 MiB file
     // (owner 2026-11-24), filled across a rerender; one more byte must then be refused.
@@ -1499,7 +1502,7 @@ describe("useAttachmentUploader", () => {
   });
 
   it("memoizes the uploader across re-renders — rebuilding it would reset a turn's running batch quota", () => {
-    const { result, rerender } = renderHook(() => useAttachmentUploader());
+    const { result, rerender } = renderHook(() => useAttachmentUploader({ t: identityT }));
     const first = result.current;
 
     rerender();
