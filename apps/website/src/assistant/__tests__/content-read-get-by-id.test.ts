@@ -240,7 +240,7 @@ test("media (real handler): canonical id and mediaId select one scoped asset, in
   for (const input of [{ id: "asset-1" }, { mediaId: "asset-1" }, { id: "asset-1", mediaId: "asset-1" }, { mediaId: "asset-1", id: "asset-1" }]) {
     const result = await executeRegisteredTool({ registration, input });
     assert.equal(result.status, "completed");
-    const media = [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, cssClass: null, htmlAttributes: null, publicUrl: null }];
+    const media = [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, description: "", cssClass: null, htmlAttributes: null, publicUrl: null }];
     // The legacy selector is aliased in the gate, which reports the rename it applied.
     assert.deepEqual(result.output, "mediaId" in input ? { media, normalizationNotes: ["mediaId→id"] } : { media });
   }
