@@ -6936,7 +6936,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 @container admin-content (max-width: 620px) {
   /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
      visible and disabled, so their progress does not cause the toolbar to jump. */
-  .trash-toolbar[data-selection-empty="true"] .trash-bulk-action { display: none; }
+  .jini-trash-toolbar[data-selection-empty="true"] .jini-trash-bulk-action { display: none; }
 
   /* DB-1/AI-4/FO-4: short desktop rows become labelled, full-width fields on phones. */
   .database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
