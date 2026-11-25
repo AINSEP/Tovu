@@ -235,12 +235,12 @@ test("admin decline runs nothing", { timeout: 60_000 }, async (t) => {
 });
 
 test("admin resume by another owner or for another run is refused in plain words without consuming the claim", { timeout: 60_000 }, async (t) => {
-  const { baseUrl, cookie, conversationId, deps } = await boot(t);
+  const { baseUrl, cookie, conversationId, deps, ownerId } = await boot(t);
   const first = await startTurn({ baseUrl, cookie, conversationId });
   const interruptId = first.finished.outcome!.interrupts[0]!.id;
   const intruder = await loginAsBarePrincipal(deps as unknown as Parameters<typeof loginAsBarePrincipal>[0], baseUrl);
   const asIntruder = await resume({ baseUrl, cookie: intruder,
-    body: resumeBody({ conversationId, parentRunId: first.runId, interruptId, extra: { forwardedProps: { agentId: "claude", owner: "owner" } } }) });
+    body: resumeBody({ conversationId, parentRunId: first.runId, interruptId, extra: { forwardedProps: { agentId: "claude", owner: ownerId } } }) });
   assert.equal(asIntruder.status, 400);
   assert.equal(asIntruder.text, REFUSAL);
   for (const body of [
@@ -315,4 +315,13 @@ test("shutdown abandons every parked admin approval and clears its timer", { tim
   assert.equal(approvalTimers.live.size, 0, "no expiry timer survives shutdown");
   const late = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
   assert.deepEqual([late.status, late.text, answers.length], [400, REFUSAL, 0], "nothing is answered after shutdown");
+});
+
+test("Stop before the resume settles the parked admin approval: the late resume answers nothing", { timeout: 60_000 }, async (t) => {
+  const { baseUrl, cookie, conversationId } = await boot(t);
+  const first = await startTurn({ baseUrl, cookie, conversationId });
+  const stop = await fetch(`${baseUrl}/api/runs/${encodeURIComponent(first.runId)}/cancel`, { method: "POST", headers: { "content-type": "application/json", cookie }, body: "{}" });
+  assert.equal(stop.status, 200);
+  const late = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
+  assert.deepEqual([late.status, late.text, answers.length], [400, REFUSAL, 0], "a stopped run's approval cannot be answered afterwards");
 });
