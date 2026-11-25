@@ -27,8 +27,8 @@ import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/v
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
+import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
@@ -37,6 +37,7 @@ import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-de
 import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 
 /**
@@ -1196,12 +1197,12 @@ test("publish card saves attach to their site and reopening updates the sole att
     module: { create: () => assert.fail("must not publish") } };
   function site(siteId: string) {
     const { deps: base } = fakeDeps();
-    const view = attachedOnlyVault({ vault, attachments, siteId });
+    const view = attachedOnlyVault({ vault, attachments, siteId, policy: attachedVaultPolicy });
     const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project: {
       workspaceId: "project", keyring, sealer,
       repo: new VendorCredentialSetVaultRepo({ vault: view, kind: "vendor", vendor: true }),
-      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }), kind: "vendor", vendor: true }),
-      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
+      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy }), kind: "vendor", vendor: true }),
+      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view, ...createVaultPolicy }, { allowReplacement: true }), kind: "vendor", vendor: true }),
     } });
     const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
       loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };
