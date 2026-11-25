@@ -707,24 +707,21 @@ function recordCacheTrims({ projectsPath }: { projectsPath: string }) {
 
 test("project removal clears only the retired site's web caches after untracking", async () => {
   // The erase arm: a created site whose folder is erased, so its partition's cache can never be reused.
-  for (const branch of ["erased"] as const) {
-    const root = tempDir();
-    const removed = branch === "erased" ? writeSite(path.join(root, "removed"), "site-removed") : path.join(root, "removed");
-    if (branch === "kept") fs.mkdirSync(removed);
-    const kept = writeSite(path.join(root, "kept"), "site-kept");
-    const deps = baseDeps();
-    const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
-    deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
-    trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: removed }, branch === "erased" ? { origin: SITE_ORIGIN.created, siteId: "site-removed" } : { origin: SITE_ORIGIN.adopted });
-    trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: kept }, { origin: SITE_ORIGIN.created, siteId: "site-kept" });
+  const root = tempDir();
+  const removed = writeSite(path.join(root, "removed"), "site-removed");
+  const kept = writeSite(path.join(root, "kept"), "site-kept");
+  const deps = baseDeps();
+  const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
+  deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: removed }, { origin: SITE_ORIGIN.created, siteId: "site-removed" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: kept }, { origin: SITE_ORIGIN.created, siteId: "site-kept" });
 
-    await handleDelete({ id: removed, deps });
+  await handleDelete({ id: removed, deps });
 
-    assert.deepEqual(recorder.calls, [{ siteDir: removed, partition: sitePartition({ siteDir: removed }), stillTracked: false }], `${branch}: exactly one trim, for the removed site, after untracking`);
-    assert.match(recorder.calls[0]?.partition ?? "", /^persist:tovu-site-/);
-    assert.notEqual(recorder.calls[0]?.partition, sitePartition({ siteDir: kept }));
-    assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [kept]);
-  }
+  assert.deepEqual(recorder.calls, [{ siteDir: removed, partition: sitePartition({ siteDir: removed }), stillTracked: false }], "exactly one trim, for the removed site, after untracking");
+  assert.match(recorder.calls[0]?.partition ?? "", /^persist:tovu-site-/);
+  assert.notEqual(recorder.calls[0]?.partition, sitePartition({ siteDir: kept }));
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [kept]);
 });
 
 test("untracking a retained folder never trims its partition, so its sign-in state survives a re-add", async () => {

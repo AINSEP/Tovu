@@ -144,7 +144,6 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   // only: the untrack arm keeps the folder, so it must never produce sign-in removal proof.
   if (erasesFiles) await eraseWithRetirementProof({ id, siteId: row.siteId, deps });
   untrackSite({ projectsPath: deps.projectsPath, siteDir: id });
-  if (erasesFiles) removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
   // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
@@ -155,7 +154,17 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   // card, and a kept card must reopen with its cache (and sign-in) exactly as it was. The untrack arm
   // keeps the folder, which the operator may add straight back (`handleLocate`/`handleAddSite` do not
   // take this serializer key), so a trim there could race the re-added card's own partition.
-  if (erasesFiles) await trimRetiredCache({ id, deps });
+  if (erasesFiles) await retireErasedSite({ id, deps });
+}
+
+/** {@link deleteProject}'s erase-arm tail, after untracking: drop the shared-catalog row, then the cache.
+ * @complexity O(1) beyond the catalog write and the port's own clear.
+ */
+async function retireErasedSite(
+  { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "sharedSites" | "trimRetiredSiteCache" | "warn"> }, _options = {},
+): Promise<void> {
+  removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
+  await trimRetiredCache({ id, deps });
 }
 
 /** {@link deleteProject}'s cache retirement. The removal already completed, so a cache failure is a
