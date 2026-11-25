@@ -154,11 +154,17 @@ function consumeToolConfirmation({ data, settled, receive }: {
 }
 
 type Options = SiteAssistantTransportOptions;
+/** One live approval's correlators and its single answer. Memory only: the pause is a one-use
+ *  right to answer an already-running call, and the challenge addresses that decision but cannot
+ *  authenticate it, so it never enters events, persisted messages, provider history or storage. */
+interface ParkedApproval { readonly ctx: EventContext; answer?: Promise<boolean> }
+/** Host-scoped (one per transport), keyed by challenge id. */
+type Approvals = Map<string, ParkedApproval>;
 /** `turnId` is minted once in `startRun`, so every POST made for this run (a retry included) reuses it. */
-type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch; approvals: Approvals };
 
 /** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
-function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs }: RunArgs, _options = {}) {
+function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs, approvals }: RunArgs, _options = {}) {
   const collected: AgentEvent[] = [];
   const flags = { settled: false, failed: false, replied: false, timedOut: false };
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -188,6 +194,8 @@ function createRunLifecycle({ input, handlers, options, runId, controller, idleT
     clearTimeout(idleTimer);
     input.signal.removeEventListener("abort", abort);
     activeRuns.delete(runId);
+    // A settled turn has nothing left to answer: drop its live approvals with it.
+    for (const [id, parked] of approvals) if (parked.ctx.args.runId === runId) approvals.delete(id);
     handlers.onDone(collected);
   };
   input.signal.addEventListener("abort", abort);
@@ -203,8 +211,11 @@ interface VisitorWire {
   readonly reduction: AgUiToAgentTranslationState;
   started: boolean;
   streaming: boolean;
+  /** This segment ended with an approval interrupt: its body closing is not a lost terminal. */
+  interrupted: boolean;
 }
-type EventContext = { life: RunLifecycle; args: RunArgs; wire: VisitorWire };
+/** `accepted` reports whether a resume segment's POST was taken; the first report wins. */
+type EventContext = { life: RunLifecycle; args: RunArgs; wire: VisitorWire; accepted?: (ok: boolean) => void };
 
 function matchesActiveRun({ event, wire }: { event: { threadId: string; runId: string }; wire: VisitorWire }, _options = {}): boolean {
   return event.threadId === wire.threadId && event.runId === wire.runId;
@@ -222,10 +233,47 @@ function handleTextEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }
   }
 }
 
+/**
+ * The standard AG-UI interrupt outcome for a visitor approval, as the live card's directive.
+ * `undefined` means an ordinary terminal; `{ directive: null }` an interrupt this page cannot answer.
+ */
+function readApprovalInterrupt({ event }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }> }, _options = {}): { directive: ToolConfirmationDirective | null } | undefined {
+  const outcome = (event as { outcome?: { type?: unknown; interrupts?: unknown } }).outcome;
+  if (outcome?.type !== "interrupt") return undefined;
+  const interrupts = Array.isArray(outcome.interrupts) ? outcome.interrupts as { id?: unknown; reason?: unknown; message?: unknown }[] : [];
+  const first = interrupts.find((interrupt) => interrupt?.reason === "confirmation");
+  // The server words the interrupt as "title: summary"; the card shows them as two parts.
+  const message = typeof first?.message === "string" ? first.message : "";
+  const split = message.indexOf(": ");
+  const [title, summary] = split < 0 ? [message, ""] : [message.slice(0, split), message.slice(split + 2)];
+  return { directive: parseToolConfirmation({ value: { kind: "tool_confirmation", challengeId: first?.id, title, summary } }) };
+}
+
+/** Park the turn on a live approval: the logical turn stays busy across segments until a resume
+ *  segment settles it, Stop/unmount/idle aborts it, or the server refuses the answer. */
+function parkApproval({ directive, ctx }: { directive: ToolConfirmationDirective; ctx: EventContext }, _options = {}) {
+  const { args, life } = ctx;
+  ctx.wire.interrupted = true;
+  const parked: ParkedApproval = { ctx };
+  args.approvals.set(directive.challengeId, parked);
+  // No request is in flight while the visitor decides, so nothing else would settle an abort
+  // (Stop, unmount, or the idle timer still armed from the last byte) until they answer.
+  args.controller.signal.addEventListener("abort", () => {
+    if (parked.answer) return;
+    if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
+    life.finish({ expectReply: false });
+  }, { once: true });
+  args.options.onToolConfirmation?.({ directive });
+}
+
 function handleRunFinished({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }>; ctx: EventContext }, _options = {}) {
   if (!ctx.wire.started || !matchesActiveRun({ event, wire: ctx.wire })) return;
   const { input, options, runId } = ctx.args;
   const { life } = ctx;
+  // Handled before ordinary terminal processing: an interrupt is a pause, not a completed reply.
+  const interrupt = readApprovalInterrupt({ event });
+  if (interrupt?.directive) return parkApproval({ directive: interrupt.directive, ctx });
+  if (interrupt) life.fail({ error: UNCLASSIFIED_FAILURE_REASON });
   life.finish();
   // Only "navigation" releases the deferred page action; any other reason is server telemetry.
   const navigation = (event.result as { reason?: unknown } | undefined)?.reason === "navigation";
@@ -290,17 +338,20 @@ function createVisitorRequest({ ctx }: { ctx: EventContext }, _options = {}) {
       signal,
     });
     if (!response.ok) {
+      ctx.accepted?.(false);
       await failOnRefusal({ response, life });
       // The run is already settled with the refusal; this only stops the agent from reading a body.
       throw new Error("refused before streaming");
     }
     wire.streaming = true;
+    ctx.accepted?.(true);
     return response;
   };
 }
 
 function handleStreamFailure({ error, ctx }: { error: unknown; ctx: EventContext }, _options = {}) {
   const { life, args, wire } = ctx;
+  ctx.accepted?.(false);
   // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
   // report — it is the requested outcome, and `res.on("close")` server-side already turned
   // it into a clean upstream cancellation rather than a wasted completed generation. The
@@ -317,12 +368,12 @@ function handleStreamFailure({ error, ctx }: { error: unknown; ctx: EventContext
 }
 
 /** One chat turn end to end: POST, read the AG-UI body, and always settle the run exactly once. */
-async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLifecycle; runInput: RunAgentInput }, _options = {}) {
+async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLifecycle; runInput: RunAgentInput }, { accepted }: { accepted?: (ok: boolean) => void } = {}) {
   // Armed before headers: a server that never answers is as stuck as one that stops mid-reply.
   life.armIdleTimer();
-  const wire: VisitorWire = { threadId: runInput.threadId, runId: runInput.runId, started: false, streaming: false,
+  const wire: VisitorWire = { threadId: runInput.threadId, runId: runInput.runId, started: false, streaming: false, interrupted: false,
     reduction: createAgUiToAgentTranslationState({ customEventNames: UNCONSULTED_CUSTOM_EVENT_NAMES }) };
-  const ctx: EventContext = { life, args, wire };
+  const ctx: EventContext = accepted ? { life, args, wire, accepted } : { life, args, wire };
   // Any received bytes (a heartbeat or half a frame) restart the idle timer, not only whole events.
   const agent = createAgUiFetchAgent({ request: createVisitorRequest({ ctx }) }, { abortController: args.controller, onBytes: life.armIdleTimer });
   await agent.run(runInput).subscribe({
@@ -331,10 +382,31 @@ async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLi
     // A body that ends without RUN_FINISHED or RUN_ERROR was interrupted: partial text is not a
     // successful reply, so it is never saved as one.
     complete: () => {
+      if (wire.interrupted) return;
+      ctx.accepted?.(false);
       life.fail({ error: UNCLASSIFIED_FAILURE_REASON });
       life.finish();
     },
   });
+}
+
+/**
+ * The one resume for a parked approval: a fresh run id on the original thread, the original run as
+ * parent, and nothing else the server could mistake for a new turn. Read with the same fetch agent
+ * and lifecycle, so the resumed segment continues and settles the same logical turn.
+ */
+function resumeApproval({ parked, challengeId, allow }: { parked: ParkedApproval; challengeId: string; allow: boolean }, _options = {}): Promise<boolean> {
+  const { args, life, wire } = parked.ctx;
+  const runInput: RunAgentInput = {
+    threadId: wire.threadId, runId: crypto.randomUUID(), parentRunId: wire.runId, state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: challengeId, status: "resolved", payload: allow ? "allow" : "deny" }],
+  };
+  return new Promise<boolean>((resolve) => { void performRun({ args, life, runInput }, { accepted: resolve }); });
+}
+
+/** The visitor transport plus the host-scoped answer for its live approval cards. */
+export interface SiteAssistantTransport extends ChatTransport {
+  answerApproval(required: { challengeId: string; allow: boolean }, optional?: Record<string, never>): Promise<boolean>;
 }
 
 /**
@@ -343,12 +415,22 @@ async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLi
  * {@link IDLE_TIMEOUT_MS} of silence — reaches `onError` exactly once, worded by
  * `visitorFacingError`, and the run always finishes so the composer re-enables for another try.
  */
-export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): ChatTransport {
+export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): SiteAssistantTransport {
   const fetchChat: typeof fetch = options.fetch ?? ((...args) => globalThis.fetch(...args));
   const idleTimeoutMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
   const newTurnId = options.newTurnId ?? (() => crypto.randomUUID());
   const threadIdFor = createVisitorThreadIds({ newId: () => crypto.randomUUID() });
+  const approvals: Approvals = new Map();
   return {
+    /** Unknown, settled or already-answered challenges post nothing new: a double click shares
+     *  the first answer's one resume, and there is no automatic retry of an approval. */
+    answerApproval({ challengeId, allow }, _optional = {}) {
+      const parked = approvals.get(challengeId);
+      if (!parked || parked.ctx.life.flags.settled) return Promise.resolve(false);
+      parked.answer ??= resumeApproval({ parked, challengeId, allow });
+      return parked.answer;
+    },
+
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       const message = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
       if (!message) throw new Error("no user message to send");
@@ -356,7 +438,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat };
+      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat, approvals };
       const runInput = buildVisitorRunInput({ input, threadId: threadIdFor({ input }), runId, turnId: args.turnId });
       void performRun({ args, life: createRunLifecycle(args), runInput });
       return { runId };
