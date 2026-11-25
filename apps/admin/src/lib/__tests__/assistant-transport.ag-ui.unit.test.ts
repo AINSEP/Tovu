@@ -14,6 +14,7 @@ import {
   type AdminAgUiDurablePorts,
   isAgUiTransportEnabled,
 } from "../assistant-transport-ag-ui";
+import { turnUsage } from "@jini-ai/chat/core";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
@@ -895,5 +896,146 @@ describe("durable AG-UI binding (Local CLI lifecycle)", () => {
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
     expect(cancels).toEqual([{ runId: "run-durable-1", messageId: "msg-a1", conversationId: "conv-1" }]);
+  });
+});
+
+/** Counts every terminal callback a dock would act on: a failure (`onError`) and a completion
+ *  (`onDone`). The dock shows one outcome per run, so each scenario below pins both counters. */
+function terminalRecorder() {
+  const rec = { events: [] as AgentEvent[], errors: [] as Error[], dones: [] as AgentEvent[][] };
+  const recorder = { ...rec, onEvent: (event: AgentEvent) => rec.events.push(event), onError: (error: Error) => rec.errors.push(error),
+    onDone: (final: AgentEvent[]) => rec.dones.push(final) } as unknown as RunHandlers;
+  return { rec, recorder };
+}
+
+const RAW_CANARY = "RAW-DAEMON-CANARY-7731 spawn ENOENT /usr/bin/claude";
+
+describe("admin AG-UI refusals, failures, disconnects and no reply each leave one actionable terminal outcome", () => {
+  test("a JSON refusal rejects the start once with plain words and never surfaces raw daemon detail", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: "The assistant could not start. Try again.", code: "AGENT_START_FAILED", reportId: "INC-42", detail: RAW_CANARY }),
+      { status: 502, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rec, recorder } = terminalRecorder();
+
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: recorder }, {}).then(() => null, (error: Error) => error);
+    await flushMicrotasks();
+
+    expect(failure, "the refusal rejects the start exactly once").toBeInstanceOf(Error);
+    expect(failure!.message).not.toContain("RAW-DAEMON-CANARY");
+    expect(failure!.message).not.toMatch(/ENOENT|spawn|\/usr\/bin/);
+    expect(rec.errors.length + rec.dones.length, "a refused start fires no stream callbacks on top of the rejection").toBe(0);
+  });
+
+  test("a daemon or provider failure (RUN_ERROR) reports one plain error and completes once", async () => {
+    const message = "The assistant stopped before finishing. Send your message again.";
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.RUN_ERROR, message }),
+      frame({ type: EventType.RUN_ERROR, message }),
+    ]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rec, recorder } = terminalRecorder();
+
+    await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: recorder }, {});
+    for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+
+    expect(rec.errors.map((e) => e.message), "one terminal error however many frames repeat it").toEqual([message]);
+    expect(rec.dones.length).toBe(1);
+  });
+
+  test("a stream that ends with no reply and no terminal is an error, never a successful empty reply", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" })]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rec, recorder } = terminalRecorder();
+
+    await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: recorder }, {});
+    for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+
+    expect(rec.errors.length, "no reply is surfaced as one error the person can act on").toBe(1);
+    expect(rec.errors[0]!.message).not.toMatch(/undefined|\[object/);
+  });
+
+  test("a dropped durable stream follows the same run again instead of starting a new one", async () => {
+    const encoder = new TextEncoder();
+    let reads = 0;
+    const reader = { read: async () => { reads += 1; if (reads === 1) return { done: false, value: encoder.encode(frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" })) }; throw new Error("connection reset"); },
+      cancel: async () => undefined, releaseLock() {} };
+    fetchMock = vi.fn(async () => ({ ok: true, status: 200, headers: new Headers({ "content-type": "text/event-stream" }), body: { getReader: () => reader } }) as unknown as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    const follows: string[] = [];
+    const client = createAdminAgUiRunClient({ durable: { followRun: ({ runId }) => { follows.push(runId); }, cancelRun: async () => undefined } }, {});
+    const { rec, recorder } = terminalRecorder();
+    const bound: Array<{ runId: string }> = [];
+
+    const started = await client.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal, cancelSignal: new AbortController().signal }, handlers: recorder,
+      durable: { launch: { contextRef: {}, agentId: "claude", messageId: "msg-a1", conversationId: "conv-1" }, bindRun: (b) => bound.push(b) } }, {});
+    for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+
+    expect(started.runId).toBe("run-durable-1");
+    expect(fetchMock, "the drop never starts a second run").toHaveBeenCalledTimes(1);
+    expect(follows, "the recoverable drop goes back to the same run through the durable follow").toEqual(["run-durable-1"]);
+    expect(rec.errors, "an accepted run's lost segment is not a failure").toEqual([]);
+    expect(rec.dones, "the follower, not the lost segment, owns the single completion").toEqual([]);
+  });
+});
+
+describe("the AG-UI cost footer survives reconnect exactly once", () => {
+  const USAGE = { kind: "usage", inputTokens: 120, outputTokens: 45, costUsd: 0.0123 } as const;
+  const usageFrame = frame({ type: EventType.CUSTOM, name: "tovu.usage", value: USAGE } as AgUiEvent);
+
+  test("tovu.usage on a delivery-only turn projects into the final events once", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }), usageFrame, frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rec, recorder } = terminalRecorder();
+
+    await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: recorder }, {});
+    for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+
+    expect(rec.dones).toHaveLength(1);
+    expect(turnUsage({ events: rec.dones[0]! })).toMatchObject({ inputTokens: 120, outputTokens: 45, costUsd: 0.0123 });
+  });
+
+  test("a reconnect that repeats the last usage delivery leaves one footer with the same totals", async () => {
+    const segment = () => new Response(streamFromChunks([frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" }), usageFrame, usageFrame,
+      frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-durable-1" })]), { status: 200 });
+    fetchMock = vi.fn(async () => segment());
+    vi.stubGlobal("fetch", fetchMock);
+    // The existing checkpoint subscription delivers the authoritative final transcript; a reconnect
+    // delivers it again, with the usage it already holds (the "duplicated last delivery").
+    const client = createAdminAgUiRunClient({ durable: { cancelRun: async () => undefined,
+      followRun: ({ handlers: h }) => { h.onDone([{ kind: "text", text: "Done." } as AgentEvent, USAGE as AgentEvent]); } } }, {});
+    const finals: AgentEvent[][] = [];
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const { rec, recorder } = terminalRecorder();
+      await client.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal, cancelSignal: new AbortController().signal }, handlers: recorder,
+        durable: { launch: { contextRef: {}, agentId: "claude", messageId: "msg-a1", conversationId: "conv-1" }, bindRun: () => undefined } }, {});
+      for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+      expect(rec.events.filter((e) => e.kind === "usage"), "live segment usage never lands beside the checkpoint's").toEqual([]);
+      finals.push(...rec.dones);
+    }
+
+    expect(finals).toHaveLength(2);
+    for (const final of finals) {
+      expect(final.filter((e) => e.kind === "usage")).toHaveLength(1);
+      expect(turnUsage({ events: final })).toMatchObject({ inputTokens: 120, outputTokens: 45, costUsd: 0.0123 });
+    }
+  });
+});
+
+describe("an AG-UI attachment reaches the selected agent (client wire)", () => {
+  test("the durable start forwards the prepared attachment refs and never browser-owned authority", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-durable-1" })]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createAdminAgUiRunClient({ durable: { followRun: () => undefined, cancelRun: async () => undefined } }, {});
+    const { recorder } = terminalRecorder();
+
+    await client.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal, cancelSignal: new AbortController().signal }, handlers: recorder,
+      durable: { launch: { contextRef: { attachmentIds: ["att-1"], pluginRefIds: ["ui-ux-design"], model: "opus", prompt: "x", recoveryMode: "native", principalId: "other" },
+        agentId: "claude", messageId: "msg-a1", conversationId: "conv-1" }, bindRun: () => undefined } }, {});
+
+    const sent = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string) as { forwardedProps: { durableRun: { launch: Record<string, unknown> } } };
+    expect(sent.forwardedProps.durableRun.launch).toEqual({ attachmentIds: ["att-1"], pluginRefIds: ["ui-ux-design"], model: "opus" });
   });
 });
