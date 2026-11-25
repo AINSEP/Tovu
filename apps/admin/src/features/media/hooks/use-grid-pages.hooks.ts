@@ -33,7 +33,8 @@ export interface GridPagesDeps extends MediaGridView {
 
 /** Everything the screen reads from the grid. */
 export interface GridPages {
-  /** Loaded rows in the server's order, or `null` until page one settles. */
+  /** Loaded rows in the server's order, or `null` until the first page one ever settles; while a new
+   *  tab or order loads, the previous view's rows stay here. */
   items: AdminMedia[] | null;
   /** The deep-link asset fetched by exact lookup when it is not among the loaded rows. */
   exactItem: AdminMedia | null;
@@ -59,6 +60,44 @@ function mergeRows({ first, more }: { first: MediaGridPage; more: MorePages | nu
   return [...first.media, ...(more?.rows ?? [])].filter((item) => !seen.has(item.id) && Boolean(seen.add(item.id)));
 }
 
+/** The more-pages state, only while it belongs to the page-one answer on screen. @complexity O(1). */
+function currentMore({ data, state }: { data: MediaGridPage | undefined; state: MorePages }, _optional: Record<string, never> = {}): MorePages | null {
+  // The one stale guard: rows and the cursor are shown only for the page-one answer they were read after,
+  // so a response that lands after a tab, sort or refresh change is stored under a base nobody renders.
+  return state.base === data && data !== undefined ? state : null;
+}
+
+/** Rows, cursor and deep-link presence for one render. @complexity O(n) in loaded rows. */
+function deriveGridView({ data, settled, state, itemId }: { data: MediaGridPage | undefined; settled: MediaGridPage | undefined; state: MorePages; itemId: string | null }, _optional: Record<string, never> = {}) {
+  // Why-comment — a new tab or order is a new cache key with no page one yet. Dropping to `null` there
+  // made the screen swap to its loading state and unmount the toolbar mid-change: the Order-by select
+  // the operator was using vanished, focus was lost, and a second change landed on a detached control
+  // and never re-ordered anything. The last settled page stays on screen until the new one lands; it
+  // never pages, since its cursor belongs to the view it was read for.
+  const shown = data ?? settled;
+  const more = currentMore({ data, state });
+  const items = shown ? mergeRows({ first: shown, more }) : null;
+  const cursor = more ? more.cursor : data?.nextCursor ?? null;
+  const loaded = itemId !== null && (items?.some((item) => item.id === itemId) ?? false);
+  return { shown, more, items, cursor, loaded };
+}
+
+/** The exact lookup's asset, only for a deep link that is not among the loaded rows. @complexity O(1). */
+function exactItemFor({ loaded, exactPage }: { loaded: boolean; exactPage: MediaGridPage | undefined }, _optional: Record<string, never> = {}): AdminMedia | null {
+  return loaded ? null : exactPage?.media[0] ?? null;
+}
+
+/** The server-answered fields the screen reads, never counted from loaded rows. @complexity O(1). */
+function summarizeGrid({ shown, more, cursor }: { shown: MediaGridPage | undefined; more: MorePages | null; cursor: string | null }, _optional: Record<string, never> = {}) {
+  return {
+    counts: shown?.counts ?? null,
+    hasUntypedActive: shown?.hasUntypedActive ?? false,
+    hasMore: cursor !== null,
+    loadingMore: more?.loading ?? false,
+    loadMoreError: more?.error ?? null,
+  };
+}
+
 /**
  * Reads the grid for one tab and order: page one from the cache, `loadMore` for the next page. A page
  * that returns after the tab, the order or page one itself changed (a sort, a tab switch, a mutation
@@ -70,12 +109,9 @@ export function useGridPages(required: GridPagesDeps, optional: { itemId?: strin
   const itemId = optional.itemId ?? null;
   const first = useFetchQuery({ key: [...KEYS.list, "grid", tab, orderBy], fetch: () => port.listMediaGrid({ tab, orderBy }, { limit: GRID_PAGE_SIZE }) });
   const [state, setState] = useState<MorePages>(NO_MORE);
-  // The one stale guard: rows and the cursor are shown only for the page-one answer they were read after,
-  // so a response that lands after a tab, sort or refresh change is stored under a base nobody renders.
-  const more = state.base === first.data && first.data !== undefined ? state : null;
-  const items = first.data ? mergeRows({ first: first.data, more }) : null;
-  const cursor = more ? more.cursor : first.data?.nextCursor ?? null;
-  const loaded = itemId !== null && (items?.some((item) => item.id === itemId) ?? false);
+  const [settled, setSettled] = useState<MediaGridPage | undefined>(undefined);
+  if (first.data !== undefined && first.data !== settled) setSettled(first.data);
+  const { shown, more, items, cursor, loaded } = deriveGridView({ data: first.data, settled, state, itemId });
   const exact = useFetchQuery(
     { key: [...KEYS.list, "grid-item", tab, itemId ?? ""], fetch: () => port.listMediaGrid({ tab, orderBy }, { itemId: itemId ?? "" }) },
     { enabled: itemId !== null && first.data !== undefined && !loaded },
@@ -96,13 +132,9 @@ export function useGridPages(required: GridPagesDeps, optional: { itemId?: strin
 
   return {
     items,
-    exactItem: loaded ? null : exact.data?.media[0] ?? null,
-    counts: first.data?.counts ?? null,
-    hasUntypedActive: first.data?.hasUntypedActive ?? false,
+    exactItem: exactItemFor({ loaded, exactPage: exact.data }),
+    ...summarizeGrid({ shown, more, cursor }),
     error: first.error,
-    hasMore: cursor !== null,
-    loadingMore: more?.loading ?? false,
-    loadMoreError: more?.error ?? null,
     loadMore,
     retryLoadMore: loadMore,
   };

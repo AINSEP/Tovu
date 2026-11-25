@@ -210,6 +210,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     const uploaded = { ...ACTIVE_ITEM, id: "media-new", title: "New Photo", slug: "new-photo" };
     let uploadedBody: unknown = null;
     let items = [ACTIVE_ITEM];
+    const gridReads: string[] = [];
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
@@ -218,13 +219,15 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
         items = [uploaded, ...items];
         return Promise.resolve(jsonResponse({ media: uploaded }));
       }
-      if (url === "/api/admin/v1/workspaces/workspace-local/media" && method === "GET") {
-        return Promise.resolve(jsonResponse({ media: items }));
+      if (isGridUrl({ url }) && method === "GET") {
+        gridReads.push(url);
+        return Promise.resolve(jsonResponse(gridResponseBody({ url, media: items as AdminMedia[] })));
       }
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
     const { container } = renderScreen();
     await waitForCard(container, "Sunset Photo.png");
+    const gridReadsBeforeUpload = gridReads.length;
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
     await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
@@ -233,6 +236,9 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
 
     await waitForCard(container, "New Photo.png");
     expect(uploadedBody).toEqual({ filename: "new.png", contentType: "image/png", dataBase64: "AAEC/f7/", alt: "New photo alt" });
+    // The new card arrived through a re-read of the grid's page one, not a client-side insert.
+    expect(gridReads.length).toBeGreaterThan(gridReadsBeforeUpload);
+    expect(new URL(gridReads.at(-1)!, "http://localhost").searchParams.get("tab")).toBe("all");
     await waitFor(() => expect(fileInput.files).toHaveLength(0));
     expect(fileInput).toHaveValue("");
     expect(screen.getByText("No file chosen")).toBeInTheDocument();

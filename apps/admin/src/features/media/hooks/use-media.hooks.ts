@@ -11,6 +11,7 @@ import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 import { useGridPages, type MediaGridPort } from "./use-grid-pages.hooks";
+import { useMediaWrites } from "./use-media-writes.hooks";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -66,6 +67,8 @@ export interface MediaDependencies {
   port: MediaPort & MediaGridPort;
   /** REQUIRED, like every hook the screen composes: the server-paged grid read (`use-grid-pages.hooks.ts`). */
   useGridPages: typeof useGridPages;
+  /** REQUIRED too: upload, trash, restore and purge with their row-action state (`use-media-writes.hooks.ts`). */
+  useMediaWrites: typeof useMediaWrites;
   /** The tab whose rows the grid reads; the server filters, orders and counts, this screen never does. */
   tab: MediaGridTab;
   /** The `?id=` deep link, resolved by exact lookup when it is not among the loaded rows. */
@@ -161,7 +164,7 @@ function describeUploadFailure({ failure, locale }: { failure: unknown; locale: 
 /**
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
-export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPagesHook }: MediaDependencies): MediaController {
+export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPagesHook, useMediaWrites: useMediaWritesHook }: MediaDependencies): MediaController {
   // Newest-first, matching `SqliteMediaRepo.list()`'s own default — an operator who never touches
   // the new control sees exactly today's order, unchanged. The SERVER orders; see `use-grid-pages.hooks.ts`.
   const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
@@ -174,8 +177,6 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
   useContentRefreshSubscription({ resource: MEDIA_RESOURCE, onRefresh: invalidateList });
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(false);
@@ -188,31 +189,8 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
     setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
   }, []);
 
-  const uploadMutation = useFetchMutation({
-    run: ({ input }: { input: { filename: string; contentType: string; dataBase64: string; alt?: string } }) =>
-      port.uploadMedia({ filename: input.filename, contentType: input.contentType, dataBase64: input.dataBase64 }, { alt: input.alt }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const trashMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.trashMedia(id) }, { invalidates: [KEYS.list] });
-  const purgeMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.deleteMedia(id) }, { invalidates: [KEYS.list] });
-  const restoreFallback = translate({ locale: locale, key: "failed to restore" });
-  const restoreMutation = useFetchMutation({
-    run: async ({ input: id }: { input: string }) => {
-      // The Trash answers a refused restore (changed or gone row) with 200 + `restored: false`.
-      const { restored } = await port.restoreMedia(id);
-      if (!restored) throw new Error(restoreFallback);
-    },
-  }, { invalidates: [KEYS.list] });
-
-  const writes = [uploadMutation, trashMutation, purgeMutation, restoreMutation];
-  /** Clears the OTHER writes' failures before starting one — same shape/reasoning as
-   *  `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors` (see `Jini redirects/SOURCE-RATIONALE.md`'s own copy): three
-   *  independent mutations each keep their own error until reset, so a stale failure from one must
-   *  not survive past the start of an unrelated one. */
-  function clearOtherWriteErrors(active: { reset: () => void }) {
-    for (const write of writes) if (write !== active) write.reset();
-  }
+  const { uploadMutation, trashMutation, purgeMutation, restoreMutation, restoreFallback, clearOtherWriteErrors, trash, restore, pendingPurge, setPendingPurge, rowSavingId, purge } =
+    useMediaWritesHook({ port, locale, useFetchMutation });
 
   async function upload(event?: Pick<React.FormEvent, "preventDefault">) {
     event?.preventDefault();
@@ -240,60 +218,6 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
     } finally {
       uploadInFlight.current = false;
       setUploading(false);
-    }
-  }
-
-  async function trash(item: AdminMedia) {
-    clearOtherWriteErrors(trashMutation);
-    setRowSavingId(item.id);
-    try {
-      await trashMutation.mutate({ input: item.id });
-    } catch {
-      // already surfaced through trashMutation.error -> error below
-    } finally {
-      // Self-referential: only clear THIS call's own id. `trash` has no confirm step, so it can
-      // start on a different row at any time — including while a `purge` confirmation (see below)
-      // is genuinely still in flight on ANOTHER item. `rowSavingId` is the ONE field both actions
-      // share; an unconditional reset here would clobber that unrelated purge's busy signal the
-      // instant this trash happens to settle, flipping `MediaPurgeDialog`'s `pending` prop to
-      // `false` mid-request and re-enabling Confirm/Escape/backdrop dismissal for a destructive
-      // delete that has not actually finished. Same shape as `use-widgets-library.hooks.ts`'s
-      // `purge`'s `pendingForcePurge` reset.
-      setRowSavingId((current) => (current === item.id ? null : current));
-    }
-  }
-
-  async function restore(item: AdminMedia) {
-    clearOtherWriteErrors(restoreMutation);
-    setRowSavingId(item.id);
-    try {
-      await restoreMutation.mutate({ input: item.id });
-    } catch {
-      // already surfaced through restoreMutation.error -> error below
-    } finally {
-      // Self-referential for the same reason `trash`'s own finally is — see its comment above.
-      setRowSavingId((current) => (current === item.id ? null : current));
-    }
-  }
-
-  async function purge() {
-    if (!pendingPurge) return;
-    const item = pendingPurge;
-    clearOtherWriteErrors(purgeMutation);
-    setRowSavingId(item.id);
-    try {
-      await purgeMutation.mutate({ input: item.id });
-    } catch {
-      // already surfaced through purgeMutation.error -> error below
-    } finally {
-      // Self-referential for the same reason `trash`'s own finally now is — see its comment above.
-      // `pendingPurge` itself cannot be reassigned to a different item while THIS purge is in
-      // flight (opening a new purge confirmation requires the native `<dialog>`'s modal focus trap
-      // to release first, and `pending` blocks Escape/backdrop dismissal), so its own reset stays
-      // guarded here purely for symmetry with `rowSavingId` and to stay correct if that invariant
-      // ever changes.
-      setRowSavingId((current) => (current === item.id ? null : current));
-      setPendingPurge((current) => (current?.id === item.id ? null : current));
     }
   }
 
@@ -382,5 +306,5 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
 export function useWiredMedia({ tab, itemId }: Pick<MediaDependencies, "tab" | "itemId">): MediaController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useMedia({ port: defaultMediaPort, useGridPages, tab, itemId, locale, t });
+  return useMedia({ port: defaultMediaPort, useGridPages, useMediaWrites, tab, itemId, locale, t });
 }

@@ -10,6 +10,7 @@ import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
 import { useGridPages } from "../hooks/use-grid-pages.hooks";
+import { useMediaWrites } from "../hooks/use-media-writes.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -57,7 +58,7 @@ describe("Media copy reaches the active locale", () => {
       await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
       const translate = (key: string) => t({ locale: copy.locale, key });
       render(createElement(FetchQueryProvider, {}, createElement(Media, {
-        useMediaHook: ({ tab, itemId }) => useMedia({ port, useGridPages, tab, itemId, locale: copy.locale, t: translate }),
+        useMediaHook: ({ tab, itemId }) => useMedia({ port, useGridPages, useMediaWrites, tab, itemId, locale: copy.locale, t: translate }),
       })));
       return { port, translate };
     }
