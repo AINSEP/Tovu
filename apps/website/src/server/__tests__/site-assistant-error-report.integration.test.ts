@@ -11,13 +11,14 @@ import {
 } from "@jini-ai/core/contracts/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
-import { setPublicAssistantSettings } from "#src/assistant/index";
+import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import type { SiteAssistantErrorLogEntry } from "#src/assistant/site/public-errors";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { parsePublicJsonBody } from "../inbound/shared/json-body-parsers.js";
 import { applyRequestTracking } from "../inbound/shared/observability-middleware.js";
 import { startTestServer } from "./helpers/http-test-server.js";
+import { startStubProviderServer } from "./helpers/stub-provider-server.js";
 
 /**
  * @file Site-assistant failures reach `ObservabilityPort.reportError` (provider wave 2): a failure
@@ -75,4 +76,35 @@ test("a visitor-caused answer is logged but not reported", async (t) => {
   assert.equal(response.status, 400);
   assert.equal(f.logs.length, 1);
   assert.equal(f.reports.length, 0);
+});
+
+test("AG-UI provider failure sends the public message and one incident reference", async (t) => {
+  const logs: SiteAssistantErrorLogEntry[] = [];
+  const deps = { ...createRouteDeps(), siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => { logs.push(entry); } };
+  await deps.siteTitleReady;
+  await setPublicAssistantSettings({
+    settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
+    clock: deps.clock, ids: deps.idGen, principals: deps.principalRepo,
+    authorize: async () => ({ allowed: true, reason: "test" }),
+  }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+  const providerUrl = await startStubProviderServer(t, () => ({ status: 500, body: JSON.stringify({ error: { message: `private upstream detail ${secret}` } }) }));
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
+  const app = express();
+  app.use(parsePublicJsonBody);
+  createSiteAssistantModule(deps, { env: { GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl } }).registerRoutes?.({ app });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream; agui=1" },
+    body: JSON.stringify({ threadId: "thread-1", runId: "run-1", messages: [{ id: "m1", role: "user", content: "Hello" }], forwardedProps: { turnId: "turn-failure-01" } }) });
+  const body = await response.text();
+  const events = [...body.matchAll(/^data: (.+)$/gm)].map((match) => JSON.parse(match[1]!) as { type: string; message?: string });
+  const errors = events.filter((event) => event.type === "RUN_ERROR");
+  assert.equal(errors.length, 1, "one terminal error");
+  assert.equal(events.filter((event) => event.type === "RUN_FINISHED").length, 0);
+  const providerLog = logs.filter((entry) => entry.code === "provider_error");
+  assert.equal(providerLog.length, 1);
+  assert.equal(errors[0]!.message, `The assistant couldn't answer right now. Please try again. (error ${providerLog[0]!.errorId})`);
+  assert.ok(!body.includes("private upstream detail") && !body.includes(secret), "provider detail stays in the operator log");
 });
