@@ -18,6 +18,7 @@ import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { readTovuBootEnv } from "../../runtime/configuration/env-schema.js";
 /** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
 const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
@@ -26,12 +27,15 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
 const scopeEnvironments = new Map<SiteScopeKey, string>();
 const scopedExchanges = new Map<SiteScopeKey, () => boolean>();
+// Read once, before this process listens, publishes its registry record or mounts a scope. A bad
+// JINI_AGENT_DAEMON_PORT stops boot naming only the variable; 0 stays the allocation sentinel.
+const bootEnv = readTovuBootEnv({ env: process.env, scope: "daemon", warn: ({ message }) => { console.warn(message); } });
 // Standalone launch also has IPC now, solely for startup credentials. It retains its own
 // fixed listener/root scope; the desktop's shared host still receives scopes through control.
-const sharedHost = Boolean(process.send) && process.env.TOVU_AGENT_DAEMON_STANDALONE !== '1';
+const sharedHost = Boolean(process.send) && bootEnv.TOVU_AGENT_DAEMON_STANDALONE !== '1';
 let listenerUrl = "";
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
-const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
+const daemonRegistryPath = bootEnv.TOVU_AGENT_DAEMON_REGISTRY_PATH;
 const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath, writer: nodeAtomicWriter }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
@@ -212,14 +216,7 @@ const control = createScopeControl({ tables: { scopes, scopeEnvironments, scoped
   listenerUrl: () => listenerUrl, pid: process.pid, isExiting: () => daemonExiting }, {});
 
 function standaloneListenerPort(): number {
-  const raw = process.env.JINI_AGENT_DAEMON_PORT;
-  if (raw === undefined) return 4319;
-  if (raw === "0") return 0;
-  const port = Number(raw);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("JINI_AGENT_DAEMON_PORT must be 0 or an integer from 1 to 65535");
-  }
-  return port;
+  return bootEnv.JINI_AGENT_DAEMON_PORT ?? 4319;
 }
 
 async function start(): Promise<void> {
