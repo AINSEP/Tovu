@@ -18,7 +18,7 @@ import { verifySiteImport } from "./import-verifier.js";
 import { stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
 import {
   consumeUpload, deadlineSignal, downloadShareArchive, importSiteSlug, parseImportInput, reconcileInterruptedImports, refusal,
-  requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
+  projectExpiredOwnerSetup, requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
   type ParsedSiteImportInput,
 } from "./import-backend-steps.js";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
@@ -58,7 +58,7 @@ type ImportBackendOptional = {
 /** The ports and bookkeeping every import step shares; `exclusive` allows one import at a time. */
 type ImportBackendContext = {
   required: ImportBackendRequired; optional: ImportBackendOptional; registry: SiteImportRegistry; workspace: SitesWorkspace;
-  view: (row: SiteImportRecord) => SiteImportView; put: (row: SiteImportRecord) => void;
+  view: (row: SiteImportRecord) => SiteImportView; indexedView: (row: SiteImportRecord) => SiteImportView; put: (row: SiteImportRecord) => void;
   exclusive: <T>(input: { run: () => Promise<T> }, optional?: Record<string, never>) => Promise<T>;
 };
 
@@ -69,6 +69,8 @@ function createImportContext({ required, optional }: { required: ImportBackendRe
     const warnings = stagedImportWarnings({ root: registry.stagePath(row) });
     return { ...siteImportView({ row }, { setupBase: required.setupBase }), ...(warnings.length ? { warnings } : {}) };
   };
+  // Lock-free indexed reads cannot write the expiry sweep, so they show the expired state without persisting it.
+  const indexedView = (row: SiteImportRecord): SiteImportView => siteImportView({ row: projectExpiredOwnerSetup({ row, nowMs: registry.clock.nowMs() }) }, { setupBase: required.setupBase });
   const put = (row: SiteImportRecord) => { registry.put({ row }); optional.report?.({ importId: row.importId, status: row.status }); };
   let active = false;
   const exclusive = async <T>({ run }: { run: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> => {
@@ -78,7 +80,7 @@ function createImportContext({ required, optional }: { required: ImportBackendRe
       activeRows: (_required, _optional = {}) => registry.session.kind === "index" ? registry.session.store.activeRows({}) : registry.list({}).filter(row => row.status === "verifying" || row.status === "creating"),
     }); return run(); } }); } finally { active = false; }
   };
-  return { required, optional, registry, workspace, view, put, exclusive };
+  return { required, optional, registry, workspace, view, indexedView, put, exclusive };
 }
 
 /** Reads or downloads the archive; records the consumed upload before reading so it is always removed. */
@@ -158,38 +160,55 @@ function traced<T>({ ctx, name, run }: { ctx: ImportBackendContext; name: string
   return ctx.required.tracker ? ctx.required.tracker.trace({ name, run }) : run();
 }
 
-async function startImportFromSource({ ctx, input, options }: { ctx: ImportBackendContext; input: { principalId: string; source: SiteImportSource; displayName?: string; requestId?: string }; options: { signal?: AbortSignal } }): Promise<SiteImportView> {
+type StartImportInput = { principalId: string; source: SiteImportSource; displayName?: string; requestId?: string };
+type IndexSession = Extract<SiteImportRegistry["session"], { kind: "index" }>;
+
+/** The deadline every verify step runs under; five minutes covers a 300 MiB download plus verification. */
+const verifyDeadline = (options: { signal?: AbortSignal }) => deadlineSignal({ timeoutMs: 5 * 60_000 }, options);
+
+/** Admits through the indexed history: a replayed request returns its first outcome, a new one verifies and stages. */
+async function startIndexedImport({ ctx, session, input, parsed, options }: { ctx: ImportBackendContext; session: IndexSession; input: StartImportInput; parsed: ParsedSiteImportInput; options: { signal?: AbortSignal } }): Promise<SiteImportView> {
+  const admitted = admitImport({ db: session.db, clock: ctx.registry.clock, policy: session.policy, principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, digestSource: importSourceDigest,
+    requireBudget: (_required, _optional = {}) => { if ("url" in parsed.source) requireStagingBudget({ registry: ctx.registry }); },
+    makeRow: ({ now }, _optional = {}) => ({ importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date(now).toISOString(), expiresAt: now + 3600_000 }),
+    beforeWrite: session.beforeWrite,
+  });
+  if (admitted.kind === "replay") {
+    if ("row" in admitted) return ctx.indexedView(admitted.row);
+    return siteImportView({ row: { ...admitted.outcome, principalId: input.principalId, expiresAt: 0, credentialWarnings: [] } }, {});
+  }
+  ctx.optional.report?.({ importId: admitted.row.importId, status: admitted.row.status });
+  ctx.registry.expire({});
+  session.sweep({});
+  return traced({ ctx, name: "site.import.verify", run: () => verifyAndStage({ ctx, input: { row: admitted.row, parsed, signal: verifyDeadline(options) } }) });
+}
+
+/** Rows written before the digest column carry no digest, so their sources are compared with the query stripped. */
+function isSameImportSource({ existing, source }: { existing: SiteImportRecord; source: SiteImportSource }, _optional = {}): boolean {
+  if (existing.sourceDigest !== undefined) return existing.sourceDigest === importSourceDigest({ source });
+  return JSON.stringify(withoutQuery({ source: existing.source })) === JSON.stringify(withoutQuery({ source }));
+}
+
+/** Legacy (non-indexed) admission: a repeated requestId returns the first import, or conflicts when its source differs. */
+async function startLegacyImport({ ctx, input, parsed, options }: { ctx: ImportBackendContext; input: StartImportInput; parsed: ParsedSiteImportInput; options: { signal?: AbortSignal } }): Promise<SiteImportView> {
+  ctx.registry.expire({});
+  const existing = parsed.requestId ? ctx.registry.list(input).find(row => row.requestId === parsed.requestId) : undefined;
+  if (existing) {
+    if (!isSameImportSource({ existing, source: parsed.source })) refusal({ code: "REQUEST_CONFLICT", message: "requestId already belongs to another source." });
+    return ctx.view(existing);
+  }
+  if ("url" in parsed.source) requireStagingBudget({ registry: ctx.registry });
+  const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
+  ctx.put(row);
+  return traced({ ctx, name: "site.import.verify", run: () => verifyAndStage({ ctx, input: { row, parsed, signal: verifyDeadline(options) } }) });
+}
+
+async function startImportFromSource({ ctx, input, options }: { ctx: ImportBackendContext; input: StartImportInput; options: { signal?: AbortSignal } }): Promise<SiteImportView> {
   const parsed = parseSiteImportInput({ input: { ...input.source, displayName: input.displayName, requestId: input.requestId } });
   return ctx.exclusive({ run: async () => {
-    if (ctx.registry.session.kind === "index") {
-      const session = ctx.registry.session;
-      const admitted = admitImport({ db: session.db, clock: ctx.registry.clock, policy: session.policy, principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, digestSource: importSourceDigest,
-        requireBudget: (_required, _optional = {}) => { if ("url" in parsed.source) requireStagingBudget({ registry: ctx.registry }); },
-        makeRow: ({ now }, _optional = {}) => ({ importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date(now).toISOString(), expiresAt: now + 3600_000 }),
-        beforeWrite: session.beforeWrite,
-      });
-      if (admitted.kind === "replay") {
-        if ("row" in admitted) return siteImportView({ row: admitted.row.status === "needs-owner" && admitted.row.expiresAt < ctx.registry.clock.nowMs() ? { ...admitted.row, status: "failed", error: "Owner setup expired", warnings: undefined, credentialWarnings: [] } : admitted.row }, { setupBase: ctx.required.setupBase });
-        return siteImportView({ row: { ...admitted.outcome, principalId: input.principalId, expiresAt: 0, credentialWarnings: [] } }, {});
-      }
-      ctx.optional.report?.({ importId: admitted.row.importId, status: admitted.row.status });
-      ctx.registry.expire({});
-      session.sweep({});
-      return traced({ ctx, name: "site.import.verify", run: () => verifyAndStage({ ctx, input: { row: admitted.row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) } }) });
-    }
-    ctx.registry.expire({});
-    const existing = parsed.requestId ? ctx.registry.list(input).find(row => row.requestId === parsed.requestId) : undefined;
-    if (existing) {
-      const sameSource = existing.sourceDigest !== undefined
-        ? existing.sourceDigest === importSourceDigest({ source: parsed.source })
-        : JSON.stringify(withoutQuery({ source: existing.source })) === JSON.stringify(withoutQuery({ source: parsed.source }));
-      if (!sameSource) refusal({ code: "REQUEST_CONFLICT", message: "requestId already belongs to another source." });
-      return ctx.view(existing);
-    }
-    if ("url" in parsed.source) requireStagingBudget({ registry: ctx.registry });
-    const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
-    ctx.put(row);
-    return traced({ ctx, name: "site.import.verify", run: () => verifyAndStage({ ctx, input: { row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) } }) });
+    const { session } = ctx.registry;
+    if (session.kind === "index") return startIndexedImport({ ctx, session, input, parsed, options });
+    return startLegacyImport({ ctx, input, parsed, options });
   } });
 }
 
@@ -239,7 +258,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
     async list(input) {
       const indexed = registry.history?.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return undefined;
-        return listAll({ readPage: (page, _optional = {}) => listPage({ ...input, ...page, db: session.db, clock: registry.clock, policy: session.policy }) }).map(row => siteImportView({ row: row.status === "needs-owner" && row.expiresAt < registry.clock.nowMs() ? { ...row, status: "failed", error: "Owner setup expired", warnings: undefined, credentialWarnings: [] } : row }, { setupBase: required.setupBase }));
+        return listAll({ readPage: (page, _optional = {}) => listPage({ ...input, ...page, db: session.db, clock: registry.clock, policy: session.policy }) }).map(ctx.indexedView);
       } });
       if (indexed) return indexed;
       return ctx.exclusive({ run: async () => { registry.expire({}); return registry.list(input).map(ctx.view); } });
@@ -248,7 +267,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
       const indexed = registry.history?.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return undefined;
         const page = listPage({ ...input, db: session.db, clock: registry.clock, policy: session.policy });
-        return { ...page, imports: page.imports.map(row => siteImportView({ row: row.status === "needs-owner" && row.expiresAt < registry.clock.nowMs() ? { ...row, status: "failed", error: "Owner setup expired", warnings: undefined, credentialWarnings: [] } : row }, { setupBase: required.setupBase })) };
+        return { ...page, imports: page.imports.map(ctx.indexedView) };
       } });
       if (indexed) return indexed;
       return ctx.exclusive({ run: async () => {
@@ -267,8 +286,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
       const row = registry.get(input);
       if (registry.history) return registry.history.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return ctx.view(row);
-        const projected = row.status === "needs-owner" && row.expiresAt < registry.clock.nowMs() ? { ...row, status: "failed" as const, error: "Owner setup expired", warnings: undefined, credentialWarnings: [] } : row;
-        return siteImportView({ row: projected }, { setupBase: required.setupBase });
+        return ctx.indexedView(row);
       } });
       return ctx.view(row);
     },

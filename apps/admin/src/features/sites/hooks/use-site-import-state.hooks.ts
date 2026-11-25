@@ -61,17 +61,54 @@ export function useSiteImportState(
 }
 
 
+type LaterPages = { generation: number; imports: SiteImport[]; nextCursor?: string; loading: boolean; error: string | null; loaded: boolean };
+type PagesGuard = { scopeKey: string; firstPage: SiteImportPage<SiteImport> | undefined; generation: number; cursor: string | undefined };
+
+/** A late response is dropped when the scope changed or a reset bumped the generation after it was requested. */
+function isStaleResponse({ guard, scope, generation }: { guard: PagesGuard; scope: string; generation: number }, _optional: Record<string, never> = {}): boolean {
+  return guard.scopeKey !== scope || guard.generation !== generation;
+}
+
+/** An expired cursor means the list moved under the reader, so the pages are reset and a reload is offered. */
+function describeLoadFailure({ error, t }: { error: unknown; t: Translate }, _optional: Record<string, never> = {}): { invalidCursor: boolean; message: string } {
+  if (error instanceof ApiError && error.code === "INVALID_CURSOR") return { invalidCursor: true, message: t("This list of imports changed. Reload it to see the newest imports.") };
+  return { invalidCursor: false, message: describeApiError({ e: error, fallback: t("Couldn't load imports.") }) };
+}
+
+/** The first page followed by later pages, keeping the first occurrence of each import. */
+function mergeImportPages({ first, later }: { first: SiteImport[]; later: SiteImport[] }, _optional: Record<string, never> = {}): SiteImport[] {
+  const seen = new Set<string>();
+  return first.concat(later).filter(row => {
+    if (seen.has(row.importId)) return false;
+    seen.add(row.importId);
+    return true;
+  });
+}
+
+/** A new scope or first page discards later pages; a refreshed page in the same scope keeps its load error visible. */
+function rescopeImportPages({ guard, scopeKey, firstPage, laterError }: { guard: PagesGuard; scopeKey: string; firstPage: SiteImportPage<SiteImport> | undefined; laterError: string | null }, _optional: Record<string, never> = {}): { guard: PagesGuard; later: LaterPages } | undefined {
+  const changedScope = guard.scopeKey !== scopeKey;
+  if (!changedScope && guard.firstPage === firstPage) return undefined;
+  const next: PagesGuard = { scopeKey, firstPage, generation: guard.generation + 1, cursor: undefined };
+  return { guard: next, later: { generation: next.generation, imports: [], loading: false, error: changedScope ? null : laterError, loaded: false } };
+}
+
+/** The cursor to continue from: the later pages' once loaded, otherwise the first page's. */
+function pickNextCursor({ later, currentGeneration, firstPage }: { later: LaterPages; currentGeneration: boolean; firstPage: SiteImportPage<SiteImport> | undefined }, _optional: Record<string, never> = {}): string | undefined {
+  return currentGeneration && later.loaded ? later.nextCursor : firstPage?.nextCursor;
+}
+
 export function useImportHistoryPages({ scopeKey, firstPage, listImports, onReset, t }: {
   scopeKey: string; firstPage: SiteImportPage<SiteImport> | undefined; listImports: SiteTransferPort["listImports"];
   onReset: () => void; t: Translate;
 }, _optional: Record<string, never> = {}) {
-  const guard = useRef({ scopeKey, firstPage, generation: 0, cursor: undefined as string | undefined });
-  const [later, setLater] = useState<{ generation: number; imports: SiteImport[]; nextCursor?: string; loading: boolean; error: string | null; loaded: boolean }>({ generation: 0, imports: [], loading: false, error: null, loaded: false });
+  const guard = useRef<PagesGuard>({ scopeKey, firstPage, generation: 0, cursor: undefined });
+  const [later, setLater] = useState<LaterPages>({ generation: 0, imports: [], loading: false, error: null, loaded: false });
   // Scope/generation guards private results against late promises.
-  if (guard.current.scopeKey !== scopeKey || guard.current.firstPage !== firstPage) {
-    const changedScope = guard.current.scopeKey !== scopeKey;
-    guard.current = { scopeKey, firstPage, generation: guard.current.generation + 1, cursor: undefined };
-    setLater({ generation: guard.current.generation, imports: [], loading: false, error: changedScope ? null : later.error, loaded: false });
+  const rescoped = rescopeImportPages({ guard: guard.current, scopeKey, firstPage, laterError: later.error });
+  if (rescoped) {
+    guard.current = rescoped.guard;
+    setLater(rescoped.later);
   }
   const reset = useCallback((_required: Record<string, never>, _optional: Record<string, never> = {}) => {
     guard.current.generation++;
@@ -80,7 +117,7 @@ export function useImportHistoryPages({ scopeKey, firstPage, listImports, onRese
     onReset();
   }, [onReset]);
   const current = later.generation === guard.current.generation;
-  const nextCursor = current && later.loaded ? later.nextCursor : firstPage?.nextCursor;
+  const nextCursor = pickNextCursor({ later, currentGeneration: current, firstPage });
   const loadMore = async (_required: Record<string, never>, _optional: Record<string, never> = {}) => {
     if (!nextCursor || guard.current.cursor !== undefined) return;
     const generation = guard.current.generation;
@@ -89,24 +126,19 @@ export function useImportHistoryPages({ scopeKey, firstPage, listImports, onRese
     setLater(previous => ({ ...previous, generation, loading: true, error: null }));
     try {
       const page = await listImports({ cursor: nextCursor }, {});
-      if (guard.current.scopeKey !== scope || guard.current.generation !== generation) return;
+      if (isStaleResponse({ guard: guard.current, scope, generation })) return;
       setLater(previous => ({ generation, imports: [...previous.imports, ...page.imports], nextCursor: page.nextCursor, loading: false, error: null, loaded: true }));
     } catch (error) {
-      if (guard.current.scopeKey !== scope || guard.current.generation !== generation) return;
-      if (error instanceof ApiError && error.code === "INVALID_CURSOR") {
-        reset({});
-        setLater(previous => ({ ...previous, error: t("This list of imports changed. Reload it to see the newest imports.") }));
-      } else setLater(previous => ({ ...previous, loading: false, error: describeApiError({ e: error, fallback: t("Couldn't load imports.") }) }));
+      if (isStaleResponse({ guard: guard.current, scope, generation })) return;
+      const failure = describeLoadFailure({ error, t });
+      // The reset already cleared loading, so one update covers both failure kinds.
+      if (failure.invalidCursor) reset({});
+      setLater(previous => ({ ...previous, loading: false, error: failure.message }));
     } finally {
       if (guard.current.generation === generation) guard.current.cursor = undefined;
     }
   };
-  const seen = new Set<string>();
-  const imports = firstPage?.imports.concat(current ? later.imports : []).filter(row => {
-    if (seen.has(row.importId)) return false;
-    seen.add(row.importId);
-    return true;
-  });
+  const imports = firstPage && mergeImportPages({ first: firstPage.imports, later: current ? later.imports : [] });
   // An old response without nextCursor remains a valid first page.
   return { imports, nextCursor, loadingMore: current && later.loading, moreError: current ? later.error : null, loadMore, reset };
 }

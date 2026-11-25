@@ -154,6 +154,16 @@ export async function startImportedSite(required: { row: SiteImportRecord; name:
   }
 }
 
+/**
+ * Shows a needs-owner row past its expiry as failed. Lock-free indexed reads (list, page, get,
+ * replay) cannot run the expiry sweep, which writes, so they project the expired state instead
+ * of persisting it; this is the single source of truth for that projection.
+ */
+export function projectExpiredOwnerSetup({ row, nowMs }: { row: SiteImportRecord; nowMs: number }, _optional: Record<string, never> = {}): SiteImportRecord {
+  if (row.status !== "needs-owner" || row.expiresAt >= nowMs) return row;
+  return { ...row, status: "failed", error: "Owner setup expired", warnings: undefined, credentialWarnings: [] };
+}
+
 /** The public view of a stored import row. */
 export function siteImportView(required: { row: SiteImportRecord }, optional: { setupBase?: string }): SiteImportView {
   const { row } = required;
