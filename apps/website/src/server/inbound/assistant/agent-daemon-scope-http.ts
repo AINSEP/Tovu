@@ -16,7 +16,9 @@ import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
 import { registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
-import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../../platform/express/jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, NO_OPERATION_TRACKING } from "../../../platform/express/jini-routes.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import type { Logger } from "@jini-ai/core/primitives";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
 import { registerToolAccessLoweringRoute } from "./tool-access-lowering-route.js";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
@@ -35,6 +37,10 @@ type ScopeAppPorts = {
   assistantInventory: ReturnType<typeof createAssistantAgentInventory>; runActiveContexts: RunActiveContextStore;
   toolExecutor: ToolExecutor; surfaceExchanges: ReturnType<typeof createSurfaceExchangeStore>;
   frontendControl: ReturnType<typeof createFrontendControl>;
+  /** The authorized site scope's reporter — the same instance its tool executor records through. */
+  reporter: ErrorReporter;
+  /** The scope's site-labelled logger: the delegated route warns here when a describer throws. */
+  logger: Pick<Logger, "warn">;
 };
 type MountPorts = ScopeAppPorts & { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; resolvePrincipal(input: { request: DelegatedToolExecuteRequest }): Principal; resolveDiscoveryCaller(req: express.Request): ReturnType<ScopeAppPorts['runCredentials']['resolveCaller']> };
 
@@ -68,7 +74,10 @@ export function createScopeApp(required: ScopeAppPorts, _optional = {}) {
 const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
+  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
+    // This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
+    // the explicit no-op keeps reporter mode on rather than falling back to legacy SEC-005 logging.
+    errors: { reporter: required.reporter, observability: NO_OPERATION_TRACKING } }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
   const ports = { ...required, app, routeHost, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
     resolvePrincipal: ({ request }: { request: DelegatedToolExecuteRequest }) => resolvePrincipal({ principalByRunId: required.principalByRunId, request }) };
   mountRunRoutes(ports);
@@ -177,11 +186,11 @@ mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInvent
 registerRunActiveContextRoute({ app, store: runActiveContexts });
 }
 
-function mountDelegatedRoutes({ app, lifecycle, toolExecutor, resolvePrincipal, siteTools, routeDeps, durableMessageIdsByRunId, routeHost }: MountPorts, _optional = {}) {
+function mountDelegatedRoutes({ app, lifecycle, toolExecutor, resolvePrincipal, siteTools, routeDeps, durableMessageIdsByRunId, routeHost, reporter, logger }: MountPorts, _optional = {}) {
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.
-// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
+// `delegatedToolErrorDisclosure({ reporter })` (the scope's tool reporter) supplies both error-disclosure options: `isModelSafeToolFailure`
 // lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
 // model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
 // would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
@@ -195,7 +204,7 @@ const delegatedToolRouteDeps = {
   toolExecutor,
   resolvePrincipal,
   toolRegistry: siteTools.registry, toolFamilies: siteTools.families,
-  ...delegatedToolErrorDisclosure({}, {}),
+  ...delegatedToolErrorDisclosure({ reporter }, {}), logger,
   // Static jobs live at the site server. Read once through its normal permission gate after a
   // lost delegated response; the five-second deadline cannot extend or repeat the publish.
   recoverInterruptedTool: async ({ principal, runId, toolId, result }: {

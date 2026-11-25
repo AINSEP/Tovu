@@ -118,8 +118,11 @@ for (const registration of withPageNavigateErrorRewrap({ registrations: withRead
   return { registry, siteTools, visibleRegistry, lostFrontendBindings, frontendControl };
 }
 
-export function createScopeToolExecutor({ routeDeps, registry, surfaceExchanges, siteTools, idlePark }: {
+/** @param required.reporter The authorized site scope's one reporter, shared with its HTTP disclosure:
+ *   built by the scope, never here, so the model's ERR- id and the host record are the same incident. */
+export function createScopeToolExecutor({ routeDeps, registry, surfaceExchanges, siteTools, idlePark, reporter }: {
   routeDeps: Pick<AgentDaemonCoreDeps, 'toolAttemptAuditSink' | 'workspaceId'>; registry: ReturnType<typeof createToolRegistry>;
+  reporter: Parameters<typeof createAssistantToolExecutor>[0]['reporter'];
   surfaceExchanges: Parameters<typeof createAssistantToolExecutor>[0]['surfaceExchanges']; siteTools: ReturnType<typeof createDaemonSiteTools>;
   idlePark: Pick<ReturnType<typeof createAgentDaemonIdlePark>, 'hold'>;
 }, _optional = {}) {
@@ -136,7 +139,7 @@ export function createScopeToolExecutor({ routeDeps, registry, surfaceExchanges,
 const auditSink = routeDeps.toolAttemptAuditSink;
 // Local UI effects retain their approved gating/audit stack. Site effects use the server's
 // complete stack; the outer descriptor gate verifies read-only authority before either route.
-const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges,
+const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, reporter,
   toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId } }, {});
 const toolExecutor = withReadOnlyToolConstraint({ inner: createRoutingToolExecutor({
   local: localToolExecutor, remote: siteTools.remote,

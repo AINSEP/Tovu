@@ -1,4 +1,5 @@
 import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { deploymentRefusal } from "#src/contracts/core/consent-refusal";
@@ -2308,16 +2309,16 @@ test('static publish returns a job before export finishes, survives call abort, 
     const recovered = await call(status, { input: { executionId: 'job-start' } }) as { jobId: string };
     assert.equal(recovered.jobId, accepted.jobId);
     assert.doesNotMatch(JSON.stringify(finished), /secret-canary/);
-    const disclosure = delegatedToolErrorDisclosure({}, { mintErrorId: () => 'ERR-AAAA-BBBB-CCCC-DDDD', onFailure: () => {} });
-    const interrupted = { source: 'delegated-tool-execute', toolId: 'deployment_execute_static_publish', runId: 'run-job', executionId: 'job-start', status: 'timed-out', correlationId: 'corr', error: 'timed-out' } as const;
-    const recovery = disclosure.describeInternalError({ ...interrupted, recoveryMessage: finished.message });
+    const disclosure = delegatedToolErrorDisclosure({ reporter: testToolReporter() }, {});
+    const interrupted = { source: 'delegated-tool-execute', toolId: 'deployment_execute_static_publish', runId: 'run-job', executionId: 'job-start', status: 'timed-out', error: 'timed-out' } as const;
+    const recovery = disclosure.describeInternalError({ ...interrupted, recoveryMessage: finished.message }).message;
     assert.match(recovery, /Deployment: created/);
     assert.match(recovery, /uploaded files: 1 of 1/);
     assert.match(recovery, /dpl_new/);
     assert.match(recovery, /https:\/\/new.test/);
     assert.match(recovery, /deployment_get_static_publish_status/);
     const otherCall = disclosure.describeInternalError({ ...interrupted,
-      recoveryMessage: publishJobRecoveryMessage({ statusToolId: 'deployment_get_static_publish_status' }) });
+      recoveryMessage: publishJobRecoveryMessage({ statusToolId: 'deployment_get_static_publish_status' }) }).message;
     assert.match(otherCall, /Publish job status could not be confirmed for this call/);
     assert.match(otherCall, /Deployment: unknown/);
     assert.doesNotMatch(otherCall, /dpl_new/);

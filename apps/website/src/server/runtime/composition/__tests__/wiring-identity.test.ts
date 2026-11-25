@@ -24,6 +24,7 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 import { externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import * as vaultBySubpath from "#src/features/external-mcp/external-mcp-vault";
 import * as vaultByRelativePath from "../../../../features/external-mcp/external-mcp-vault.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Wiring identity: the shared-instance pairs a host must keep ONE of, asserted with `===` on
@@ -100,7 +101,7 @@ function firstPartyContributions() {
 // `assistantToolSurface` seam (the default path builds the same surface inside the BYOK module,
 // where no test can read it); `app.ts` must then hand that surface's store to the answer route.
 test("row 1: the MCP-UI answer route delivers into the SAME exchange store the BYOK tools open cards on, and the answer wakes the waiting call", async (t) => {
-  const toolSurface = createByokToolSurface(deps, { contributions: firstPartyContributions() });
+  const toolSurface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions: firstPartyContributions() });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { assistantToolSurface: toolSurface }), t);
   const ownerId = await deps.ownerPrincipalId;
   const store = toolSurface.surfaceExchanges;

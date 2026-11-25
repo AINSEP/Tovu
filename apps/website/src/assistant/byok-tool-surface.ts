@@ -411,6 +411,11 @@ export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerE
   readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"];
 };
 
+/** {@link createByokToolSurface}'s required bag: the site deps plus the website composition's one
+ *  reporter. Kept off {@link ByokToolSurfaceDeps} because `createApp` builds the reporter itself; a
+ *  caller-supplied deps field would let a route bag carry a second, unrelated reporter. */
+export type ByokToolSurfaceRequired = ByokToolSurfaceDeps & { readonly reporter: AssistantToolExecutorDeps["reporter"] };
+
 /** The optional half of {@link createByokToolSurface}'s arguments. */
 export interface ByokToolSurfaceOptions {
   readonly surfaceExchangeStore?: SurfaceExchangeStore;
@@ -566,13 +571,15 @@ function attachSurfaceExtensions(
 // then a no-op passthrough, never a behavior change for `installExtensions: false`.
 function composeSurfaceExecutor(
   required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined;
+    readonly reporter: AssistantToolExecutorDeps["reporter"];
     readonly observability?: AssistantToolExecutorDeps["observability"]; readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"] },
   options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit">,
 ): ToolExecutor {
-  const { registry, surfaceExchanges, federation, observability, observabilityEnabled } = required;
+  const { registry, surfaceExchanges, federation, reporter, observability, observabilityEnabled } = required;
   return withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
       registry,
       surfaceExchanges,
+      reporter,
       observability,
       observabilityEnabled,
       ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
@@ -773,7 +780,7 @@ function createSurfaceRegistryDeps(routeDeps: ByokToolSurfaceDeps, magicLinkPerE
  * `createToolExecutor` doc).
  * @overallScore 100
  */
-export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: ByokToolSurfaceOptions = {}): ByokToolSurface {
+export function createByokToolSurface(routeDeps: ByokToolSurfaceRequired, options: ByokToolSurfaceOptions = {}): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   // The input omits exactly the limiter and catalog reader built here. Domain slices already
   // declare the clock; the assembled object is checked against AssistantToolRegistryDeps.
@@ -802,7 +809,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     } }, { bearerToken: desktop.bearerToken }) },
   );
   const federation: FederationRuntime | undefined = extensions?.federation;
-  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation,
+  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation, reporter: routeDeps.reporter,
     observability: routeDeps.observability, observabilityEnabled: routeDeps.observabilityEnabled }, options);
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names

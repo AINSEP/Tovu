@@ -12,6 +12,7 @@ import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } 
 import { runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file The daemon-call adapters `assistant-tool-exec.ts` composes into the BYOK surface. Each must
@@ -30,7 +31,7 @@ test("the chat-attachment tools read the daemon's store over the lookup, and onl
       return [{ ref: "attachment:pending-1", name: "notes.txt", kind: "file", size: 3, createdAt: 1 }];
     },
   };
-  const module = createAssistantByokModule({ routeDeps: deps }, { attachmentLookup: attachmentLookup as never });
+  const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { attachmentLookup: attachmentLookup as never });
   const app = express();
   const router = express.Router();
   app.use(router);

@@ -17,6 +17,7 @@ import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScree
 import type { PageCapturePort } from "@jini-ai/core/contracts/site/web-screenshot";
 import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type WebScreenshotPorts } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
 
@@ -120,7 +121,7 @@ test("BYOK path: execute_delegated_tool hands the provider image content blocks,
     outbox: { enqueue: async () => {} },
     seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   } as unknown as ByokToolSurfaceDeps;
-  const surface = createByokToolSurface(routeDeps, { installExtensions: false, contributions });
+  const surface = createByokToolSurface(Object.assign(routeDeps, { reporter: testToolReporter() }), { installExtensions: false, contributions });
   const result = await surface.executeMetaTool({ principal: { id: PRINCIPAL_ID }, run: { id: "run-byok-shot" }, call: {
     name: "execute_delegated_tool",
     input: { toolId: WEB_SCREENSHOT_TOOL_ID, input: { url: "https://example.com/", viewport: "desktop" } },

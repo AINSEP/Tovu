@@ -22,6 +22,7 @@ import { PERMANENT_DELETE_TOOLS } from "../../../../contracts/headless/index.js"
 import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** Evaluate the host's real composition expressions without its database/listener/process boot.
  * Only the transport is replaced: the launch env, MCP stdio server, daemon routes, credential
@@ -111,7 +112,7 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     }
     return event;
   };
-  const toolExecutor = delegate || boundedConfirmation ? createToolExecutor({ registry }, { delegate }) : createAssistantToolExecutor({ registry, surfaceExchanges });
+  const toolExecutor = delegate || boundedConfirmation ? createToolExecutor({ registry }, { delegate }) : createAssistantToolExecutor({ reporter: testToolReporter(), registry, surfaceExchanges });
   const catalog: ToolCatalogQuery = deleteScope.catalog({ catalog: {
     search: () => [],
     describe: ({ id }) => {

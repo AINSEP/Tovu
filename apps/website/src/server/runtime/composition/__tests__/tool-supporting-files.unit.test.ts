@@ -7,12 +7,13 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { installSupportingFilesFixture, FOUNDATIONS, SKILL_MARKDOWN } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 type Result = { guidance: string; skillName: string; files: string[]; availableSkills: { name: string; description: string }[]; note?: string };
 
 /** Exercise the same authorization/execution stack used by the assistant, never a direct handler. */
 function reader(fixture: Awaited<ReturnType<typeof installSupportingFilesFixture>>) {
-  const executor = createAssistantToolExecutor({ registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
+  const executor = createAssistantToolExecutor({ reporter: testToolReporter(), registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
   return async (input: unknown): Promise<Result> => {
     const result = await executor.execute({ principal: { id: "skill-reader" }, run: { id: "skill-read-run" }, toolId: "agent_plugin_ui_ux_design", input });
     assert.equal(result.status, "completed");

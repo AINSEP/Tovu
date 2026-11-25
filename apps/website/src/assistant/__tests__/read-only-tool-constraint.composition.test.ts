@@ -29,6 +29,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 
 /**
@@ -125,7 +126,7 @@ async function buildHarness(): Promise<Harness> {
     registry.register(registration);
   }
 
-  const executor = createAssistantToolExecutor({
+  const executor = createAssistantToolExecutor({ reporter: testToolReporter(),
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
@@ -303,7 +304,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
   });
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const executor = createAssistantToolExecutor({
+  const executor = createAssistantToolExecutor({ reporter: testToolReporter(),
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },

@@ -11,6 +11,7 @@ import { providerTurnAdapters, runProviderToolTurn, type ProviderProtocol, type 
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -56,7 +57,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 }
 
 test("SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
+  const surface = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ principal: { id: "principal-byok-image" }, run: { id: "run-byok-image" }, call: {
     name: "execute_delegated_tool",
     input: { toolId: "assistant_demo_image" },
@@ -72,7 +73,7 @@ test("SURFACE: execute_delegated_tool returns an image-bearing tool output as co
 });
 
 test("SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
+  const surface = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ principal: { id: "principal-byok-image" }, run: { id: "run-byok-image" }, call: {
     name: "search_tools",
     input: { query: "view image" },

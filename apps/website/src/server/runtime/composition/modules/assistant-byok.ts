@@ -76,7 +76,7 @@ import {
   createStoredExecutionCredentialPort,
   createByokToolSurface,
   type ByokToolSurface,
-  type ByokToolSurfaceDeps,
+  type ByokToolSurfaceDeps, type ByokToolSurfaceRequired,
 } from "#src/assistant/index";
 import { providerTurnAdapters, runProviderToolTurn, type ProviderChatMessage, type ProviderToolExecutor, type ProviderToolTurnInput, type ProviderToolTurnOptions, type ProviderToolTurnResult, type ProviderTurnEvent } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "@jini-ai/agent-runtime/custom-instructions";
@@ -514,7 +514,7 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
-  { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
+  { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ByokToolSurfaceRequired["reporter"] },
   { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
 ): AssistantByokModuleHandle {
@@ -546,7 +546,7 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
+    createByokToolSurface({ ...surfaceDeps, reporter }, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:

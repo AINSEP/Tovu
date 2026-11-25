@@ -10,6 +10,7 @@ import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset
 import { providerTurnAdapters, runProviderToolTurn, type ProviderTurnEvent } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** Real provider turn + real ToolExecutor + real installed skill bytes; only the model is scripted. */
 test("assistant tool-call transcript contains the installed ui-ux-design foundations reference", async t => {
@@ -22,7 +23,7 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
   const delivered = foundations;
   const fixture = await installSupportingFilesFixture({}, { files: { "skills/ui-ux-design/references/foundations.md": foundations } });
   t.after(fixture.cleanup);
-  const executor = createAssistantToolExecutor({ registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
+  const executor = createAssistantToolExecutor({ reporter: testToolReporter(), registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
   const { run } = await createRunLifecycle({ eventLog: createInMemoryEventLog({}) }).start({ contextRef: "skill-supporting-files-chat" });
   const input = { skill: "ui-ux-design", file: "references/foundations.md" };
   const toolId = "agent_plugin_ui_ux_design";

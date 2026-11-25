@@ -15,6 +15,7 @@ import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
   const source = ts.createSourceFile("assistant-tool-exec.ts", readFileSync(new URL("../assistant-tool-exec.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
@@ -130,7 +131,7 @@ test("pinned preflight always inlines text and carries its identity, even with p
   await deps.chatRunLedger.durable!.accept({ conversationId, messageId: "pinned-pointer-answer", runId, principalId, workspaceId: deps.workspaceId,
     now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "Read notes", pluginRefIds: [pluginId] }) } }, {});
   const app = express();
-  createAssistantByokModule({ routeDeps: deps }).registerToolExecRoutes({ router: app });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }).registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId }) });
   assert.equal(response.status, 200);

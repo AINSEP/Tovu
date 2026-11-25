@@ -8,6 +8,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** Real server store, registration builder, executor and federation; only the remote session is fake. */
 export function serverFederationFixture({ connect, oauthFor }: {
@@ -22,7 +23,7 @@ export function serverFederationFixture({ connect, oauthFor }: {
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions }, { readAdmissions: () => surface.readFederationAdmissions({}, {}).then(snapshot => ({ ok: true as const, ...snapshot })) });
-  const surface = createByokToolSurface(deps, { contributions, federationConnect: connect });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions, federationConnect: connect });
   async function save({ serverId = "hosted", oauth = false, toolName = "echo" }: { serverId?: string; oauth?: boolean; toolName?: string } = {}) {
     await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
       workspaceId: deps.workspaceId, principalId: "owner", serverId, enabled: true,

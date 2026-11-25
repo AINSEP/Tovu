@@ -15,6 +15,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 
 const contributions = {
@@ -53,7 +54,7 @@ function walk(node: unknown, path: string, report: (msg: string) => void): void 
 test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 classes", async () => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  const surface = createByokToolSurface(deps as never, { contributions });
+  const surface = createByokToolSurface(Object.assign(deps as never, { reporter: testToolReporter() }), { contributions });
   const tools = buildAssistantToolRegistrations(deps as never, { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map(registration => registration.descriptor);
   assert.ok(tools.length > 100, `expected ~130 tools, got ${tools.length}`);
 

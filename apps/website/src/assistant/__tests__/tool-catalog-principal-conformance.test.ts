@@ -12,6 +12,7 @@ import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Two-sided conformance (todos: the Strapi-suite test): a read-only principal cannot SEE a
@@ -49,7 +50,7 @@ function build() {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   // The production composition (agent-daemon-scope-tools.ts): the read-only gate wraps the assistant
   // stack outermost, so it holds for every tool id no matter which decorator dispatches it.
-  const assistantExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-conformance" } }, {});
+  const assistantExecutor = createAssistantToolExecutor({ reporter: testToolReporter(), registry, surfaceExchanges, toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-conformance" } }, {});
   const executor = withReadOnlyToolConstraint({ inner: assistantExecutor, deps: { registry } });
   const discover = async (token: string, path: string, params: Record<string, string> = {}) => {
     const route = routes.find(candidate => candidate.path === path);

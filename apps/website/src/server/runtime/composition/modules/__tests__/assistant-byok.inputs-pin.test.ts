@@ -20,6 +20,7 @@ import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { BYOK_TURN_PATH, createAssistantByokModule } from "../assistant-byok.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 test("BYOK automatic preflight keeps the prompt and logs a redacted cause", async (t) => {
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
@@ -48,7 +49,7 @@ test("BYOK pins history, credential and attachment validation before opening SSE
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const messages = [{ role: "user", content: "Hello" }];
   const byok = { protocol: "anthropic", apiKey: "fixture-key", model: "fixture-model" };
@@ -74,7 +75,7 @@ test("BYOK pins absent and empty attachments, malformed plugin picks, and missin
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   let calls = 0;
   const providerUrl = await startStubProviderServer(t, () => {
@@ -117,7 +118,7 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const prompts: string[] = [];
   const providerUrl = await startStubProviderServer(t, (_count, body) => {
