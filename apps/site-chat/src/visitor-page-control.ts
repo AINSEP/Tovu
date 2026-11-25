@@ -160,12 +160,13 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
   const attachAbort = new AbortController();
   let binding: PageBinding | undefined;
   let attaching: Promise<PageBinding | undefined> | undefined;
-  let boundRunId: string | undefined;
+  // True between a turn's successful headers and that binding's end; actions outside it are dropped.
+  let turnBound = false;
   const state: ControlState = { acceptedPath: undefined, terminal: false, terminalMessages: undefined, deferredSubmission: undefined, acceptedSubmission: undefined };
   const navigateWhenReady = () => flushTerminalNavigation({ state, beforeNavigate, assign, close: () => binding?.close() });
   // A failed attach or rebind closes the stale binding and forgets it, so its token never travels
   // again and the next turn starts a fresh attachment instead of waiting on a dead one.
-  const invalidate = () => { attaching = undefined; boundRunId = undefined; binding?.close(); binding = undefined; };
+  const invalidate = () => { attaching = undefined; turnBound = false; binding?.close(); binding = undefined; };
   const ensureAttached = () => attaching ??= attachPage({ document, send, signal: attachAbort.signal, state, beforeNavigate, navigateWhenReady })
     .then(attached => {
       // A page closed mid-attach must not keep the bridge that finished attaching after it.
@@ -173,24 +174,25 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
       binding = attached; return attached;
     }, (error: unknown) => { invalidate(); throw error; });
   return { get ready() { return ensureAttached().then(() => undefined); },
-    async headers({ runId }: { runId?: string; signal?: AbortSignal } = {}, _options = {}): Promise<Record<string, string>> {
-      boundRunId = undefined;
+    async headers(_required: { signal?: AbortSignal } = {}, _options = {}): Promise<Record<string, string>> {
+      turnBound = false;
       resetTurn({ state });
       try {
         const attached = await ensureAttached();
         await attached?.rebind();
       } catch (error) { invalidate(); throw error; }
-      boundRunId = runId;
+      turnBound = true;
       return binding?.headers() ?? {};
     },
     currentHeaders(_required = {}, _options = {}) { return binding?.headers() ?? {}; },
     /**
-     * The model can request an effect but cannot deliver one: only an action delivered for the run
-     * this document bound for the current turn reaches the bridge, which claims it before the driver.
+     * The model can request an effect but cannot deliver one: only an action delivered while this
+     * document holds a live turn binding reaches the bridge, and the bridge claims it (begin, against
+     * that binding and the server's logical run) before the driver acts.
      * Live-only: the action is never stored, so a reload preserves chat without replaying effects.
      */
     acceptBrowserInvocation({ runId, action }: { runId: string; action: ChatPaneAgentToolAction }, _optional = {}) {
-      if (!boundRunId || runId !== boundRunId) return;
+      if (!turnBound) return;
       binding?.accept({ runId, action });
     },
     finish({ navigation, messages }: { navigation: boolean; messages?: ChatMessage[] }, _options = {}) { if (navigation) { state.terminalMessages = messages; state.terminal = true; navigateWhenReady(); } },

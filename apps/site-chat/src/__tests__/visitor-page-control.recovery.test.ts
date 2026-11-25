@@ -144,18 +144,29 @@ const quietHandlers = () => {
 test('an effect from another run is ignored', async () => {
   const page = visitorPage();
   try {
-    await page.control.headers({ runId: 'previous-run' });
-    await page.control.headers({ runId: 'current-run' });
-    page.control.acceptBrowserInvocation({ runId: 'previous-run', action: { invocationId: 'old-invocation', capabilityId: 'page.click', input: CLICK_INPUT } });
+    const transport = createSiteAssistantTransport({}, { frontend: page.control, fetch: chatAnswering({ middle: [
+      ...pageActionFrames({ toolCallId: 'current-invocation', action: { runId: 'logical-run', invocationId: 'current-invocation', capabilityId: 'page.click', input: CLICK_INPUT } }),
+      ...pageActionFrames({ toolCallId: 'other-invocation', action: { runId: 'previous-logical-run', invocationId: 'other-invocation', capabilityId: 'page.click', input: CLICK_INPUT } }),
+    ] }) });
+    const { handlers, errors, finished } = quietHandlers();
     const responded = once(page.settled, 'response', { signal: AbortSignal.timeout(2_000) });
-    page.control.acceptBrowserInvocation({ runId: 'current-run', action: { invocationId: 'new-invocation', capabilityId: 'page.click', input: CLICK_INPUT } });
+    await transport.startRun(visitorTurn('open the menu'), handlers);
+    await finished;
     await responded;
-    assert.deepEqual(page.begins.map(begin => begin.body), [{ sessionId: 's1', runId: 'current-run', invocationId: 'new-invocation' }]);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.deepEqual(errors, []);
+    assert.deepEqual(page.begins.map(begin => begin.body), [{ sessionId: 's1', runId: 'logical-run', invocationId: 'current-invocation' }]);
     // Begin travels with the original attachment's credentials and the live bind token.
     assert.equal(page.begins[0]!.headers.get('x-frontend-tab'), 'tab');
+    assert.equal(page.begins[0]!.headers.get('x-visitor-publication'), 'reviewed');
     assert.equal(page.begins[0]!.headers.get('x-frontend-bind-token'), 'live-token');
-    assert.deepEqual(page.responses.map(response => response.invocationId), ['new-invocation']);
+    assert.deepEqual(page.responses.map(response => response.invocationId), ['current-invocation']);
     assert.equal(page.clicks(), 1);
+    // Without a live turn binding (the page closed it), nothing reaches the bridge at all.
+    page.control.close();
+    page.control.acceptBrowserInvocation({ runId: 'logical-run', action: { invocationId: 'late-invocation', capabilityId: 'page.click', input: CLICK_INPUT } });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(page.begins.length, 1);
   } finally { page.restore(); }
 });
 
@@ -165,8 +176,8 @@ test('result carries the invocation id', async () => {
   try {
     const transport = createSiteAssistantTransport({}, { frontend: page.control, fetch: chatAnswering({ posts, middle: [
       // A model-side call id that differs from the delivered tool call is not a capability.
-      ...pageActionFrames({ toolCallId: 'reg-inv-2', action: { invocationId: 'model-call-9', capabilityId: 'page.click', input: CLICK_INPUT } }),
-      ...pageActionFrames({ toolCallId: 'reg-inv-1', action: { invocationId: 'reg-inv-1', capabilityId: 'page.click', input: CLICK_INPUT } }),
+      ...pageActionFrames({ toolCallId: 'reg-inv-2', action: { runId: 'logical-run-1', invocationId: 'model-call-9', capabilityId: 'page.click', input: CLICK_INPUT } }),
+      ...pageActionFrames({ toolCallId: 'reg-inv-1', action: { runId: 'logical-run-1', invocationId: 'reg-inv-1', capabilityId: 'page.click', input: CLICK_INPUT } }),
     ] }) });
     const { handlers, errors, finished } = quietHandlers();
     const responded = once(page.settled, 'response', { signal: AbortSignal.timeout(2_000) });
@@ -174,8 +185,10 @@ test('result carries the invocation id', async () => {
     await finished;
     await responded;
     assert.deepEqual(errors, []);
+    // The claim names the server's logical run from the delivery, not the client's AG-UI run id.
     assert.equal(posts[0]!.runId, runId);
-    assert.deepEqual(page.begins.map(begin => begin.body), [{ sessionId: 's1', runId, invocationId: 'reg-inv-1' }]);
+    assert.notEqual(runId, 'logical-run-1');
+    assert.deepEqual(page.begins.map(begin => begin.body), [{ sessionId: 's1', runId: 'logical-run-1', invocationId: 'reg-inv-1' }]);
     assert.deepEqual(page.responses.map(response => response.invocationId), ['reg-inv-1']);
     assert.equal(page.clicks(), 1);
   } finally { page.restore(); }
@@ -185,7 +198,7 @@ test('navigation persists before the document is replaced and never replays', as
   const page = visitorPage();
   try {
     const transport = createSiteAssistantTransport({}, { frontend: page.control, fetch: chatAnswering({ reason: 'navigation', middle:
-      pageActionFrames({ toolCallId: 'reg-nav-1', action: { invocationId: 'reg-nav-1', capabilityId: 'page.navigate', input: NAVIGATE_INPUT } }) }) });
+      pageActionFrames({ toolCallId: 'reg-nav-1', action: { runId: 'logical-run-1', invocationId: 'reg-nav-1', capabilityId: 'page.navigate', input: NAVIGATE_INPUT } }) }) });
     const { handlers, errors, finished } = quietHandlers();
     await transport.startRun(visitorTurn('take me to about'), handlers);
     await finished;

@@ -137,6 +137,8 @@ describe("visitor AG-UI transport", () => {
     const cut = controlledServer();
     const cutRun = makeHandlers();
     await createSiteAssistantTransport({}, { fetch: cut.fetch, frontend }).startRun(baseInput([userMessage("hi")]), cutRun.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     cut.answer();
     const partial = cut.started() + frame({ type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" }) + frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "Half an ans" });
     cut.send(partial.slice(0, 25));
@@ -167,6 +169,8 @@ describe("visitor AG-UI transport", () => {
     const done = controlledServer();
     const doneRun = makeHandlers();
     await createSiteAssistantTransport({}, { fetch: done.fetch, frontend }).startRun(baseInput([userMessage("hi")]), doneRun.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     done.answer();
     done.send(done.started() + text("Full answer") + done.finished());
     await doneRun.donePromise;

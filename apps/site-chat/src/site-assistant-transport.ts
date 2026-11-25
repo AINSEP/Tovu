@@ -127,7 +127,7 @@ const activeRuns = new Map<string, AbortController>();
 /** The optional page channel of this document (`createVisitorPageControl`), injected by the host. */
 export interface VisitorFrontend {
   /** All-or-nothing page binding headers for one turn's run; rejects when attach or rebind failed. */
-  headers(required?: { runId?: string; signal?: AbortSignal }): Promise<Record<string, string>>;
+  headers(required?: { signal?: AbortSignal }): Promise<Record<string, string>>;
   finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
   /** Live-only: a delivered page action goes here and nowhere else (never events or storage). */
   acceptBrowserInvocation(required: { runId: string; action: ChatPaneAgentToolAction }, optional?: Record<string, never>): void;
@@ -144,7 +144,7 @@ const MAX_PAGE_ACTION_ARGS_CHARS = 96_000;
  * page header, and a Stop during the attach resolves at once so the caller can recheck its signal.
  */
 export async function resolvePageHeadersForTurn(
-  { frontend, signal, runId }: { frontend: VisitorFrontend | undefined; signal: AbortSignal; runId: string },
+  { frontend, signal }: { frontend: VisitorFrontend | undefined; signal: AbortSignal },
   _optional = {},
 ): Promise<Record<string, string>> {
   if (!frontend || signal.aborted) return {};
@@ -152,7 +152,7 @@ export async function resolvePageHeadersForTurn(
   const stopped = new Promise<Record<string, string>>((resolve) => { onAbort = () => resolve({}); });
   signal.addEventListener("abort", onAbort, { once: true });
   try {
-    return await Promise.race([frontend.headers({ runId, signal }).catch(() => ({})), stopped]);
+    return await Promise.race([frontend.headers({ signal }).catch(() => ({})), stopped]);
   } finally {
     signal.removeEventListener("abort", onAbort);
   }
@@ -192,7 +192,9 @@ interface ParkedApproval { readonly ctx: EventContext; answer?: Promise<boolean>
 /** Host-scoped (one per transport), keyed by challenge id. */
 type Approvals = Map<string, ParkedApproval>;
 /** `turnId` is minted once in `startRun`, so every POST made for this run (a retry included) reuses it. */
-type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch; approvals: Approvals };
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch; approvals: Approvals; pageRun: PageRunPin };
+/** The server's logical run for this visitor turn, pinned by its first delivered page action. */
+type PageRunPin = { runId: string | undefined };
 
 /** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
 function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs, approvals }: RunArgs, _options = {}) {
@@ -303,21 +305,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The delivered action, only when it names its own tool call: a model call id is not a capability. */
-function readPageAction({ toolCallId, json }: { toolCallId: string; json: string }, _options = {}): ChatPaneAgentToolAction | undefined {
+/**
+ * The delivered `{ runId, invocationId, capabilityId, input }`, only when it names its own tool call:
+ * a model call id is not a capability. `runId` is the server's logical run (the frontend registry's
+ * binding key), not this segment's AG-UI run id, which the client chose and a resume replaces.
+ */
+function readPageAction({ toolCallId, json }: { toolCallId: string; json: string }, _options = {}): { runId: string; action: ChatPaneAgentToolAction } | undefined {
   let value: unknown;
   try { value = JSON.parse(json); } catch { return undefined; }
-  if (!isRecord(value) || value.invocationId !== toolCallId) return undefined;
+  if (!isRecord(value) || value.invocationId !== toolCallId || typeof value.runId !== "string") return undefined;
   if (typeof value.capabilityId !== "string" || !isRecord(value.input)) return undefined;
-  return { invocationId: toolCallId, capabilityId: value.capabilityId, input: value.input };
+  return { runId: value.runId, action: { invocationId: toolCallId, capabilityId: value.capabilityId, input: value.input } };
+}
+
+/** One logical run per visitor turn: an action naming any other run than the first is ignored. */
+function deliverPageAction({ delivered, ctx }: { delivered: { runId: string; action: ChatPaneAgentToolAction }; ctx: EventContext }, _options = {}) {
+  const pinned = (ctx.args.pageRun.runId ??= delivered.runId);
+  if (delivered.runId !== pinned) return;
+  ctx.args.options.frontend?.acceptBrowserInvocation({ runId: pinned, action: delivered.action });
+}
+
+/** An oversized call is dropped whole: a truncated action must never reach the page. */
+function appendToolCallArgs({ wire, toolCallId, next }: { wire: VisitorWire; toolCallId: string; next: string }, _options = {}) {
+  if (next.length > MAX_PAGE_ACTION_ARGS_CHARS) wire.toolCalls.delete(toolCallId);
+  else wire.toolCalls.set(toolCallId, next);
 }
 
 type ToolCallEvent = Extract<AGUIEvent, { type: EventType.TOOL_CALL_START | EventType.TOOL_CALL_ARGS | EventType.TOOL_CALL_END }>;
 
 /**
  * The model can request an effect but cannot deliver one: only a complete `tovu.page_action` the
- * server projected onto this validated segment reaches the page control, under the logical run id
- * the page bound, and as live-only data — it never enters events, the transcript or storage.
+ * server projected onto this validated segment reaches the page control, under the server's logical run
+ * id it names, and as live-only data — it never enters events, the transcript or storage.
  */
 function handleToolCallEvent({ event, ctx }: { event: ToolCallEvent; ctx: EventContext }, _options = {}) {
   const { wire } = ctx;
@@ -329,14 +348,12 @@ function handleToolCallEvent({ event, ctx }: { event: ToolCallEvent; ctx: EventC
   const soFar = wire.toolCalls.get(event.toolCallId);
   if (soFar === undefined) return;
   if (event.type === EventType.TOOL_CALL_ARGS) {
-    const next = soFar + event.delta;
-    if (next.length > MAX_PAGE_ACTION_ARGS_CHARS) wire.toolCalls.delete(event.toolCallId);
-    else wire.toolCalls.set(event.toolCallId, next);
+    appendToolCallArgs({ wire, toolCallId: event.toolCallId, next: soFar + event.delta });
     return;
   }
   wire.toolCalls.delete(event.toolCallId);
-  const action = readPageAction({ toolCallId: event.toolCallId, json: soFar });
-  if (action) ctx.args.options.frontend?.acceptBrowserInvocation({ runId: ctx.args.runId, action });
+  const delivered = readPageAction({ toolCallId: event.toolCallId, json: soFar });
+  if (delivered) deliverPageAction({ delivered, ctx });
 }
 
 function handleRunFinished({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }>; ctx: EventContext }, _options = {}) {
@@ -409,7 +426,7 @@ async function failOnRefusal({ response, life }: { response: Response; life: Run
 function createVisitorRequest({ ctx }: { ctx: EventContext }, _options = {}) {
   const { args, life, wire } = ctx;
   return async ({ input, signal }: { input: RunAgentInput; signal: AbortSignal }): Promise<Response> => {
-    const frontendHeaders = await resolvePageHeadersForTurn({ frontend: args.options.frontend, signal, runId: args.runId });
+    const frontendHeaders = await resolvePageHeadersForTurn({ frontend: args.options.frontend, signal });
     // A Stop that raced the page attachment ends the turn; it must never become a page-less chat.
     signal.throwIfAborted();
     const response = await args.fetchChat(CHAT_URL, {
@@ -523,7 +540,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat, approvals };
+      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat, approvals, pageRun: { runId: undefined } };
       const runInput = buildVisitorRunInput({ input, threadId: threadIdFor({ input }), runId, turnId: args.turnId });
       void performRun({ args, life: createRunLifecycle(args), runInput });
       return { runId };
