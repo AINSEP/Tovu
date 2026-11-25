@@ -229,13 +229,13 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
     beforeAddedRows: ({ rows }: { rows: readonly { siteDir: string }[] }, _opt: Record<string, never> = {}): void => {
       for (const { siteDir } of rows) retirement.invalidateSync({ partition: partitionDirName(sitePartition({ siteDir })), subjectDir: siteDir, reason: "tracked-again" });
     },
-    /** Cache maintenance (ST-1/ST-3) reads holders, managed names and tokens from this same interlock. */
+    /**
+     * Cache maintenance (ST-1/ST-3) and the boot partition pass (ST-2c) read holders, managed names and
+     * tokens from this same interlock; the pass rechecks holders under the writer fence.
+     */
     readHoldersStrict: () => interlock.readHoldersStrict(),
-    isManaged,
     newToken: () => proc.newToken(),
     withPartitionWriter: <T>({ run }: { run: (context: PartitionWriterContext) => Promise<T> }) => interlock.withPartitionWriter({ run }),
-    /** The strict holder read the boot partition pass rechecks under the writer fence (ST-2c). */
-    readHoldersStrict: () => interlock.readHoldersStrict(),
   };
 }
 export type DesktopPartitions<S> = ReturnType<typeof bindDesktopPartitions<S>>;

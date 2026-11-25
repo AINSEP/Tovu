@@ -347,10 +347,11 @@ const desktopCacheHooks = desktopCacheMaintenance({
 });
 
 /**
- * The boot partition pass's cache hooks (ST-2c seam). Deliberately empty: the one-time and update cache
- * clears (ST-1.T/ST-3.T) plug in here as entries; until then the pass does no per-partition cache work.
+ * The boot partition pass's cache hooks (ST-2c seam): the one-time and update cache clears (ST-1.T then
+ * ST-3.T) run per partition inside the pass's writer fence. Packaged evidence gates each one, and with no
+ * GO record for the bundled Electron every entry is a no-op, so this list never touches login state.
  */
-const bootPartitionMaintenance: readonly PartitionMaintenance[] = [];
+const bootPartitionMaintenance: readonly PartitionMaintenance[] = [desktopCacheHooks.boot];
 /** This profile boot's partition pass, retained so desktop Storage (ST-18a) can read `lastReport()`. */
 let desktopPartitionPass: DesktopPartitionPassRun | null = null;
 /** The ST-2c next-start pass for this profile — `runDesktopBoot` calls it once. */
