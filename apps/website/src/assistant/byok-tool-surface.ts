@@ -30,6 +30,7 @@ import { constrainPrincipalToReadOnlyTools, filterReadOnlyToolCatalog } from "@j
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { ROUTINE_TOOL_IDS } from "#src/contracts/core/tool-metadata/routines";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
@@ -437,6 +438,11 @@ export interface ByokToolSurfaceOptions {
   readonly installExtensions?: boolean;
   readonly contributions?: AssistantToolContributions;
   /**
+   * Who may DISCOVER the four routine tools: the live owner of a ready site. Absent means nobody, so
+   * an unbound/global or visitor view omits them. Invocation rechecks authority again in the handler.
+   */
+  readonly routineDiscovery?: RoutineDiscovery;
+  /**
    * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
    * injected by the composition root (`modules/assistant-byok.ts` passes
    * `server/runtime/composition/installed-extension-tools.ts`'s `registerInstalledExtensionTools`)
@@ -470,6 +476,24 @@ export interface ByokToolSurfaceOptions {
    * composition root for the same module-cycle reason as `registerInstalledExtensions`.
    */
   readonly hostRegistrations?: (required: { readonly registrations: readonly ToolRegistration[] }) => readonly ToolRegistration[];
+}
+
+/** The per-principal gate for routine discovery (see {@link ByokToolSurfaceOptions.routineDiscovery}). */
+type RoutineDiscovery = { readonly isVisible: (required: { readonly principalId: string }, optional?: Record<string, never>) => Promise<boolean> };
+
+/** Which routine ids to hide from this principal: all four unless the discovery gate says they are the ready site's owner. */
+export async function routineIdsHiddenFrom({ discovery, principalId }: { discovery: RoutineDiscovery | undefined; principalId: string }, _optional = {}): Promise<ReadonlySet<string>> {
+  return discovery && (await discovery.isVisible({ principalId }, {})) ? new Set() : ROUTINE_TOOL_IDS;
+}
+
+/** The catalog with `hidden` ids removed from search and describe, so they cannot be found or promoted. */
+export function withoutHiddenTools({ catalog, hidden }: { catalog: ReturnType<typeof buildToolCatalogQuery>; hidden: ReadonlySet<string> }, _optional = {}): ReturnType<typeof buildToolCatalogQuery> {
+  if (hidden.size === 0) return catalog;
+  return {
+    ...catalog,
+    search: (input, { limit = 10, ...rest } = {}) => catalog.search(input, { ...rest, limit: limit + hidden.size }).filter(hit => !hidden.has(hit.id)).slice(0, limit),
+    describe: (input, options) => (hidden.has(input.id) ? null : catalog.describe(input, options)),
+  };
 }
 
 /** Stable discovery-filter port of `createChatDeleteScope`'s scope. */
@@ -681,8 +705,9 @@ function createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, e
       runId: run.id,
     };
 
+    const hidden = await routineIdsHiddenFrom({ discovery: options.routineDiscovery, principalId: principal.id });
     return deleteScope.fresh({ principalId: principal.id, run: () => {
-      const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog: readCatalog() }) });
+      const visibleCatalog = withoutHiddenTools({ hidden, catalog: filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog: readCatalog() }) }) });
       if (call.name === "search_tools") return runSearchTools({ catalog: visibleCatalog, registry: visibleRegistry, args: args, audit: catalogAudit });
       if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
       if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool({ executor: executor, principal: principal, run: run, args: args, signal: signal, emitSurface: emitSurface });
@@ -715,7 +740,7 @@ function createSurfaceRunFactory(visibleRegistry: ToolRegistry, executeMetaTool:
   return { createRun };
 }
 
-function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }: { executor: ToolExecutor; visibleRegistry: ToolRegistry; deleteScope: ReturnType<typeof createChatDeleteScope>; syncInstalled: () => Promise<void> }): ByokToolSurface['daemonCalls'] {
+function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled, routineDiscovery }: { executor: ToolExecutor; visibleRegistry: ToolRegistry; deleteScope: ReturnType<typeof createChatDeleteScope>; syncInstalled: () => Promise<void>; routineDiscovery?: RoutineDiscovery }): ByokToolSurface['daemonCalls'] {
   return {
       executor: {
         ...executor,
@@ -726,7 +751,8 @@ function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, sync
       },
       listToolsFor: async ({ principalId }) => {
         await syncInstalled();
-        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}) });
+        const hidden = await routineIdsHiddenFrom({ discovery: routineDiscovery, principalId });
+        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}).filter(tool => !hidden.has(tool.id)) });
       },
     };
 }
@@ -839,7 +865,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     readExternalMcpToolNames: ({ serverId, admissionRevision }) => readFrozenFederationToolNames({ registry,
       connectionId: serverId, origin: { kind: "roster", admissionRevision } }),
     awaitFederation,
-    daemonCalls: createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }),
+    daemonCalls: createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled, routineDiscovery: options.routineDiscovery }),
   };
 }
 

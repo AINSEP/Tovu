@@ -21,6 +21,8 @@ import { consentToolHost } from "#src/features/consent/host-bindings";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeAgentPauseTools } from "./agent-pause-tools.js";
+import { contributeRoutineTools, type RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
+import { requireHumanConfirm as requireRoutineHumanConfirm } from "#src/contracts/core/human-confirm";
 import { contributeSiteUpdateTools, type SiteUpdateRuntime } from "#src/features/site-update/tools";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
@@ -388,6 +390,7 @@ export function installFirstPartyToolContributors(
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
+    routines,
   }: {
     deployOpsRegistry?: DeployOpsRegistry;
     observability?: ObservabilityPort;
@@ -401,6 +404,8 @@ export function installFirstPartyToolContributors(
     chatAttachmentsDir?: string;
     mediaVideoPorts?: MediaVideoToolPorts;
     readInstallAttachment?: InstallAttachmentReader;
+    /** The serving site's bound routine commands. Absent (release flag off, web-only, export) the four routine tools are never registered. */
+    routines?: RoutineToolHost;
   } = {},
 ): void {
   installStatusAndAgentTools(contributions, () => findPublishCandidate);
@@ -420,6 +425,7 @@ export function installFirstPartyToolContributors(
   const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
   installCredentialSaveTools(contributions);
   installWorkspaceToolContributors(contributions);
+  if (routines) contributions.contributors.register({ contribution: contributeRoutineTools({ ...routines, requireHumanConfirm: requireRoutineHumanConfirm }) });
 }
 
 function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>) {

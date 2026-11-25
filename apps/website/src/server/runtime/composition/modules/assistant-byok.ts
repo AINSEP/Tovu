@@ -88,6 +88,7 @@ import type { AgentRunStatus } from "@jini-ai/core/contracts/observability";
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { createRoutineToolDiscovery, type RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
@@ -515,8 +516,10 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
   { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
-  { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
-    federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
+  { toolSurface, attachmentLookup, federationConnect, routines }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
+    federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
+    /** The serving site's bound routine commands; supplied only when the routines release flag is on. Absent, no routine tool exists. */
+    routines?: RoutineToolHost } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
@@ -538,7 +541,8 @@ export function createAssistantByokModule(
   installFirstPartyToolContributors({ contributions }, { readAdmissions: () => serverFederation.admissions(),
     readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
-    readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
+    readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }),
+    ...(routines ? { routines } : {}) });
   const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({
     store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock }) } : routeDeps;
   // The public contract and both roots require complete BYOK dependencies;
@@ -546,7 +550,7 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
+    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns, routines }));
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
@@ -607,13 +611,15 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
   };
 }
 
-function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns }: {
+function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns, routines }: {
+  routines?: RoutineToolHost;
   federationConnect: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
   attachmentLookup: AttachmentLookup | undefined;
   automaticPluginRuns: () => ReturnType<typeof createAutomaticPluginRuns>;
 }): NonNullable<Parameters<typeof createByokToolSurface>[1]> {
   return {
       contributions,
+      ...(routines ? { routineDiscovery: createRoutineToolDiscovery(routines) } : {}),
       ...(federationConnect ? { federationConnect } : {}),
       // Preserve the daemon's remembered approval contract on the existing server confirmer.
       // Async call context supplies the current chat; no process-global last-chat binding.
