@@ -13,6 +13,18 @@ import type { UsePreviewEmbedIds } from "./hooks/use-preview-embed-ids.hooks";
  * identities are module-level and stable, so the form + iframe pair survives fullscreen toggles.
  */
 
+/** What `PagePreview` needs to ask which template-rendered videos the sandboxed preview contains —
+ *  bundled so the editor threads ONE prop down to the pane, then spread into `PagePreview`'s own props
+ *  (the hook stays a top-level, required hook prop there). */
+export interface PreviewEmbeds {
+  /** The real post id (never the slug) and the preview URL's template tri-state, for embed inspection. */
+  pageId: string;
+  templateChoice: string | null;
+  /** REQUIRED hook prop (bound to the authenticated port in `panels.tsx`, a fake in tests): the
+   *  template-rendered video ids the sandboxed preview document cannot hand the admin frame. */
+  usePreviewEmbedIds: UsePreviewEmbedIds;
+}
+
 /**
  * Renders the page at a fixed viewport width and scales the whole thing down to fit the pane.
  *
@@ -99,7 +111,7 @@ export function PagePreview({
   usePreviewEmbedIds,
   useThemePreviewFrameHook,
   t,
-}: {
+}: PreviewEmbeds & {
   html: string;
   bodyJson?: Record<string, unknown>;
   width: number;
@@ -132,12 +144,6 @@ export function PagePreview({
   /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
    *  `PagePreviewFrame` branches' `<iframe onLoad>` below. */
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
-  /** The real post id (never the slug) and the preview URL's template tri-state, for embed inspection. */
-  pageId: string;
-  templateChoice: string | null;
-  /** REQUIRED hook prop (bound to the authenticated port in `panels.tsx`, a fake in tests): the
-   *  template-rendered video ids the sandboxed preview document cannot hand the admin frame. */
-  usePreviewEmbedIds: UsePreviewEmbedIds;
   /** REQUIRED hook prop: the theme preview refresh hook, bound at the editor's composition point so
    *  tests can drive `revision` without the live theme-refresh channel. */
   useThemePreviewFrameHook: typeof useThemePreviewFrame;

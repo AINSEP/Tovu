@@ -11,7 +11,7 @@ import {
   type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
-import { PagePreview } from "./PageEditorPreview";
+import { PagePreview, type PreviewEmbeds } from "./PageEditorPreview";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import type { UsePreviewEmbedIds } from "./hooks/use-preview-embed-ids.hooks";
 
@@ -914,15 +914,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         dirty={dirty}
         contentDirty={contentDirty}
         templatePreviewUrl={templatePreviewUrl}
-        pageId={page.id}
-        templateChoice={templateChoice}
-        usePreviewEmbedIds={usePreviewEmbedIds}
-        previewFormRef={previewFormRef}
-        previewFormTarget={previewFormTarget}
-        frameRef={frameRef}
-        paneWidth={paneWidth}
-        previewExpanded={previewExpanded}
-        onTogglePreviewExpanded={togglePreviewExpanded}
+        previewEmbeds={{ pageId: page.id, templateChoice, usePreviewEmbedIds }}
+        previewFormRef={previewFormRef} previewFormTarget={previewFormTarget}
+        frameRef={frameRef} paneWidth={paneWidth}
+        previewExpanded={previewExpanded} onTogglePreviewExpanded={togglePreviewExpanded}
         t={t}
         embedPlaceholderDescriber={embedPlaceholderDescriber}
         onRequestEditHtml={onRequestEditHtml}
@@ -1002,39 +997,12 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  * .interactiveEditorRef`'s own doc.
  */
 function PageEditorPane({
-  view,
-  canvasStyling,
-  html,
-  bodyJson,
-  setHtml,
-  draftHtml,
-  setDraftHtml,
-  htmlTextareaRef,
-  onHtmlScroll,
-  onPreviewFrameLoad,
-  device,
-  slug,
-  version,
-  contentRevision,
-  status,
-  dirty,
-  contentDirty,
-  templatePreviewUrl,
-  pageId,
-  templateChoice,
-  usePreviewEmbedIds,
-  previewFormRef,
-  previewFormTarget,
-  frameRef,
-  paneWidth,
-  previewExpanded,
-  onTogglePreviewExpanded,
-  t,
-  embedPlaceholderDescriber,
-  onRequestEditHtml,
-  onInteractiveSourceError,
-  interactiveEditorRef,
-  setHtmlFromCanvas,
+  view, canvasStyling, html, bodyJson, setHtml, draftHtml, setDraftHtml,
+  htmlTextareaRef, onHtmlScroll, onPreviewFrameLoad, device, slug, version,
+  contentRevision, status, dirty, contentDirty, templatePreviewUrl, previewEmbeds,
+  previewFormRef, previewFormTarget, frameRef, paneWidth, previewExpanded,
+  onTogglePreviewExpanded, t, embedPlaceholderDescriber, onRequestEditHtml,
+  onInteractiveSourceError, interactiveEditorRef, setHtmlFromCanvas,
 }: {
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
@@ -1062,10 +1030,8 @@ function PageEditorPane({
   dirty: boolean;
   contentDirty: boolean;
   templatePreviewUrl: string;
-  /** Threaded straight through to `PagePreview` (embed inspection); this dispatcher does not use them. */
-  pageId: string;
-  templateChoice: string | null;
-  usePreviewEmbedIds: UsePreviewEmbedIds;
+  /** Threaded straight through to `PagePreview` (embed inspection); this dispatcher does not use it. */
+  previewEmbeds: PreviewEmbeds;
   previewFormRef: (node: HTMLFormElement | null) => void;
   previewFormTarget: string;
   frameRef: (node: HTMLDivElement | null) => void;
@@ -1118,9 +1084,7 @@ function PageEditorPane({
         expanded={previewExpanded}
         onToggleExpanded={onTogglePreviewExpanded}
         onFrameLoad={onPreviewFrameLoad}
-        pageId={pageId}
-        templateChoice={templateChoice}
-        usePreviewEmbedIds={usePreviewEmbedIds}
+        {...previewEmbeds}
         useThemePreviewFrameHook={useThemePreviewFrame}
         t={t}
       />
