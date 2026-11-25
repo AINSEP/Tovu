@@ -243,7 +243,7 @@ for (const scenario of [
     const body = await res.json() as { error: { code: string; requestId: string } };
     assert.deepEqual(body, { error: {
       code: "INTERNAL_ERROR",
-      message: "The server could not finish this request. Check whether your change was saved, then copy the request ID and report this problem.",
+      message: "The server could not finish this request. Nothing was changed. Try again; if it keeps failing, copy the request ID and report this problem.",
       requestId: body.error.requestId,
     } });
     assert.match(body.error.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
