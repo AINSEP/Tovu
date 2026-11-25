@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
 import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
-import type { AgentPluginInstallController } from "./hooks/use-agent-plugin-install.hooks";
+import type { AgentPluginInstallController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
 
 /**
  * The Agent Plugins "Add a plugin" tab: upload one `.zip` (drop or pick) or a picked folder (zipped

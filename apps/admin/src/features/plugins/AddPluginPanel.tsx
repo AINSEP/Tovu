@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
 import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
-import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
+import type { PluginInstallController } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
 
 /**
  * The Plugins "Add a plugin" tab, on the shared `InstallTabCard` (owner, 2026-10-06 — replaces the

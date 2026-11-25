@@ -1,8 +1,9 @@
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
-import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 /**
@@ -11,7 +12,7 @@ import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations
  */
 
 function setup(port: AgentPluginInstallPort, onInstalled = vi.fn()) {
-  const hook = renderHook(() => useAgentPluginInstall({ port, t: (key) => key, onInstalled }));
+  const hook = renderHook(() => useAgentPluginInstall({ ...HOST_AGENT_INSTALL, port, t: (key) => key, onInstalled }));
   return { onInstalled, ...hook };
 }
 

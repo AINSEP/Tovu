@@ -15,14 +15,14 @@ import { AgentPluginRow, type AgentPluginRowStateControl } from "@jini-ai/admin/
 import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
-import { agentPluginDisplayName, pluginRules, updatableAgentPluginDigest } from "./rules";
+import { agentPluginDisplayName, isApiError, pluginRules, updatableAgentPluginDigest } from "./rules";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
-import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
-import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginUpdate } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-update.hooks";
 
 import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
 
@@ -100,7 +100,7 @@ export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandl
   onUpdated: (plugin: AgentPluginListRow) => void;
   port: AgentPluginInstallPort;
 }) {
-  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
+  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated, productName: "Tovu", isApiError, rules: pluginRules });
   return <AgentPluginUpdateControl update={update} t={t} agentHandleBase={agentHandleBase} />;
 }
 
@@ -410,7 +410,7 @@ function AgentPluginsScreen({
   const tab = useAgentPluginTabHook({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
-  const installController = useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
+  const installController = useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled, productName: "Tovu", isApiError, rules: pluginRules });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();

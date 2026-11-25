@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
-import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
+import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 
 /**
  * @file A plugin's own admin screens ("surfaces"): the row's Manage button appears only once the

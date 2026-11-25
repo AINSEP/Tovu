@@ -18,7 +18,8 @@ import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-contex
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useWiredPluginPackageFiles } from "./hooks/use-plugin-package-files.hooks";
 import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginRules, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
-import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
+import { useWiredPlugins } from "./hooks/use-plugins.hooks";
+import type { PluginsController } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";

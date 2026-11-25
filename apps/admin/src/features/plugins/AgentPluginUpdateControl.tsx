@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId } from "react";
 
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
-import type { AgentPluginUpdateState } from "./hooks/use-agent-plugin-update.hooks";
+import type { AgentPluginUpdateState } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-update.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginUpdateControlProps {

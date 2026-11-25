@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Plugins } from "../Plugins";
-import type { PluginsController } from "../hooks/use-plugins.hooks";
+import type { PluginsController } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 
 /**

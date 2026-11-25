@@ -12,11 +12,14 @@ import { tPlugins } from "../../lib/i18n-common";
 // because the wording names this product:
 // Compatibility first: "Not for this Tovu version" explains a switch that refuses to
 // turn on, and "Needs …" names capabilities no other enabled plugin provides.
+/** This product's request-layer error test, shared with the install controllers that Jini's hooks parameterise on it. */
+export function isApiError(e: unknown): e is ApiError { return e instanceof ApiError; }
+
 const rules = createPluginRules({
   productName: "Tovu",
   translate: tPlugins,
   describeApiError: describeApiErrorDefault,
-  isApiError: (e): e is ApiError => e instanceof ApiError,
+  isApiError,
   isProviderSettingRequired,
 });
 

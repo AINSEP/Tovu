@@ -4,7 +4,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
-import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
+import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
 
 /**

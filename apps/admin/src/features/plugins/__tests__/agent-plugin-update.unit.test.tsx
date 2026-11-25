@@ -1,3 +1,4 @@
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -7,7 +8,7 @@ import { AgentPlugins, AgentPluginUpdateSlot } from "../AgentPlugins";
 import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
 import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
-import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
@@ -132,7 +133,7 @@ describe("AgentPluginUpdateControl, composed by its wired slot", () => {
 describe("useAgentPluginInstall — install vs update copy", () => {
   function hookWith(installZip: () => Promise<never>, update?: { pluginId: string; expectedOldDigest: string }) {
     const port = { sha256: async () => "sha", installZip: vi.fn(installZip) };
-    return renderHook(() => useAgentPluginInstall({ port, t: (key) => `t:${key}`, onInstalled: vi.fn() }, update ? { update } : {})).result;
+    return renderHook(() => useAgentPluginInstall({ ...HOST_AGENT_INSTALL, port, t: (key) => `t:${key}`, onInstalled: vi.fn() }, update ? { update } : {})).result;
   }
 
   it("an unrecognised install refusal is the install's own try-again line, translated", async () => {
@@ -153,7 +154,7 @@ describe("useAgentPluginInstall — install vs update copy", () => {
 
   it("an update of identical bytes says it is already installed", async () => {
     const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { alreadyInstalled: true });
-    const { result } = renderHook(() => useAgentPluginInstall({ port, t: (key) => key, onInstalled: vi.fn() }, { update: { pluginId: "note-taker", expectedOldDigest: DIGEST } }));
+    const { result } = renderHook(() => useAgentPluginInstall({ ...HOST_AGENT_INSTALL, port, t: (key) => key, onInstalled: vi.fn() }, { update: { pluginId: "note-taker", expectedOldDigest: DIGEST } }));
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));
     await act(async () => result.current.install());
     expect(result.current.installedMessage).toBe("Note Taker is already installed.");

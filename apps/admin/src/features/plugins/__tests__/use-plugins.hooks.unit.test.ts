@@ -1,10 +1,11 @@
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { pluginsApi } from "@/features/plugins/plugins-host-ports";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import { usePlugins } from "../hooks/use-plugins.hooks";
+import { usePlugins } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
@@ -25,7 +26,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     expect(result.current.plugins?.[0]?.id).toBe("p1");
@@ -37,7 +38,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     await act(async () => {
@@ -65,7 +66,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => `T:${key}` }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => `T:${key}` }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     await act(async () => {
@@ -81,7 +82,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("does not resolve `plugins` while the injected port's list call is still pending", () => {
     const port = createFakePluginsPort();
     port.listPlugins = () => new Promise(() => {});
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     expect(result.current.plugins).toBeNull();
   });
 
@@ -98,7 +99,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     await act(async () => {
@@ -114,7 +115,7 @@ describe("usePlugins — the Remove confirm dialog's target", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     expect(result.current.pendingRemovePlugin).toBeNull();
 
@@ -131,7 +132,7 @@ describe("usePlugins — the Remove confirm dialog's target", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     act(() => result.current.onRequestRemove(result.current.plugins![0]!));
 
@@ -147,7 +148,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     await act(async () => {
@@ -162,7 +163,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     await act(async () => {
@@ -187,7 +188,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
       });
     };
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
 
     const plugin = result.current.plugins![0]!;
@@ -230,7 +231,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     const realSetEnabled = port.setPluginEnabled.bind(port);
     port.setPluginEnabled = ({ id, patch }) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled({ id, patch }))));
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
 
     let removeCall!: Promise<void>;
@@ -277,7 +278,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     const realUninstall = port.uninstallPlugin.bind(port);
     port.uninstallPlugin = ({ id }) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall({ id }))));
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
 
     let toggleCall!: Promise<void>;
@@ -329,7 +330,7 @@ describe("X1: reload() generation guard", () => {
     ];
     port.listPlugins = () => listResponses[listCall++]!();
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
 
     await act(async () => {
@@ -362,7 +363,7 @@ describe("X1: reload() generation guard", () => {
       return d2; // B's post-toggle reload
     };
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
 
     act(() => {
@@ -414,7 +415,7 @@ describe("X1: reload() generation guard", () => {
       return d2; // B's post-toggle reload
     };
 
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
 
     act(() => {
@@ -454,7 +455,7 @@ it("resolves inspector and removal targets from the current list, including miss
   let finish!: (value: { plugins: AdminPluginDto[] }) => void;
   const pending = new Promise<{ plugins: AdminPluginDto[] }>(resolve => { finish = resolve; });
   port.listPlugins = () => pending;
-  const { result } = renderHook(() => usePlugins({ port, locale: "en", t: key => key }));
+  const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: key => key }));
   act(() => {
     result.current.onInspectPlugin(plugin.id);
     result.current.onRequestRemove(plugin);
@@ -483,7 +484,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
 
   it("toggles a row open and closed again", async () => {
     const port = createFakePluginsPort({ plugins: [PLUGIN] });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     act(() => result.current.onToggleExpanded({ id: "p1" }));
     expect(result.current.expandedIds.has("p1")).toBe(true);
@@ -501,7 +502,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
       await new Promise<void>((resolve) => { release = resolve; });
       return setEnabled({ id, patch });
     };
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     let first!: Promise<void>;
     act(() => { first = result.current.onToggleEnabled(PLUGIN); });
@@ -513,7 +514,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
 
   it("keeps an accepted removal when the list re-read after it fails, and exposes that failure", async () => {
     const port = createFakePluginsPort({ plugins: [PLUGIN] });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     port.listPlugins = async () => { throw new Error("list offline"); };
     await act(async () => { await result.current.onRemovePlugin(PLUGIN); });
@@ -525,7 +526,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
   it("swallows a failed refresh-bus reload, leaving the read error to the query", async () => {
     try {
       const port = createFakePluginsPort({ plugins: [PLUGIN] });
-      const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+      const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
       await waitFor(() => expect(result.current.plugins).toHaveLength(1));
       port.listPlugins = async () => { throw new Error("refresh offline"); };
       act(() => publishContentRefresh({ resources: ["plugins"] }));
@@ -541,7 +542,7 @@ describe("usePlugins — provider settings card", () => {
     const port = createFakePluginsPort({
       plugins: [{ id: "analytics-posthog", name: "PostHog", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [], providerSettings: true }],
     });
-    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
     act(() => result.current.onOpenSettings("analytics-posthog"));
     expect(result.current.settingsPlugin?.id).toBe("analytics-posthog");

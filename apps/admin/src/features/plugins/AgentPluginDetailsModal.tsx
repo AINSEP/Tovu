@@ -9,11 +9,11 @@ import { useHostAdminSurfaceFrame } from "./hooks/use-host-admin-surface-frame.h
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
+import { useWiredAgentPluginDetailsModal } from "./hooks/use-agent-plugin-details-modal.hooks";
 import {
-  useWiredAgentPluginDetailsModal,
   useAgentPluginDetailsView,
   type AgentPluginDetailsModalController,
-} from "./hooks/use-agent-plugin-details-modal.hooks";
+} from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginDetailsModalProps {
