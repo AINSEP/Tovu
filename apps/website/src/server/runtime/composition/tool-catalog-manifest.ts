@@ -16,7 +16,8 @@ import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { deployConfigGenerators } from "#src/features/deployments/index";
-import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, PUBLISH_TRUST_CONFIG_PATH, type PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
@@ -450,7 +451,7 @@ export function installFirstPartyToolContributors(
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative), publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY }, { candidatePaths });
   // The assembled committed-config port, resolved against the same root as `findPublishCandidate`
   // and the HTTP route's own provisioning (`modules/publish-content.ts`), so an assistant-tool
   // connect and a dialog connect never disagree about which file they wrote.

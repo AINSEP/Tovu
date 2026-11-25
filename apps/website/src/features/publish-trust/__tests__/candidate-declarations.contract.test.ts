@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { findCandidateDestination } from "../connect.js";
+import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
+import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "../candidate-policy.js";
 import { parseDeployConfigsFile } from "@jini-ai/devops/deploy";
 import { deployConfigGenerators } from "../../deployments/deploy-config-registry.js";
 
@@ -32,7 +33,7 @@ test("candidate declarations preserve order across packages, with the core app.j
   assert.deepEqual(candidatePaths, ["example-first.toml", "example-second.yaml", "app.json", "example-late.yml"]);
   assert.equal(deployConfigGenerators.readBundledDeployWorkflowFile({ sourceRoot }), "example-deploy.yml");
   const reads: string[] = [];
-  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, io: {
+  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: {
     read: async ({ path: file }) => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
     write: async () => { throw new Error("read only"); },
   } }, { candidatePaths }), "https://destination.example");
@@ -47,7 +48,7 @@ test("escaping candidates are refused before resolution or IO, including injecte
   }
   const sourceRoot = sources(t, { "example-bad": [{ ...entry, candidatePaths: [{ path: "../outside", order: 1 }] }] });
   assert.deepEqual(deployConfigGenerators.readBundledDeployConfigCandidatePaths({ sourceRoot }), ["app.json"]);
-  assert.equal(await findCandidateDestination({ resolvePath: () => { throw new Error("must not resolve"); }, io: { read: async () => { throw new Error("must not read"); }, write: async () => {} } }, { candidatePaths: invalid.filter((value): value is string => typeof value === "string") }), null);
+  assert.equal(await findCandidateDestination({ resolvePath: () => { throw new Error("must not resolve"); }, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY, io: { read: async () => { throw new Error("must not read"); }, write: async () => {} } }, { candidatePaths: invalid.filter((value): value is string => typeof value === "string") }), null);
 });
 
 test("data discovery drops unreadable, invalid and ambiguous generator ids without importing code", t => {
@@ -81,9 +82,9 @@ test("a missing bundled root yields no hints instead of failing the composition 
 test('candidate discovery reads only supplied paths, with no implicit bundled manifest scan', async () => {
   const reads: string[] = [];
   const io = { read: async ({ path: file }: { path: string }) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
-  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file });
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY });
   assert.deepEqual(reads, ['app.json']);
   reads.length = 0;
-  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file }, { candidatePaths: [] });
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file, publicOriginKey: PUBLISH_CANDIDATE_ORIGIN_KEY }, { candidatePaths: [] });
   assert.deepEqual(reads, []);
 });
