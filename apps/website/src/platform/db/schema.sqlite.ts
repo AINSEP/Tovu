@@ -1581,6 +1581,9 @@ export const media = sqliteTable(
     captionsMediaId: text("captions_media_id"),
     captionsSrclang: text("captions_srclang"),
     captionsLabel: text("captions_label"),
+    /** P10-M5.T (migration 0046): plain-language description for search — `MediaRecord.description`.
+     *  NULL means never described; an empty string is an explicit clear. */
+    description: text("description"),
   },
   (table) => [
     // Mirrors the inline CHECK that 0014_media_library adds to the kind column.

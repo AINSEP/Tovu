@@ -396,6 +396,7 @@ export const media = pgTable("media", {
   captionsMediaId: text("captions_media_id"),
   captionsSrclang: text("captions_srclang"),
   captionsLabel: text("captions_label"),
+  description: text("description"),
 }, (t) => [
     check("media_kind_check", sql`kind IN ('media', 'document')`),
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),

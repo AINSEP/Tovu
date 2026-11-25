@@ -66,6 +66,8 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
     captions: row.captions_media_id && row.captions_srclang
       ? { assetId: row.captions_media_id, srclang: row.captions_srclang, label: row.captions_label ?? null }
       : null,
+    // NULL is "never described" and stays absent; an empty string is an explicit clear and round-trips.
+    ...(row.description != null ? { description: row.description } : {}),
   };
 }
 
@@ -97,6 +99,7 @@ function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind"
     captions_media_id: record.captions?.assetId ?? null,
     captions_srclang: record.captions?.srclang ?? null,
     captions_label: record.captions?.label ?? null,
+    description: record.description ?? null,
   };
 }
 

@@ -445,6 +445,21 @@ for (const each of mediaDialects) test(`[${each.name}] save() lets a row keep re
  */
 /** Raw-row cases the domain API cannot produce itself: imported or pre-backfill data, and a write the database skips. */
 for (const each of eachDialect({ tables: ["media", "media_slug_history", "asset_blobs", "asset_renditions"], make: (kernel) => kernel })) {
+  test(`[${each.name}] image description survives create CAS update and reopen`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    const created = makeMedia({ captions: null, description: "A red barn in a snowy field." });
+    assert.deepEqual(await repo.insertIfAbsent(created), { applied: true });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id }), created);
+    const edited = { ...created, description: "A red barn at dusk, two horses by the fence.", version: 2 };
+    assert.deepEqual(await repo.saveIfVersion({ record: edited, ifVersion: 1 }), { applied: true });
+    const reopened = new SqlMediaRepo(kernel);
+    assert.deepEqual(await reopened.findById({ workspaceId: WORKSPACE_ID, id: created.id }), edited);
+    const cleared = { ...edited, description: "", version: 3 };
+    assert.deepEqual(await reopened.saveIfVersion({ record: cleared, ifVersion: 2 }), { applied: true });
+    assert.equal((await new SqlMediaRepo(kernel).findById({ workspaceId: WORKSPACE_ID, id: created.id }))?.description, "", "blank is an explicit clear, not never-described");
+  });
+
   test(`[${each.name}] a pre-backfill row with a NULL slug reads back under its own id`, async () => {
     const kernel = each.make();
     const repo = new SqlMediaRepo(kernel);

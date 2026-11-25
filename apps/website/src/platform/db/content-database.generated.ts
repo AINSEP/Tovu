@@ -416,6 +416,7 @@ export interface MediaTable {
   captions_media_id: string | null;
   captions_srclang: string | null;
   captions_label: string | null;
+  description: string | null;
 }
 
 export interface MediaSlugHistoryTable {

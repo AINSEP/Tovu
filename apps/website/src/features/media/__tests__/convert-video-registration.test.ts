@@ -121,7 +121,7 @@ test("exactly 50 MiB is kept unchanged and the next byte reaches the injected co
   for (const size of sizes) {
     const deps = harness();
     const { clock, idGen, mediaRepo, assetBlobRepo: blobRepo, assetRenditionRepo: renditionRepo, blobStore } = deps;
-    const storeUpload = (input: Parameters<typeof uploadMedia>[0]["input"]) => uploadMedia({ deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore, maxUploadBytes: size, maxVideoUploadBytes: size }, input });
+    const storeUpload = (input: Parameters<typeof uploadMedia>[0]["input"]) => uploadMedia({ deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore }, input }, { maxUploadBytes: size, maxVideoUploadBytes: size });
     const calls: number[] = [];
     const transcoder: MediaTranscoderPort = { transcode: async ({ input }) => { calls.push(input.byteLength); return { ok: true, bytes: CONVERTED }; } };
     const store = withVideoConversionOnImport({ storeUpload, conversion: {
