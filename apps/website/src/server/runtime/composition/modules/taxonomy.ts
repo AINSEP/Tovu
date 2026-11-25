@@ -23,6 +23,7 @@ import type { TaxonomyRouteDeps } from "#src/server/inbound/admin-http/routes/ta
 import type { RouteDeps } from "#src/server/routes/types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ServerModuleHandle } from "./types.js";
+import { actorForMutation } from "../mutation-actor.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `taxonomy` server module (ADR-044 Categories & Tags).
@@ -97,7 +98,12 @@ export const registerAdminTaxonomyRenameTermRoute: TaxonomyRouteRegistrar = ({ a
 
 /** Assign/unassign/assigned-terms also resolve collection entries, and read and remove assignments. */
 function taxonomyAssignmentDeps({ deps }: { deps: TaxonomyRouteDeps }, _options: Record<string, never> = {}): TaxonomyAssignTermsRouteDeps & AdminJsonRoutePortDeps {
-  return { ...taxonomyWriteDeps({ deps }), entryTermRepo: deps.entryTermRepo, entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo };
+  return {
+    ...taxonomyWriteDeps({ deps }), entryTermRepo: deps.entryTermRepo, entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo,
+    // The admin route is an authenticated owner click; an assistant acting for that same owner
+    // goes through the tool channel and is stamped `agent` there, never inferred from the id.
+    mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "admin" }),
+  };
 }
 
 export const registerAdminTaxonomyAssignTermsRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
