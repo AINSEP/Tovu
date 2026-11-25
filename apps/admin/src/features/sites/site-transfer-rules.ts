@@ -29,6 +29,17 @@ export function visibleShares<T extends Pick<SiteShare, "status" | "expiresAt">>
   return showExpired ? shares : shares.filter(share => !isExpiredShare({ share }));
 }
 
+/**
+ * What the expiry notice says about the newest backup: `"expired"` until the owner dismisses it, then
+ * `"dismissed"`. Dismissing hides the notice only; the row keeps the server's status, so an expired
+ * link can never read as live again. O(1).
+ */
+export function expiryNoticeStatus({ share, acknowledgedId }: { share: Pick<SiteShare, "shareId" | "status" | "expiresAt"> | undefined; acknowledgedId: string | null }, _optional = {}): string {
+  if (!share) return "none";
+  if (!isExpiredShare({ share })) return share.status;
+  return share.shareId === acknowledgedId ? "dismissed" : "expired";
+}
+
 export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
