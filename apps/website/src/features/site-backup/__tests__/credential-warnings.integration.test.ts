@@ -22,6 +22,11 @@ import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/mo
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 const key = "ghp_" + "a".repeat(36);
 const stamp = "2026-11-03T00:00:00Z";
@@ -75,7 +80,7 @@ async function prepareWarnedShareFixture({ t }: { t: TestContext }) {
 test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
   const { directory, plan } = await prepareWarnedShareFixture({ t });
   const registry = new SiteShareRegistry({ directory });
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => undefined });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => undefined });
   const created = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 60_000 }) as { shareId: string; credentialWarnings: CredentialWarning[]; needsAcknowledgement: boolean; url: string | null };
   assert.equal(created.needsAcknowledgement, true); assert.equal(created.url, null);
   assert.ok(created.credentialWarnings.some(warning => warning.path === "agent-plugins/custom/package/SKILL.md"));

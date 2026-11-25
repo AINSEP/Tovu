@@ -101,6 +101,7 @@ import { contributeExternalMcpOperationsTools } from "@jini-ai/mcp/external/oper
 import { externalMcpOperationsHost, probeExternalMcpServer, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
+import { bindAssetHost } from "./asset-tool-host.js";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -519,13 +520,13 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
-  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }) });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
-  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }) });
+  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });

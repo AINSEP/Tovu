@@ -7,18 +7,20 @@ import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
 import { THEME_PLACEMENT_CHECKS } from "./theme-placement-checks.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { findSoonAgentPlugin } from "#src/features/agent-plugins/soon-lock";
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createSiteSavedKeys } from "@jini-ai/devops/backup/site/saved-keys";
 import { recordHeldBackChoice } from "#src/features/theme/held-back-choice";
 /**
- * Bind the newly allocated destination, never the requesting site's layout or ambient overrides.
+ * Bind the newly allocated destination, never the requesting site's layout or ambient overrides,
+ * plus this build's Soon policy so a locked plugin stays off through the archive path.
  * Also binds A452's held-back marker: the archive's chosen theme is read from the staged database
  * BEFORE restore (restore may switch it to the fallback), and `recordHeldBackChoice` decides.
  * @complexity O(restore) plus two single-row reads.
  */
-export async function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent" | "themeChecks">, optional: Parameters<typeof restoreWithLayout>[1] = {}): Promise<void> {
+export async function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent" | "themeChecks" | "findSoonAgentPlugin">, optional: Parameters<typeof restoreWithLayout>[1] = {}): Promise<void> {
   const chosen = await readActiveThemeId({ filePath: path.join(required.root, "database/content.db") }).then(value => ({ value }), (error: unknown) => ({ error }));
-  await restoreWithLayout({ ...required, themeChecks: THEME_PLACEMENT_CHECKS, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
+  await restoreWithLayout({ ...required, themeChecks: THEME_PLACEMENT_CHECKS, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }), findSoonAgentPlugin }, optional);
   // Restore copies and reads this same database, so it fails first, at its own point and with its
   // own cleanup, whenever the early read did; this rethrow only guards that assumption.
   if ("error" in chosen) throw chosen.error;

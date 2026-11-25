@@ -12,7 +12,7 @@ import { createTovuAgentPluginLifecycle, explicitRootAgentPluginActivations } fr
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
 import { loadAgentPluginSearchCandidates } from "../../tool-registrations.js";
-import { AgentPluginNotReadyError, lockSoonAgentPlugins, readHostPluginMaturity, SOON_LOCK_ACTOR, type SoonCatalogPort } from "../../soon-lock.js";
+import { AgentPluginNotReadyError, findSoonAgentPlugin, lockSoonAgentPlugins, readHostPluginMaturity, SOON_LOCK_ACTOR, type SoonCatalogPort } from "../../soon-lock.js";
 import { restoreImportedPluginState } from "../../../site-backup/import-plugin-state.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
@@ -111,7 +111,7 @@ test("a backup import writes a Soon plugin off and carries the rest, without abo
   const archived = (id: string) => ({ kind: "agent" as const, id, version: "1.0.0", digest: "0".repeat(64), enabled: true, shipped: true });
   const stage = path.join(siteDir, "stage");
   await mkdir(stage, { recursive: true });
-  await restoreImportedPluginState({ root: stage, dir: siteDir, layout, files: [],
+  await restoreImportedPluginState({ root: stage, dir: siteDir, layout, files: [], findSoonAgentPlugin,
     state: { plugins: [archived("notes"), archived("plain")], trustedPlugins: [], modified: [] } }, { sourceRoot });
   const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
   const verdict = async (pluginId: string) => (await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict;

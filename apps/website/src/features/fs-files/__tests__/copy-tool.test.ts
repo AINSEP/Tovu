@@ -7,6 +7,7 @@ import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { EgressRefusedError } from "#src/platform/http/index";
 import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../../asset-transfer/copy-tool.js";
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
+import { bindAssetHost } from "#src/server/runtime/composition/asset-tool-host";
 
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: buildFilesCopyRegistrations, toolId: "files_copy" });
@@ -21,7 +22,7 @@ function folder(dir: string, count: number, bytes: Buffer = Buffer.from("asset")
 }
 
 test("copy catalog, metadata and risk declarations register one generic recipe surface", () => {
-  assert.equal(contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }).domain, "files-copy");
+  assert.equal(contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost }).domain, "files-copy");
   assert.equal(filesCopyDerivedRisk.get("files_copy"), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId.files_copy?.approval, { class: "edit", confirmation: "policy" });
 });
@@ -32,6 +33,15 @@ test("picked → theme copies exact binary bytes, checks theme.edit and reloads 
   assert.deepEqual(result.written, ["assets/logo.png"]);
   assert.deepEqual(fs.readFileSync(path.join(h.theme, "assets/logo.png")), h.png);
   assert.ok(h.permissions.includes("theme.edit"));
+  assert.equal(h.emitted.length, 0);
+});
+
+test("a disallowed theme write fails preflight before any byte is written or the theme reloads", async t => {
+  const h = await harness(t);
+  const before = fs.readdirSync(h.theme, { recursive: true }).sort();
+  await assert.rejects(() => h.call({ sources: [source], destination: { ...theme, path: ".trash" } }), /inside the trash and cannot be written to directly/);
+  assert.equal(fs.existsSync(path.join(h.theme, ".trash/logo.png")), false);
+  assert.deepEqual(fs.readdirSync(h.theme, { recursive: true }).sort(), before);
   assert.equal(h.emitted.length, 0);
 });
 

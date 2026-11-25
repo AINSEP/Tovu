@@ -8,6 +8,7 @@ import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import type { prepareShareContent } from "./share-preparation.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
+import type { BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
@@ -148,6 +149,8 @@ type ShareBackendRequired = {
   ownerPrincipalId?: PromiseLike<string> | string;
   savedKeys?: Pick<SiteSavedKeysPort, "reveal">;
   staticSite?: StaticSitePorts;
+  /** A fresh export-local bundled-file policy per archive (it caches resolved package roots for one export only). */
+  createBundledFilePolicy: () => BundledExportFilePolicy;
 };
 type ShareBackendOptional = { now?: () => number; appVersion?: string; jiniVersion?: string };
 /** What every share operation reads: the ports, the job table, and the one-at-a-time lane (`lane.active`). */
@@ -183,7 +186,7 @@ async function exportBackupShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   // Progress's readonly totals describe the prepared backup; the ZIP collector records its exact files.
   Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
   stage.step = "archive";
-  const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
+  const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings, bundledFilePolicy: required.createBundledFilePolicy() });
   stage.step = "delivery";
   const delivery = await required.delivery({});
   bounded.throwIfAborted();

@@ -6,7 +6,7 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { readTemplate } from "#src/platform/site-dir/index";
 import type { VerifiedSiteImport } from "./import-verifier.js";
-import { restoreImportedPluginState, type ImportedExtensionState } from "./import-plugin-state.js";
+import { restoreImportedPluginState, type FindSoonAgentPlugin, type ImportedExtensionState } from "./import-plugin-state.js";
 import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive, type ThemePlacementChecks } from "./import-restore-placement.js";
 import { keepImportedCodeOff, unrecognisedThemes } from "./import-keep-off.js";
 
@@ -49,7 +49,7 @@ function stagedCodeUnit(required: { file: string; live: ReadonlySet<string> }): 
  * executable themes and overrides remain preserved under the unserved quarantine directory.
  * @complexity O(files + bytes), capped by the verified inventory (2,000 entries/300 MiB).
  */
-export async function restoreStagedImport(required: { root: string; themeChecks: ThemePlacementChecks; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore">; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; openContent: (required: { filePath: string }) => KyselyKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal } = {}): Promise<void> {
+export async function restoreStagedImport(required: { root: string; themeChecks: ThemePlacementChecks; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore">; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; findSoonAgentPlugin: FindSoonAgentPlugin; openContent: (required: { filePath: string }) => KyselyKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal } = {}): Promise<void> {
   const files = JSON.parse(fs.readFileSync(path.join(required.root, ".inventory.json"), "utf8")) as string[];
   const state = JSON.parse(fs.readFileSync(path.join(required.root, ".archive-state.json"), "utf8")) as ImportedExtensionState;
   const findings = inspectThemeManifests({ root: required.root, files, themeChecks: required.themeChecks });
@@ -64,7 +64,7 @@ export async function restoreStagedImport(required: { root: string; themeChecks:
   // Copy the freshly rebuilt database, never the archived SQLite bytes. Exclusive creation and
   // init's DB-path resolver protect both in-site and app-data placement from overwriting a site.
   fs.copyFileSync(path.join(required.root, "database/content.db"), required.dbPath, fs.constants.COPYFILE_EXCL);
-  const placedMemory = await restoreImportedPluginState({ root: required.root, dir: required.dir, layout: required.pluginLayout, state, files }, { sourceRoot: optional.pluginSourceRoot });
+  const placedMemory = await restoreImportedPluginState({ root: required.root, dir: required.dir, layout: required.pluginLayout, findSoonAgentPlugin: required.findSoonAgentPlugin, state, files }, { sourceRoot: optional.pluginSourceRoot });
   for (const file of files) {
     if (placedMemory.has(file)) continue;
     const destination = restoreDestination({ file, liveThemes, compiledSources: findings.compiledSources });

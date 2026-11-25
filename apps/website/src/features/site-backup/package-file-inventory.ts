@@ -5,7 +5,6 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../agent-plugins/lifecycle.js";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
-import { listBundledAgentPluginServers } from "../agent-plugins/new-site-agent-plugin-tokens.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 /**
@@ -43,13 +42,16 @@ export async function readBundledPackageFiles(_required: Record<string, never> =
   return inventory;
 }
 
+/** The host's bundled catalog reader: the plugins this build ships under `bundledSourceRoot`. */
+export type ListBundledAgentPluginServers = (required: { bundledSourceRoot: string }) => Promise<readonly { pluginId: string }[]>;
+
 /** Import scan classification comes from this build's catalog, never the archive's `shipped` flag.
  * This grants no execution trust: restore seeds local code and quarantines the imported package.
  * @returns Known bundled ids; an absent/unreadable source root recognises none.
  * @complexity O(bundled plugin manifests and MCP declarations), via the existing catalog reader.
  */
-export async function readBundledImportPluginIds(_required: Record<string, never> = {}, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
-  const plugins = await listBundledAgentPluginServers({ bundledSourceRoot: bundledSourceRoot(optional) });
+export async function readBundledImportPluginIds(required: { listBundledAgentPluginServers: ListBundledAgentPluginServers }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
+  const plugins = await required.listBundledAgentPluginServers({ bundledSourceRoot: bundledSourceRoot(optional) });
   return new Set(plugins.map(plugin => plugin.pluginId));
 }
 

@@ -5,8 +5,7 @@ import { createBundledExportFilePolicy } from '../bundled-export-file-policy.js'
 test('only selected installed package subpaths can skip scanning; unknown files never read', async () => {
   const reads: string[] = [], resolutions: string[] = [];
   const bytes = Buffer.from('token=opaque-secret-value');
-  const policy = createBundledExportFilePolicy({}, {
-    selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]),
+  const policy = createBundledExportFilePolicy({ selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]) }, {
     resolve: specifier => { resolutions.push(specifier); return '/installed/sample/plugin.json'; },
     readFile: async filename => { reads.push(filename); return bytes; },
   });
@@ -23,8 +22,7 @@ test('only selected installed package subpaths can skip scanning; unknown files 
 test('resolution and read failures retain files for full scanning', async () => {
   for (const failResolve of [false, true]) {
     let resolutions = 0;
-    const policy = createBundledExportFilePolicy({}, {
-      selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]),
+    const policy = createBundledExportFilePolicy({ selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]) }, {
       resolve: () => { resolutions++; if (failResolve) throw new Error('not installed'); return '/installed/sample/plugin.json'; },
       readFile: async () => { throw new Error('missing'); },
     });

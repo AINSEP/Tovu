@@ -11,6 +11,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
 import { packAgentPluginDirectory } from "../../agent-plugins/lifecycle.js";
+import { listBundledAgentPluginServers } from "../../agent-plugins/new-site-agent-plugin-tokens.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "../package-file-inventory.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, sharePathAlias, validateSharePath, type PackageFileInventory } from "../share-file-policy.js";
 import { archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
@@ -198,7 +199,7 @@ test("the inventory is keyed by the digest the seeder's own packer gives each bu
   const { sha256: digest } = await packAgentPluginDirectory({ sourceDir: join(sourceRoot, "p") });
   assert.deepEqual([...packageFiles.keys()], [digest]);
   assert.deepEqual(Object.fromEntries(packageFiles.get(digest)!), { [card]: sha256(CARD_TEXT), "plugin.json": sha256('{"name":"p"}') });
-  assert.deepEqual(await readBundledImportPluginIds({}, { sourceRoot }), new Set(["p"]));
+  assert.deepEqual(await readBundledImportPluginIds({ listBundledAgentPluginServers }, { sourceRoot }), new Set(["p"]));
   const path = `agent-plugins/ws/w/p/package/sha256/${digest}/${card}`;
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(CARD_TEXT) }, { packageFiles }), true);
 });
@@ -207,7 +208,7 @@ test("a missing bundled source root verifies nothing", { timeout: 10_000 }, asyn
   const sourceRoot = await mkdtemp(join(tmpdir(), "share-package-inventory-"));
   t.after(() => rm(sourceRoot, { recursive: true, force: true }));
   assert.equal((await readBundledPackageFiles({}, { sourceRoot: join(sourceRoot, "missing") })).size, 0);
-  assert.deepEqual(await readBundledImportPluginIds({}, { sourceRoot: join(sourceRoot, "missing") }), new Set());
+  assert.deepEqual(await readBundledImportPluginIds({ listBundledAgentPluginServers }, { sourceRoot: join(sourceRoot, "missing") }), new Set());
 });
 
 test("credential-looking ancestor names stay included", { timeout: 10_000 }, () => {

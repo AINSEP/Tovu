@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { findSoonAgentPlugin } from "#src/features/agent-plugins/soon-lock";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { writeExclusive } from "./import-restore-placement.js";
@@ -9,6 +8,8 @@ import type { ArchivePlugin } from "./archive-manifest.js";
 
 type InstalledPlugin = Awaited<ReturnType<ReturnType<typeof createTovuAgentPluginLifecycle>["listInstalledPlugins"]>>[number];
 type MemoryDirs = Pick<ReturnType<AgentPluginLayout["forWorkspace"]>, "pluginMemoryDir">;
+/** The host's Soon policy: the locked plugin `pluginId` names, or undefined when it may be switched on. */
+export type FindSoonAgentPlugin = (required: { catalog: ReturnType<typeof createTovuAgentPluginLifecycle>["soonCatalog"]; workspaceRoot: string; pluginId: string }) => Promise<{ readonly name: string } | undefined>;
 
 /** Functional private staging state; discarded with the import stage, never an import history report. */
 export interface ImportedExtensionState {
@@ -24,7 +25,7 @@ export interface ImportedExtensionState {
  * Shipped code remains quarantined (see `importedActivation` for the per-plugin decision).
  * @complexity O(local bundled package bytes + imported memory bytes), bounded by share caps.
  */
-export async function restoreImportedPluginState(required: { root: string; dir: string; layout: AgentPluginLayout; state: ImportedExtensionState; files: readonly string[] }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
+export async function restoreImportedPluginState(required: { root: string; dir: string; layout: AgentPluginLayout; state: ImportedExtensionState; files: readonly string[]; findSoonAgentPlugin: FindSoonAgentPlugin }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
   if (!required.state.plugins.some(plugin => plugin.kind === "agent")) return new Set();
   const { layout } = required;
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
@@ -40,7 +41,7 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
     // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10): written off
     // rather than refused, so one locked plugin never aborts the rest of the import.
     const enabled = importedActivation({ plugin, installed, trusted, edited })
-      && !(await findSoonAgentPlugin({ catalog: lifecycle.soonCatalog, workspaceRoot: workspace.root, pluginId: plugin.id }));
+      && !(await required.findSoonAgentPlugin({ catalog: lifecycle.soonCatalog, workspaceRoot: workspace.root, pluginId: plugin.id }));
     await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: plugin.id, enabled, actor: "system:import" });
     if (enabled) enabledUnits.add("agent-plugins/" + plugin.id);
   }

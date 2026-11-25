@@ -13,7 +13,7 @@ import type { StaticExportTheme } from "@jini-ai/devops/backup/site/static-expor
 import { staticDownloadLayout } from "./static-download-layout.js";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
-import { createBundledExportFilePolicy, type BundledExportFilePolicy } from "./bundled-export-file-policy.js";
+import type { BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
 type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress; notices?: string[]; credentialWarnings?: CredentialWarning[]; bundledImportPluginIds?: ReadonlySet<string>; bundledFilePolicy?: BundledExportFilePolicy };
@@ -115,9 +115,8 @@ async function buildShareZipContent(required: { plan: SiteSharePlanContent; zip:
   claimArchivePaths({ entries: paths });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: paths.length, bytesTotal: sizes.reduce((sum, file) => sum + file.bytes, 0) });
   const collected: CollectedShareEntries = { files: [], inventory: [], plugins: plan.plugins ?? [], credentialWarnings: optional.credentialWarnings ?? [] };
-  const entryOptions = { ...optional, bundledFilePolicy: optional.bundledFilePolicy ?? createBundledExportFilePolicy({}) };
-  for (const entry of memory) await addBackupEntry({ entry, collected }, entryOptions);
-  await addDiskFiles({ files: plan.files, collected }, entryOptions);
+  for (const entry of memory) await addBackupEntry({ entry, collected }, optional);
+  await addDiskFiles({ files: plan.files, collected }, optional);
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));
   optional.signal?.throwIfAborted();
   return encodeShareZip({ files: collected.files, zip: required.zip });
