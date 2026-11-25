@@ -91,6 +91,7 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { createByokRunUsage } from "./assistant-byok-run-usage.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
@@ -849,11 +850,12 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
         // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
         const reportRunFailure = ({ error }: { error: unknown }, _optional = {}) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
         const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+        const runUsage = createByokRunUsage();
         function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
           aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
           aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
           void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
-          span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+          span.setOutcome(runUsage.withUsage(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } })));
           if (!abort.signal.aborted && !reportedError) reportRunFailure({ error });
           endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
         }
@@ -869,6 +871,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
             onEvent: (event: ProviderTurnEvent) => {
               if (liveToolRun.lowered) return;
               aiTrace?.observe(event as unknown as Record<string, unknown>);
+              runUsage.observe(event);
               // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
               if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure({ error: new Error(event.message) }); }
               sse({ res, event: event.type === "error" ? "error" : "agent", data: stampUsage(event) });
@@ -879,7 +882,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
           return;
         }
 
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+        span.setOutcome(runUsage.withUsage(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError })));
         aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
         void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
         endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });
