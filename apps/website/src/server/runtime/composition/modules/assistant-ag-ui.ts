@@ -51,6 +51,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import { EventType } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
+import { readAgUiLaunchFields, type AgUiLaunchFields } from "./assistant-ag-ui-launch.js";
 import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
   closeAgUiRun,
@@ -162,7 +163,7 @@ function beginAgUiStream(req: Request, res: Response, requestId: string): void {
 
 /** The durable identity a durable-aware client sends in `forwardedProps.durableRun`: the
  *  conversation and the assistant message it already created. Bounded here, before acceptance. */
-interface AgUiDurableIdentity { readonly conversationId: string; readonly assistantMessageId: string }
+interface AgUiDurableIdentity { readonly conversationId: string; readonly assistantMessageId: string; readonly launch: AgUiLaunchFields }
 const DURABLE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 function readDurableIdentity({ body }: { body: AgUiRunBody }, _optional = {}): AgUiDurableIdentity | undefined {
@@ -171,7 +172,7 @@ function readDurableIdentity({ body }: { body: AgUiRunBody }, _optional = {}): A
   if (typeof durable !== "object" || durable === null) return undefined;
   const { conversationId, assistantMessageId } = durable as Record<string, unknown>;
   if (typeof conversationId !== "string" || typeof assistantMessageId !== "string") return undefined;
-  return DURABLE_ID.test(conversationId) && DURABLE_ID.test(assistantMessageId) ? { conversationId, assistantMessageId } : undefined;
+  return DURABLE_ID.test(conversationId) && DURABLE_ID.test(assistantMessageId) ? { conversationId, assistantMessageId, launch: readAgUiLaunchFields({ durable }, {}) } : undefined;
 }
 
 /** The daemon context, built only from server-parsed fields: the verified principal is stamped
@@ -180,7 +181,8 @@ function readDurableIdentity({ body }: { body: AgUiRunBody }, _optional = {}): A
 function agUiContextRef({ run, principalId }: { run: AgUiRunInput; principalId: string }, { identity }: { identity?: AgUiDurableIdentity } = {}): string {
   const prompt = flattenMessagesToPrompt({ messages: run.messages });
   return JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
-    ...(identity ? { conversationId: identity.conversationId, assistantMessageId: identity.assistantMessageId } : {}),
+    // Bounded launch fields only (attachments, plugins, model, reasoning); never browser authority.
+    ...(identity ? { ...identity.launch, conversationId: identity.conversationId, assistantMessageId: identity.assistantMessageId } : {}),
     ...(run.frontendBindToken ? { frontendBindToken: run.frontendBindToken } : {}),
     ...(run.frontendTabId ? { frontendTabId: run.frontendTabId } : {}),
     ...(run.secretRedacted ? { secretRedacted: true } : {}) });

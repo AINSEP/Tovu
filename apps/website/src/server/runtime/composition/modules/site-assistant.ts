@@ -1,6 +1,8 @@
 import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { createVisitorPageTargets } from "../visitor-page-targets.js";
 import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
+import { projectVisitorBrowserInvocation } from "#src/assistant/site/visitor-browser-invocation";
+import type { FrontendInvocationDelivery } from "@jini-ai/daemon";
 import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../../../../platform/express/jini-routes.js";
 import { requestHookInput } from "#src/platform/express/request-facts";
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
@@ -789,7 +791,9 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
         // that already succeeded, which is harmless but produces alarming logs.
         const abort = new AbortController();
         res.on("close", () => { if (!res.writableEnded) abort.abort(); });
-        const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
+        // Only the AG-UI `/chat` path opts into run-specific delivery; the legacy SSE path keeps the session stream.
+        const deliverInvocation = context.stream.wire === "ag-ui" ? visitorInvocationDelivery({ segments, logicalRunId }) : undefined;
+        const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId }, deliverInvocation ? { deliverInvocation } : {});
         const { owner, publication, release: releaseFrontend } = binding;
         // A parked approval keeps its frontend binding past this segment's close; the run's own end releases it.
         res.once('close', () => { if (!segments.parked) releaseFrontend(); });
@@ -851,6 +855,22 @@ function createVisitorToolExecutor({ capabilities, segments, writer, releaseFron
 }
 
 
+
+/**
+ * Run-specific page delivery for one AG-UI visitor turn. The model can request an effect but cannot
+ * deliver one: only a registry invocation for THIS request's internal logical run reaches the page,
+ * and delivery alone is not permission — the page must `begin` it against the live binding first.
+ * It writes through whichever segment is current, so a T2 resume moves delivery to the new segment
+ * without re-authorizing the old attachment or changing the invocation identity. While parked there
+ * is no segment to carry it; the registry's own timeout then fails the call back to the model.
+ */
+function visitorInvocationDelivery({ segments, logicalRunId }: { segments: VisitorTurnSegments; logicalRunId: string }, _optional = {}): FrontendInvocationDelivery {
+  return ({ runId, invocation }) => {
+    if (runId !== logicalRunId || segments.parked) return;
+    const toolCall = segments.current.writer.toolCall;
+    if (toolCall) projectVisitorBrowserInvocation({ runId, invocation, writer: { toolCall } });
+  };
+}
 
 function visitorPageOptions({ binding, frontend, pageTargets }: {
   binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;

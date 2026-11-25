@@ -19,7 +19,7 @@ import type { VisitorAgUiWriter, VisitorTurnWriter } from "./site-assistant-ag-u
  */
 
 /** One HTTP segment of a logical turn. */
-export interface VisitorSegment { readonly res: Response; readonly writer: VisitorTurnWriter & Partial<Pick<VisitorAgUiWriter, "interrupt">>; readonly runId: string }
+export interface VisitorSegment { readonly res: Response; readonly writer: VisitorTurnWriter & Partial<Pick<VisitorAgUiWriter, "interrupt" | "toolCall">>; readonly runId: string }
 
 /** The turn's live segment. While parked there is no segment: provider output has nowhere to go
  *  and is dropped (the parked call cannot produce any until it is answered). */
