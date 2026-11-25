@@ -1,62 +1,36 @@
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { ComposerCapabilitySource } from "@jini-ai/admin/screens/plugins/composer-capabilities";
-import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/screens/plugins/resolve-composer-discovery-outcome";
+import type { ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/screens/plugins/resolve-composer-discovery-outcome";
 import { createInstalledSkillsComposerCapabilitySource } from "@jini-ai/agent-plugins/react/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT, loadSkillDraft } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { createBundledComposerCapabilitySource, resolveTovuComposerDiscoveryRoute } from "@/features/plugins/composer-capabilities";
-import { emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
+import { useComposerCapabilities as useAdminComposerCapabilities, useComposerDiscoverySelect as useAdminComposerDiscoverySelect } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-discovery.hooks";
+import type { UseComposerCapabilities } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-discovery.hooks";
+import type { ComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
-function createComposerReload(
-  { installed, state, queryScope, setCatalog }: {
-    installed: ReturnType<typeof createInstalledSkillsComposerCapabilitySource>;
-    state: { cancelled: boolean; generation: number; shown: string };
-    queryScope: ReturnType<typeof useAdminBootScope>["queryScope"];
-    setCatalog: React.Dispatch<React.SetStateAction<{ scope: ReturnType<typeof useAdminBootScope>["queryScope"]; projection: ComposerCapabilityProjection }>>;
-  },
-  _options: Record<string, never> = {},
-) {
-  /** Reproject only current work; an unchanged catalog retains its React state identity. */
-  return (_required = {}, { force = false } = {}) => {
-    state.generation += 1;
-    const current = state.generation;
-    return projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }] })
-    .then((projection) => {
-      // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops
-      // `resolve`; every source's binding is derived from the serialized fields (item id).
-      const next = JSON.stringify([...projection.byItemId.values()]);
-      if (state.cancelled || current !== state.generation || next === state.shown) return;
-      state.shown = next;
-      setCatalog({ scope: queryScope, projection });
-    })
-    .catch((error: unknown) => {
-      console.error("[AssistantDock] composer capability projection failed", error);
-    });
-  };
-}
-
-function watchComposerCapabilities(
-  { queryScope, setCatalog }: { queryScope: ReturnType<typeof useAdminBootScope>["queryScope"]; setCatalog: React.Dispatch<React.SetStateAction<{ scope: ReturnType<typeof useAdminBootScope>["queryScope"]; projection: ComposerCapabilityProjection }>> },
-  _options: Record<string, never> = {},
-): () => void {
+function createInstalledSource() {
   // One source per authenticated boot scope and document (same-origin site/API, fixed workspace).
   // No module singleton can retain another user's installed capabilities.
-  const installed = createInstalledSkillsComposerCapabilitySource({
+  return createInstalledSkillsComposerCapabilitySource({
     request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`,
     isNotModified: error => error instanceof ApiError && error.status === 304,
     reportFailure: (message, error) => console.error(message, error),
   }, {}) satisfies ComposerCapabilitySource;
-  const state = { cancelled: false, generation: 0, shown: "" };
+}
+
+function watchComposerCapabilities(
+  { refreshVisible: reload, forceReload }: Parameters<Parameters<typeof useAdminComposerCapabilities>[0]["watch"]>[0],
+  _options: Record<string, never> = {},
+): () => void {
   let stopPolling = () => {};
-  const reload = createComposerReload({ installed, state, queryScope, setCatalog });
-  void reload();
   const refreshVisible = () => {
     if (document.visibilityState !== "hidden") void reload();
   };
@@ -68,7 +42,7 @@ function watchComposerCapabilities(
     }
   };
   const visibilityChanged = () => { syncPolling(); refreshVisible(); };
-  const skillsChanged = () => { void reload({}, { force: true }); };
+  const skillsChanged = () => { forceReload(); };
   const stopDockSubscription = subscribeToAssistantDock(() => {
     syncPolling();
     if (getAssistantDockOpen()) refreshVisible();
@@ -78,7 +52,6 @@ function watchComposerCapabilities(
   window.addEventListener("focus", refreshVisible);
   document.addEventListener("visibilitychange", visibilityChanged);
   return () => {
-    state.cancelled = true;
     stopPolling();
     stopDockSubscription();
     window.removeEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
@@ -87,11 +60,7 @@ function watchComposerCapabilities(
   };
 }
 
-export interface UseComposerCapabilities {
-  /** The composer's discovery catalog — see {@link useComposerCapabilities}'s own doc for what
-   *  feeds it and why it starts empty. */
-  composerCapabilities: ComposerCapabilityProjection;
-}
+const reportFailure = (error: unknown) => console.error("[AssistantDock] composer capability projection failed", error);
 
 /**
  * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from the bundled,
@@ -121,15 +90,11 @@ export function useComposerCapabilities(
   _input: Record<string, never> = {},
   { useBootScope = useAdminBootScope }: { useBootScope?: typeof useAdminBootScope } = {},
 ): UseComposerCapabilities {
-  const { queryScope, checking } = useBootScope();
-  const [catalog, setCatalog] = useState(() => ({ scope: queryScope, projection: emptyComposerCapabilityProjection() }));
-
-  useEffect(() => {
-    if (checking) return undefined;
-    return watchComposerCapabilities({ queryScope, setCatalog });
-  }, [queryScope, checking]);
-
-  return { composerCapabilities: catalog.scope === queryScope && !checking ? catalog.projection : emptyComposerCapabilityProjection() };
+  return useAdminComposerCapabilities({
+    useBootScopeHook: useBootScope, createInstalledSource,
+    createBundledSource: createBundledComposerCapabilitySource,
+    watch: watchComposerCapabilities, reportFailure,
+  });
 }
 
 /**
@@ -162,21 +127,15 @@ export function useComposerDiscoverySelect(
     readDraft?: ResolveComposerDiscoveryOutcomeDeps["readDraft"];
   },
 ): (selection: ComposerDiscoverySelection) => Promise<ComposerDiscoveryOutcome | void> {
-  return useCallback(
-    (selection: ComposerDiscoverySelection) =>
-      resolveComposerDiscoveryOutcome(selection, {
-        capabilities: composerCapabilities,
-        navigate: (routePath) => navigate({ routePath }),
-        resolveRoute: resolveTovuComposerDiscoveryRoute,
-        loadSkillDraft,
-        callAllowlistedTool,
-        addPluginRef,
-        skillsAvailable,
-        addSkill,
-        readDraft,
-      }),
-    [composerCapabilities, callAllowlistedTool, addPluginRef, skillsAvailable, addSkill, readDraft],
-  );
+  const navigateRoute = useCallback((routePath: string) => navigate({ routePath }), []);
+  return useAdminComposerDiscoverySelect({
+    composerCapabilities, callAllowlistedTool,
+    ...(addPluginRef === undefined ? {} : { addPluginRef }),
+    ...(skillsAvailable === undefined ? {} : { skillsAvailable }),
+    ...(addSkill === undefined ? {} : { addSkill }),
+    ...(readDraft === undefined ? {} : { readDraft }),
+    navigate: navigateRoute, resolveRoute: resolveTovuComposerDiscoveryRoute, loadSkillDraft,
+  });
 }
 
 export function useComposerCapabilitiesSeam({ override }: { override: typeof useComposerCapabilities | undefined }, _options: Record<string, never> = {}

@@ -6,7 +6,7 @@ import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { CollectionEntryEditor } from "../CollectionEntryEditor";
+import { CollectionEntryEditor } from "../collection-entry-panel";
 import { CollectionEntries } from "../CollectionEntriesScreen";
 import { Collections } from "../CollectionsScreen";
 import type { CollectionsController } from "@jini-ai/admin/screens/collections/hooks/use-collections.hooks";

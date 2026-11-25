@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CollectionEntryEditor } from "../CollectionEntryEditor";
+import { CollectionEntryEditor } from "../collection-entry-panel";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
 import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 

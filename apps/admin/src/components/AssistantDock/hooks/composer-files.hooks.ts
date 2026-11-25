@@ -2,6 +2,7 @@ import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { describeUploadOverLimit } from "@jini-ai/core/text";
 import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import {
+  withSizeRefusalCopy as withAdminSizeRefusalCopy,
   useAttachmentUploader as useAdminAttachmentUploader, useAttachmentValidator as useAdminAttachmentValidator,
   useFolderDropBridge as useAdminFolderDropBridge, useWorkingDirectoryAccess as useAdminWorkingDirectoryAccess,
 } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
@@ -56,14 +57,10 @@ export function withSizeRefusalCopy(
   { uploader, t }: { uploader: AttachmentUploader; t: (key: string) => string },
   _optional: Record<string, never> = {},
 ): AttachmentUploader {
-  return async (files, options) => {
-    const oversize = files.find((file) => file.size > uploadLimitForFile(file));
-    if (oversize) {
-      const limitBytes = uploadLimitForFile(oversize);
-      throw new Error(fileSizeRefusal({ t, limitBytes, fallback: describeUploadOverLimit({ fileBytes: oversize.size, limitBytes }) }));
-    }
-    return options === undefined ? uploader(files) : uploader(files, options);
-  };
+  return withAdminSizeRefusalCopy({
+    uploader, t, limitForFile: uploadLimitForFile,
+    describeRefusal: ({ t, limitBytes, fileBytes }) => fileSizeRefusal({ t, limitBytes, fallback: describeUploadOverLimit({ fileBytes, limitBytes }) }),
+  });
 }
 
 export function useAttachmentUploader({ t }: { t: (key: string) => string }, _optional: Record<string, never> = {}): AttachmentUploader {
