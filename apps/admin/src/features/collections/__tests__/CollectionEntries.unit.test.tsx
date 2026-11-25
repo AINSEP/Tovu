@@ -109,6 +109,7 @@ describe("loaded entries and errors", () => {
     expect(screen.queryByText("No entries yet in Recipe.")).not.toBeInTheDocument();
     // The host collaborator the Jini screen takes as a required prop: this admin's `ServerLabel`
     // fills the status pill (`draft` has no localized copy, so the protocol value shows through).
-    expect(screen.getByText("draft", { selector: ".status-draft" })).toBeInTheDocument();
+    // Jini emits its own `jini-status-<value>` pill classes (Jini 476b568dd, Codex rv1124b FIX 4).
+    expect(screen.getByText("draft", { selector: ".jini-status-draft" })).toBeInTheDocument();
   });
 });
