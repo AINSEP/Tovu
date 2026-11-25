@@ -33,6 +33,18 @@ let cancels: string[] = [];
 let eventsMode: "answer" | "stays-open" | "held" = "answer";
 let subscribed: (() => void) | null = null;
 let release: (() => void) | null = null;
+/** Event streams the stand-in leaves open (`stays-open`, `held`). The server's run finalizer follows
+ *  every accepted run through the daemon's event stream and, when that stream drops without a
+ *  terminal frame, keeps probing and re-adopting the run every reconnect delay; closing the
+ *  stand-in alone therefore left those recovery loops' timers holding the test process open after
+ *  every test had passed. Each test ends its open streams as a stopped run, so every follower
+ *  settles before the next test and the process exits. */
+const openStreams = new Set<{ runId: string; res: import("node:http").ServerResponse }>();
+function keepOpen(runId: string, res: import("node:http").ServerResponse): void {
+  const held = { runId, res };
+  openStreams.add(held);
+  res.on("close", () => { openStreams.delete(held); });
+}
 
 function frame(runId: string, kind: string, payload: unknown): string {
   return `event: ${kind}\ndata: ${JSON.stringify({ runId, eventId: "e", opaqueCursor: "0", protocolVersion: 1, ts: 0, kind, payload, durability: "durable" })}\n\n`;
@@ -58,6 +70,7 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         if (!launched.has(runId)) { res.writeHead(404, { "content-type": "application/json" }).end(JSON.stringify({ error: "run not found" })); return; }
         res.writeHead(200, { "content-type": "text/event-stream" });
         subscribed?.();
+        if (eventsMode !== "answer") keepOpen(runId, res);
         if (eventsMode === "held" && !release) { res.flushHeaders(); release = () => res.end(frame(runId, "end", { reason: "cancelled", status: "canceled" })); return; }
         if (eventsMode === "stays-open") { res.write(frame(runId, "agent", { type: "text_delta", delta: "Still working." })); return; }
         res.write(frame(runId, "agent", { type: "text_delta", delta: "Durable answer." }));
@@ -91,6 +104,7 @@ async function boot(t: import("node:test").TestContext) {
     readDiscovery: async () => ({ pid: 321, url: "http://127.0.0.1:0" }),
   });
   t.after(resetAssistantDaemonSingletonForTests);
+  t.after(() => { for (const { runId, res } of [...openStreams]) res.end(frame(runId, "end", { reason: "stop", status: "canceled" })); });
   const { createRouteDeps } = await import("../runtime/composition/app.js");
   const { createAssistantAgUiModule } = await import("../runtime/composition/modules/assistant-ag-ui.js");
   const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
