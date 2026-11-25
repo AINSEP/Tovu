@@ -79,9 +79,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
-import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
+import { ownerChatAcceptanceFor, sanitizeBrowserRunContext } from "./assistant-run-acceptance.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
-import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "@jini-ai/chat/store/runtime";
 
@@ -146,20 +145,20 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   const principal = getAuthedPrincipal(res);
   const body = (req.body ?? {}) as { contextRef?: unknown; agentId?: unknown; idempotencyKey?: unknown };
 
-  let decoded: Record<string, unknown>;
+  let parsed: Record<string, unknown>;
   try {
-    decoded = JSON.parse(redactAdminRunContextRef({ contextRef: typeof body.contextRef === "string" ? body.contextRef : "{}" }, {})) as Record<string, unknown>;
+    parsed = JSON.parse(redactAdminRunContextRef({ contextRef: typeof body.contextRef === "string" ? body.contextRef : "{}" }, {})) as Record<string, unknown>;
   } catch {
     res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" });
     return;
   }
 
-  if (!isPlainObject(decoded)) {
+  if (!isPlainObject(parsed)) {
     res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" }); return;
   }
-  // Recovery session choices are server decisions, never client-controlled launch fields.
-  delete decoded.recoveryMode;
-  delete decoded.recoverySessionId;
+  // Recovery session choices and the routine marker are server decisions, never client-controlled
+  // fields; stripped here so the non-durable proxy fallback below cannot forward them either.
+  const decoded = sanitizeBrowserRunContext({ decoded: parsed }, {});
   if (await proxyAcceptedRun({ decoded, body, deps, res }, {})) return;
   const upstream = await forwardToAgentDaemon(req, res, {
     ...body,
@@ -169,31 +168,20 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   await relayResponse(upstream, req, res);
 }
 
+/** HTTP side of acceptance only (parse, 201/404); the binding lives in `assistant-run-acceptance.ts`.
+ * Never passes `routine`: a browser send can never be a routine run. */
 async function proxyAcceptedRun(
   { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: AssistantRouteDeps; res: Response }, _optional = {},
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const durable = deps.chatRunLedger.durable;
-  if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
-    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
-    const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
-    const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
-      onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
-      launch: (required, optional) => {
-        if (!client.launch) throw new Error("assistant daemon has no launch operation");
-        return client.launch(required, optional);
-      },
-      attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
-    }, {});
-    const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
-      conversationId: decoded.conversationId, messageId: decoded.assistantMessageId,
-      request: { ...(typeof body.agentId === "string" ? { agentId: body.agentId } : {}), contextRef: JSON.stringify({ ...decoded, principalId: principal.id }) },
-    }, {});
-    if (!run) { res.status(404).json({ error: "not found" }); return true; }
-    res.status(201).json({ run: { id: run.runId }, messageId: run.messageId, conversationId: run.conversationId });
-    return true;
-  }
-  return false;
+  const acceptance = ownerChatAcceptanceFor({ deps, principalId: principal.id }, {});
+  if (!acceptance || typeof decoded.conversationId !== "string" || typeof decoded.assistantMessageId !== "string") return false;
+  const run = await acceptance.acceptOwnerChatRun({ principalId: principal.id, workspaceId: deps.workspaceId,
+    conversationId: decoded.conversationId, messageId: decoded.assistantMessageId, context: decoded },
+    typeof body.agentId === "string" ? { agentId: body.agentId } : {});
+  if (!run) { res.status(404).json({ error: "not found" }); return true; }
+  res.status(201).json({ run: { id: run.runId }, messageId: run.messageId, conversationId: run.conversationId });
+  return true;
 }
 
 async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {

@@ -56,3 +56,23 @@ export function parseRoutineBeacon({ text }: { text: string }): RoutineBeacon | 
   if (v !== 1 || !Number.isSafeInteger(enabled) || (enabled as number) < 0 || !Number.isSafeInteger(updatedAt)) return null;
   return { v: 1, enabled: enabled as number, updatedAt: updatedAt as number };
 }
+
+/**
+ * The trusted routine marker carried inside an accepted run's context envelope (`context.routine`).
+ * Why one shared shape: the host writes it only from the routine handler's trusted option, the
+ * daemon decoder and tool access validate it strictly, and recovery admission reads it back from the
+ * durable request. A browser can never supply it.
+ */
+export type RoutineRunMarker = Readonly<{ routineId: string; runId: string; catchUp: boolean; slotAt: number | null }>;
+
+/** Strict decode of an untrusted marker: exact keys and types, or null (never a partial marker). */
+export function parseRoutineRunMarker({ value }: { value: unknown }, _optional = {}): RoutineRunMarker | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const marker = value as Record<string, unknown>;
+  const keys = Object.keys(marker).sort().join(",");
+  if (keys !== "catchUp,routineId,runId,slotAt") return null;
+  const { routineId, runId, catchUp, slotAt } = marker;
+  const slotOk = slotAt === null || (typeof slotAt === "number" && Number.isFinite(slotAt));
+  if (typeof routineId !== "string" || routineId === "" || typeof runId !== "string" || runId === "" || typeof catchUp !== "boolean" || !slotOk) return null;
+  return { routineId, runId, catchUp, slotAt: slotAt as number | null };
+}
