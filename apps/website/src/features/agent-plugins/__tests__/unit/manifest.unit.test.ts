@@ -1,3 +1,4 @@
+import { TOVU_LEGACY_MCP_ALIASES } from "../../mcp-host-bindings.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -158,7 +159,7 @@ test("mcp.json: the non-spec tovuAuthMode extension passes through on a remote s
   const result = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA_1_0_0,
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "oauth" } },
-  } });
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal((result.config.servers.remote as { authMode?: string }).authMode, "oauth");
@@ -174,7 +175,7 @@ test("mcp.json: tovuDefaultTools on a remote server passes through when write is
         tovuDefaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] },
       },
     },
-  } });
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual((result.config.servers.remote as { defaultTools?: unknown }).defaultTools, {
@@ -188,7 +189,7 @@ function parseTokenAuth(tovuTokenAuth: unknown) {
   const result = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA_1_0_0,
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuTokenAuth } },
-  } });
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(result.ok, true);
   return result.ok ? (result.config.servers.remote as { tokenAuth?: unknown } | undefined) : undefined;
 }
@@ -214,7 +215,7 @@ function parseRenamedTools(tovuRenamedTools: unknown) {
   const result = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA_1_0_0,
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuRenamedTools } },
-  } });
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(result.ok, true);
   return result.ok ? (result.config.servers.remote as { renamedTools?: unknown } | undefined) : undefined;
 }
@@ -248,7 +249,7 @@ test("mcp.json: tovuDefaultTools whose write names a tool outside allow excludes
         tovuDefaultTools: { allow: ["list_things"], write: ["drop_everything"] },
       },
     },
-  } });
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.config.serverIds, ["remote"]);
@@ -266,7 +267,7 @@ test("mcp.json: tovuDefaultTools with a malformed name, a non-array, or more tha
     const result = parseAgentPluginMcpConfig({ value: {
       $schema: MCP_SCHEMA_1_0_0,
       mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools } },
-    } });
+    } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(Object.hasOwn(result.config.servers, "remote"), false, JSON.stringify(tovuDefaultTools));

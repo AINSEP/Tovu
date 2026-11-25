@@ -534,7 +534,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeContentDuplicationTools({ listResourceHandlers: listDuplicateResourceHandlers }) });
   contributions.contributors.register({ contribution: contributeContentTypesTools() });
   contributions.contributors.register({ contribution: contributeCustomCredentialsTools() });
-  contributions.contributors.register({ contribution: contributeDatabaseTools() });
+  contributions.contributors.register({ contribution: contributeDatabaseTools({ mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "assistant" }) }) });
   // Database transfer P0 (2026-09-27): `database_transfer_plan` (read-only) and `database_transfer_run`,
   // which holds its call open for the human's Copy before copying the site's data into a Postgres
   // database's private `tovu` area. The site keeps running on SQLite.

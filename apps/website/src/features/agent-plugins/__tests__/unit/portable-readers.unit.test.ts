@@ -1,3 +1,4 @@
+import { TOVU_LEGACY_MCP_ALIASES } from "../../mcp-host-bindings.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseAgentPluginMcpConfig } from '@jini-ai/agent-plugins/lifecycle';
@@ -29,10 +30,21 @@ test('portable manifest readers preserve identity, host signals, supersession an
 
 test('older manifest and MCP entry metadata normalize without operator action', () => {
   const parsed = parseAgentPluginMcpConfig({ value: { $schema: schema, mcpServers: { example: { type: 'streamable-http', url: 'https://example.test/mcp',
-    tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['inspect'], write: [], read: ['inspect'] } } } } });
+    tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['inspect'], write: [], read: ['inspect'] } } } } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   assert.deepEqual(parsed.config.servers.example, { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth',
     defaultTools: { allow: ['inspect'], write: [], read: [] } });
   assert.ok(parsed.warnings?.some(warning => warning.includes('2027-05-06')), 'legacy compatibility is observable by the host');
+});
+
+test('the standalone portable reader ignores unbound Tovu MCP aliases', () => {
+  const parsed = parseAgentPluginMcpConfig({ value: { $schema: schema, mcpServers: { example: {
+    type: 'streamable-http', url: 'https://example.test/mcp', tovuAuthMode: 'oauth',
+    tovuDefaultTools: { allow: ['inspect'], read: ['inspect'] },
+  } } } });
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  assert.deepEqual(parsed.config.servers.example, { type: 'streamable-http', url: 'https://example.test/mcp' });
+  assert.deepEqual(parsed.warnings ?? [], []);
 });
