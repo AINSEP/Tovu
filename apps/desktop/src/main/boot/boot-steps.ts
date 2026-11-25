@@ -134,18 +134,20 @@ export function chooseBootMode({ env }: { env: StartupEnv }, _optional = {}): Bo
  * @returns whether any dev-fallback work ran (`false` in a packaged app).
  * @complexity O(1) beyond the three tracked-sites calls.
  */
-export function settleDevFallbackRows<ClassifySiteDir>({ projectsPath, devFallbackDir, classifySiteDir, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }: {
+export function settleDevFallbackRows<ClassifySiteDir>({ projectsPath, devFallbackDir, classifySiteDir, beforeAddedRows, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }: {
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts` `BeforeAddedRows`), for the seed. */
+  beforeAddedRows: (required: { rows: readonly { siteDir: string }[] }) => void;
   devFallbackDir: string | null;
   /** `site-dir-store.ts`'s `classifySiteDirSafely`, passed through to the seeders untouched. */
   classifySiteDir: ClassifySiteDir;
   migrateLegacyDismissals: (required: { projectsPath: string; devFallbackDir: string }) => unknown;
-  seedDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
+  seedDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir; beforeAddedRows: (required: { rows: readonly { siteDir: string }[] }) => void }) => unknown;
   retireDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
 }, _optional = {}): boolean {
   if (!devFallbackDir) return false;
   migrateLegacyDismissals({ projectsPath, devFallbackDir });
-  seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
+  seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir, beforeAddedRows });
   // And its inverse: once the dev site moved into the single home, the seeded checkout row is a dead card.
   retireDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   return true;

@@ -21,7 +21,7 @@ test("desktop creates inside the shared home and reads Web/external entries as a
   try {
     const workspace = createSitesWorkspace({}, { homeDir: root, env: {} });
     fs.mkdirSync(path.join(root, "Documents"), { recursive: true });
-    const deps = { sharedSites: workspace, projectsPath: path.join(root, "profile", "projects.json"), statePath: path.join(root, "profile", "desktop-state.json"),
+    const deps = { sharedSites: workspace, beforeAddedRows: () => {}, projectsPath: path.join(root, "profile", "projects.json"), statePath: path.join(root, "profile", "desktop-state.json"),
       repoRoot: path.join(root, "repo"), cliMode: "source" as const, openSites: new Map(),
       dialog: { showOpenDialog: async () => { throw new Error("Creation must not ask for another folder"); } },
       classifySiteDir: ({ dir }: { dir: string }) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const,
@@ -166,7 +166,7 @@ test("desktop uses the single default home and transiently scans remaining neste
     writeSite(path.join(nested, "beta"), "beta-id");
     assert.deepEqual(workspace.roots({}), [old, nested]);
     shareSiteDirectories({ workspace, dirs: [path.join(old, "alpha")], createdBy: "test" });
-    const records = handleList({ sharedSites: workspace, projectsPath: path.join(root, "profile", "desktop-projects.json"),
+    const records = handleList({ sharedSites: workspace, beforeAddedRows: () => {}, projectsPath: path.join(root, "profile", "desktop-projects.json"),
       openSites: new Map(), repoRoot: root, readSiteName: () => "Alpha", readPreviewVersion: () => null });
     assert.equal(records.find((record) => record.installDir === path.join(old, "alpha"))?.folderMissing, false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -253,7 +253,7 @@ for (const oldOverride of ["documents", "local"]) test(`desktop retains sites wh
     const dir = path.join(home, "alpha"); writeSite(dir, "alpha-id");
     const workspace = createSitesWorkspace({}, { homeDir: root, env: { TOVU_SITES_HOME: home }, platform: "linux" });
     shareSiteDirectories({ workspace, dirs: [dir], createdBy: "test" });
-    const records = handleList({ sharedSites: workspace, projectsPath: path.join(root, "profile", "desktop-projects.json"),
+    const records = handleList({ sharedSites: workspace, beforeAddedRows: () => {}, projectsPath: path.join(root, "profile", "desktop-projects.json"),
       openSites: new Map(), repoRoot: root, readSiteName: () => "Alpha", readPreviewVersion: () => null });
     assert.equal(records.find((record) => record.installDir === dir)?.folderMissing, false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

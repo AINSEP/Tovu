@@ -598,6 +598,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
  * republished when this instance attaches to another main's server. */
 const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
   projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
+  beforeAddedRows: desktopPartitions.beforeAddedRows,
   revealPath: async ({ target }) => { shell.showItemInFolder(target); },
 }, warn: ({ message }) => console.warn(message) });
 
@@ -965,6 +966,8 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     pendingTeardowns,
     serializer,
     projectsPath: sitesCtx.projectsPath,
+    // The tracked-list writer's required effect: every added path invalidates its stale retirement record.
+    beforeAddedRows: desktopPartitions.beforeAddedRows,
     registryPath: sitesCtx.registryPath,
     repoRoot: PAYLOAD_ROOT,
     statePath: sitesCtx.statePath,
@@ -1074,7 +1077,7 @@ function stopSiteLifecycle(): void {
 function bootSitesHomeMode(): void {
   const sitesCtx = sitesHomeCtx();
   runSitesHomeBoot({ ports: {
-    settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
+    settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, beforeAddedRows: desktopPartitions.beforeAddedRows, devFallbackDir: DEV_FALLBACK_SITE_DIR,
       classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }),
     buildProjectDeps: () => buildProjectDeps(sitesCtx),
     registerSiteIpcHandlers: ({ deps }) => registerProjectLifecycle(deps),

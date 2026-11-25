@@ -47,7 +47,7 @@ fs.writeFileSync = (target, data, ...rest) => {
   return realWriteFileSync(target, data, ...rest);
 };
 const store = await import(pathToFileURL(modulePath).href);
-if (exportName === "trackSite") store[exportName]({ projectsPath: filePath, siteDir: value });
+if (exportName === "trackSite") store[exportName]({ beforeAddedRows: () => {}, projectsPath: filePath, siteDir: value });
 else if (exportName === "rememberSiteDir") store[exportName]({ statePath: filePath, dir: value });
 else store[exportName](filePath, value);
 `;
@@ -118,7 +118,7 @@ test("desktop-projects.json: a project another process adds while this one is wr
   const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   await whileAnotherProcessWrites({ moduleFile: "tracked-sites.ts", exportName: "trackSite", filePath: projectsPath, value: "/sites/child" }, () => {
-    trackSite({ projectsPath, siteDir: "/sites/parent" });
+    trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir: "/sites/parent" });
   });
 
   assert.deepEqual(

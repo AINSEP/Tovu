@@ -117,6 +117,27 @@ interface ProjectsFile {
   dismissedRecorded: boolean;
 }
 
+/**
+ * The tracked-list writer's REQUIRED effect for rows a change adds (P11 ST-2a): it runs inside the
+ * projects lock, after the change is decided and before the durable write, so lock order is always
+ * projects → retirement ledger. It invalidates any pending sign-in retirement record for an added
+ * path; a throw refuses the change and nothing is published. Required on every adding path — the
+ * desktop app, IPC, MCP and the `add-site` CLI — because a re-added website's login must never be
+ * erased by a stale record from its earlier deletion (owner rule (a)).
+ */
+type BeforeAddedRows = (required: { rows: readonly WritableTrackedRow[] }) => void;
+
+/** For writers that only remove or keep rows: an added row there is a bug, refused before it is published. */
+const ADDS_NO_ROWS: BeforeAddedRows = ({ rows }) => {
+  throw new Error(`This projects-list change only removes rows, yet it would add ${rows.map((row) => row.siteDir).join(", ")}. Nothing was saved.`);
+};
+
+/** Rows in `next` whose folder `current` does not track. @complexity O(n + m). */
+function addedRowsOf({ current, next }: { current: readonly { siteDir: string }[]; next: readonly WritableTrackedRow[] }, _options = {}): WritableTrackedRow[] {
+  const known = new Set(current.map((row) => row.siteDir));
+  return next.filter((row) => !known.has(row.siteDir));
+}
+
 /** What a change {@link updateProjectsFile} applies leaves behind. */
 interface ProjectsUpdate {
   rows: WritableTrackedRow[];
@@ -282,6 +303,7 @@ interface WritableTrackedRow {
  * not repaired by a call that had no change to make, so a no-op cannot cost the operator the
  * `.corrupt-<ms>` copy's bytes for no reason.
  *
+ * @param required.beforeAddedRows see {@link BeforeAddedRows}; called only when the change adds a folder.
  * @param required.change computed from the file's CURRENT contents, which for a damaged file are what could
  *   be recovered from it ({@link readProjectsFile}) — so a change applies on top of the recovered
  *   list and the write keeps both.
@@ -290,7 +312,7 @@ interface WritableTrackedRow {
  *   rather than written over bytes that could not be preserved first.
  * @complexity O(n) in the row count, plus the lock wait.
  */
-function updateProjectsFile({ projectsPath, change }: { projectsPath: string; change: (current: ProjectsFile) => ProjectsUpdate | null }, _options = {}): ProjectsUpdate {
+function updateProjectsFile({ projectsPath, change, beforeAddedRows }: { projectsPath: string; change: (current: ProjectsFile) => ProjectsUpdate | null; beforeAddedRows: BeforeAddedRows }, _options = {}): ProjectsUpdate {
   return withFileLock({ filePath: projectsPath, critical: () => {
     const current = readProjectsFile({ projectsPath });
     const next = change(current);
@@ -298,6 +320,8 @@ function updateProjectsFile({ projectsPath, change }: { projectsPath: string; ch
     if (current.state === "unreadable" && !quarantineUnreadableFile({ filePath: projectsPath, notice: PROJECTS_QUARANTINE_NOTICE })) {
       throw new Error(`The projects list ${projectsPath} is damaged and could not be moved aside, so this change was not saved. Nothing was written over it.`);
     }
+    const added = addedRowsOf({ current: current.rows, next: next.rows });
+    if (added.length > 0) beforeAddedRows({ rows: added });
     writeJsonFileAtomic({ filePath: projectsPath, value: { projects: next.rows, dismissed: next.dismissed } });
     return next;
   } });
@@ -312,8 +336,8 @@ function updateProjectsFile({ projectsPath, change }: { projectsPath: string; ch
  *   on the next scan.
  * @complexity O(n) in the row count.
  */
-function writeTrackedSites({ projectsPath, rows }: { projectsPath: string; rows: WritableTrackedRow[] }, { dismissed }: { dismissed?: string[] } = {}): void {
-  updateProjectsFile({ projectsPath, change: (current) => ({ rows, dismissed: dismissed ?? current.dismissed }) });
+function writeTrackedSites({ projectsPath, rows, beforeAddedRows }: { projectsPath: string; rows: WritableTrackedRow[]; beforeAddedRows: BeforeAddedRows }, { dismissed }: { dismissed?: string[] } = {}): void {
+  updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => ({ rows, dismissed: dismissed ?? current.dismissed }) });
 }
 
 /** {@link trackSite}'s own extra, provenance-only field. See its param doc. */
@@ -340,9 +364,9 @@ interface TrackSiteOptions {
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function trackSite({ projectsPath, siteDir }: { projectsPath: string; siteDir: string }, { origin = SITE_ORIGIN.adopted, siteId }: TrackSiteOptions & { origin?: SiteOrigin } = {}): TrackedSiteRow[] {
+function trackSite({ projectsPath, siteDir, beforeAddedRows }: { projectsPath: string; siteDir: string; beforeAddedRows: BeforeAddedRows }, { origin = SITE_ORIGIN.adopted, siteId }: TrackSiteOptions & { origin?: SiteOrigin } = {}): TrackedSiteRow[] {
   let rows: TrackedSiteRow[] = [];
-  updateProjectsFile({ projectsPath, change: (current) => {
+  updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => {
     // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
     // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
     // dialog themselves, and picking a folder they once removed is them asking for it back. Every
@@ -380,7 +404,7 @@ function buildTrackedRow({ siteDir, origin, siteId }: { siteDir: string; origin:
  */
 function untrackSite({ projectsPath, siteDir }: { projectsPath: string; siteDir: string }, _options = {}): TrackedSiteRow[] {
   let rows: TrackedSiteRow[] = [];
-  updateProjectsFile({ projectsPath, change: (current) => {
+  updateProjectsFile({ projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => {
     rows = current.rows.filter((row) => row.siteDir !== siteDir);
     // The removal is RECORDED, not just applied. Dropping the row alone was enough while the list was
     // the only thing that could add a project; with a boot scan and a rescan also adding, a bare
@@ -442,7 +466,7 @@ function isKnownIn({ file, siteDir }: { file: ProjectsFile; siteDir: string }, _
  */
 function migrateLegacyDismissals({ projectsPath, devFallbackDir }: { projectsPath: string; devFallbackDir: string }, _options = {}): string[] {
   let added: string[] = [];
-  updateProjectsFile({ projectsPath, change: (current) => {
+  updateProjectsFile({ projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => {
     // A DAMAGED file is not a legacy one: whether it recorded removals is exactly what its damage
     // makes unknowable, and converting it would manufacture a tombstone out of a gap. Left for the
     // first real change to move aside.
@@ -471,7 +495,7 @@ function migrateLegacyDismissals({ projectsPath, devFallbackDir }: { projectsPat
  * @returns whether a row was seeded.
  * @complexity O(1) beyond `classifySiteDir`'s and {@link adoptDiscoveredSites}' own cost.
  */
-function seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir }: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDirFn }, _options = {}): boolean {
+function seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir, beforeAddedRows }: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDirFn; beforeAddedRows: BeforeAddedRows }, _options = {}): boolean {
   if (isSiteDirKnown({ projectsPath, siteDir: devFallbackDir })) return false;
   // Guarded, not bare: this runs one line before `projectDeps` is built, inside the `whenReady()`
   // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
@@ -482,7 +506,7 @@ function seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir }: 
   // records `adopted`, which is the only correct value here — this row points at a folder that
   // already held a site before this app ever ran (`<repo>/sites/tovu-dev` in a checkout, someone's
   // real content), and deleting its card must never delete it.
-  return adoptDiscoveredSites({ projectsPath, siteDirs: [devFallbackDir] }).length > 0;
+  return adoptDiscoveredSites({ projectsPath, siteDirs: [devFallbackDir], beforeAddedRows }).length > 0;
 }
 
 /**
@@ -498,7 +522,7 @@ function seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir }: 
 function retireDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir }: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDirFn }, _options = {}): boolean {
   if (classifiesAsSite({ dir: devFallbackDir, classifySiteDir }) || !readTrackedSites({ projectsPath }).some((row) => row.siteDir === devFallbackDir)) return false;
   let dropped = false;
-  updateProjectsFile({ projectsPath, change: (current) => {
+  updateProjectsFile({ projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => {
     const rows = current.rows.filter((row) => row.siteDir !== devFallbackDir || row.origin !== SITE_ORIGIN.adopted);
     dropped = current.state === "ok" && rows.length !== current.rows.length;
     return dropped ? { rows, dismissed: current.dismissed } : null;
@@ -658,9 +682,9 @@ function classifiesAsSite({ dir, classifySiteDir }: { dir: string; classifySiteD
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
  * @complexity O(n + m) path resolutions in discovered and stored paths, in one read and one write.
  */
-function adoptDiscoveredSites({ projectsPath, siteDirs }: { projectsPath: string; siteDirs: string[] }, _options = {}): string[] {
+function adoptDiscoveredSites({ projectsPath, siteDirs, beforeAddedRows }: { projectsPath: string; siteDirs: string[]; beforeAddedRows: BeforeAddedRows }, _options = {}): string[] {
   let adopted: string[] = [];
-  updateProjectsFile({ projectsPath, change: (current) => {
+  updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => {
     // Compare physical identities inside the lock: an alias must neither duplicate a tracked
     // card nor bypass its dismissal, even when another window changed the registry mid-scan.
     const known = new Set([...current.rows.map((row) => row.siteDir), ...current.dismissed]
@@ -681,6 +705,7 @@ function adoptDiscoveredSites({ projectsPath, siteDirs }: { projectsPath: string
 }
 
 export {
+  ADDS_NO_ROWS,
   SITES_FILE_NAME,
   SITE_ORIGIN,
   normalizeOrigin,
@@ -701,4 +726,4 @@ export {
   updateProjectsFile,
   readProjectsFile,
 };
-export type { TrackedSiteRow, WritableTrackedRow, ProjectsFile, ProjectsUpdate };
+export type { TrackedSiteRow, WritableTrackedRow, ProjectsFile, ProjectsUpdate, BeforeAddedRows };

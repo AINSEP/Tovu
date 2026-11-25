@@ -40,7 +40,7 @@ function fakeContext(userDataDir: string = tempDir()) {
     revealed,
     context: {
       userDataDir,
-      projectsPath: sitesFilePath({ userDataDir }),
+      beforeAddedRows: () => {}, projectsPath: sitesFilePath({ userDataDir }),
       revealPath: async ({ target }: { target: string }) => {
         revealed.push(target);
       },
@@ -85,8 +85,8 @@ test("describeSitesMcpTools publishes the table without leaking handlers", () =>
 test("list_sites reports the tracked sites and whether each folder still exists", async () => {
   const { context } = fakeContext();
   const present = siteFixture("live");
-  trackSite({ projectsPath: context.projectsPath, siteDir: present }, { origin: SITE_ORIGIN.adopted });
-  trackSite({ projectsPath: context.projectsPath, siteDir: "/gone/missing-site" }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir: present }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir: "/gone/missing-site" }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool({ name: "list_sites", args: {}, context });
 
@@ -196,7 +196,7 @@ test("add_site_pointer reports an already-tracked site without claiming it added
 test("add_site_pointer tells the operator when it brings back a website they had removed", async () => {
   const { context } = fakeContext();
   const siteDir = siteFixture();
-  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   untrackSite({ projectsPath: context.projectsPath, siteDir });
 
   const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
@@ -211,7 +211,7 @@ test("add_site_pointer tells the operator when it brings back a website they had
 test("reveal_site_folder opens a tracked site's folder", async () => {
   const { context, revealed } = fakeContext();
   const siteDir = siteFixture();
-  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 
@@ -248,11 +248,12 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   const context = {
     userDataDir,
     projectsPath: sitesFilePath({ userDataDir }),
+    beforeAddedRows: () => {},
     revealPath: async () => {
       throw new Error("could not run 'open': ENOENT");
     },
   };
-  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 
@@ -268,12 +269,13 @@ test("a handler that rejects with a non-Error value still yields a readable tool
   const context = {
     userDataDir,
     projectsPath: sitesFilePath({ userDataDir }),
+    beforeAddedRows: () => {},
     revealPath: async () => {
       // Some spawn wrappers reject with a bare string rather than an Error.
       throw "file manager unavailable";
     },
   };
-  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 

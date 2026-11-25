@@ -95,8 +95,9 @@ test("boot mode: attach wins over a pinned site dir; a blank URL is not attach",
 test("dev-fallback rows: migrate dismissals, then seed, then retire — all with the safe classifier", () => {
   const calls: unknown[][] = [];
   const classify = (dir: string) => `verdict:${dir}`;
+  const beforeAddedRows = () => {};
   const ran = settleDevFallbackRows({
-    projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify,
+    beforeAddedRows, projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify,
     migrateLegacyDismissals: (...args) => calls.push(["migrate", ...args]),
     seedDevFallbackSite: (...args) => calls.push(["seed", ...args]),
     retireDevFallbackSite: (...args) => calls.push(["retire", ...args]),
@@ -104,7 +105,7 @@ test("dev-fallback rows: migrate dismissals, then seed, then retire — all with
   assert.equal(ran, true);
   assert.deepEqual(calls, [
     ["migrate", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev" }],
-    ["seed", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
+    ["seed", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify, beforeAddedRows }],
     ["retire", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
   ]);
 });
@@ -112,7 +113,7 @@ test("dev-fallback rows: migrate dismissals, then seed, then retire — all with
 // REGRESSION: a packaged app has no dev fallback; migrating `null` recorded a corrupt dismissal row.
 test("dev-fallback rows: a packaged app (no dev fallback) touches nothing", () => {
   const never = () => assert.fail("no dev-fallback call without a dev fallback");
-  assert.equal(settleDevFallbackRows({ projectsPath: "/p", devFallbackDir: null, classifySiteDir: never,
+  assert.equal(settleDevFallbackRows({ beforeAddedRows: () => {}, projectsPath: "/p", devFallbackDir: null, classifySiteDir: never,
     migrateLegacyDismissals: never, seedDevFallbackSite: never, retireDevFallbackSite: never }), false);
 });
 

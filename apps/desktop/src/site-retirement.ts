@@ -95,8 +95,36 @@ export function bindDesktopRetirement(
   },
   _optional: Record<string, never> = {},
 ): { ledger: RetirementLedger; port: SiteRetirementPort } {
+  const ledger = openProfileLedger({ userDataDir, fs, clock, id, durableJsonFor });
+  return { ledger, port: createSiteRetirement({ ledger, fs, sessionDataDir, eraseVersion, partitionFor, clock }) };
+}
+
+type ProfileLedgerRequired = {
+  userDataDir: string; fs: Pick<RetirementFs, "realpathSync">; clock: { now(): number }; id: () => string;
+  durableJsonFor: (required: { filePath: string }) => RetirementLedgerStore;
+};
+
+/** This profile's one ledger file, keyed to the canonical profile. @complexity O(1) plus one realpath. */
+function openProfileLedger({ userDataDir, fs, clock, id, durableJsonFor }: ProfileLedgerRequired): RetirementLedger {
   const profile = fs.realpathSync(userDataDir);
   const durableJson = durableJsonFor({ filePath: path.join(profile, "partition-interlock", "retired-partitions.json") });
-  const ledger = createRetirementLedger({ profile, durableJson, clock, id });
-  return { ledger, port: createSiteRetirement({ ledger, fs, sessionDataDir, eraseVersion, partitionFor, clock }) };
+  return createRetirementLedger({ profile, durableJson, clock, id });
+}
+
+/**
+ * The tracked-list writer's `beforeAddedRows` for a process with no partition interlock — the
+ * `add-site` CLI. Each added path invalidates its pending record in the profile's same ledger file the
+ * app uses, so a website deleted and then added back by path keeps its new sign-in (owner rule (a)).
+ * The ledger is opened at call time, inside the projects lock: a brand-new profile folder exists only
+ * once that lock has created it, and a profile with no folder holds no record to invalidate.
+ * @complexity O(rows × records).
+ */
+export function bindTrackedAgainRetirement(
+  required: ProfileLedgerRequired & { partitionFor: (required: { siteDir: string }) => string },
+  _optional: Record<string, never> = {},
+): (required: { rows: readonly { siteDir: string }[] }) => void {
+  return ({ rows }) => {
+    const ledger = openProfileLedger(required);
+    for (const { siteDir } of rows) ledger.invalidate({ partition: required.partitionFor({ siteDir }).replace(/^persist:/, ""), reason: "tracked-again" });
+  };
 }
