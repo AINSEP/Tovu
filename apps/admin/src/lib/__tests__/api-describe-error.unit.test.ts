@@ -32,3 +32,10 @@ test("a non-Error thrown value uses the fallback", () => {
   expect(describeApiError({ e: "just a string", fallback: "fallback text" })).toBe("fallback text");
   expect(describeApiError({ e: undefined, fallback: "fallback text" })).toBe("fallback text");
 });
+
+// B259 verify-first (P8-V2.T), RED on this tree: `describeApiError` returns any unexpected
+// `Error.message` verbatim, so `new Error("open failed: /Users/someone/private/site.db
+// token=sk_test_SYNTHETIC…")` reaches admin copy unchanged. Controls that must stay as they are:
+// a known `ApiError` keeps its message and a plain "network down" Error keeps its message. The fix
+// step (mutation `expose-raw-unexpected-error`) turns this into an active test.
+test.todo("an unexpected Error cannot expose a private path or a synthetic credential in admin copy");
