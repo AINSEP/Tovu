@@ -9,9 +9,9 @@ import type {
 } from "@jini-ai/core/contracts/headless/contracts";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
-import { toAdminPostResponse } from "../../inbound/admin-http/http/posts.js";
+import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { toAdminPresentationResponse } from "../../inbound/admin-http/http/presentation.js";
-import { toContentPostResponse } from "../../inbound/public-http/http/content/posts.js";
+import { toContentPostResponse } from "@jini-ai/cms/public-http/http/content/posts";
 
 const seedPost: PostRecord = {
   id: "post-1",

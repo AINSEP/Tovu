@@ -9,7 +9,7 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
 import { buildSeoRegistrations } from "@jini-ai/cms/seo/site/tool-registrations";
 import { seoSettingsHostBindings } from "../index.js";
-import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { toolMetadata as seoToolMetadata } from "@jini-ai/core/tool-metadata/seo";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 
 function conflict() {

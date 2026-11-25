@@ -12,7 +12,8 @@ import path from "node:path";
 
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
@@ -36,7 +37,7 @@ async function fixture(t: test.TestContext, { selection = [REL], files: wrap }: 
   const siteDir = await mkdtemp(path.join(tmpdir(), "raw-file-char-"));
   t.after(() => rm(siteDir, { recursive: true, force: true }));
   await mkdir(path.join(siteDir, "snippets"));
-  const real = createRawFileSitePort({ siteDir });
+  const real = createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir });
   const files = wrap ? wrap(real) : real;
   const blobs = new InMemoryBlobStore();
   const outbox = new InMemoryOutbox();

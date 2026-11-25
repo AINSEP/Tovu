@@ -1,13 +1,13 @@
 import type { Request, Response } from "express";
 import { resolveProtocol } from "../../../../../platform/express/public-origin.js";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
-import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
+import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "@jini-ai/cms/public-http/routes/site/product-checkout";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite } from "../../http/site/render-site.js";
-import type { SiteProduct } from "../../http/site/render-context.js";
+import type { SiteProduct } from "@jini-ai/cms/public-http/http/site/render-context";
 import { resolveSiteAssistantWidgetForRequest } from "./pages/render-context/widgets.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "./pages/response.js";
 import { resolveSiteTitleForRender } from "./pages/render-context/site-title.js";

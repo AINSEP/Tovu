@@ -21,7 +21,7 @@ import { buildPostRecord } from "../../features/post/__tests__/post-record.fixtu
 import { contributePostTools } from "../../features/post/tool-registrations.js";
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";

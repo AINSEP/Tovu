@@ -4,7 +4,7 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import { InMemorySettingsRepo, SettingsRevisionConflictError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
-import { createNativeApprovalMemory } from "../../../contracts/core/native-approval-memory.js";
+import { createNativeApprovalMemory } from "@jini-ai/core/native-approval-memory";
 import { createInMemoryConversationToolApprovalStore } from "../../../assistant/external-mcp-tool-approval-adapters.js";
 import type { SettingsToolDeps } from "../tool-registrations.js";
 import { contributeSettingsTools } from "../tool-registrations.js";

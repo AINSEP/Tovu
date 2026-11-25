@@ -6,7 +6,7 @@ import { readPluginInstallRequest, readPluginInstallArchive } from './install-so
 import { PLUGINS_INSTALL_TOOL_ID } from '@jini-ai/plugins/runtime/install-tool-catalog';
 import { pluginsInstallCatalog as catalog, pluginInstallMessages } from './plugin-host-copy.js';
 import type { PluginsInstallToolDeps } from './install-tool.js';
-import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
+import { pluginRuntimeToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import type { PluginInstallRequest } from '#src/contracts/headless/index';
 import type { PluginInstallToolsRequired } from '@jini-ai/plugins/host/tools';
 export function bindPluginInstallTools(deps: PluginsInstallToolDeps): PluginInstallToolsRequired<PluginInstallRequest> {

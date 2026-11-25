@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FormSlugConflictError } from "@jini-ai/cms/forms";
-import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
+import express from "express";
+import { FormSlugConflictError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
+import { registerAdminFormsAuthoringRoute } from "#src/server/runtime/composition/modules/forms-admin";
+import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import {
   toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,
   toAdminFormSubmissionResponse, toAdminFormSubmissionListResponse,
 } from "@jini-ai/cms/admin-http/http/forms";
-import { mapFormsWriteError } from "../../routes/forms/forms-write-error.js";
 
 // F4.1/F4.3: independent, non-default data. Mutation: return the original fields/notify/data
 // rather than copies; changing the response would then corrupt the read model.
@@ -103,16 +106,33 @@ test("expired submission IPs serialize as an empty display string in detail and 
   assert.equal(submission.sourceIp, null);
 });
 
-// F4.4: the status/body mapping and its per-error cases moved to `@jini-ai/cms`
-// (`forms-write-error.test.ts`); this pins only the Express writer over it.
-test("forms error mapper writes the engine's status and body, and leaves unknown errors untouched", () => {
-  const known = createCapturingResponse();
-  const error = new FormSlugConflictError({ message: "slug occupied", slug: "contact" });
-  assert.equal(mapFormsWriteError({ err: error, res: known.res }), true);
-  assert.deepEqual(known.capture, { statusCode: 409, jsonBody: { error: "slug occupied", code: "FORMS_SLUG_CONFLICT", details: { slug: "contact" } } });
-  const unknown = createCapturingResponse();
-  assert.equal(mapFormsWriteError({ err: new Error("private db path"), res: unknown.res }), false);
-  assert.deepEqual(unknown.capture, { statusCode: 200, jsonBody: undefined });
+// F4.4: the status/body mapping and its per-error cases live in `@jini-ai/cms`
+// (`write-error`); this pins the wire answer a mounted forms route gives for a recognised error
+// and for an unknown one, which the Express-only `mapFormsWriteError` writer used to pin.
+test("forms routes answer the engine's status and body for a recognised error, and a redacted 500 for an unknown one", async () => {
+  const record = { id: "form", workspaceId: "ws", name: "Contact", slug: "contact", fields: [],
+    notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "t0", updatedAt: "t0", version: 1 };
+  const repo = new InMemoryFormDefinitionRepo();
+  await repo.create(record);
+  let next = 0;
+  const deps = { workspaceId: "ws", formDefinitionRepo: repo, formSubmissionRepo: new InMemoryFormSubmissionRepo(),
+    executeCommand, changeSets: new InMemoryChangeSetRepo(), clock: { nowMs: () => 0 }, idGen: { newId: () => `id-${++next}` },
+    authorize: async () => ({ allowed: true, reason: "test" }),
+    removeFormSubmission: (async () => { throw new Error("unused"); }) as FormsRouteDeps["removeFormSubmission"],
+    outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
+  } as unknown as FormsRouteDeps;
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
+  registerAdminFormsAuthoringRoute({ app, deps });
+  const path = "/api/admin/v1/workspaces/ws/forms/form/authoring";
+  repo.update = async () => { throw new FormSlugConflictError({ message: "slug occupied", slug: "contact" }); };
+  const known = await dispatchJsonRequest(app, "PUT", path, { name: "Edit" });
+  assert.equal(known.status, 409);
+  assert.deepEqual(known.body, { error: "slug occupied", code: "FORMS_SLUG_CONFLICT", details: { slug: "contact" } });
+  repo.update = async () => { throw new Error("private db path"); };
+  const unknown = await dispatchJsonRequest(app, "PUT", path, { name: "Edit" });
+  assert.equal(unknown.status, 500);
+  assert.equal(JSON.stringify(unknown.body).includes("private db path"), false);
 });
 
 test('invalid import classification is exposed beside answers on detail and list responses', () => {

@@ -7,11 +7,12 @@ import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gate
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
-import { planImport } from "./planner.js";
+import { planImport } from "@jini-ai/cms/publish/content/planner";
 import type { PublishContentSeedHashFn } from "@jini-ai/cms/publish/content/seed-hash";
-import type { PlanImportDeps } from "./planner.js";
-import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
-import type { PublishContentDeps } from "./type-registry.js";
+import type { PlanImportDeps } from "@jini-ai/cms/publish/content/planner";
+import type { PublishContentBundle, PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
+import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
@@ -262,7 +263,7 @@ async function planStagedImport({ input }: { input: BuildPublishContentImportHoo
     entities: JSON.parse(staged.entitiesJson) as readonly PackedEntity[],
   };
 
-  const getBaseline: PlanImportDeps["getBaseline"] = async ({ entityType, entityId }) => {
+  const getBaseline: PlanImportDeps<TovuPublishPorts>["getBaseline"] = async ({ entityType, entityId }) => {
     const record = await input.baselineRepo.findOne({
       workspaceId: input.workspaceId,
       // Plan §1.6 / §5 risk #9: the peer key is the bundle's OWN authenticated source principal
@@ -282,6 +283,7 @@ async function planStagedImport({ input }: { input: BuildPublishContentImportHoo
                       bundle,
                       deps: {
       publishContentDeps: input.publishContentDeps,
+      catalog: { build: buildPublishContentCatalog },
       getBaseline,
       hasBlob,
       ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),

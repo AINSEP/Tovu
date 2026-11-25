@@ -11,7 +11,8 @@ import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
 import { InMemoryOutbox } from '@jini-ai/infra/events/memory-bus';
 import { contributeRawFilePublish } from '#src/features/publish-content/raw-file-contributor';
 import { contributeThemeFilesPublish } from '#src/features/theme/publish-content';
-import { createRawFileSitePort } from '#src/features/publish-content/publish-backstop-file';
+import { createRawFileSitePort } from '@jini-ai/cms/publish/content/publish-backstop-file';
+import { BACKSTOP_RAW_FILE_POLICY } from '#src/features/publish-content/backstop-policy';
 import { contentHash } from '@jini-ai/cms/publish/content/content-hash';
 import { MAX_SECRET_SCAN_BYTES } from '#src/features/publish-content/file-tree-policy';
 import type { PackedEntity, PublishContentDeps } from '#src/features/publish-content/type-registry';
@@ -81,7 +82,7 @@ test('Library forged raw-file/theme apply refuses private hashes before blob I/O
     const publishDeps: PublishContentDeps = { ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
       ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
         'theme-files': { themesDir } },
-      backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ siteDir }), blobs: deps.blobStore } };
+      backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
     const rawState = { path: 'snippets/leaked.html', sha256: media.source.sha256, size, mode: 0o644 };
     const themeState = { title: 'Theme: static/leaked', kind: 'theme-files', treeKey: 'static/leaked',
       files: [{ path: 'render/partials/leaked.html', sha256: media.source.sha256, size, mode: 0o644 }] };
@@ -138,7 +139,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
   const publishDeps: PublishContentDeps = { ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
       'theme-files': { themesDir } },
-    backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ siteDir }), blobs: deps.blobStore } };
+    backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
   registerPublishContentBlobGetRoute({ app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
   const base = await startTestServer(app, t);

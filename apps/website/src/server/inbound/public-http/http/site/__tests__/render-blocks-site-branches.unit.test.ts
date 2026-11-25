@@ -6,7 +6,7 @@ import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { renderSite, type RenderSiteRequired } from "../render-site.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { renderBlockSeam } from "../render/blocks.js";
 import { renderWidgetIr } from "../render/content-html.js";
 import {

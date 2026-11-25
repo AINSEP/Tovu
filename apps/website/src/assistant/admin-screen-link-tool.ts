@@ -1,6 +1,6 @@
 import { validatePageLink } from "@jini-ai/agentic";
 import { ADMIN_SCREENS } from "../features/site-inspection/admin-screens.generated.js";
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for

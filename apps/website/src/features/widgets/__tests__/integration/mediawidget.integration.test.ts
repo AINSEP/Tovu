@@ -5,7 +5,7 @@ import test from 'node:test';
 import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
-import { collectBodyReferences } from '#src/features/publish-content/content-references';
+import { collectBodyReferences } from '@jini-ai/cms/publish/content/content-references';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { extractHtmlEntryRefs } from '@jini-ai/cms/widgets';
 

@@ -3,10 +3,10 @@ import { nowIso as clockNowIso, resolveCreatorKind } from "@jini-ai/core/primiti
 import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { collectBodyReferences } from "#src/features/publish-content/content-references";
+import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { addressHeldByOther, trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor, PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { PublishContentReference, RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
@@ -337,7 +337,7 @@ function packedKindMismatch({ kind, id, state }: { kind: PostKind; id: string; s
   return state.kind === kind ? null : `${kind} entity '${id}' is packed as a '${String(state.kind)}' — a ${kind} publish writes only ${kind}s`;
 }
 
-async function writePublishedPost({ kind, ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }: Parameters<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["write"]>[0] & { kind: PostKind }) {
+async function writePublishedPost({ kind, ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }: Parameters<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts, TovuPublishPorts>>[0]["write"]>[0] & { kind: PostKind }) {
       const wrongKind = packedKindMismatch({ kind, id, state });
       if (wrongKind) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: wrongKind });
       const { repo, outbox } = applyPorts({ ports, deps, kind });
@@ -364,7 +364,7 @@ async function writePublishedPost({ kind, ports, deps, workspaceId, id, state, e
 
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
-async function validatePublishedPost({ kind, ports, workspaceId, entity }: Omit<Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["validate"]>>[0], "existing"> & { kind: PostKind }) {
+async function validatePublishedPost({ kind, ports, workspaceId, entity }: Omit<Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts, TovuPublishPorts>>[0]["validate"]>>[0], "existing"> & { kind: PostKind }) {
       const wrongKind = packedKindMismatch({ kind, id: entity.id, state: entity.state });
       if (wrongKind) return wrongKind;
       const slug = entity.state.slug;
@@ -380,7 +380,7 @@ async function validatePublishedPost({ kind, ports, workspaceId, entity }: Omit<
 }
 
 function contributePostKind(kind: PostKind): PublishContentContributor {
-  return createRepoPublishHandler<PostRow, PostPorts>({
+  return createRepoPublishHandler<PostRow, PostPorts, TovuPublishPorts>({
     entityType: kind, // PostKind's two values are exactly this feature's two entityTypes
     coversTables: ["posts", "post_versions"],
     schemaVersion: 2,

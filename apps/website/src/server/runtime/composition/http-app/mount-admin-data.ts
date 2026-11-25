@@ -3,10 +3,9 @@
  * SEO and `GET /api/search`. Registration order is behaviour. Moved verbatim out of `app.ts`.
  */
 
-import { registerAdminTaxonomyMergeTermRoutes } from "../../../inbound/admin-http/routes/taxonomy/merge-term.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "../modules/database-migrate-forward.js";
 import { registerAdminRecoveryRestoreRoutes } from "../modules/recovery-restore.js";
-import { createTaxonomyModule } from "../modules/taxonomy.js";
+import { createTaxonomyModule, registerAdminTaxonomyMergeTermRoutes } from "../modules/taxonomy.js";
 import { createContentTypesModule } from "../modules/content-types.js";
 import { createSeoModule } from "../modules/seo.js";
 import { registerSiteSearchRoute } from "#src/server/inbound/public-http/routes/site/search";

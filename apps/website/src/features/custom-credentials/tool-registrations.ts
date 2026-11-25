@@ -7,13 +7,13 @@ import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credent
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor, suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credentials/credential-recovery";
 import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
-import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from "@jini-ai/core/primitives";
 

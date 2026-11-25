@@ -36,7 +36,7 @@ import {
   type PluginsToolDeps,
 } from "../../__tests__/support/plugin-tool-host.js";
 import { createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
-import { createNativeApprovalMemory } from "../../contracts/core/native-approval-memory.js";
+import { createNativeApprovalMemory } from "@jini-ai/core/native-approval-memory";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

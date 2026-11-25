@@ -3,6 +3,7 @@ import type { RouteRequestFacts } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
 import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
+import { servingOriginFor } from "#src/server/inbound/shared/serving-origin";
 
 import { getAuthedCredentialKind, type AuthCredentialKind, type CredentialKindForbiddenBody, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { getPublishTrustContext, type PublishTrustContext } from "./publish-trust-auth.js";
@@ -87,11 +88,15 @@ export function refuseUnlessSessionCredential({ res, gate }: { res: Response; ga
  * consulted only for a spec that opts in. `clientAddress` is the same trust-proxy answer the Jini
  * frontend hooks get (`captureRequestFacts` → `resolveClientIp`); `host` is `req.get("host")` as
  * publish-trust's `originOf` reads it, and `protocol` is `req.protocol` (trust-proxy aware) for the same
- * origin. An absent header leaves its key out.
+ * origin. An absent header leaves its key out. `servingOrigin` is the origin the request was served from
+ * (`servingOriginFor`: trust-proxy aware, forwarded host only from a trusted peer); it is computed only when read and is
+ * not enumerable, like `localAdmin`, so a spec that answers its facts as JSON keeps its wire, and it is absent
+ * (`undefined`) when the Host cannot form an origin.
  * @complexity O(1).
  */
 export function routeRequestFactsFor({ req }: { req: Request }, _optional: Record<string, never> = {}): RouteRequestFacts {
   const userAgent = req.get("user-agent");
   const host = req.get("host");
-  return { clientAddress: captureRequestFacts({ req }).clientAddress, ...(userAgent === undefined ? {} : { userAgent }), ...(host === undefined ? {} : { host }), protocol: req.protocol };
+  const facts = { clientAddress: captureRequestFacts({ req }).clientAddress, ...(userAgent === undefined ? {} : { userAgent }), ...(host === undefined ? {} : { host }), protocol: req.protocol };
+  return Object.defineProperty(facts, "servingOrigin", { enumerable: false, get: () => servingOriginFor({ req }) }) as RouteRequestFacts;
 }

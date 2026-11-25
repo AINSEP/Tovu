@@ -29,7 +29,7 @@ import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publi
  * - `publishContentBaselineRepo`/`dbOps`/`restorePointsRepo`/`gatedMutations`/
  *   `publishContentApplyPort`: added for Task 7 (the gated `plan`/`confirm`/`execute` import
  *   ceremony — `import.ts`, `gated-hooks.ts`, `execute-import.ts`). `dbOps`/`restorePointsRepo`/
- *   `gatedMutations` are the same instance-wide singletons `taxonomy/merge-term.ts`/`database/
+ *   `gatedMutations` are the same instance-wide singletons the taxonomy merge registrar (`modules/taxonomy.ts`)/`database/
  *   migrate-forward.ts` already read directly off full `RouteDeps` — narrowed here instead of
  *   widening, per this file's own established pattern.
  * - `publishContentPeerRepo`/`publishContentPeerHttpClient`/`siteAssistantSecretSealer`/

@@ -10,7 +10,7 @@ import { contributePublishContentTools } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { fixture as pullFixture, context, tool, OWNER } from "./pull-tool-fixture.js";
-import type { PublishContentReport } from "../plan-rows.js";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { planPublishToPeer } from "../push-plan.js";
 
 const ID = "publish_content_publish";

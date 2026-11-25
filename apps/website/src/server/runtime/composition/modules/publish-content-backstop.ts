@@ -8,11 +8,12 @@ import type { BackstopAuditPort, BackstopAuditRecord, BackstopInverse, BackstopP
 import { nowIso } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey } from "#src/features/media/index";
 import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
-import { BACKSTOP_FORBIDDEN, mayUseBackstop, readBackstopMetadata, runAuditedBackstop, validateBackstopRequest } from "#src/features/publish-content/backstop-service";
+import { BACKSTOP_FORBIDDEN, mayUseBackstop } from "@jini-ai/cms/publish/content/backstop-service";
+import { readBackstopMetadata, runAuditedBackstop, validateBackstopRequest } from "#src/features/publish-content/backstop-service";
 import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { confirmPeerImport, executePeerImport, pushBundleToPeer, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
-import { entityKey } from "#src/features/publish-content/plan-rows";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";
 import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";

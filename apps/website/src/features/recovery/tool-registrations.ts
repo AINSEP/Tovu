@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/recovery.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/recovery';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**

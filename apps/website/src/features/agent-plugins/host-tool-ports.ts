@@ -5,7 +5,7 @@
  * and approval stays what it was before the move.
  */
 import type { AgentPluginHostToolPorts, HostToolMessages, HostToolsLifecyclePort } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-import { toolMetadata } from "../../contracts/core/tool-metadata/agent-plugins.js";
+import { agentPluginsToolMetadata as toolMetadata } from "../../contracts/core/tool-metadata/index.js";
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 import { agentPluginActivations } from "./activation-effects.js";
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./lifecycle.js";

@@ -2,7 +2,7 @@ import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { buildTrashToolRegistrations, trashDerivedRisk, type TrashPort, type TrashToolPolicy } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
-import { toolMetadata } from "../../contracts/core/tool-metadata/trash.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/trash";
 import { filterVisibleTrashItems, trashDaysRemaining, trashPermissionFor, TRASH_PERMISSION_BY_ENTITY_TYPE, TRASH_READ_PERMISSION } from "./permissions.js";
 import type { TrashRegistry } from "@jini-ai/cms/trash";
 import { trashToolEntityTypes } from "./tool-kinds.js";
@@ -11,7 +11,7 @@ import { trashToolEntityTypes } from "./tool-kinds.js";
  * @file This site's binding of Trash's two agent tools, `trash_list_items` and `trash_restore_item`,
  * whose catalog, handlers and authored risk map live in `@jini-ai/cms/trash`. What stays here is the
  * host's own policy: the tool metadata (search vocabulary and approval policy,
- * `contracts/core/tool-metadata/trash.ts`), the permission each kind needs (the permission that
+ * `@jini-ai/core/tool-metadata/trash`), the permission each kind needs (the permission that
  * kind's own delete tool required, `permissions.ts`), the per-row visibility filter, the kind lists
  * (`tool-kinds.ts`) and the contributor the composition root installs. Read `agent-tools.ts`'s
  * header in `@jini-ai/cms/trash` first — it names the separate confirmed-purge contributor, and why

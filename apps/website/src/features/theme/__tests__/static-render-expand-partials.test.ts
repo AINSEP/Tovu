@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS } from "../../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { renderStaticPage, renderStaticPartial } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 

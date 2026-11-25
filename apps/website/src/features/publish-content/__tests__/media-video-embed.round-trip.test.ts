@@ -32,7 +32,7 @@ import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
-import { includeReferencedEntities } from "../export-bundle.js";
+import { includeReferencedEntities } from "@jini-ai/cms/publish/content/export-bundle";
 import { buildPublishContentCatalog } from "../type-registry.js";
 import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 import { applyReport, makeSite, packAll, plan, registerOnly, WORKSPACE_ID } from "./round-trip-harness.js";

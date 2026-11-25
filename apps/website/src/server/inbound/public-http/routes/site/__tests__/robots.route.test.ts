@@ -12,7 +12,7 @@ import express from "express";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerSeoRobotsRoute } from "../robots.js";
+import { registerSeoRobotsRoute } from "../seo-documents.js";
 import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import {
   OriginNotVerifiedError,

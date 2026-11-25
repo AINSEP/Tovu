@@ -7,7 +7,7 @@ import express from "express";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
+import { registerAdminFormsCreateRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import { registerAdminFormsGetRoute } from "../../runtime/composition/modules/forms-admin.js";
 import { registerAdminFormsListSubmissionsRoute } from "../../runtime/composition/modules/forms-admin.js";
 import type { RouteDeps } from "../../routes/types.js";

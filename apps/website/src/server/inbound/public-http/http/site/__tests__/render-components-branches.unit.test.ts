@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { COMPONENTS } from "../render/components/registry.js";
 import { renderWidgetIr } from "../render/content-html.js";
 

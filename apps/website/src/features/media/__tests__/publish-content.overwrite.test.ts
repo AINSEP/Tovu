@@ -10,10 +10,10 @@ import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryBlobStore, replaceMediaFile, type MediaRecord } from "../index.js";
 import { mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
-import { planImport } from "#src/features/publish-content/planner";
+import { planImport } from "@jini-ai/cms/publish/content/planner";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 const workspaceId = "11111111-1111-1111-1111-111111111111";
 const oldBytes = new Uint8Array([1]);
@@ -63,7 +63,7 @@ test("changed bytes require Overwrite even when the destination still matches it
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const destination = await f.handler.inspect({ id: f.prior.id });
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] };
-  const deps = { publishContentDeps: f.deps, hasBlob: async () => true,
+  const deps = { catalog: { build: buildPublishContentCatalog }, publishContentDeps: f.deps, hasBlob: async () => true,
     getBaseline: async () => ({ hashAtLastSync: destination!.hash, hashVersion: CONTENT_HASH_VERSION }) };
   const blocked = (await planImport({ bundle, deps })).rows[0]!;
   assert.equal(blocked.outcome, "blocked");
@@ -251,7 +251,7 @@ test("file replacement offers explain destination edits since the last sync", as
                                     bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
       hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] },
                                     deps: {
-      publishContentDeps: f.deps, hasBlob: async () => true,
+      catalog: { build: buildPublishContentCatalog }, publishContentDeps: f.deps, hasBlob: async () => true,
       getBaseline: async () => ({ hashAtLastSync: "before-live-edit", hashVersion: CONTENT_HASH_VERSION }),
     }
                                   });

@@ -9,8 +9,8 @@ import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/command
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
-import { registerAdminFormsAuthoringRoute } from "../../inbound/admin-http/routes/forms/authoring.js";
+import { registerAdminFormsCreateRoute } from "#src/server/runtime/composition/modules/forms-admin";
+import { registerAdminFormsAuthoringRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createFormsAdminModule } from "../../runtime/composition/modules/forms-admin.js";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";

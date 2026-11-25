@@ -1,17 +1,17 @@
-import { toolMetadata as commerce } from './commerce.js';
+import { toolMetadata as commerce } from '@jini-ai/core/tool-metadata/commerce';
 import { toolMetadata as consent } from '@jini-ai/core/tool-metadata/consent';
 import { projectToolMetadata } from '@jini-ai/core';
 import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
-import { toolMetadata as agent_plugins } from './agent-plugins.js';
+import { createAgentPluginsToolMetadata } from '@jini-ai/core/tool-metadata/agent-plugins';
 import { toolMetadata as analytics } from '@jini-ai/core/tool-metadata/analytics';
-import { toolMetadata as assistant } from './assistant.js';
+import { toolMetadata as assistant } from '@jini-ai/chat/core/assistant-tool-metadata';
 import { toolMetadata as change_sets } from '@jini-ai/core/tool-metadata/change-sets';
-import { toolMetadata as comments } from './comments.js';
+import { toolMetadata as comments } from '@jini-ai/core/tool-metadata/comments';
 import { toolMetadata as content_duplication } from '@jini-ai/core/tool-metadata/content-duplication';
 import { toolMetadata as content_read } from './content-read.js';
 import { toolMetadata as content_types } from '@jini-ai/core/tool-metadata/content-types';
-import { toolMetadata as custom_credentials } from './custom-credentials.js';
+import { toolMetadata as custom_credentials } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { toolMetadata as database } from '@jini-ai/core/tool-metadata/database';
 import { toolMetadata as database_transfer } from '@jini-ai/core/tool-metadata/database-transfer';
 import { createDeployOpsToolMetadata } from '@jini-ai/core/tool-metadata/deploy-ops';
@@ -20,56 +20,64 @@ import { toolMetadata as domain_dns } from '@jini-ai/core/tool-metadata/domain-d
 import { toolMetadata as external_mcp } from '@jini-ai/core/tool-metadata/external-mcp';
 import { toolMetadata as entries } from '@jini-ai/core/tool-metadata/entries';
 import { toolMetadata as forms } from '@jini-ai/core/tool-metadata/forms';
-import { toolMetadata as frontend_control } from './frontend-control.js';
-import { toolMetadata as fs_files } from './fs-files.js';
+import { toolMetadata as frontend_control } from '@jini-ai/core/tool-metadata/frontend-control';
+import { toolMetadata as fs_files } from '@jini-ai/core/tool-metadata/fs-files';
 import { toolMetadata as identity } from '@jini-ai/core/tool-metadata/identity';
 import { toolMetadata as files_copy } from '@jini-ai/core/tool-metadata/files-copy';
 import { toolMetadata as image_transform } from '@jini-ai/core/tool-metadata/image-transform';
 import { toolMetadata as email_templates } from '@jini-ai/core/tool-metadata/email-templates';
 import { toolMetadata as mail_status } from '@jini-ai/core/tool-metadata/mail-status';
 import { toolMetadata as media } from '@jini-ai/core/tool-metadata/media';
-import { toolMetadata as media_generation } from './media-generation.js';
+import { toolMetadata as media_generation } from '@jini-ai/core/tool-metadata/media-generation';
 import { toolMetadata as media_import } from '@jini-ai/core/tool-metadata/media-import';
 import { toolMetadata as members } from '@jini-ai/core/tool-metadata/members';
 import { toolMetadata as navigation } from '@jini-ai/core/tool-metadata/navigation';
 import { toolMetadata as newsletter } from '@jini-ai/core/tool-metadata/newsletter';
 import { toolMetadata as pages } from '@jini-ai/core/tool-metadata/pages';
-import { toolMetadata as permanent_delete } from './permanent-delete.js';
-import { toolMetadata as plugin_runtime } from './plugin-runtime.js';
+import { toolMetadata as permanent_delete } from '@jini-ai/core/tool-metadata/permanent-delete';
+import { createPluginRuntimeToolMetadata } from '@jini-ai/core/tool-metadata/plugin-runtime';
 import { toolMetadata as post } from '@jini-ai/core/tool-metadata/post';
 import { toolMetadata as publish_content } from '@jini-ai/cms/publish/content/tool-metadata';
-import { toolMetadata as recovery } from './recovery.js';
-import { toolMetadata as redirects } from './redirects.js';
-import { toolMetadata as search } from './search.js';
-import { toolMetadata as seo } from './seo.js';
+import { toolMetadata as recovery } from '@jini-ai/core/tool-metadata/recovery';
+import { toolMetadata as redirects } from '@jini-ai/core/tool-metadata/redirects';
+import { toolMetadata as search } from '@jini-ai/core/tool-metadata/search';
+import { toolMetadata as seo } from '@jini-ai/core/tool-metadata/seo';
 import { toolMetadata as server_logs } from '@jini-ai/core/tool-metadata/server-logs';
 import { toolMetadata as observability } from '@jini-ai/core/tool-metadata/observability';
-import { toolMetadata as settings } from './settings.js';
-import { toolMetadata as visitor_tools } from './visitor-tools.js';
+import { toolMetadata as settings } from '@jini-ai/core/tool-metadata/settings';
+import { toolMetadata as visitor_tools } from '@jini-ai/core/tool-metadata/visitor-tools';
 import { createSiteBackupToolMetadata } from '@jini-ai/core/tool-metadata/site-backup';
-import { toolMetadata as site_evidence } from './site-evidence.js';
-import { toolMetadata as site_guide } from './site-guide.js';
+import { toolMetadata as site_evidence } from '@jini-ai/core/tool-metadata/site-evidence';
+import { createSiteGuideToolMetadata } from '@jini-ai/core/tool-metadata/site-guide';
 import { toolMetadata as agent_pause } from './agent-pause.js';
-import { toolMetadata as site_inspection } from './site-inspection.js';
+import { toolMetadata as site_inspection } from '@jini-ai/core/tool-metadata/site-inspection';
 import { toolMetadata as site_update } from './site-update.js';
-import { toolMetadata as sites } from './sites.js';
+import { toolMetadata as sites } from '@jini-ai/core/tool-metadata/sites';
 import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
 import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';
 import { toolMetadata as taxonomy } from '@jini-ai/cms/taxonomy/site/tool-metadata';
 import { toolMetadata as theme } from './theme.js';
-import { toolMetadata as trash } from './trash.js';
-import { toolMetadata as web } from './web.js';
-import { toolMetadata as web_screenshot } from './web-screenshot.js';
-import { toolMetadata as webhooks } from './webhooks.js';
-import { toolMetadata as widgets } from './widgets.js';
+import { toolMetadata as trash } from '@jini-ai/core/tool-metadata/trash';
+import { toolMetadata as web } from '@jini-ai/core/tool-metadata/web';
+import { toolMetadata as web_screenshot } from '@jini-ai/core/tool-metadata/web-screenshot';
+import { toolMetadata as webhooks } from '@jini-ai/core/tool-metadata/webhooks';
+import { toolMetadata as widgets } from '@jini-ai/core/tool-metadata/widgets';
 import { toolMetadata as workspace } from '@jini-ai/core/tool-metadata/workspace';
 
 /** deploy-ops and site-backup search queries name this product (its site-key env var and its portable
  * archive), so the host binds that vocabulary here; their registration files import these bindings. */
 export const deployOpsToolMetadata = createDeployOpsToolMetadata({ siteKeyEnvName: 'TOVU_SITE_KEY' });
 export const siteBackupToolMetadata = createSiteBackupToolMetadata({ archiveLabel: 'Tovu ZIP' });
+/** agent-plugins, plugin-runtime and site-guide search copy names this product (its bundled theme plugin id,
+ * its plugin package term and its name), so the host binds that vocabulary here too. */
+export const agentPluginsToolMetadata = createAgentPluginsToolMetadata({ bundledThemePluginId: 'tovu-theme' });
+export const pluginRuntimeToolMetadata = createPluginRuntimeToolMetadata({ pluginKeyword: 'tovu-plugin' });
+export const siteGuideToolMetadata = createSiteGuideToolMetadata({ productName: 'Tovu' });
 const deploy_ops = deployOpsToolMetadata;
 const site_backup = siteBackupToolMetadata;
+const agent_plugins = agentPluginsToolMetadata;
+const plugin_runtime = pluginRuntimeToolMetadata;
+const site_guide = siteGuideToolMetadata;
 
 /** Owner policy: classify the action rather than the input's write-shaped fields.
  * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which

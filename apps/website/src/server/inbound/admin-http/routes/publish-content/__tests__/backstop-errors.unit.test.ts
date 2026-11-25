@@ -9,7 +9,8 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
 import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
 import { tableExists } from "@jini-ai/db/kernel";
-import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import { BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -98,7 +99,7 @@ test("manual undo keeps typed file-size refusals at 409 without reporting an inc
   fs.truncateSync(path.join(f.dir, "large.txt"), BACKSTOP_LIMITS.bytes + 1);
   await f.seedUndo();
   // Assert the owner's error contract as well as its HTTP mapping, so plain Errors cannot regress.
-  await assert.rejects(createRawFileSitePort({ siteDir: f.dir }).read({ relPath: "large.txt" }), { name: "BackstopRefusal", message: TOO_LARGE });
+  await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.dir }).read({ relPath: "large.txt" }), { name: "BackstopRefusal", message: TOO_LARGE });
   assert.deepEqual(await f.undo(), { status: 409, body: { error: TOO_LARGE } });
   assert.deepEqual([f.logs, f.reports], [[], []]);
 });

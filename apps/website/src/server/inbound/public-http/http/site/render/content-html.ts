@@ -15,7 +15,7 @@ import { renderWidgetMediaImage, renderMediaWidget } from "@jini-ai/cms/public-h
 import { renderWidgetPostContent } from "@jini-ai/cms/public-http/http/site/render/widgets/post-content";
 import { TOVU_WIDGET_RENDER_HOST } from "#src/server/runtime/composition/widget-render-host";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 
 /**
  * Renders a TipTap/ProseMirror-style doc node to HTML — {@link renderDocNodeWith} (see its doc for

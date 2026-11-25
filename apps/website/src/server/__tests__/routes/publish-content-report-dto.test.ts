@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { toPublishContentReportDto } from "@jini-ai/cms/admin-http/http/publish-content";
 
 test("the HTTP report mapper preserves every client-visible field and creates a wire DTO", () => {

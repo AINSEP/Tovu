@@ -7,7 +7,7 @@ import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confir
 import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
 import { executeCommand } from "@jini-ai/cms/core/commands";
 
-import { toolMetadata } from "../../contracts/core/tool-metadata/plugin-runtime.js";
+import { pluginRuntimeToolMetadata as toolMetadata } from "../../contracts/core/tool-metadata/index.js";
 import { PLUGINS_SET_ENABLED_TOOL_ID } from "@jini-ai/plugins/runtime/agent-tools";
 import { pluginAgentToolCatalog, pluginSourceAgentToolCatalog, pluginToolMessages } from "./plugin-host-copy.js";
 import { describeUninstallApproval } from "@jini-ai/plugins/runtime/uninstall-confirmation-ui";

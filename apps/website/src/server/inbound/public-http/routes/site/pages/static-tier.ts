@@ -10,7 +10,7 @@ import { renderStaticPage } from "#src/features/theme/static-render";
 import { type StaticFeaturedImage } from "#src/features/theme/index";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { markersOfType, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { assignListingKeys, collectionMarkerKey, splitCollectionMarkerInner, renderEntryList, listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "@jini-ai/cms/entries/site/public-list";

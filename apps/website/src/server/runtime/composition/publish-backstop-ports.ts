@@ -3,7 +3,8 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import type { BackstopPorts } from "@jini-ai/cms/publish/transfer";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
-import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import type { BlobStorePort } from "#src/features/media/index";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
@@ -20,7 +21,7 @@ export function buildPublishBackstopPorts(
   return {
     ...(contentKernel?.dialect === "sqlite" ? { rows: createRawRowSqlitePort({ kernel: contentKernel, tableInfo: sqliteTableInfo, checkedTransaction: sqliteForeignKeyCheckedTransaction }) } : {}),
     ...(contentKernel?.dialect === "sqlite" ? { audit: createBackstopAuditSqlPort({ kernel: contentKernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }) } : {}),
-    ...(siteBinding ? { files: createRawFileSitePort({ siteDir: siteBinding.dir }) } : {}),
+    ...(siteBinding ? { files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: siteBinding.dir }) } : {}),
     blobs: blobStore, fileBlobIndex, fileRollbacks: [], inverses: [],
     coveredTables: [...new Set(contributors.flatMap((c) => c.coversTables ?? []))],
     coveredRoots: [...new Set(contributors.flatMap((c) => c.coversRoots ?? []))],

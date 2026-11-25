@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 import {
   createLabCatalog,
   parseAgentToRendererMessage,

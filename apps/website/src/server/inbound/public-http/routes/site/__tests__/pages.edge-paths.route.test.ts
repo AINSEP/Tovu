@@ -30,7 +30,7 @@ import { finishStaticTierDocument } from "../pages/static-tier.js";
 import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
 import { resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
 import { contentMarkerPorts } from "../pages/render-context/content-marker-ports.js";
-import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
+import { placeAfterCurrentContent } from "@jini-ai/cms/public-http/routes/site/pages/render-context/taxonomy";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 

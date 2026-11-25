@@ -10,7 +10,6 @@ import tseslint from "typescript-eslint";
 test("saved-key transport functions stay within the approved complexity budget", { timeout: 10000 }, () => {
   const root = fileURLToPath(new URL("../../../../../..", import.meta.url));
   const sources = [
-    "apps/website/src/features/site-backup/saved-keys.ts",
     "apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts",
     "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
     "apps/website/src/features/site-backup/import-restore.ts",

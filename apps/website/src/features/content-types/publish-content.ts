@@ -3,7 +3,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
@@ -34,7 +34,7 @@ const seededKeyRefusal = ({ key }: { key: string }, _optional = {}): string | nu
   SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
 
 export const contributeContentTypePublish = (): PublishContentContributor =>
-  createRepoPublishHandler<ContentTypeRecord, TovuPublishPorts["content-type"]>({
+  createRepoPublishHandler<ContentTypeRecord, TovuPublishPorts["content-type"], TovuPublishPorts>({
     entityType: "content-type",
     coversTables: ["content_types"],
     permission: "admin.collections.manage",

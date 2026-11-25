@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { renderSite } from "../render-site.js";
-import type { SiteProduct } from "../render-context.js";
+import type { SiteProduct } from "@jini-ai/cms/public-http/http/site/render-context";
 
 /**
  * @file Certifies what `renderSite` produces when there is DELIBERATELY no theme — state 3 of the

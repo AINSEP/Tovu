@@ -8,7 +8,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { importFixture, OWNER_PASSWORD } from "../../../features/site-backup/__tests__/import.fixture.js";
-import { leaveSavedKeysOut } from "../../../features/site-backup/saved-keys.js";
+import { leaveSavedKeysOut } from "@jini-ai/devops/backup/site/saved-keys";
 import type { SiteImportBackend } from "../../../features/site-backup/import-backend.js";
 import { composeSiteImportBackend } from "../../../server/runtime/composition/site-import-backend.js";
 import { readRequestLine, runImportLocalCommand } from "../../commands/import-local.js";

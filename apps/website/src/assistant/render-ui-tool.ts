@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 import { createRenderUiToolRegistrations } from "@jini-ai/agentic/render-surface";
 import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage } from "@jini-ai/protocol/a2ui";
 

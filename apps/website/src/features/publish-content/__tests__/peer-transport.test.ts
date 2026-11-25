@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
-import type { PublishContentExportEnvelope } from "../export-bundle.js";
+import type { PublishContentExportEnvelope } from "@jini-ai/cms/publish/content/export-bundle";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import {
   confirmPeerImport,

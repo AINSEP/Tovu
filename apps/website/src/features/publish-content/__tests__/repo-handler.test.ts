@@ -17,8 +17,8 @@ import {
   notWired,
   trashedAtDestination,
 } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler } from "../repo-handler.js";
-import type { RepoPublishTypeConfig } from "../repo-handler.js";
+import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
+import type { RepoPublishTypeConfig } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentDeps } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

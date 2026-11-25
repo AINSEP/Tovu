@@ -7,7 +7,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { runHandlebarsRender } from "../handlebars-render.js";
 import { runLiquidRender } from "../liquid-render.js";
 import { renderSite } from "../render-site.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 import { renderHtmlPageBody } from "../render/page-body.js";

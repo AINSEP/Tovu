@@ -1,10 +1,10 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/media-generation';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
-import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";

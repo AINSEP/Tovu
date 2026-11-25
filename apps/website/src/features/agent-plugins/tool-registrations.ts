@@ -13,7 +13,7 @@ import {
   type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate, WRITE_PLUGIN_NOTE, pluginNoteRisk,
 } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
+import { agentPluginsToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { pluginNoteCatalog, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";

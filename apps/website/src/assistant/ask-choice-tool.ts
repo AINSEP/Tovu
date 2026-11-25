@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
