@@ -1,4 +1,4 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -14,23 +14,20 @@ const ROOT = '/api/admin/v1/workspaces/:workspaceId/system';
 
 for (const failure of [new Error('private exporter failure'), 'opaque exporter failure']) {
   test(`telemetry test sanitizes ${typeof failure} failure and reports it to the tracker`, async () => {
-    const reports: unknown[][] = [];
+    const incidents = createRouteIncidentReporter();
     const app = express();
-    registerAdminObservabilityStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminObservabilityStatusDeps>({
+    registerAdminObservabilityStatusRoute({ errors: incidents.errors, app, deps: portFake<AdminObservabilityStatusDeps>({
       workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'owner' }),
       sendTelemetryTest: async () => { throw failure; },
-      tracker: { error: (...args: unknown[]) => { reports.push(args); } },
+      tracker: { error: () => assert.fail('the route binding reports through the reporter, not the deps tracker') },
     }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
-    res.locals.adminFailureTracker = { error: (...args: unknown[]) => { reports.push(args); } };
     await extractRouteHandler(app, 'post', `${ROOT}/observability/test-error`)({ params: { workspaceId: 'ws' } }, res);
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
-    assert.equal(reports.length, 1);
-    const [{ error }, context] = reports[0] as [{ error: Error }, unknown];
-    assert.ok(error.message.includes(String(failure instanceof Error ? failure.message : failure)));
-    const body = capture.jsonBody as { errorId: string };
-    assert.deepEqual(context, { context: { operation: 'routes/system/observability-status', attributes: { errorId: body.errorId } } });
+    const [recordedId] = assertIncidentDiagnostics({ incidents, step: 'routes/system/observability-status', diagnostics: [new RegExp(String(failure instanceof Error ? failure.message : failure))] });
+    assert.equal(incidents.reports.length, 1);
+    assert.equal((capture.jsonBody as { errorId: string }).errorId, recordedId);
   });
 }
 

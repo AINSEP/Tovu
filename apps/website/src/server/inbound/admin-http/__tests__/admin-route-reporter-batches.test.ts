@@ -98,7 +98,7 @@ test("storage cleanup keeps the owner-only refusal and uses its injected route b
   mountStorageRoutes({ app, storage: undefined, authorizeOwner: storageOwnerFrom({ ownerPrincipalId: async () => "owner" }), adminPorts: { mount: mountAdminJsonRoute, errors, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) }, origin: adminSameOriginWrites } });
   const server = await listen({ app });
   t.after(server.close);
-  const refused = await server.call("/api/admin/storage/cleanup", { method: "POST", headers: { origin: server.base }, body: "{}" });
+  const refused = await server.call("/api/admin/storage/cleanup", { method: "POST", headers: { origin: server.base, "x-kind": "session" }, body: "{}" });
   assert.deepEqual(refused, { status: 403, body: { code: "OWNER_ONLY", error: "Only the site owner can see or clean up this site's storage." } });
   assert.deepEqual(operations, [{ name: "http.route", attributes: { "http.method": "POST", "http.route": "/api/admin/storage/cleanup" } }]);
   assert.equal(fixture.entries.length, 0);

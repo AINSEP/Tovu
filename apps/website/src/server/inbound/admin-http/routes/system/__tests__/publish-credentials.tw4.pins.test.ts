@@ -1,4 +1,4 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import assert from "node:assert/strict";
@@ -14,8 +14,8 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
 const path = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id";
-async function fixture({ accountLabel }: { accountLabel?: string } = {}, _options = {}) {
-  const routeErrors = createRouteIncidentReporter().errors;
+async function fixture({ accountLabel }: { accountLabel?: string } = {}, { incidents = createRouteIncidentReporter() }: { incidents?: ReturnType<typeof createRouteIncidentReporter> } = {}) {
+  const routeErrors = incidents.errors;
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryVendorCredentialSetRepo({});
   const sealer = new AesGcmSecretSealer({ keyring });
@@ -109,13 +109,17 @@ test("account-label healing failure after the row committed still reports the ke
 const collection = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
 test("publish list and delete map an unexpected store failure to a fixed 500 that logs a redacted diagnostic", async t => {
-  const f = await fixture();
+  const incidents = createRouteIncidentReporter();
   const logged = t.mock.method(console, "error", () => {});
+  const f = await fixture({}, { incidents });
   const fault = async () => { throw new Error("vault unreachable at /private/vault.db"); };
   t.mock.method(f.repo.vault, "list", fault);
   assertAdminResponse({ actual: await f.call("get", collection), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminResponse({ actual: await f.call("delete", path, { params: { workspaceId: "ws", id: f.saved.id } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-credentials]", diagnostics: [/vault unreachable at \/private\/vault.db/, /vault unreachable at \/private\/vault.db/] });
+  // The list route is still hand-written (K1 STOP in system-credentials.ts) and answers through the legacy sink;
+  // the delete route is bound to the site reporter. Each failure is recorded exactly once, on its own sink.
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-credentials]", diagnostics: [/vault unreachable at \/private\/vault.db/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/system/publish-credentials", diagnostics: [/vault unreachable at \/private\/vault.db/] });
 });
 
 test("publish list still answers when the after-response account-label heal cannot load deploy targets", async t => {

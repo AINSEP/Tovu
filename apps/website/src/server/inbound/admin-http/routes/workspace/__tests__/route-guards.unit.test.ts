@@ -1,5 +1,5 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -104,10 +104,9 @@ test("deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05)
 // The direct `deleteWorkspaceUnlessBound`/typed-error-mapping cases moved with the route to Jini
 // (`@jini-ai/cms` admin-http/routes/workspace/__tests__/workspace-routes.test.ts). The host's own
 // half — the opaque, logged 500 for anything the spec does not map — is pinned over the mount here.
-test("a stackless Error carrying secrets on the delete route is logged and answered by the opaque 500, leaking no message", async (t) => {
-  const routeErrors = createRouteIncidentReporter().errors;
-  const logged: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+test("a stackless Error carrying secrets on the delete route is logged and answered by the opaque 500, leaking no message", async () => {
+  const incidents = createRouteIncidentReporter();
+  const routeErrors = incidents.errors;
   const stackless = new Error("db exploded: connection string postgres://user:pw@host");
   stackless.stack = undefined;
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
@@ -118,13 +117,13 @@ test("a stackless Error carrying secrets on the delete route is logged and answe
   await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);
   assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
   assert.doesNotMatch(JSON.stringify(capture.jsonBody), /db exploded|postgres:\/\//);
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^Error: db exploded/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/workspace/delete", diagnostics: [/^Error: db exploded/] });
+  assert.equal(incidents.reports.length, 1);
 });
 
-test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async (t) => {
-  const routeErrors = createRouteIncidentReporter().errors;
-  const logged: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async () => {
+  const incidents = createRouteIncidentReporter();
+  const routeErrors = incidents.errors;
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const app = express();
   registerAdminWorkspaceDeleteRoute({ errors: routeErrors, app, deps: {
@@ -135,6 +134,7 @@ test("an authorization backend failure on the delete route is answered by the op
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);
   assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^authorizer offline$/] });
+  assertIncidentDiagnostics({ incidents, step: "routes/workspace/delete", diagnostics: [/^authorizer offline$/] });
+  assert.equal(incidents.reports.length, 1);
   assert.deepEqual(await repo.list(), [own, other]);
 });

@@ -1,4 +1,4 @@
-import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,7 +11,7 @@ import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-pr
 import { externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/site/profile` — the admin frontend's half of the
@@ -290,8 +290,8 @@ test("site profile route: no canary seeded in any credential store reaches the r
 const PROFILE_ROUTE = "/api/admin/v1/workspaces/:workspaceId/site/profile";
 
 /** The bare route on its own app, for the two cases only a hand-built `req`/`deps` can reach. */
-function profileHandler(deps: RouteDeps) {
-  const routeErrors = createRouteIncidentReporter().errors;
+function profileHandler(deps: RouteDeps, incidents = createRouteIncidentReporter()) {
+  const routeErrors = incidents.errors;
   const app = express();
   registerAdminSiteProfileRoute({ errors: routeErrors, app, deps });
   return extractRouteHandler(app, "get", PROFILE_ROUTE);
@@ -304,18 +304,17 @@ test("site profile route: a request with no :workspaceId param at all 404s (the 
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
 });
 
-test("site profile route: an unexpected failure while building the profile is a fixed 500 that never echoes the cause", async (t) => {
+test("site profile route: an unexpected failure while building the profile is a fixed 500 that never echoes the cause", async () => {
+  const incidents = createRouteIncidentReporter();
   const deps = createRouteDeps();
   const cause = new Error("clock exploded at /private/var/site.db");
   deps.clock = { ...deps.clock, nowIso: () => { throw cause; } };
-  const logged = t.mock.method(console, "error", () => {});
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
-  await profileHandler(deps)({ params: { workspaceId: deps.workspaceId }, query: {} }, res);
+  await profileHandler(deps, incidents)({ params: { workspaceId: deps.workspaceId }, query: {} }, res);
   // Shared admin failure envelope: the reply carries only an incident id; the redacted log keeps the cause.
   assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The site operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "site operation" } });
   assert.doesNotMatch(JSON.stringify(capture), /clock exploded|\/private\/var\/site\.db/);
-  const calls = logged.mock.calls.map((c) => c.arguments);
-  assertAdminDiagnostics({ calls, operation: "[routes/site/profile]", diagnostics: [/clock exploded at \/private\/var\/site\.db/] });
-  assert.equal((calls[0]?.[1] as { errorId: string }).errorId, (capture.jsonBody as { errorId: string }).errorId);
+  const [recordedId] = assertIncidentDiagnostics({ incidents, step: "routes/site/profile", diagnostics: [/clock exploded at \/private\/var\/site\.db/] });
+  assert.equal(recordedId, (capture.jsonBody as { errorId: string }).errorId);
 });
