@@ -111,6 +111,6 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
     // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
     // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
     // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps, { approvals: adminAgUiApprovals }) });
+    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps, { reporter, approvals: adminAgUiApprovals }) });
   }
 }

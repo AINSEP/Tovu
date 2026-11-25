@@ -71,6 +71,7 @@ import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStrea
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import type { ServerModuleHandle } from "./types.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { acceptOwnedAssistantRun, assistantRunAcceptancePorts, type AssistantRunAcceptancePorts } from "./assistant-run-acceptance.js";
 import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
@@ -583,17 +584,19 @@ const AG_UI_START_REFUSAL_MESSAGE = "The assistant could not start that request.
  *  codes, transport errors) is not shown here; it stays in the run's status line and the logs. */
 const AG_UI_FAILURE_MESSAGE = "The assistant could not finish that request. Send it again, or try a shorter request.";
 
-/** `approvals` composes the approval park/resume (P6-T2.T). Absent, approval cards stream as
+/** `reporter` is the host's composed P4 incident path (required): an unhandled failure becomes one
+ *  redacted incident (host record + tracker) and the generic stream error, never a raw console or
+ *  tracker write of the thrown object (its `cause`/own fields never went through redaction).
+ *  `approvals` composes the approval park/resume (P6-T2.T). Absent, approval cards stream as
  *  ordinary cards and no interrupt is ever emitted — the pre-resume behavior. */
-export function createAssistantAgUiModule(routeDeps: RouteDeps & AgUiRouteDeps, { approvals }: { approvals?: AdminAgUiApprovals } = {}): ServerModuleHandle {
+export function createAssistantAgUiModule(routeDeps: RouteDeps & AgUiRouteDeps, { reporter, approvals }: { reporter: Pick<ErrorReporter, "record">; approvals?: AdminAgUiApprovals }): ServerModuleHandle {
   return {
     name: "assistant-ag-ui",
     registerRoutes: ({ app }, _options = {}) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps, approvals ? { approvals } : {}).catch((error: unknown) => {
-          console.error("[assistant-ag-ui] unhandled error", error);
-          routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run" } });
+          reporter.record({ error, step: "assistant-ag-ui", operation: "assistant.run" }, {});
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: AG_UI_FAILURE_MESSAGE });
             res.end();

@@ -142,7 +142,7 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
-        createAssistantAgUiModule(deps).registerRoutes?.({ app });
+        createAssistantAgUiModule(deps, { reporter: { record: () => ({ errorId: "ERR-TEST" }) } }).registerRoutes?.({ app });
         return app;
       },
     };

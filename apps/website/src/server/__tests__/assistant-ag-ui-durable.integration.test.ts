@@ -112,7 +112,7 @@ async function boot(t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
-  createAssistantAgUiModule(deps).registerRoutes?.({ app });
+  createAssistantAgUiModule(deps, { reporter: { record: () => ({ errorId: "ERR-TEST" }) } }).registerRoutes?.({ app });
   // The real owned Stop route the admin dock posts to, so Stop is proven against the same ledger.
   const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");

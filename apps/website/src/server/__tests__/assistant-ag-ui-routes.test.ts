@@ -323,7 +323,7 @@ function harness() {
           res.on("close", () => clientCloseGate?.arrive());
           next();
         });
-        createAssistantAgUiModule(deps).registerRoutes?.({ app });
+        createAssistantAgUiModule(deps, { reporter: { record: () => ({ errorId: "ERR-TEST" }) } }).registerRoutes?.({ app });
         return app;
       },
     };

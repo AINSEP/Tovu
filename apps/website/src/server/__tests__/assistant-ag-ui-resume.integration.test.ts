@@ -182,7 +182,7 @@ async function boot(t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
-  createAssistantAgUiModule(deps, { approvals }).registerRoutes?.({ app });
+  createAssistantAgUiModule(deps, { approvals, reporter: { record: () => ({ errorId: "ERR-TEST" }) } }).registerRoutes?.({ app });
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }),
     byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   { approvals }).registerRoutes?.({ app });
