@@ -2,7 +2,9 @@ import "@jini-ai/chat/react/styles/chat-settings.css";
 import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { DockHeader } from "./DockHeader";
+import { DockHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockHeader";
+import { t as translateAiAssistant } from "../../features/ai-assistant/ai-assistant-i18n";
+import { useWiredAssistantSubagentsSettings } from "../../features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockLeadingAccessory } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
@@ -10,7 +12,7 @@ import { chatPaneDisplayProps, CHAT_TOOL_CALL_OPTIONS } from "@jini-ai/admin/she
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST } from "../../features/skills/skill-install-confirmation-host";
 import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
-import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
+import { ChatPane, ChatSettingsDialog, ConversationTitle, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
 import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
 import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
@@ -111,7 +113,9 @@ function chatPaneChromeProps(dock: DockState) {
          */
         header: <DockHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
             locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
-            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
+            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty}
+            toolCallOptions={CHAT_TOOL_CALL_OPTIONS} replyLengthOptions={REPLY_LENGTH_OPTIONS}
+            translateAiAssistant={translateAiAssistant} useSubagentsSettingsHook={useWiredAssistantSubagentsSettings} ConversationTitle={ConversationTitle} />
         ,
         title: t({ key: "Tovu assistant" }),
         placeholder: t({ key: "Ask the assistant to do something…" }),
