@@ -15,13 +15,15 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { registerAgentDaemonCoreRoutes } from "./agent-daemon-core-rpc.js";
 import { basename, dirname } from "node:path";
 import { openFsFileForRead } from "#src/features/fs-files/fs-files";
-import { json, type Response } from "express";
-import { z } from "zod/v3";
+import { json, type Express } from "express";
 import type { RequestHandler } from "express";
 import type { RememberedApprovalPort, ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MAX_BODY_BYTES, type AttachmentLookup, type AuthorizeToolRun } from "@jini-ai/daemon/http";
+import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MAX_BODY_BYTES, agentPluginPreflightRoute, AGENT_PLUGIN_PREFLIGHT_ROUTE_PATH, type AgentPluginPreflightRouteDeps, type AttachmentLookup, type AuthorizeToolRun } from "@jini-ai/daemon/http";
+import { mountJsonRoute } from "@jini-ai/http-kit";
+import { err, ok, type Result } from "@jini-ai/core/contracts/server";
+import { commitGuidanceOffer, prepareGuidanceOffer, type PreparedGuidanceOffer } from "./assistant-agent-plugin-guidance-rpc.js";
 import { jsonResponse } from "@jini-ai/core/contracts/server";
 import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
 import { daemonRouteHost, mountJiniRoutes } from "../../../../platform/express/jini-routes.js";
@@ -68,7 +70,7 @@ export async function publishDaemonPluginEvent(required: { runId: string; princi
 }
 
 type PluginPreflightPorts = {
-  controller: Pick<ReturnType<typeof createAutomaticPluginRuns>, "start" | "forget"> & Partial<Pick<ReturnType<typeof createAutomaticPluginRuns>, "guidanceIds">>;
+  controller: Pick<ReturnType<typeof createAutomaticPluginRuns>, "start" | "forget"> & Partial<Pick<ReturnType<typeof createAutomaticPluginRuns>, "guidanceIds" | "offer" | "commit">>;
   pinnedPrefix: (required: { pluginRefIds: readonly string[] }) => Promise<string | null>;
   emit: typeof publishDaemonPluginEvent;
   refusalPrefix: () => string;
@@ -103,52 +105,86 @@ export function registerAssistantToolExecRoutes({ router, toolSurface, runStore,
   // Same private caller gate as execution; never mounted through browser-auth routes.
   router.get("/internal/component-catalog", requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
     componentCatalogHandler({ runStore, workspaceId, plugins, ...(components ? { components } : {}) }));
-  router.post("/internal/agent-plugin-preflight", requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
-    json({ limit: "1kb" }), agentPluginPreflightHandler({ runStore, workspaceId, plugins }));
+  // Same token gate, 1 KiB body and no-store answer as before; Jini's spec owns the three body shapes.
+  router.post(AGENT_PLUGIN_PREFLIGHT_ROUTE_PATH, requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
+    json({ limit: "1kb" }), (_req, res, next) => { res.set("cache-control", "no-store"); next(); });
+  mountJsonRoute({ app: router as unknown as Express, spec: agentPluginPreflightRoute, deps: agentPluginPreflightDeps({ runStore, workspaceId, plugins }) });
 }
 
-const preflightBody = z.object({ runId: z.string().min(1) }).strict();
+const preflightNotLive = <T>(): Result<T> => err({ error: { code: "NOT_FOUND", message: "a live site run is required" } });
+const preflightUnavailable = <T>(): Result<T> => err({ error: { code: "SERVICE_UNAVAILABLE", message: "plugin preflight is unavailable" } });
 
 /** One preflight request, never a run-lifetime stream. Identity and prompt state come only from
  * the accepted site attempt. The existing controller keeps consent for subsequent tool calls;
  * short server-to-daemon callbacks append its surfaces to the daemon-owned log.
  * @complexity Indexed run lookups across awaits; plugin discovery belongs to the injected owner.
  */
-function agentPluginPreflightHandler(deps: ComponentCatalogDeps, _options = {}): RequestHandler {
-  return (req, res, next) => {
-    const body = preflightBody.safeParse(req.body);
-    if (!body.success) { res.status(400).json({ error: "only runId is accepted" }); return; }
-    void prepareSitePluginRun({ ...deps, runId: body.data.runId, res }).catch(next);
+function agentPluginPreflightDeps(deps: ComponentCatalogDeps, _options = {}): AgentPluginPreflightRouteDeps {
+  const { runStore, workspaceId, plugins } = deps;
+  const guidancePorts = () => runStore && plugins ? { ...plugins,
+    findLive: ({ runId }: { runId: string }) => findLiveSiteToolRun({ runId, runStore, workspaceId, plugins }),
+    contextFor: ({ run, context, signal }: Parameters<typeof sitePluginContext>[0]) => sitePluginContext({ run, context, signal, plugins, lookup: () => findLiveSiteToolRun({ runId: run.runId, runStore, workspaceId, plugins }) }),
+  } : undefined;
+  // `prefix: null` (a refused explicit pick) passes through unchanged so the daemon fails the start closed.
+  const asPrepared = (result: Result<PreparedGuidanceOffer | LegacyPrepared>) => result as Awaited<ReturnType<AgentPluginPreflightRouteDeps["prepare"]>>;
+  return {
+    prepare: async ({ runId, mode }, { signal } = {}) => {
+      if (mode === "legacy") return asPrepared(await prepareSitePluginRun({ ...deps, runId }, { signal }));
+      const ports = guidancePorts();
+      if (!ports) return runStore ? preflightUnavailable() : preflightNotLive();
+      return asPrepared(await prepareGuidanceOffer({ ...ports, runId }, { signal }));
+    },
+    commit: async ({ runId, offerId, deliveredIds }, { signal } = {}) => {
+      const ports = guidancePorts();
+      if (!ports) return runStore ? preflightUnavailable() : preflightNotLive();
+      return commitGuidanceOffer({ ...ports, runId, offerId, deliveredIds }, { signal });
+    },
   };
 }
 
+type LegacyPrepared = { prefix: string | null; refusalPrefix: string; pluginIds: readonly string[] };
+
 /** Validate ownership across pinned and automatic preparation. The response has no executable
  * registrations and cannot retain an open event stream. O(1) lookups plus plugin-owner work. */
-async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, res }: ComponentCatalogDeps & {
-  runId: string; res: Response;
-}, _options = {}): Promise<void> {
-  const refuse = () => { res.status(404).json({ error: "a live site run is required" }); };
-  if (!runStore) { refuse(); return; }
+async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId }: ComponentCatalogDeps & { runId: string }, { signal }: { signal?: AbortSignal | undefined } = {}): Promise<Result<LegacyPrepared>> {
+  if (!runStore) return preflightNotLive();
   const lookup = () => findLiveSiteToolRun({ runId, runStore, workspaceId, plugins });
   const run = await lookup();
-  if (!run?.principalId) { refuse(); return; }
-  if (!plugins) { res.status(503).json({ error: "plugin preflight is unavailable" }); return; }
+  if (!run?.principalId) return preflightNotLive();
+  if (!plugins) return preflightUnavailable();
   const parsed = JSON.parse(run.request.contextRef) as Record<string, unknown>;
   const context = parseRunStartContextRef({ contextRef: JSON.stringify({ ...parsed, principalId: run.principalId }) });
   const pinnedPrefix = await plugins.pinnedPrefix({ pluginRefIds: context.pluginRefIds });
-  if (!(await lookup())) { refuse(); return; }
-  const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, res, lookup });
-  if (!(await lookup())) { refuse(); return; }
-  res.status(200).set("cache-control", "no-store").json({ prefix, refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] });
+  if (!(await lookup())) return preflightNotLive();
+  const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, signal, lookup });
+  if (!(await lookup())) return preflightNotLive();
+  return ok({ value: { prefix, refusalPrefix: plugins.refusalPrefix(), pluginIds: plugins.controller.guidanceIds?.({ runId }) ?? [] } });
+}
+
+/** The run's consent/usage emitters; every emission rechecks the live attempt before reaching the daemon log.
+ * Capture both connection halves before controller work can outlive this daemon scope: a late
+ * answer must never be re-authorized with a replacement scope's fresh proxy credential. O(1). */
+function sitePluginContext({ run, context, signal, plugins, lookup }: {
+  run: DurableRunHead & { principalId: string }; context: ReturnType<typeof parseRunStartContextRef>; signal: AbortSignal;
+  plugins?: Pick<PluginPreflightPorts, "emit">; lookup?: () => Promise<DurableRunHead | undefined>;
+}, _optional = {}): AutomaticPluginRun {
+  const connection = delegatedAssistantDaemonConnection({}, {});
+  const emit = async (payload: Record<string, unknown>) => {
+    if (plugins && lookup && await lookup()) await plugins.emit({ runId: run.runId, principalId: run.principalId, payload }, connection ? { connection } : {});
+  };
+  return { principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
+    query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, signal,
+    emitSurface: emission => emit({ ...emission.payload, type: emission.channel, ...(emission.channel === "mcp-ui" ? { toolUseId: `agent-plugins:${run.runId}` } : {}) }),
+    publish: value => emit({ type: "agent_plugins", ...value }) };
 }
 
 /** Bind the existing controller to durable identity and a log emitter that rechecks liveness.
  * Pinned failures remain explicit; automatic guidance preserves its existing fail-open contract.
  * @complexity One controller start, indexed checks per emitted event; O(prefix bytes) space.
  */
-async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins, res, lookup }: {
+async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins, signal, lookup }: {
   run: DurableRunHead & { principalId: string }; context: ReturnType<typeof parseRunStartContextRef>;
-  pinnedPrefix: string | null; plugins: PluginPreflightPorts; res: Response;
+  pinnedPrefix: string | null; plugins: PluginPreflightPorts; signal?: AbortSignal | undefined;
   lookup: () => Promise<DurableRunHead | undefined>;
 }, _options = {}): Promise<string | null> {
   if (pinnedPrefix === null) return null;
@@ -159,11 +195,10 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   const abort = new AbortController();
   // A dropped preparation request releases this attempt. Durable pending answers can still
   // rejoin their logical turn. Normal response completion leaves the controller live for tools.
-  res.once("close", () => {
-    if (res.writableEnded) return;
+  signal?.addEventListener("abort", () => {
     abort.abort();
     plugins.controller.forget({ runId }, { preservePending: true });
-  });
+  }, { once: true });
   const emit = async (payload: Record<string, unknown>) => {
     if (await lookup()) await plugins.emit({ runId, principalId: run.principalId, payload }, connection ? { connection } : {});
   };

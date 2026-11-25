@@ -867,3 +867,37 @@ test('later chat turns retain delivered IDs without repeating primary text', asy
   assert.deepEqual(f.runs.guidanceIds({ runId: 'later-turn' }), [f.pluginId]);
   f.runs.forget({ runId: 'later-turn' });
 });
+
+for (const agentId of ['deepseek', 'claude']) test(`selected adapter chooses plugin preparation and only the spawned variant is committed (${agentId})`, async t => {
+  const f = await fixture(t);
+  const context = { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography' };
+  const host = await pluginPreflightFixture({ t, context, agentId,
+    plugins: { controller: f.runs, pinnedPrefix: async () => '', emit: async () => {}, refusalPrefix: () => '' } });
+  const input = await captureDaemonRun(context, { request: { agentId },
+    bindings: { siteTools: host,
+      env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+      routeDeps: { workspaceId: f.workspaceId, ownerPrincipalId: Promise.resolve('alice'), agentSessions: { getSessionId: async () => null, setSessionId: async () => {} } },
+      liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
+      waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
+    } });
+  if (agentId === 'claude') {
+    assert.equal(input.argvPromptVariants, undefined, 'the selected non-argv adapter still uses one-shot preflight');
+    assert.match(input.prompt, /Use holographic layout discipline/);
+    f.runs.forget({ runId: 'daemon-test-run' });
+    return;
+  }
+  const variants = input.argvPromptVariants;
+  assert.ok(variants);
+  assert.deepEqual(variants.candidates.map(({ id }) => id), ['full', 'catalog', 'pointer', 'base']);
+  const [full, catalog, pointer, base] = variants.candidates.map(({ prompt }) => prompt);
+  assert.equal(base, input.prompt, 'the executor prompt stays the unmodified base');
+  for (const prompt of [full, catalog, pointer]) assert.ok(prompt?.endsWith(input.prompt), 'optional text never trims the base');
+  assert.match(full ?? '', /Use holographic layout discipline/);
+  assert.doesNotMatch(catalog ?? '', /Use holographic layout discipline/);
+  assert.match(pointer ?? '', /search_agent_plugin_local starting at offset: 0[^]*nextOffset[^]*load_agent_plugin/);
+  assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
+  assert.ok(!input.subagentStartContext?.ids.includes(f.pluginId), 'offered ids are not carried to subagents');
+  await variants.onSelected({ runId: 'daemon-test-run', id: 'catalog' });
+  assert.ok(!f.runs.guidanceIds({ runId: 'daemon-test-run' }).includes(f.pluginId), 'a deferred id is absent from guidanceIds');
+  f.runs.forget({ runId: 'daemon-test-run' });
+});
