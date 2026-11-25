@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor } from "../menu-editor-panel";
+import { useWiredMenuEditor } from "../hooks/use-menu-editor.hooks";
+import { useRouteGuardedMenuEditor } from "../hooks/use-route-guarded-menu-editor.hooks";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 import type { MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
@@ -102,7 +104,7 @@ describe("removing an item with nested children", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const parentFields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
@@ -117,7 +119,7 @@ describe("removing an item with nested children", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const parentFields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
@@ -133,7 +135,7 @@ describe("removing an item with nested children", () => {
     fixture.menu.items[0].children![0].children = [{ id: "grandchild", label: "Grandchild", target: { kind: "url", href: "/grandchild" } }];
     fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
     const fields = (await screen.findByDisplayValue("Parent")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(fields).getByRole("button", { name: "Remove item" }));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
@@ -150,7 +152,7 @@ describe("removing a leaf item", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm");
 
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const leafFields = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.click(within(leafFields).getByRole("button", { name: "Remove item" }));
@@ -163,7 +165,7 @@ describe("removing a leaf item", () => {
 describe("item-row fields — accessible names", () => {
   it("gives the title and slug fields a real accessible name, not just a placeholder", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const titleInput = await screen.findByLabelText("Menu title");
     expect(titleInput).toHaveAttribute("placeholder", "Menu title");
@@ -175,7 +177,7 @@ describe("item-row fields — accessible names", () => {
     fixture.menu.items[0].children![0].target = { kind: "route", route: "home" };
     fixture.menu.items[1].target = { kind: "entryRef", entryId: "e1" };
     fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     await screen.findByDisplayValue("Parent");
     // One "Link type" select per item row (2 root items + 1 nested child in the fixture).
@@ -191,7 +193,7 @@ describe("item-row fields — accessible names", () => {
   it("gives the item label and the target-value fields a real accessible name", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     await screen.findByDisplayValue("Parent");
     expect(screen.getAllByLabelText("Item label").length).toBe(3);
@@ -208,7 +210,7 @@ describe("item-row fields — accessible names", () => {
 describe("move controls", () => {
   it("Move up/down buttons have their own accessible name, not just a title attribute", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     await screen.findByDisplayValue("Parent");
     expect(screen.getAllByRole("button", { name: "Move item up" }).length).toBeGreaterThan(0);
@@ -226,7 +228,7 @@ describe("move controls", () => {
     fixture.menu.items[0].children!.push({ id: "child2", label: "Child 2", target: { kind: "url", href: "/child2" } });
     fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
     fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...fixture.menu, version: 2 } }));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
     await screen.findByDisplayValue("Parent");
 
     const labels = () => screen.getAllByLabelText("Item label").map((input) => (input as HTMLInputElement).value);
@@ -257,7 +259,7 @@ describe("unsaved-changes protection on the back-link", () => {
   it("with no edits, the back-link click proceeds without prompting", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm");
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     await screen.findByDisplayValue("Parent");
     const watch = watchDefaultPrevented();
@@ -271,7 +273,7 @@ describe("unsaved-changes protection on the back-link", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const titleInput = await screen.findByDisplayValue("Main Menu");
     await user.clear(titleInput);
@@ -288,7 +290,7 @@ describe("unsaved-changes protection on the back-link", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const titleInput = await screen.findByDisplayValue("Main Menu");
     await user.clear(titleInput);
@@ -311,7 +313,7 @@ describe("unsaved-changes protection on the back-link", () => {
     const uninstall = installInternalLinkInterceptor();
     function RoutedEditor() {
       const route = useRouteLocation();
-      return route === "/menus" ? <h1>Menus list</h1> : <MenuEditor menuId="m1" />;
+      return route === "/menus" ? <h1>Menus list</h1> : <MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />;
     }
     const view = render(<RoutedEditor />);
     try {
@@ -337,12 +339,77 @@ describe("unsaved-changes protection on the back-link", () => {
   });
 });
 
+describe("router-owned menu leave guard", () => {
+  let originalUrl: string;
+  let uninstall: () => void;
+  beforeEach(() => {
+    originalUrl = window.location.href;
+    window.history.replaceState(null, "", "/admin/menus/m1");
+    uninstall = installInternalLinkInterceptor();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  });
+  afterEach(() => {
+    cleanup();
+    uninstall();
+    window.history.replaceState(null, "", originalUrl);
+  });
+  function RoutedEditor() {
+    const route = useRouteLocation();
+    if (route === "/pages") return <h1>Pages</h1>;
+    if (route === "/menus") return <h1>Menus list</h1>;
+    return <><a href="/admin/pages">Pages</a><MenuEditor menuId="m1" useMenuEditorHook={useRouteGuardedMenuEditor} /></>;
+  }
+  it("sidebar navigation with unsaved menu edits asks first", async () => {
+    render(<RoutedEditor />);
+    const editorUrl = window.location.href;
+    const title = await screen.findByDisplayValue("Main Menu");
+    fireEvent.change(title, { target: { value: "Renamed" } });
+    fireEvent.click(screen.getByRole("link", { name: "Pages" }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledWith("You have unsaved changes. Leave without saving?");
+    expect(window.location.href).toBe(editorUrl);
+    expect(screen.getByLabelText("Menu title")).toHaveValue("Renamed");
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("link", { name: "Pages" }));
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    expect(window.location.pathname).toBe("/admin/pages");
+    expect(screen.getByRole("heading", { name: "Pages" })).toBeInTheDocument();
+  });
+  it("a dirty menu Back link prompts once when the router owns the guard", async () => {
+    render(<RoutedEditor />);
+    fireEvent.change(await screen.findByDisplayValue("Main Menu"), { target: { value: "Renamed" } });
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("link", { name: /menus/i }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(window.location.pathname).toBe("/admin/menus");
+    expect(screen.getByRole("heading", { name: "Menus list" })).toBeInTheDocument();
+  });
+  it("a clean menu leaves from the sidebar without a prompt", async () => {
+    render(<RoutedEditor />);
+    await screen.findByDisplayValue("Main Menu");
+    fireEvent.click(screen.getByRole("link", { name: "Pages" }));
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/admin/pages");
+    expect(screen.getByRole("heading", { name: "Pages" })).toBeInTheDocument();
+  });
+  it("unmounting a dirty menu removes the guard", async () => {
+    render(<a href="/admin/pages">Pages</a>);
+    const editor = render(<MenuEditor menuId="m1" useMenuEditorHook={useRouteGuardedMenuEditor} />);
+    fireEvent.change(await screen.findByDisplayValue("Main Menu"), { target: { value: "Renamed" } });
+    editor.unmount();
+    fireEvent.click(screen.getByRole("link", { name: "Pages" }));
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/admin/pages");
+  });
+});
+
 describe("typed route target through the full editor", () => {
   it("saves a typed route target through the full editor", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...MENU_WITH_NESTED_CHILD.menu, version: 2 } }));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
     const fields = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row")!.querySelector(".jini-menu-item-fields") as HTMLElement;
     await user.selectOptions(within(fields).getByLabelText("Link type"), "route");
     await user.type(within(fields).getByLabelText("Route name"), "dashboard");
@@ -371,7 +438,7 @@ describe("attrs — advanced per-item fields", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
     fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...MENU_WITH_NESTED_CHILD.menu, version: 2 } }));
 
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row") as HTMLElement;
     await user.click(within(leafRow).getByText("Advanced"));
@@ -413,7 +480,7 @@ describe("attrs — advanced per-item fields", () => {
     };
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(withAttrs));
-    render(<MenuEditor menuId="m1" />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useWiredMenuEditor} />);
 
     const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".jini-menu-item-row") as HTMLElement;
     await user.click(within(leafRow).getByText("Advanced"));
