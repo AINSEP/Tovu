@@ -1,7 +1,7 @@
 import { useState, type SyntheticEvent } from "react";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
-import { mediaAltText, type MediaShape } from "../rules";
+import { mediaAltText, type MediaShape } from "@jini-ai/admin/screens/media/rules";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 

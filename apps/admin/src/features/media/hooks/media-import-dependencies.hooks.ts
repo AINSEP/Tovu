@@ -1,7 +1,7 @@
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { MediaImportPort } from "@jini-ai/cms/react/media";
-import { KEYS } from "../rules";
+import { KEYS } from "@jini-ai/admin/screens/media/rules";
 
 /** The admin URL-import port is separate so existing upload/edit consumers need no new dependency.
  *  Its `listKey` is the media grid's cache identity, which the cms dialog invalidates after an import. */

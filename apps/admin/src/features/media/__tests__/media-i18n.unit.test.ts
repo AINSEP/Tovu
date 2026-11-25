@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
-import { MEDIA_ORDER_OPTIONS } from "../rules";
+import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";

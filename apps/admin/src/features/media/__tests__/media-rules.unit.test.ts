@@ -7,7 +7,7 @@ import {
   readFileAsBase64,
   resolveLightboxItem,
   type Base64FileReader,
-} from "../rules";
+} from "@jini-ai/admin/screens/media/rules";
 
 /**
  * @file Small `media/rules.ts` contracts not pinned by the topic-specific suites: the base64 file

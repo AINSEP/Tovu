@@ -1,7 +1,7 @@
 import { t as mediaT } from "../../features/media/media-i18n";
 import { useMediaEditDialog, type MediaEditDialogController, type MediaEditDialogValue } from "@jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks";
 import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
-import { describeMediaHtmlAttributeError } from "../../features/media/rules";
+import { describeMediaHtmlAttributeError } from "@jini-ai/admin/screens/media/rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 /**
@@ -19,6 +19,6 @@ export function useWiredMediaEditDialog(
   const locale = useAdminLocale();
   return useMediaEditDialog({
     initial, onSave, _onCancel: onCancel,
-    deps: { locale, translate: mediaT, describeHtmlAttributeError: describeMediaHtmlAttributeError, htmlAttributePolicy: embedPolicy },
+    deps: { locale, translate: mediaT, describeHtmlAttributeError: ({ error, locale: errorLocale }) => describeMediaHtmlAttributeError({ error, locale: errorLocale, translate: mediaT }), htmlAttributePolicy: embedPolicy },
   });
 }
