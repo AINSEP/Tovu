@@ -9,7 +9,10 @@ import { createAssistantChatsModule } from "../modules/assistant-chats.js";
 import { createAssistantSettingsModule } from "../modules/assistant-settings.js";
 import { createAssistantExecutionModule } from "../modules/assistant-execution.js";
 import { createAssistantByokModule } from "../modules/assistant-byok.js";
-import { createAssistantAgUiModule } from "../modules/assistant-ag-ui.js";
+import { randomUUID } from "node:crypto";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createAdminAgUiApprovals } from "#src/assistant/admin-ag-ui-approvals";
+import { answerDaemonApprovalExchange, createAssistantAgUiModule } from "../modules/assistant-ag-ui.js";
 import type { CreateAppOptions } from "../create-app-options.js";
 import { mountRoutes } from "./module-handles.js";
 import { trackByokBootWork } from "../site-app-boot-work.js";
@@ -53,8 +56,13 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
 
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
+  // The admin AG-UI approval table (P6-T2.T): one per host, shared by the AG-UI route (park and
+  // resume) and the owned Stop (which settles what a stopped run parked). Composed whenever the
+  // admin assistant is; reachable only through the AG-UI canary route, whose client default stays off.
+  const adminAgUiApprovals = createAdminAgUiApprovals({ nowMs: () => routeDeps.clock.nowMs(), scheduler: createTimeoutScheduler({}),
+    newInterruptId: randomUUID, answerExchange: answerDaemonApprovalExchange });
   if (adminAssistantEnabled) {
-    mountRoutes({ app, mod: createAssistantModule({ routeDeps, byokSurfaceExchanges: byokAssistantModule.toolSurface.surfaceExchanges }) });
+    mountRoutes({ app, mod: createAssistantModule({ routeDeps, byokSurfaceExchanges: byokAssistantModule.toolSurface.surfaceExchanges }, { approvals: adminAgUiApprovals }) });
 
     // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
     // module because nothing here is proxied: run execution belongs to the daemon (that is where run
@@ -90,6 +98,6 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
     // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
     // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
     // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps) });
+    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps, { approvals: adminAgUiApprovals }) });
   }
 }
