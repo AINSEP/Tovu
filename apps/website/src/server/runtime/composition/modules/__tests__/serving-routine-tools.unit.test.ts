@@ -122,5 +122,5 @@ test("passes the existing localized desktop availability notice and only that ho
   await host.resolveOwnerActor({ principalId: OWNER });
   assert.equal(host.copy({ key: "This routine runs only while Tovu is open and your computer is awake" }), "Questa routine viene eseguita solo mentre Tovu è aperto e il computer è attivo");
   assert.equal(host.copy({ key: "Create routine" }), "Crea routine");
-  assert.equal(host.copy({ key: "Unknown catalog title" }), "Unknown catalog title");
+  assert.equal(host.copy({ key: "Unknown catalog title" as Parameters<typeof host.copy>[0]["key"] }), "Unknown catalog title");
 });

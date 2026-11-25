@@ -149,8 +149,8 @@ test("admin migrate-forward records the authenticated user in the ledger detail"
   assert.equal(ledger.items[0].kind, "core.migration");
   assert.equal(ledger.items[0].outcome, "success");
   const principal = await seededOwner(deps);
-  assert.equal(ledger.items[0].actorId, principal.id);
-  assert.deepEqual(JSON.parse(ledger.items[0].detailJson!), {
+  assert.equal(ledgerDetail(ledger.items[0]).actorId, principal.id);
+  assert.deepEqual(JSON.parse(ledgerDetail(ledger.items[0]).detailJson!), {
     artifactRef: restorePoints[0].artifactRef,
     actor: { id: principal.id, kind: "user" },
   });
@@ -499,3 +499,9 @@ test("database migrate-forward execute: a non-Error throw is a 500 with the gene
   assert.equal(res.status, 500);
   assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database execution could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database execution" } });
 });
+
+/** The timeline read port types only the rendered columns; the stored row also carries the writer's attribution. */
+function ledgerDetail<Row extends object>(row: Row | undefined): Row & { actorId: string; detailJson: string | null } {
+  if (row === undefined) throw new Error("expected a ledger row");
+  return row as Row & { actorId: string; detailJson: string | null };
+}

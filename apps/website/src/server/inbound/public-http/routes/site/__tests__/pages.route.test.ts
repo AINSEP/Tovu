@@ -897,8 +897,9 @@ function canonicalContextProbe(): PageHeadHook {
 
 test("a marketing page keeps its own canonical through the host head contributor binding", async (t) => {
   const theme = staticThemeWithThemed404();
+  const marketingTheme: DiscoveredTheme = { ...theme, manifest: { ...theme.manifest, publishedPages: ["about"] }, pages: { ...theme.pages, about: "<html><head><title>About</title></head><body>About us</body></html>" } };
   const { server, baseUrl } = await startServer({
-    themes: [{ ...theme, manifest: { ...theme.manifest, publishedPages: ["about"] }, pages: { ...theme.pages, about: "<html><head><title>About</title></head><body>About us</body></html>" } }],
+    themes: [marketingTheme],
     postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     pageHeadContributors: [canonicalContextProbe()],
   });

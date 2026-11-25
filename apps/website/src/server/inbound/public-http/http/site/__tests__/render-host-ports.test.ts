@@ -8,7 +8,7 @@ import { buildTemplateRenderData } from "../render/template-render-data.js";
 import { entryContent } from "../render/post-body.js";
 
 function context(post: ReturnType<typeof buildPostRecord>): SiteRenderContext {
-  return { siteTitle: "Site", route: "post", posts: [], post, products: [], themeName: null, widgetRegions: {}, widgetInlineResolved: new Map(), mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [] };
+  return { siteTitle: "Site", route: "post", posts: [], post: post as NonNullable<SiteRenderContext["post"]>, products: [], themeName: null, widgetRegions: {}, widgetInlineResolved: new Map(), mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [] };
 }
 
 test("declarative and both logic-tier bindings see the same resolved body and use the host media placeholder classes", () => {

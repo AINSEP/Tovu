@@ -789,9 +789,9 @@ test("human confirmation does not turn an assistant migration into a user write"
   assert.ok(fixture.authorizeCalls.every(params => params.principalId === PRINCIPAL_ID));
   const assistantLedger = await fixture.repos.databaseLedgerRepo.query({ limit: 10 });
   assert.equal(assistantLedger.items.length, 1);
-  const assistantActor = JSON.parse(assistantLedger.items[0]!.detailJson!).actor;
+  const assistantActor = JSON.parse(ledgerDetail(assistantLedger.items[0]!).detailJson!).actor;
   assert.deepEqual(assistantActor, { id: PRINCIPAL_ID, kind: "agent" });
-  assert.equal(assistantLedger.items[0]!.actorId, PRINCIPAL_ID);
+  assert.equal(ledgerDetail(assistantLedger.items[0]!).actorId, PRINCIPAL_ID);
 
   const admin = fakeRouteDeps();
   const app = express();
@@ -807,7 +807,7 @@ test("human confirmation does not turn an assistant migration into a user write"
   }
   const adminLedger = await admin.repos.databaseLedgerRepo.query({ limit: 10 });
   assert.equal(adminLedger.items.length, 1);
-  const adminActor = JSON.parse(adminLedger.items[0]!.detailJson!).actor;
+  const adminActor = JSON.parse(ledgerDetail(adminLedger.items[0]!).detailJson!).actor;
   assert.deepEqual(adminActor, { id: PRINCIPAL_ID, kind: "user" });
   assert.equal(adminActor.id, assistantActor.id);
   assert.notEqual(adminActor.kind, assistantActor.kind);
@@ -992,4 +992,9 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     );
     assert.equal(surfaceExchanges.size(), 0, "no dialog was opened");
   });
+}
+
+/** The timeline read port types only the rendered columns; the stored row also carries the writer's attribution. */
+function ledgerDetail<Row extends object>(row: Row): Row & { actorId: string; detailJson: string | null } {
+  return row as Row & { actorId: string; detailJson: string | null };
 }
