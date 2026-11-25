@@ -356,6 +356,11 @@ export interface AgentPluginsProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useAgentPluginsHook?: typeof useWiredAgentPlugins;
+  /** Injection seams for the screen's other hooks (hook-injection gate), each defaulted to the real one. */
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useAgentPluginTabHook?: typeof useAgentPluginTab;
+  useAgentPluginInstallHook?: typeof useAgentPluginInstall;
+  useAgentPluginConfirmationHook?: typeof useAgentPluginConfirmation;
   /** The "Add a plugin" upload transport; tests pass `createFakeAgentPluginInstallPort`. */
   agentPluginInstallPort?: AgentPluginInstallPort;
 }
@@ -396,18 +401,22 @@ function AgentPluginsScreen({
   tabId,
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
+  useAdminThemeBoundaryHook = useAdminThemeBoundary,
+  useAgentPluginTabHook = useAgentPluginTab,
+  useAgentPluginInstallHook = useAgentPluginInstall,
+  useAgentPluginConfirmationHook = useAgentPluginConfirmation,
 }: AgentPluginsProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const tab = useAgentPluginTab({ tabId });
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
+  const tab = useAgentPluginTabHook({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
-  const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
+  const installController = useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
   const { pendingDisable, setPendingDisable, pendingDisablePlugin, onRequestToggleEnabled, onRequestRemove } =
-    useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
+    useAgentPluginConfirmationHook({ agentPlugins, onToggleEnabled });
 
   const tabs: SettingsDialogTab[] = [
     {

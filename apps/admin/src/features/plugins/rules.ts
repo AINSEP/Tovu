@@ -8,6 +8,10 @@ import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { tPlugins } from "../../lib/i18n-common";
 
+// The product name feeds the row copy Jini's `AgentPluginRow` renders. Its original rationale, kept here
+// because the wording names this product:
+// Compatibility first: "Not for this Tovu version" explains a switch that refuses to
+// turn on, and "Needs …" names capabilities no other enabled plugin provides.
 const rules = createPluginRules({
   productName: "Tovu",
   translate: tPlugins,

@@ -167,7 +167,7 @@ it("keeps folder icon pairs together and file rows free of expansion state", asy
   const row = screen.getByRole("treeitem", { name: "index.ts" });
   expect(row).not.toHaveAttribute("aria-expanded");
   expect(row).toHaveAttribute("aria-selected", "false");
-  expect(row.querySelector(".agent-plugin-source-tree-twistie")).toHaveAttribute("aria-hidden", "true");
+  expect(row.querySelector(".jini-agent-plugin-source-tree-twistie")).toHaveAttribute("aria-hidden", "true");
   expect(row.querySelector(".ri-code-s-slash-line.is-typescript")).not.toBeNull();
   await userEvent.click(row);
   expect(props.onSelectFile).toHaveBeenCalledWith("src/index.ts");

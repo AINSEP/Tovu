@@ -45,5 +45,5 @@
 }
 /* `--row-text-min` is declared on the shared plugin/agent-plugin row (styles.css), not on `:root`, so
    its binding is declared on that same row and inherited by the Skills summary inside it. */
-.agent-plugin-row-main,
-.plugin-row-main { --jini-admin-row-text-min: var(--row-text-min); }
+.jini-agent-plugin-row-main,
+.jini-plugin-row-main { --jini-admin-row-text-min: var(--row-text-min); }

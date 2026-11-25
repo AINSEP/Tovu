@@ -1656,7 +1656,7 @@ test("package files wrap long lines and keep each gutter aligned with its source
   await loginAsAdmin(page);
   await page.goto("/admin/addons/agent-plugins");
   await page.getByRole("button", { name: /^Inspect package files/ }).click();
-  const pane = page.locator(".agent-plugin-source-content");
+  const pane = page.locator(".jini-agent-plugin-source-content");
   for (const file of ["SKILL.md", "plugin.json"]) {
     await page.getByRole("treeitem", { name: file, exact: true }).click();
     await expect(pane.getByRole("heading", { name: file, exact: true })).toBeVisible();

@@ -324,7 +324,7 @@ function ThemeActivateSwitch({
       role="switch"
       aria-checked={control.checked}
       aria-busy={control.busy}
-      className="agent-plugin-switch theme-card-switch"
+      className="jini-agent-plugin-switch theme-card-switch"
       disabled={control.disabled}
       onClick={() => void activate({ themeId: control.target })}
       aria-label={actionButtonAriaLabel({ idleVerb: t("Activate"), busyVerb: t(control.busyKey), busy: control.busy, itemName: name })}
@@ -336,7 +336,7 @@ function ThemeActivateSwitch({
           : `Activate the "${themeId}" theme`,
       })}
     >
-      <span className="agent-plugin-switch-knob" aria-hidden="true" />
+      <span className="jini-agent-plugin-switch-knob" aria-hidden="true" />
     </button>
   );
 }

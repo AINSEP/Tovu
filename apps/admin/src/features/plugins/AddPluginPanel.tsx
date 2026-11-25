@@ -97,7 +97,7 @@ function PluginInstallPreviewDetails({ controller: c }: { controller: PluginInst
       <p><strong>{d.codeNotice}</strong></p>
       <p>{t("It stays off in every workspace until you turn it on.")}</p>
       {d.conflicts ? (
-        <div className="plugin-errors">
+        <div className="jini-plugin-errors">
           <span className="save-error">{d.conflicts.heading}</span>
           <ul>
             {d.conflicts.lines.map((line) => (

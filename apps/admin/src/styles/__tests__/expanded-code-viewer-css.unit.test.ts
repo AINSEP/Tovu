@@ -17,7 +17,7 @@ describe("expanded code viewer + install tab CSS", () => {
   it("paints the package-files and template modals' stage with the surface colour", () => {
     const css = read("../../styles.css");
     expect(css).toMatch(
-      /\.agent-plugin-source-modal \[data-preview-modal-stage\],\s*\.template-source-modal \[data-preview-modal-stage\] \{ background: var\(--surface\); color: var\(--fg\); \}/,
+      /\.jini-agent-plugin-source-modal \[data-preview-modal-stage\],\s*\.template-source-modal \[data-preview-modal-stage\] \{ background: var\(--surface\); color: var\(--fg\); \}/,
     );
   });
 

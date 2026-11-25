@@ -22,6 +22,45 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
+/*
+ * The row shell and the package-files viewer this screen renders moved to Jini (`PluginRow`, `PluginPackageFilesModal`),
+ * which cannot name this product's package format. Their original rationale stays here beside the host code that
+ * supplies the format, the translator and the listing hook:
+ */
+/**
+ * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
+ * tabs render through. Structurally mirrors `AgentPluginRow.tsx` (icon, name + version chip, a
+ * one-line subline, an expander, then right-aligned controls), the sibling screen's own
+ * plain-table-to-row redesign from the same night, but is not byte-for-byte identical and imports
+ * nothing from that file: `AdminPluginDto` has no free-text description (its subline is
+ * `source · tier · status` instead, via `pluginSubline`) and a `.tovu-plugin` row exposes exactly
+ * ONE tab-specific control at a time (after the eye button every row carries, 2026-09-13) — the
+ * Enabled toggle on Installed, or Remove on Downloaded —
+ * never both, since that split is what replaced the single unified table `Plugins.tsx` used to
+ * render (see that file's own header for the tab-by-tab rationale).
+ *
+ * The action area itself is a caller-supplied slot (`action`) rather than a `tab` enum branching
+ * inside this component: `Plugins.tsx` already knows which tab it is rendering and builds the
+ * right control (a plain toggle button, or the Remove icon button) itself, so this file's only job
+ * stays the row's shell — identity, expansion, and the quarantine/errors detail panel — the same
+ * single-responsibility split `AgentPluginListPanel`'s own slot props establish for its sibling.
+ *
+ * Accessibility decisions carried over verbatim from `AgentPluginRow`'s own header (not
+ * re-litigated here):
+ *  - The expander is the row's own summary button (`aria-expanded`/`aria-controls`), not a separate
+ *    chevron competing with the action control for a hit target.
+ *  - The detail panel is ALWAYS rendered and hidden via the `hidden` attribute, so `aria-controls`
+ *    always resolves; `styles.css` carries the matching `[hidden] { display: none; }` guard.
+ *  - The summary's accessible name is the heading text alone (`aria-labelledby`), not the whole
+ *    button's content — the row's built-in-plugin note or long error list must not become part of
+ *    the expander's own announced name.
+ */
+/**
+ * @file The Plugins screen's read-only package-files viewer — the same `PackageFilesModal` the Agent
+ * Plugins screen opens, fed by the server's `PLUGIN_FILES` listing rather than a build-time catalog
+ * (a `.tovu-plugin` lands in the install directory at runtime, so no catalog could know its files).
+ * Opened from a row's eye button on the Installed and Downloaded tabs (`PluginRow`'s `onInspect`).
+ */
 /**
  * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
  * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling
@@ -185,7 +224,7 @@ function DownloadedPluginRows({
             )}
             <button
               type="button"
-              className="plugin-icon-btn"
+              className="jini-plugin-icon-btn"
               disabled={removeBlocker !== null || busy}
               onClick={() => onRequestRemove(plugin)}
               aria-label={pluginRemoveAriaLabel({ plugin, locale })}
@@ -382,6 +421,7 @@ function PluginsOverlays({ controller, settingsHandle, removeHandle }: { control
   const { t, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
   return (
     <>
+      {/* Injectable seam for the listing. Defaults to the real {@link useWiredPluginPackageFiles}. */}
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} useFiles={useWiredPluginPackageFiles} /> : null}
 
       {settingsPlugin && settingsHandle !== undefined ? (

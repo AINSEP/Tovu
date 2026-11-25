@@ -8,6 +8,7 @@ import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfi
   useExecutionCredential, useWiredCopyToClipboard, createBrowserViewerClipboard, folderPathsFromDataTransfer, useI18n, resolveAccentColor, normalizeAccentColor,
   sourceDisplayLabel, SearchableModelSelect } from '@jini-ai/ui';
 import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
+import { useAgentPluginFileTree } from '@jini-ai/admin/agent-plugins/react';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
   createFailureChannel, canAcceptRefresh, mergeSaveStates, SAVE_DEBOUNCE_MS, useSettingsSlice, useStandingDraftAutosave, retryWhileUnreachable } from '@jini-ai/ui/panel-kit';
@@ -49,7 +50,7 @@ export const adminKit = {
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
   // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
   hooks: { useAdminLocale: useHostAdminLocale, useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
-    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard,
+    useTabBarKeyboard, useSerialWrites, useCodeWrap, useAgentPluginFileTree, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard,
     useExecutionCredential, useSettingsSlice, useStandingDraftAutosave, useWiredCopyToClipboard, useCursorPages, useI18n, useDebouncedHtmlPreview },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
   mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,

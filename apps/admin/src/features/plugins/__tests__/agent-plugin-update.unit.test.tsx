@@ -59,8 +59,8 @@ describe("Agent Plugin rows — compatibility and Update", () => {
 
   it("a row this Tovu cannot run, and one with unmet requirements, say so under the name", () => {
     const row = renderRow({ ...UPLOADED, hostOk: false, missingRequires: ["db:query", "mail:send"] });
-    expect(within(row).getByText("Not for this Tovu version")).toHaveClass("agent-plugin-row-desc");
-    expect(within(row).getByText("Needs db:query, mail:send")).toHaveClass("agent-plugin-row-desc");
+    expect(within(row).getByText("Not for this Tovu version")).toHaveClass("jini-agent-plugin-row-desc");
+    expect(within(row).getByText("Needs db:query, mail:send")).toHaveClass("jini-agent-plugin-row-desc");
   });
 
   it("a compatible row, or one from a server without the fields, shows no compatibility line", () => {
@@ -70,7 +70,7 @@ describe("Agent Plugin rows — compatibility and Update", () => {
 
   it("the Update slot renders inside the expanded details", () => {
     const row = renderRow(UPLOADED, <button type="button">slot</button>);
-    expect(within(row).getByRole("button", { name: "slot" }).closest(".agent-plugin-row-detail")).not.toBeNull();
+    expect(within(row).getByRole("button", { name: "slot" }).closest(".jini-agent-plugin-row-detail")).not.toBeNull();
   });
 });
 

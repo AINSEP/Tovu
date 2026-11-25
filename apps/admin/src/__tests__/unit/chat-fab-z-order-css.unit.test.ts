@@ -25,7 +25,7 @@ const requireFromTest = createRequire(import.meta.url);
 /** Selectors allowed above the FAB, each with the reason it may cover it. */
 const ABOVE_FAB = new Map<string, string>([
   [".settings-dialog-backdrop", "shared blocking-modal backdrop (confirm dialogs, pickers)"],
-  [".agent-plugin-source-modal", "blocking package-files modal with a backdrop"],
+  [".jini-agent-plugin-source-modal", "blocking package-files modal with a backdrop"],
   [".template-source-modal", "blocking template-source modal with a backdrop"],
   [".select-panel.select-panel", "portaled panel opened from WidgetPickerDialog's modal; must clear its backdrop"],
   [".info-tip-bubble", "portaled hint bubble used inside modals; pointer-events: none"],
@@ -109,7 +109,7 @@ describe("chat FAB z-order", () => {
   it("keeps blocking modals above the FAB", () => {
     const fab = fabZIndex();
     const layers = zIndexLayers();
-    for (const selector of [".settings-dialog-backdrop", ".agent-plugin-source-modal", ".template-source-modal"]) {
+    for (const selector of [".settings-dialog-backdrop", ".jini-agent-plugin-source-modal", ".template-source-modal"]) {
       const values = layers.filter((layer) => layer.selector === selector).map((layer) => Number(layer.value));
       expect(values.length, selector).toBeGreaterThan(0);
       for (const value of values) expect(value, selector).toBeGreaterThan(fab);
