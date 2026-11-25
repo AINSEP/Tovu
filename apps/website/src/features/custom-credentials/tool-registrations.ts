@@ -4,7 +4,7 @@ import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
-import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
+import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 import { normalizeCredentialWorksFor, suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
