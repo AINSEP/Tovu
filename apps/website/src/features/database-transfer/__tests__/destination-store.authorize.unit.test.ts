@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { VaultError } from "@jini-ai/core/contracts/vault";
-import { authorizeDestinationVaultContext } from "../destination-store.js";
+import { authorizeDestinationVaultContext } from "../destination-store-host.js";
 
 /**
  * @file The sealed destination's vault access check, one clause at a time (L7 Stryker: every

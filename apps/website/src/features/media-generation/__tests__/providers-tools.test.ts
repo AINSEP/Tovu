@@ -1,3 +1,4 @@
+import { mediaProviderHost } from "../provider-card-host.js";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -16,7 +17,7 @@ import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '..
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { buildMediaGenerationRegistrations, type MediaGenerationToolDeps } from '../tool-registrations.js';
-import { saveMediaCredential, buildMediaProviderRegistrations, contributeMediaProviderTools, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '../providers-tools.js';
+import { saveMediaCredential, buildMediaProviderRegistrations, contributeMediaProviderTools, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '@jini-ai/cms/media/site-generation/providers-tools';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import { startMcpUiToolCallsServer } from "../../../assistant/__tests__/support/mcp-ui-tool-calls-server.js";
 import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
@@ -75,7 +76,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
-  const registrations = credentialSaveFixtureRegistrations({ registrations: buildMediaProviderRegistrations(deps, { surfaceExchanges: surfaces }), adapters: { mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps, surfaces: { surfaceExchanges: surfaces } }, optional) } });
+  const registrations = credentialSaveFixtureRegistrations({ registrations: buildMediaProviderRegistrations({ deps, surfaces: { surfaceExchanges: surfaces }, host: mediaProviderHost }), adapters: { mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps, surfaces: { surfaceExchanges: surfaces }, host: mediaProviderHost }, optional) } });
   function tool(id: string) { const found = registrations.find(r => r.descriptor.id === id); assert.ok(found, `expected '${id}' to be wired`); return found; }
   function call(id: string, input: unknown, extra: CallExtra = {}) {
     return invokeFixtureHandler(tool(id), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input: id === 'credential_save' ? credentialSaveFixtureInput({ input, kind: 'media-provider' }) : input,
@@ -294,7 +295,7 @@ test('t10 media abort during sealing writes nothing', async () => {
 test('media credential reasons longer than 1000 characters refuse before authorization or a form', async () => {
   const f = fixture();
   // Exercise the domain adapter directly: the public credential dispatcher has its own validation.
-  await assert.rejects(saveMediaCredential({ deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, ctx: {
+  await assert.rejects(saveMediaCredential({ host: mediaProviderHost, deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, ctx: {
     executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { provider: 'openai', reason: 'x'.repeat(1001) }, signal: new AbortController().signal,
   } }), { message: 'Credential setup reason must be at most 1000 characters.' });
@@ -365,7 +366,7 @@ test('media token policy failures return the allowlisted message without saving'
 
 test('the media provider contributor builds a working read-only provider catalog', async () => {
   const f = fixture();
-  const contributor = contributeMediaProviderTools();
+  const contributor = contributeMediaProviderTools({ host: mediaProviderHost });
   assert.equal(contributor.domain, 'media-providers');
   assert.deepEqual(contributor.risk, mediaProvidersDerivedRisk);
   const registrations = contributor.build(f.deps as unknown as Parameters<typeof contributor.build>[0], { surfaceExchanges: f.surfaces });
@@ -447,3 +448,20 @@ for (const ending of ['blank', 'safe-failure', 'raw-failure', 'cancelled', 'expi
     assertNoSecret(emitted);
   });
 }
+
+test('an invalid secret-looking reason fails before a card opens and an approved save returns no key', async () => {
+  const f = fixture();
+  let opened = 0;
+  await assert.rejects(saveMediaCredential({ ctx: {
+    executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+    input: { provider: 'openai', reason: 'sk-' + 'a'.repeat(48) }, signal: new AbortController().signal,
+  }, deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, host: mediaProviderHost }, { emitSurface: async () => { opened++; throw new Error("unexpected card"); } }), ToolInputError);
+  assert.equal(opened, 0);
+  assert.deepEqual(f.auth, []);
+  const { pending, emitted } = await form(f);
+  submit(f, { apiKey: SECRET });
+  const result = await pending as { saved: boolean };
+  assert.equal(result.saved, true);
+  assertNoSecret(result);
+  assertNoSecret(emitted);
+});

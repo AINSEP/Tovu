@@ -11,7 +11,7 @@ import { consentFixture } from './fixture.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 import { SITE_CONSENT_DEFAULT_CSS } from '@jini-ai/cookie-consent/site/config';
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { createSiteConsentStore } from '../revisions.repo.js';
+import { createSiteConsentStore } from '@jini-ai/cookie-consent/site/revisions.repo';
 
 function tools({ t, signal }: { t: import('node:test').TestContext; signal?: AbortSignal }, _options = {}) {
   const f = consentFixture({ t });
@@ -74,7 +74,7 @@ test('confirmed draft aborts before the first SQL write', async t => {
   const reason = new DOMException('consent write cancelled', 'AbortError');
   const f = tools({ t, signal: controller.signal });
   const kernel = contentKernel({ store: f.db });
-  const store = createSiteConsentStore({ workspaceId: 'ws', kernel: {
+  const store = createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, workspaceId: 'ws', kernel: {
     query: kernel.query.bind(kernel),
     execute: kernel.execute.bind(kernel),
     transaction: kernel.transaction.bind(kernel),
@@ -93,7 +93,7 @@ test('confirmed publication aborts before changing the public pointer', async t 
   const published = t.mock.fn(async () => {});
   f.ports.published = published;
   const kernel = contentKernel({ store: f.db });
-  const store = createSiteConsentStore({ workspaceId: 'ws', kernel: {
+  const store = createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, workspaceId: 'ws', kernel: {
     query: kernel.query.bind(kernel),
     execute: kernel.execute.bind(kernel),
     transaction: kernel.transaction.bind(kernel),
@@ -215,4 +215,12 @@ for (const toolId of ['consent_update_settings', 'consent_publish_settings']) te
   assert.doesNotMatch(shown, /Optional scripts still wait for consent/);
   assert.match(shown, /Save|Publish/);
   assert.equal((await f.store.read({}))[draft ? 'published' : 'draft']?.config.allowUnsafeEval, true);
+});
+
+test('reserved path refuses before local rendering', async t => {
+  const f = tools({ t });
+  const render = t.mock.fn(f.ports.renderPage);
+  f.ports.renderPage = render;
+  await assert.rejects(f.call('consent_get_readiness', { path: '/api/admin' }), /Choose a local public page path/);
+  assert.equal(render.mock.callCount(), 0);
 });

@@ -3,7 +3,7 @@ import type { TestContext } from 'node:test';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { closeSqliteConnection } from '#src/platform/db/kernel/drivers/sqlite';
-import { createSiteConsentStore } from '../revisions.repo.js';
+import { createSiteConsentStore } from '@jini-ai/cookie-consent/site/revisions.repo';
 import { createSiteConsentService, type ConsentServicePorts } from '@jini-ai/cookie-consent/site/service';
 import { consentServiceHostPorts } from '../host-bindings.js';
 import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
@@ -12,7 +12,7 @@ import { onTeardown } from '#src/__tests__/fixtures/teardown';
 export function consentFixture({ t }: { t: TestContext }, _options = {}) {
   const db = openContentDb(':memory:');
   onTeardown({ t, step: () => closeSqliteConnection({ source: db }) });
-  const store = createSiteConsentStore({ kernel: contentKernel({ store: db }), workspaceId: 'ws' });
+  const store = createSiteConsentStore({ tables: { revisions: "site_consent_revisions", heads: "site_consent_heads" }, kernel: contentKernel({ store: db }), workspaceId: 'ws' });
   let allowed = true;
   let count = 0;
   const calls: string[] = [];

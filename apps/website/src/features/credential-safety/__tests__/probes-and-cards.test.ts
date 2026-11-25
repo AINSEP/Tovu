@@ -9,7 +9,8 @@ import { probeExternalMcpServer } from '../../external-mcp/external-mcp-host-cop
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
-import { SealedDatabaseDestinationStore, type SavedDatabaseDestination } from '../../database-transfer/destination-store.js';
+import { SealedDatabaseDestinationStore } from '../../database-transfer/destination-store-host.js';
+import { type SavedDatabaseDestination } from "@jini-ai/db/transfer/destination-store";
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
 import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';

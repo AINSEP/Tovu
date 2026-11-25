@@ -24,7 +24,7 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/repo.memory";
 import { VaultPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
+import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store-host";
 
 /**
  * @file Query-parity harness (DBMERGE-PLAN §2b/§2d). The pre-vault stores and repos are gone from
@@ -71,7 +71,7 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     peers: root === CURRENT_SRC ? peers : Object.fromEntries(Object.entries(peers).map(([name, fn]) =>
       // The archived peer store is positional (deps, input); adapt it to the current { deps, input } shape.
       [name, typeof fn === "function" ? ({ deps, input }: Loose) => fn(deps, input) : fn])),
-    destination: await load("features/database-transfer/destination-store.ts"),
+    destination: await load(root === CURRENT_SRC ? "features/database-transfer/destination-store-host.ts" : "features/database-transfer/destination-store.ts"),
     destinationRepo: await load("features/database-transfer/destination-repo.ts"),
     source: await load("features/source-control/store.ts"),
     publish: await load("features/deployments/publish-credentials/store.ts"),

@@ -11,7 +11,7 @@ import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { artifactStoreBinding } from "#src/features/object-storage/artifact-provider";
 import { artifactStoreTarget } from "#src/features/object-storage/artifact-provider";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import { createRuntimeShareDelivery } from "#src/features/site-backup/share-hosting";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";

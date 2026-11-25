@@ -8,7 +8,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
-import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
+import { InMemoryDatabaseLedgerRepo } from "@jini-ai/db/site/repo.memory";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseTimelineRoute } from "../runtime/composition/modules/database-recovery.js";

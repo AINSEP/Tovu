@@ -1,3 +1,4 @@
+import { formReceiverKey } from "../key-store.js";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -12,14 +13,14 @@ import type { DeployPublishInput, DeployPublishOptions, DeployTarget } from "@ji
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryCustomCredentialSetRepo, listCustomCredentials, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { publishStaticSite } from "#src/features/deployments/static-publish/adapter";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { listFormDestinations } from "../key-store.js";
 import { loadFormDestinationRegistryFromSource } from "../registry.js";
 import { formDestinationKey } from "@jini-ai/cms/forms/destinations/pull";
-import { createFormDestinationPort } from "../port.js";
+import { createFormDestinationPort } from "@jini-ai/cms/forms/destinations/port";
 import type { FormDestinationForm } from "@jini-ai/core/contracts/site/cms-forms";
 
 /**
@@ -55,7 +56,15 @@ function credentials(): CustomCredentialWriteDeps {
 
 async function republish(required: { creds: CustomCredentialWriteDeps; newSecret: () => string }) {
   const registry = await loadFormDestinationRegistryFromSource({ pluginId: "cloudflare", packageRoot: PLUGIN_ROOT });
-  const formDestination = createFormDestinationPort({ listForms: async () => BYHO_FORMS, credentials: required.creds,
+  const formDestination = createFormDestinationPort({ listForms: async () => BYHO_FORMS, hasExistingKey: async ({ workspaceId, hostingTargetId }) => (await listCustomCredentials(required.creds, { workspaceId })).some(item => item.label === `Form submissions key: ${hostingTargetId}`),
+    readExistingKey: async ({ workspaceId, hostingTargetId }) => (await resolveCustomCredentialByLabel(required.creds, { workspaceId, label: `Form submissions key: ${hostingTargetId}` }))?.connection.token,
+    resolveCredential: async input => {
+      const saved = await resolveCustomCredentialByLabel(required.creds, input);
+      return saved ? { token: saved.connection.token, baseUrl: saved.baseUrl, ...(saved.connection.username ? { username: saved.connection.username } : {}) } : null;
+    },
+    formReceiverKey: (input, optional) => formReceiverKey({ credentials: required.creds, ...input }, optional),
+    noReceiverMessage: ({ reason }) => `Form submissions: off, because ${reason}. Submissions on the published site will not reach Tovu. Install or turn on a form destination, or set the site's form receiver (core.forms receiver), then preview again.`,
+    missingCredentialMessage: ({ id, label }) => `form destination '${id}' needs its saved connection "${label}". Save it under Custom credentials with exactly that label, then try again`,
     loadRegistry: async () => registry, readSetting: async () => undefined }, { newSecret: required.newSecret });
   const published: { input?: DeployPublishInput; options?: DeployPublishOptions } = {};
   const target: DeployTarget = {

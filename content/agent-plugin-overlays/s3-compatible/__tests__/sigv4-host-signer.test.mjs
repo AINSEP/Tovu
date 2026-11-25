@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
 
-import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
+import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts";
 
 /**
  * @file Tovu's half of the portable `s3-compatible` plugin (now `@jini-ai/agent-plugins/s3-compatible`):

@@ -23,7 +23,7 @@ import { composeFormDelivery } from "#src/server/runtime/composition/form-delive
 import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/form-delivery-deliverer";
 import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import { createSiteSearchRuntime } from "../modules/site-search.js";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
 import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";

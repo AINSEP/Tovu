@@ -3,12 +3,12 @@ import { withFormPullLease, type FormPullLeasePort, type FormSubmissionRepoPort 
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
-import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
-import { listFormDestinations } from "#src/features/form-destinations/key-store";
-import { createFormDestinationPort } from "#src/features/form-destinations/port";
+import { formReceiverKey, listFormDestinations } from "#src/features/form-destinations/key-store";
+import { createFormDestinationPort } from "@jini-ai/cms/forms/destinations/port";
 import { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination } from "@jini-ai/cms/forms/destinations/pull";
 import type { FormDestinationAddress, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { readFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
@@ -55,7 +55,15 @@ export function composeFormSubmissions(
   const drains = new Set<Promise<void>>();
   const destination = createFormDestinationPort({
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
-    credentials: required.credentials,
+    hasExistingKey: async ({ workspaceId, hostingTargetId }) => (await listCustomCredentials(required.credentials, { workspaceId })).some(item => item.label === `Form submissions key: ${hostingTargetId}`),
+    readExistingKey: async ({ workspaceId, hostingTargetId }) => (await resolveCustomCredentialByLabel(required.credentials, { workspaceId, label: `Form submissions key: ${hostingTargetId}` }))?.connection.token,
+    resolveCredential: async input => {
+      const saved = await resolveCustomCredentialByLabel(required.credentials, input);
+      return saved ? { token: saved.connection.token, baseUrl: saved.baseUrl, ...(saved.connection.username ? { username: saved.connection.username } : {}) } : null;
+    },
+    formReceiverKey: (input, optional) => formReceiverKey({ credentials: required.credentials, ...input }, optional),
+    noReceiverMessage: ({ reason }) => `Form submissions: off, because ${reason}. Submissions on the published site will not reach Tovu. Install or turn on a form destination, or set the site's form receiver (core.forms receiver), then preview again.`,
+    missingCredentialMessage: ({ id, label }) => `form destination '${id}' needs its saved connection "${label}". Save it under Custom credentials with exactly that label, then try again`,
     loadRegistry: required.loadFormDestinations,
     readSetting: ({ workspaceId }) => readFormDestinationSetting({ settingsRepo: required.settingsRepo, workspaceId, getEffective }),
   });

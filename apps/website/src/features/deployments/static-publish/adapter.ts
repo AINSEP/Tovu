@@ -8,7 +8,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { withDeclaredHosts } from "@jini-ai/core/contracts/server/security-headers";
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { VaultError } from '@jini-ai/core/contracts/vault';
-import { SealedDatabaseDestinationStore } from '../destination-store.js';
+import { SealedDatabaseDestinationStore } from '../destination-store-host.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 

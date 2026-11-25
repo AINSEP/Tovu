@@ -5,8 +5,8 @@ import { FormDeliveryError, type FormDeliveryJob, type FormDeliveryResult } from
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRecord, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import { createCustomCredentialConnectionPort } from "../connection-port.js";
+import { resolveCustomCredentialByLabel, createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRecord, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { createCustomCredentialConnectionPort } from "@jini-ai/cms/forms/destinations/connection-port";
 import { createFormDestinationDeliverer } from "@jini-ai/cms/forms/destinations/deliver";
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
@@ -168,33 +168,34 @@ function save(deps: CustomCredentialWriteDeps, required: { worksFor?: string[]; 
 test("the connection port passes the saved username along with the token", async () => {
   const deps = credentialDeps();
   const saved = await save(deps, { worksFor: ["rows"], username: "ana@example.com" });
-  assert.deepEqual(await createCustomCredentialConnectionPort({ credentials: deps })({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }),
+  assert.deepEqual(await createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) })({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }),
     { token: token("port"), baseUrl: "https://rows.example.com", additionalHosts: [], username: "ana@example.com" });
 });
 
 test("the connection port matches the adapter id against worksFor case-insensitively", async () => {
   const deps = credentialDeps();
   const saved = await save(deps, { worksFor: ["Rows"] });
-  assert.equal((await createCustomCredentialConnectionPort({ credentials: deps })({ workspaceId: W, connectionRef: saved.id, adapterId: "ROWS" }))?.token, token("port"));
+  assert.equal((await createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) })({ workspaceId: W, connectionRef: saved.id, adapterId: "ROWS" }))?.token, token("port"));
 });
 
 test("a credential saved without worksFor is handed to no adapter", async () => {
   const deps = credentialDeps();
   const saved = await save(deps, {});
-  assert.equal(await createCustomCredentialConnectionPort({ credentials: deps })({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);
+  assert.equal(await createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) })({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);
 });
 
 test("a connectionRef no saved credential has yields no credential", async () => {
   const deps = credentialDeps();
   await save(deps, { worksFor: ["rows"] });
-  assert.equal(await createCustomCredentialConnectionPort({ credentials: deps })({ workspaceId: W, connectionRef: "cred-missing", adapterId: "rows" }), null);
+  assert.equal(await createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) })({ workspaceId: W, connectionRef: "cred-missing", adapterId: "rows" }), null);
 });
 
 test("the vault's own read errors propagate instead of reading as no credential", async () => {
   class FailingRepo extends InMemoryCustomCredentialSetRepo {
     override async findById(): Promise<CustomCredentialSetRecord | null> { throw new Error("vault offline"); }
   }
-  const port = createCustomCredentialConnectionPort({ credentials: credentialDeps(new FailingRepo()) });
+  const deps = credentialDeps(new FailingRepo());
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   await assert.rejects(port({ workspaceId: W, connectionRef: "cred-1", adapterId: "rows" }), { message: "vault offline" });
 });
 
@@ -202,7 +203,7 @@ test("each port call reads the vault afresh: a credential deleted after one atte
   const repo = new InMemoryCustomCredentialSetRepo();
   const deps = credentialDeps(repo);
   const saved = await save(deps, { worksFor: ["rows"] });
-  const port = createCustomCredentialConnectionPort({ credentials: deps });
+  const port = createCustomCredentialConnectionPort({ findById: input => deps.repo.findById(input), resolveByLabel: input => resolveCustomCredentialByLabel(deps, input) });
   assert.equal((await port({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }))?.token, token("port"));
   await repo.delete({ workspaceId: W, id: saved.id });
   assert.equal(await port({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);

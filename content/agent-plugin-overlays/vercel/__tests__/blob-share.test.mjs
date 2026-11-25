@@ -12,7 +12,7 @@ import test from "node:test";
 import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
 import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
 
-import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
+import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts";
 import { selectArtifactStoreProvider } from "../../../../apps/website/src/features/object-storage/artifact-provider.ts";
 import { resolveShareDelivery } from "../../../../apps/website/src/features/site-backup/share-hosting.ts";
 import { SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";

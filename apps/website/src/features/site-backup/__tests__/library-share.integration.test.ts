@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { LocalFsBlobStore, computeBlobStorageKey, type BlobStorePort } from "../../media/index.js";
 import { blobStoreFromObjectStore } from "@jini-ai/cms/media";
-import { createDeployHostKit } from "../../deployments/deploy-targets/host-kit.js";
+import { createDeployHostKit } from "../../deployments/deploy-targets/host-kit-binding.js";
 import { libraryFixture } from "../../media/__tests__/library.fixture.js";
 import { contributeMediaPublish } from "../../media/publish-content.js";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";

@@ -1,5 +1,5 @@
 import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
-import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemorySiteStatusRepo } from "@jini-ai/db/site/repo.memory";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";

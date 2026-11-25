@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   InMemoryDatabaseIntrospectionAdapter, InMemoryDatabaseLedgerRepo, InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo,
   InMemoryRestorePointsRepo, InMemorySiteStatusRepo,
-} from "../../repo.memory.js";
+} from "@jini-ai/db/site/repo.memory";
 import type { LedgerRow } from "@jini-ai/db/tools";
 
 /** @file The zero-infrastructure database adapters: same observable contract as the SQLite ones. */

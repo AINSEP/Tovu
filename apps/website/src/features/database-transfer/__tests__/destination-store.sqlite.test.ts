@@ -9,11 +9,12 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
-import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
+import { InMemoryDatabaseDestinationStore } from "../destination-store-host.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { DestinationUnreadableError, SealedDatabaseDestinationStore, type SavedDatabaseDestination } from "../destination-store.js";
+import { SealedDatabaseDestinationStore } from "../destination-store-host.js";
+import { DestinationUnreadableError, type SavedDatabaseDestination } from "@jini-ai/db/transfer/destination-store";
 import { DatabaseDestinationRepo } from "../destination-repo.js";
 import { CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
 
