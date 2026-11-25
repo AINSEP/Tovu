@@ -15,6 +15,8 @@ import { createSiteAssistantModule } from "../runtime/composition/modules/site-a
 import { parsePublicJsonBody } from "../inbound/shared/json-body-parsers.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
+import { createToolNameMap } from "@jini-ai/core";
+import { publishVisitorPage } from "#src/features/theme/visitor-publication";
 
 const TEST_KEY = "visitorsafe-plain-test-key";
 
@@ -308,4 +310,75 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
     assert.equal(response.response.isError, true, response.name);
     assert.equal(response.response.content, "I can't help with that request here.", response.name);
   }
+});
+
+/** P6-T3.T: a real visitor tab (credentials + session stream) whose run-specific actions should arrive on `/chat`, not here. */
+async function boundVisitorTab({ baseUrl, workspaceId, signal }: { baseUrl: string; workspaceId: string; signal: AbortSignal }, _options = {}) {
+  const html = publishVisitorPage({ workspaceId, html: '<html><body><div id="tovu-site-assistant-root"></div></body></html>' });
+  const revision = JSON.parse(html.match(/id="tovu-visitor-publication">(.*?)<\/script>/s)![1]!).revision as string;
+  const origin = { origin: baseUrl, "sec-fetch-site": "same-origin" };
+  const issued = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/credentials`, { method: "POST", headers: origin });
+  assert.equal(issued.status, 200);
+  const { tabCredential } = await issued.json() as { tabCredential: string };
+  const tab = { ...origin, cookie: issued.headers.get("set-cookie")!.split(";")[0]!, "x-frontend-tab": tabCredential, "x-visitor-publication": revision };
+  const stream = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/stream?capability=page.find_elements&capability=page.navigate`, { headers: tab, signal });
+  const reader = stream.body!.getReader();
+  const attached = JSON.parse(new TextDecoder().decode((await reader.read()).value).match(/data: (.+)/)![1]!) as { sessionId: string; bindToken: string };
+  const sessionFrames: string[] = [];
+  void (async () => { for (;;) { const next = await reader.read().catch(() => ({ done: true as const, value: undefined })); if (next.done) return; sessionFrames.push(new TextDecoder().decode(next.value)); } })();
+  const headers = { ...tab, "x-frontend-bind-token": attached.bindToken };
+  const post = async (path: "begin" | "responses", body: Record<string, unknown>) => (await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/${attached.sessionId}/${path}`,
+    { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) })).text();
+  return { headers, sessionFrames, post };
+}
+
+/** Reads the AG-UI `/chat` stream as a browser would, acting as the page on each delivered tool call. */
+async function readAgUiTurn({ response, onToolCall }: { response: Response; onToolCall: (call: { toolCallId: string; toolCallName: string; args: string }) => Promise<void> }, _options = {}) {
+  const events: Array<Record<string, unknown>> = [];
+  const reader = response.body!.getReader();
+  let buffered = "";
+  const args = new Map<string, string>();
+  for (;;) {
+    const next = await reader.read();
+    if (next.done) return events;
+    buffered += new TextDecoder().decode(next.value);
+    const frames = buffered.split("\n\n"); buffered = frames.pop()!;
+    for (const frame of frames) {
+      const data = frame.match(/^data: (.+)$/m)?.[1];
+      if (!data) continue;
+      const event = JSON.parse(data) as Record<string, unknown>;
+      events.push(event);
+      if (event.type === "TOOL_CALL_ARGS") args.set(String(event.toolCallId), String(event.delta));
+      if (event.type === "TOOL_CALL_END") {
+        const start = events.find(e => e.type === "TOOL_CALL_START" && e.toolCallId === event.toolCallId)!;
+        await onToolCall({ toolCallId: String(event.toolCallId), toolCallName: String(start.toolCallName), args: args.get(String(event.toolCallId)) ?? "" });
+      }
+    }
+  }
+}
+
+test("a refused model call never becomes a browser tool call", { timeout: 20_000 }, async t => {
+  const navigate = createToolNameMap({ toolIds: ["page.navigate"] }).wireNameFor({ toolId: "page.navigate" })!;
+  let continuation: Record<string, unknown> | undefined;
+  const f = await boot({ t, reply: (count, body) => {
+    if (count > 1) { continuation = body; return googleReply({ parts: [{ text: "That page is not available." }] }); }
+    // Rejected navigation target: refused by the reviewed page policy, so the registry never mints an invocation.
+    return googleReply({ parts: [{ functionCall: { name: navigate, args: { page: "nonexistent-id" }, id: "call_model_nav" } }] });
+  } });
+  const tabAbort = new AbortController(); t.after(() => tabAbort.abort());
+  const tab = await boundVisitorTab({ baseUrl: f.baseUrl, workspaceId: f.deps.workspaceId, signal: tabAbort.signal });
+  const delivered: unknown[] = [];
+  const response = await fetch(f.baseUrl + "/api/site-assistant/chat", { method: "POST",
+    headers: { ...tab.headers, "content-type": "application/json", accept: "text/event-stream; agui=1" },
+    body: JSON.stringify({ threadId: "thread-t3", runId: "run-t3", state: null, tools: [], context: [],
+      messages: [{ id: "m1", role: "user", content: "Open the missing page" }], forwardedProps: { turnId: "turn-t3-000001" } }) });
+  assert.equal(response.status, 200);
+  const events = await readAgUiTurn({ response, onToolCall: async call => { delivered.push(call); } });
+  const wire = JSON.stringify(events);
+  assert.deepEqual(delivered, [], `no browser tool call for a refused model call, got ${wire}`);
+  assert.equal(events.filter(e => String(e.type).startsWith("TOOL_CALL")).length, 0);
+  assert.doesNotMatch(wire, /call_model_|nonexistent-id|functionCall|tool_use/, "no model tool id, refused target or provider call on the wire");
+  assert.deepEqual(tab.sessionFrames.filter(frame => frame.includes('"invocation"')), [], "nothing reaches the tab's session stream either");
+  assert.ok(continuation, "the provider continues after the refusal");
+  assert.equal(events.at(-1)!.type, "RUN_FINISHED");
 });

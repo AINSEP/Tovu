@@ -1,5 +1,6 @@
 /** Separate visitor façade; no admin daemon, registry or proxy enters this composition. */
 import { createFrontendControl, createFrontendGuestScope, type DaemonRouteHost, type FrontendSessionTimer } from '@jini-ai/daemon/http';
+import type { FrontendInvocationDelivery } from '@jini-ai/daemon';
 import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
 import { createLocalSameOriginPolicy, type RouteHostContext, type ServerRoute } from '@jini-ai/core/contracts/server';
@@ -35,9 +36,15 @@ export interface VisitorRoutePorts {
 
 type ResolveVisitorOwner = (required: FrontendHookInput) => Promise<NonNullable<Awaited<ReturnType<GuestScope['resolveOwner']>>> | null>;
 
+/**
+ * Binds this chat request's internal logical run to the authenticated tab that presented the bind
+ * token. With `deliverInvocation` (the AG-UI `/chat` path) the run's page actions go only to that
+ * callback, which closes over this request's own run and segment, instead of the session-wide
+ * stream; the page must then `begin` each one against this live binding before it acts.
+ */
 async function bindVisitorRequest(
   required: { req: Request; signal: AbortSignal; runId: string; workspaceId: string; control: VisitorControl; resolveOwner: ResolveVisitorOwner; hookInput: VisitorRoutePorts['hookInput'] },
-  _optional = {},
+  { deliverInvocation }: { deliverInvocation?: FrontendInvocationDelivery } = {},
 ) {
   const { req, signal, runId, workspaceId, control, resolveOwner, hookInput } = required;
   const owner = await resolveOwner(hookInput({ req }));
@@ -45,7 +52,7 @@ async function bindVisitorRequest(
   const unbound = { owner, publication: null, release: () => {} };
   if (!owner || !publication) return unbound;
   try {
-    const release = control.bindRequest({ runId, bindToken: req.get('x-frontend-bind-token') ?? '', owner, signal });
+    const release = control.bindRequest({ runId, bindToken: req.get('x-frontend-bind-token') ?? '', owner, signal }, deliverInvocation ? { deliverInvocation } : {});
     return { owner, publication, release };
   } catch { return unbound; }
 }
@@ -54,6 +61,30 @@ async function bindVisitorRequest(
 function refuseWithReport({ res, error, reportError }: { res: Response; error: unknown; reportError: ReportVisitorError }, _optional = {}): void {
   reportError({ error });
   res.sendStatus(403);
+}
+
+type OriginPolicy = ReturnType<typeof createLocalSameOriginPolicy>;
+
+function readHeader({ headers, name }: { headers: unknown; name: string }): string | undefined {
+  if (headers && typeof (headers as Headers).get === 'function') return (headers as Headers).get(name) ?? undefined;
+  const value = (headers as Record<string, string | string[] | undefined> | undefined)?.[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * The synchronous same-origin answer for the visitor frontend routes. Jini puts `begin` behind both
+ * the owner gate and this check; the owner gate runs first and has already applied the full (async)
+ * visitor origin verdict — canonical or serving origin plus Fetch Metadata — so a browser request
+ * reaches this check only from the visitor's own page. Without this, the local loopback policy
+ * refuses every browser origin and a visitor page could never claim its delivered action. It still
+ * requires the browser's own `Sec-Fetch-Site: same-origin`, which page script cannot set.
+ */
+function visitorFrontendOriginPolicy({ localPolicy }: { localPolicy: OriginPolicy }, _optional = {}): OriginPolicy {
+  return { isSameOrigin: ({ req }) => {
+    if (localPolicy.isSameOrigin({ req })) return true;
+    const headers = (req as { headers?: unknown }).headers;
+    return readHeader({ headers, name: 'sec-fetch-site' }) === 'same-origin' && Boolean(readHeader({ headers, name: 'origin' }));
+  } };
 }
 
 function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope; control: VisitorControl; limiter: VisitorLimiter; reportError: ReportVisitorError; ports: VisitorRoutePorts }, _optional = {}): void {
@@ -80,8 +111,9 @@ function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope;
     } catch (error) { refuseWithReport({ res, error, reportError }); }
   });
   // Port 0 and an empty env: no browser origin is ever same-origin here, only a header-less loopback request.
-  const originPolicy = createLocalSameOriginPolicy({ port: () => 0, env: {},
+  const localPolicy = createLocalSameOriginPolicy({ port: () => 0, env: {},
     config: { allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } });
+  const originPolicy = visitorFrontendOriginPolicy({ localPolicy });
   ports.mountRoutes({ app, routes: control.routes({ host: ports.routeHost({ context: { originPolicy }, parserLimitBytes: ports.parserLimitBytes }) }) });
 }
 
@@ -116,8 +148,8 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
       resolveCapacityKeys: ({ locals, owner }) => [`ip:${readRequestFacts({ locals }).clientAddress}`, `guest:${owner!.principalId}`],
     } }, { maxOutputBytes: 24_000 });
   return { control, resolveOwner, resolveApprovalOwner,
-    bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) =>
-      bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner, hookInput: ports.hookInput }),
+    bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, optional: { deliverInvocation?: FrontendInvocationDelivery } = {}) =>
+      bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner, hookInput: ports.hookInput }, optional),
     mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter, reportError, ports }),
   };
 }

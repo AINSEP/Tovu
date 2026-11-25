@@ -105,6 +105,8 @@ export interface VisitorTurnWriter {
 export interface VisitorAgUiWriter extends VisitorTurnWriter {
   /** Ends this segment with `RUN_FINISHED` `outcome.type: "interrupt"`. A pause is not a success. */
   interrupt(required: { interrupt: Parameters<typeof confirmationInterrupt>[0]["interrupt"] }, optional?: Record<string, never>): void;
+  /** One registry-delivered page action as TOOL_CALL_START/ARGS/END, under the open text message when there is one. */
+  toolCall(required: { toolCallId: string; toolCallName: string; args: string }, optional?: Record<string, never>): void;
 }
 
 export interface VisitorAgUiCopy {
@@ -112,6 +114,12 @@ export interface VisitorAgUiCopy {
   readonly noReply: string;
   /** The turn stopped without a terminal (dropped delivery). */
   readonly interrupted: string;
+}
+
+/** Remembers which text message is open, so a page action can name it as its parent. */
+function trackOpenMessage({ event, message }: { event: AgUiEvent; message: { open?: string } }): void {
+  if (event.type === EventType.TEXT_MESSAGE_START) message.open = event.messageId;
+  else if (event.type === EventType.TEXT_MESSAGE_END) message.open = undefined;
 }
 
 /**
@@ -131,7 +139,8 @@ export function createVisitorAgUiWriter(
 ): VisitorAgUiWriter {
   const state = createAgUiTranslationState({ ids, customEventNames: { usage: "usage", status: "status", extensionPrefix: "ext." } });
   const turn = { terminal: false, visible: false, pendingWhitespace: "" };
-  const emit = (events: AgUiEvent[]) => { for (const event of events) write(encode(event)); };
+  const message: { open?: string } = {};
+  const emit = (events: AgUiEvent[]) => { for (const event of events) { trackOpenMessage({ event, message }); write(encode(event)); } };
   const terminate = (event: AgUiEvent) => { turn.terminal = true; emit([...closeAgUiRun({ state }), event]); };
   return {
     start: () => { emit([{ type: EventType.RUN_STARTED, threadId, runId }]); },
@@ -153,6 +162,11 @@ export function createVisitorAgUiWriter(
       if (outcome.kind === "error") terminate({ type: EventType.RUN_ERROR, message: outcome.message, ...(outcome.code ? { code: outcome.code } : {}) });
       else if (!turn.visible) terminate({ type: EventType.RUN_ERROR, message: copy.noReply, code: "NO_REPLY" });
       else terminate({ type: EventType.RUN_FINISHED, threadId, runId, result: { reason: outcome.reason } });
+    },
+    toolCall: ({ toolCallId, toolCallName, args }) => {
+      if (turn.terminal) return;
+      emit([{ type: EventType.TOOL_CALL_START, toolCallId, toolCallName, ...(message.open ? { parentMessageId: message.open } : {}) },
+        { type: EventType.TOOL_CALL_ARGS, toolCallId, delta: args }, { type: EventType.TOOL_CALL_END, toolCallId }]);
     },
     interrupt: ({ interrupt }) => {
       if (!turn.terminal) terminate(confirmationInterrupt({ threadId, runId, interrupt }));
