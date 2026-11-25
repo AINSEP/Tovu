@@ -1,6 +1,4 @@
-import { updatePost } from "../post/post-update.js";
 import { resolveMediaCaptionsTrack } from "@jini-ai/cms/media/site/public-path";
-import { restorePostForward } from "../post/post-trash.js";
 import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "@jini-ai/cms/posts/post-read";
 import { PostVersionConflictError, PostNotFoundError } from "@jini-ai/cms/posts/post";
 import type { ForgetRemovedPostFn } from "#src/platform/publish-contracts";
@@ -74,7 +72,38 @@ export interface WidgetsRouteDeps {
   pluginBeforeSaveHook: BeforeSaveHookPort;
   /** Moves a widget to the Trash — `bindRemoveEntity(trash, "widget")` at composition. */
   removeWidget: RemoveWidgetFn;
+  /** A14 — the live editor's post write chokepoints, bound by the host composer (never imported here). */
+  widgetPostWrites: WidgetPostWrites;
 }
+
+type HostPostOps = WidgetHostPorts["posts"];
+type UpdateArgs = Parameters<HostPostOps["updatePost"]>[0];
+type RestoreArgs = Parameters<HostPostOps["restorePostForward"]>[0];
+/** The full host repo the live editor's chokepoints write through (the Jini view carries reads only). */
+type WithFullRepo<D> = Omit<D, "repo"> & { repo: PostRepoPort };
+
+/**
+ * `features/post`'s `updatePost`/`restorePostForward`, injected at the composition root so this
+ * feature never imports another feature's implementation. Shaped as the raw chokepoints take their
+ * args — the full host repo and the host `PostRecord` — and adapted to `WidgetHostPorts.posts` below.
+ */
+export interface WidgetPostWrites {
+  updatePost(required: { deps: WithFullRepo<UpdateArgs["deps"]>; input: UpdateArgs["input"] }, optional?: Record<string, never>): ReturnType<HostPostOps["updatePost"]>;
+  restorePostForward(required: {
+    deps: WithFullRepo<RestoreArgs["deps"]>; input: Omit<RestoreArgs["input"], "prior"> & { prior: PostRecord };
+  }, optional?: Record<string, never>): Promise<unknown>;
+}
+
+/** Plain-words refusal for a read-only binding: a write here is a wiring bug and must never no-op. */
+function refuseReadOnlyPostWrite(): never {
+  throw new Error("This widget host binding is read-only: it can render embeds but cannot update or restore a post. Embed edits go through buildWidgetsDeps with the host's post writes.");
+}
+
+/** For publish/render/resolver callers, which only ever use the post FIND methods. */
+export const READ_ONLY_WIDGET_POST_WRITES: WidgetPostWrites = {
+  updatePost: async () => refuseReadOnlyPostWrite(),
+  restorePostForward: async () => refuseReadOnlyPostWrite(),
+};
 
 /**
  * Binds A6's host operations to their existing owners. Post writes capture the full host repo;
@@ -83,7 +112,7 @@ export interface WidgetsRouteDeps {
  * full host instance. The assertions below widen only its TypeScript view, never its runtime data.
  * @complexity O(1) construction; callbacks retain the owning operation's cost and error contract.
  */
-export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _optional: Record<string, never> = {}): WidgetHostPorts {
+export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort; postWrites: WidgetPostWrites }, _optional: Record<string, never> = {}): WidgetHostPorts {
   return {
     entries: {
       createEntry, updateEntry, importEntry, toEntryOutbox,
@@ -98,10 +127,10 @@ export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _opt
       isTrashed,
       isVersionConflict: (error): error is PostVersionConflictError => error instanceof PostVersionConflictError,
       isNotFound: (error) => error instanceof PostNotFoundError,
-      updatePost: ({ deps, input }, optional = {}) => updatePost({
+      updatePost: ({ deps, input }, optional = {}) => required.postWrites.updatePost({
         deps: { ...deps, repo: required.postRepo ?? deps.repo as PostRepoPort }, input,
       }, optional),
-      restorePostForward: ({ deps, input }, optional = {}) => restorePostForward({
+      restorePostForward: ({ deps, input }, optional = {}) => required.postWrites.restorePostForward({
         deps: { ...deps, repo: required.postRepo ?? deps.repo as PostRepoPort },
         input: { ...input, prior: input.prior as PostRecord },
       }, optional),
@@ -138,7 +167,7 @@ export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps, _optional: Record<
   };
   // Preserve the established enumerable deps shape (deps.unit.test.ts) while passing A6's new
   // host seam directly. The host is wiring, not a route/tool payload or a repository snapshot.
-  return Object.defineProperty(deps, "host", { value: buildWidgetHostPorts({ postRepo: routeDeps.postRepo }, {}) }) as typeof deps & { host: WidgetHostPorts };
+  return Object.defineProperty(deps, "host", { value: buildWidgetHostPorts({ postRepo: routeDeps.postRepo, postWrites: routeDeps.widgetPostWrites }, {}) }) as typeof deps & { host: WidgetHostPorts };
 }
 
 /** `Jini/packages/cms/src/widgets/region-area-service.ts` calls additionally need `bindingRepo` — same base shape, one extra field. */

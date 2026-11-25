@@ -1,5 +1,5 @@
 import type { SiteChatSelection } from "../../../http/site/site-chat-markup.js";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
@@ -127,7 +127,7 @@ interface StaticTierDocumentInput {
 async function prepareStaticTierHtml({ deps, theme, html, postAuthor }: { deps: TemplateRenderDeps } & Pick<StaticTierDocumentInput, "theme" | "html" | "postAuthor">, _optional: Record<string, never> = {}): Promise<string> {
   const expanded = expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme });
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo: deps.entryRepo,
       postRepo: createPublicPostReader({ repo: deps.postRepo }),
       mediaRepo: deps.mediaRepo,

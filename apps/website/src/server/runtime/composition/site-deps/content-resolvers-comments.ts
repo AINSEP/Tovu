@@ -10,7 +10,7 @@ import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
 import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { createCommentTargetLookup } from "@jini-ai/cms/comments/site/comment-targets";
 import { createCommentsCapability } from "@jini-ai/cms/comments/site/provider-selection";
 import { createCommentsProviderRegistry } from "@jini-ai/capability-providers/comments";
@@ -86,7 +86,7 @@ export function composeContentResolversComments(required: ComposeContentResolver
     crypto: globalThis.crypto,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
-      host: buildWidgetHostPorts({}), entryRepo, mediaRepo: mediaRepo(), transformRepo: transformDefinitionRepo, mediaContentTypeStore: mediaContentTypeStore(),
+      host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo: mediaRepo(), transformRepo: transformDefinitionRepo, mediaContentTypeStore: mediaContentTypeStore(),
     } }),
     menus: { resolveMenuDoc },
     collectionList: widgetCollectionListPort,

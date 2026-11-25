@@ -35,6 +35,8 @@ import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-port
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { updatePost } from "#src/features/post/post-update";
+import { restorePostForward } from "#src/features/post/post-trash";
 
 interface RouteDepsContentTrashRequired {
   assistantAgentInventory: ReturnType<typeof composeAgentPluginBootstrap>["assistantAgentInventory"];
@@ -66,7 +68,7 @@ interface RouteDepsChatAgentsRequired {
   pluginExports: ReturnType<typeof composePreAssembly>["pluginExports"];
 }
 
-export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "siteBackupSanitize" | "mediaAccessEvidence" | "pluginExports" | "assistantAgentInventory" | "workspaceId" | "peerSiteReads" | "workspaceRepo" | "trash" | "removePost" | "removeComment" | "removeMedia" | "removeRedirect" | "removeWidget" | "forgetRemovedMedia" | "forgetRemovedPost" | "sweepTrash" | "isTrashableEntityType" | "registry" | "db" | "postRepo" | "postGoLiveCandidates" | "postSearch"> {
+export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "siteBackupSanitize" | "mediaAccessEvidence" | "pluginExports" | "assistantAgentInventory" | "workspaceId" | "peerSiteReads" | "workspaceRepo" | "trash" | "removePost" | "removeComment" | "removeMedia" | "removeRedirect" | "removeWidget" | "forgetRemovedMedia" | "forgetRemovedPost" | "widgetPostWrites" | "sweepTrash" | "isTrashableEntityType" | "registry" | "db" | "postRepo" | "postGoLiveCandidates" | "postSearch"> {
   const { assistantAgentInventory, resolvedSiteBinding, kernel, workspaceId, postSearchBackfillReady, trashRegistry, sqliteTrashDb, trashRepo, trashAdapters, trashTransaction, trash, postRepo, mediaAccessEvidence, pluginExports } = required;
   return {
     siteBackupSanitize: sanitizeShareDatabase,
@@ -104,6 +106,8 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
       repo: trashRepo,
       entityType: POST_ENTITY_TYPE
     }),
+    // A14: widget embeds on a post/page host write through the live editor's own chokepoints.
+    widgetPostWrites: { updatePost, restorePostForward },
     // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
     // only in a site-serving process — never in the exporter or the agent daemon.
     sweepTrash: createTrashSweep({
