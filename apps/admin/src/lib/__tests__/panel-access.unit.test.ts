@@ -168,6 +168,9 @@ const SERVER_EVIDENCE: Record<string, string> = {
   email: `${CMS_ROUTES}/system/mail-status.js`,
   settings: `${CMS_ROUTES}/settings/get-effective.js`,
   consent: `${CMS_ROUTES}/consent/routes.js`,
+  // The storage report/cleanup mounts name `storage.manage` on their session-credential gate (the Jini
+  // spec's own `authorize` asks for the same id); the owner-id check behind it has no permission literal.
+  storage: "../../../../website/src/server/runtime/composition/modules/storage-routes.ts",
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
   // `seo/get-settings` authorizes through the seo shared module, which holds the literal.

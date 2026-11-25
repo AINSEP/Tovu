@@ -1009,7 +1009,9 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "See what uses disk space and clean up what is safe to remove.",
     // Owner-facing maintenance next to Database and Recovery. The website's storage routes check site
     // ownership themselves (an admin session alone is refused), so this permission only gates the nav.
-    anyOfPermissions: ["system.read"],
+    // It is the id those mounts name (`storage.manage`), not `system.read`: a `system.read` holder who is
+    // not the owner saw a nav row whose every request answers 403. No built-in role but the owner's `*` holds it.
+    anyOfPermissions: ["storage.manage"],
     render: (ctx, _options = {}) => <Storage useAdminLocaleHook={ctx.useAdminLocaleHook} />,
     nav: {
       label: "Storage",

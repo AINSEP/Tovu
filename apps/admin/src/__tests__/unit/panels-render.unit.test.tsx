@@ -44,6 +44,7 @@ import {
   EmailTemplateEditor,
   Database,
   Recovery,
+  Storage,
   ImportExport,
   Deployment,
   SourceControl,
@@ -109,9 +110,10 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // 49 as of 2026-10-18: Library (private documents) sits beside Media.
   // 50 as of 2026-10-21: Cookie Consent sits beside Settings.
   // 51 as of 2026-10-22: Email takes Notifications' nav row; `notifications` stays as a redirect.
-  it("has 51 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(51);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(51);
+  // 52 as of 2026-11-25: Storage (P11, owner-only disk use and cleanup) sits beside Database and Recovery.
+  it("has 52 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(52);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(52);
   });
 });
 
@@ -138,6 +140,8 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "billing", component: Placeholder, extraProps: { sectionId: "billing" } },
   { id: "database", component: Database },
   { id: "recovery", component: Recovery },
+  // Storage receives the host's locale hook from `ctx` (a required hook prop), nothing else.
+  { id: "storage", component: Storage, extraProps: { useAdminLocaleHook } },
   { id: "observability", component: Observability },
   { id: "activity-log", component: Placeholder, extraProps: { sectionId: "activity-log" } },
   // 2026-09-10: retired as a nav row (folded into a Settings tab — see `panels.tsx`'s own comment

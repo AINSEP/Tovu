@@ -22,26 +22,29 @@ const LISTS: Record<"unknown" | "empty" | "star" | "editor" | "memberManager", r
   memberManager: ["member.manage"],
 };
 
-/** Panel ids the operator may NOT use, per list. */
+/** Panel ids the operator may NOT use, per list.
+ *  The `storage` rows (2026-11-25) are the one addition since the base commit: a new panel, not a
+ *  changed rule. It declares `storage.manage`, the id its mount names (`storage-routes.ts`), which no
+ *  built-in role but the owner's `*` holds, so it is denied to every list here but `unknown` and `star`. */
 const DENIED: Record<keyof typeof LISTS, readonly string[]> = {
   unknown: [],
   empty: [
     "sites", "pages", "posts", "media", "library", "collections", "menus", "taxonomy", "forms", "users",
     "roles", "members", "comments", "themes", "plugins", "agent-plugins", "skills", "providers",
-    "integrations", "database", "recovery", "deployment", "observability", "settings", "consent", "email",
-    "trash", "seo", "redirects", "analytics", "appearance",
+    "integrations", "database", "recovery", "storage", "deployment", "observability", "settings", "consent",
+    "email", "trash", "seo", "redirects", "analytics", "appearance",
   ],
   star: [],
   editor: [
     "sites", "collections", "menus", "taxonomy", "forms", "users", "roles", "members", "comments", "plugins",
-    "agent-plugins", "skills", "providers", "integrations", "database", "recovery", "deployment",
+    "agent-plugins", "skills", "providers", "integrations", "database", "recovery", "storage", "deployment",
     "observability", "settings", "consent", "email", "seo", "redirects", "analytics",
   ],
   memberManager: [
      "sites", "pages", "posts", "media", "library", "collections", "menus", "taxonomy", "forms", "roles",
      "comments", "themes", "plugins", "agent-plugins", "skills", "providers", "integrations", "database",
-     "recovery", "deployment", "observability", "settings", "consent", "email", "trash", "seo", "redirects",
-     "analytics", "appearance",
+     "recovery", "storage", "deployment", "observability", "settings", "consent", "email", "trash", "seo",
+     "redirects", "analytics", "appearance",
   ],
 };
 
@@ -51,7 +54,8 @@ const NAV: Record<keyof typeof LISTS, readonly string[]> = {
     "dashboard", "sites", "import-export", "ai-assistant", "pages", "posts", "media", "library",
     "collections", "menus", "widgets", "taxonomy", "forms", "users", "authentication", "roles", "members",
     "comments", "themes", "admin-ui", "playground", "plugins", "agent-plugins", "skills", "providers",
-    "orders", "products", "subscriptions", "billing", "database", "recovery", "deployment", "source-control",
+    "orders", "products", "subscriptions", "billing", "database", "recovery", "storage", "deployment",
+    "source-control",
     "access-tokens", "observability", "activity-log", "settings", "consent", "email", "trash", "seo",
     "redirects", "newsletter", "analytics",
   ],
@@ -64,7 +68,8 @@ const NAV: Record<keyof typeof LISTS, readonly string[]> = {
     "dashboard", "sites", "import-export", "ai-assistant", "pages", "posts", "media", "library",
     "collections", "menus", "widgets", "taxonomy", "forms", "users", "authentication", "roles", "members",
     "comments", "themes", "admin-ui", "playground", "plugins", "agent-plugins", "skills", "providers",
-    "orders", "products", "subscriptions", "billing", "database", "recovery", "deployment", "source-control",
+    "orders", "products", "subscriptions", "billing", "database", "recovery", "storage", "deployment",
+    "source-control",
     "access-tokens", "observability", "activity-log", "settings", "consent", "email", "trash", "seo",
     "redirects", "newsletter", "analytics",
   ],
@@ -81,8 +86,8 @@ const NAV: Record<keyof typeof LISTS, readonly string[]> = {
 };
 
 describe("P1: panel access over the real panels list, five fixed permission lists", () => {
-  it("lists all 51 registered panels", () => {
-    expect(ADMIN_PANELS).toHaveLength(51);
+  it("lists all 52 registered panels", () => {
+    expect(ADMIN_PANELS).toHaveLength(52);
   });
 
   it.each(Object.keys(LISTS) as (keyof typeof LISTS)[])("%s: the denied panel ids are unchanged", (name) => {
