@@ -128,7 +128,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
   };
 }
 
-export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatBulkDeletionFor" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
+export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "recordedHtmlWrites" | "chatHistory" | "chatBulkDeletionFor" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
   const { kernel, chat, clock, outbox, entryRefsRepo, entryRepo, tracker, postRepo, pluginExports } = required;
   return {
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
@@ -143,6 +143,8 @@ export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _opti
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo }),
+    // FIX 11: one kernel transaction spans the page write, its revisions, events and the change-set record.
+    recordedHtmlWrites: "enabled",
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.

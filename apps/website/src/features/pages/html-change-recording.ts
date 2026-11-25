@@ -1,6 +1,7 @@
 import type { ChangeSetRepoPort, ExecuteCommandFn, OutboxPort, AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator, JsonObject } from "@jini-ai/core/primitives";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
+import { ToolInputError } from "@jini-ai/core";
 
 import { PageConcurrentEditError } from "./html-document-store.js";
 import { PAGE_HTML_ENTITY_TYPE, pageHtmlInverseOf } from "./html-inverse.js";
@@ -16,8 +17,18 @@ const SUMMARY: Readonly<Record<PageHtmlOperation, string>> = {
   pages_move_region: "Assistant moved a page section",
 };
 
+/**
+ * Whether this composition can run a recorded HTML write at all (FIX 11). `enabled` only where one
+ * transaction spans the page write, its revisions, events and the change-set record (sqlite,
+ * postgres). The in-memory composition binds `disabled`: its post snapshot does not cover the
+ * change-set repo or the outbox, so a late failure would orphan the Undo record.
+ */
+export type RecordedHtmlWrites = "enabled" | "disabled";
+
 /** The collaborators recording needs beyond the page store the write itself closes over. */
 export interface PageHtmlRecordingDeps {
+  /** Required, never defaulted: each composition states whether it has the shared rollback boundary. */
+  recordedHtmlWrites: RecordedHtmlWrites;
   executeCommand: ExecuteCommandFn;
   clock: Clock;
   idGen: IdGenerator;
@@ -54,7 +65,8 @@ class UnrecordedPageHtmlWrite<T> extends Error {
  * and `changeSetId` is returned only after the record commits — only a committed record earns an
  * Undo claim. The execution id is correlation for the idempotency key, never authority.
  *
- * @throws Whatever the write throws, after the transaction rolls back; `PageConcurrentEditError` if
+ * @throws `ToolInputError` before anything is opened when `recordedHtmlWrites` is `disabled`;
+ * whatever the write throws, after the transaction rolls back; `PageConcurrentEditError` if
  * the captured row was not at `expectedVersion`.
  * @complexity O(1) besides `write`.
  */
@@ -71,6 +83,9 @@ export async function recordAssistantPageHtmlWrite<T>(
 ): Promise<{ value: T; version: number | null; changeSetId?: string }> {
   // Before the first durable operation, including a doc Page's one-way conversion.
   signal.throwIfAborted();
+  if (deps.recordedHtmlWrites !== "enabled") {
+    throw new ToolInputError({ message: "Assistant HTML page edits are not available on this site's storage: it cannot record the edit and its Undo together. Nothing was written." });
+  }
   let captured: PostRecord | null = null;
   try {
     const { result, changeSetId } = await deps.postRepo.transaction({ fn: () => deps.executeCommand<PageHtmlWriteOutcome<T>>({

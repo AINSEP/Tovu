@@ -5,8 +5,9 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
  * The change-set collaborators `PagesToolDeps` requires for recording assistant HTML writes
  * (P1-T2.T), for narrow handler tests that exercise other behavior. The real gateway and an
  * in-memory change-set repo, never a stub that skips recording; spread it BEFORE a test's own
- * fields so a test's clock or repo still wins.
+ * fields so a test's clock or repo still wins. Recording is `enabled`: these narrow tests exercise the
+ * handler, not a composition (the in-memory composition binds `disabled`, FIX 11).
  */
 export function pageHtmlChangeTestDeps(_optional = {}) {
-  return { executeCommand, clock: createSystemClock(), idGen: createRandomUuidGenerator(), changeSets: new InMemoryChangeSetRepo() };
+  return { executeCommand, clock: createSystemClock(), idGen: createRandomUuidGenerator(), changeSets: new InMemoryChangeSetRepo(), recordedHtmlWrites: "enabled" as const };
 }

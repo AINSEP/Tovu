@@ -47,7 +47,7 @@ import {
   type PagesHtmlDocumentStorePort,
 } from "./html-document-store.sqlite.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
-import { recordAssistantPageHtmlWrite, type PageHtmlOperation, type PageHtmlWriteOutcome } from "./html-change-recording.js";
+import { recordAssistantPageHtmlWrite, type PageHtmlOperation, type PageHtmlWriteOutcome, type RecordedHtmlWrites } from "./html-change-recording.js";
 import type { ChangeSetRepoPort, ExecuteCommandFn, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
@@ -427,6 +427,8 @@ export interface PagesToolDeps {
   idGen: IdGenerator;
   changeSets: ChangeSetRepoPort;
   outbox?: OutboxPort;
+  /** FIX 11: whether this composition has one rollback boundary over an HTML write and its record. */
+  recordedHtmlWrites: RecordedHtmlWrites;
 }
 
 /**

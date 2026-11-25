@@ -108,15 +108,20 @@ async function pageHtmlSets(deps: RootDeps) {
   return withItems.filter((set) => set?.items.some((item) => item.entityType === "page-html"));
 }
 
+async function sqliteRoot(t: TestContext) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-html-undo-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
+  await deps.identityReady;
+  return deps;
+}
+
+/**
+ * FIX 11: only roots with one rollback boundary over the page write and its change-set record run
+ * the recorded-write cases. The in-memory root binds `recordedHtmlWrites: "disabled"` (pinned below).
+ */
 const ROOTS: Array<[string, (t: TestContext) => Promise<RootDeps>]> = [
-  ["in-memory root", async () => createRouteDeps()],
-  ["sqlite root", async (t) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-html-undo-"));
-    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
-    await deps.identityReady;
-    return deps;
-  }],
+  ["sqlite root", sqliteRoot],
 ];
 
 for (const [label, makeRoot] of ROOTS) {
@@ -259,7 +264,7 @@ for (const [label, makeRoot] of ROOTS) {
 }
 
 test("sqlite root: change-set insert failure leaves the row, version, revisions, references and outbox unchanged", async (t) => {
-  const deps = (await ROOTS[1]![1](t)) as Awaited<ReturnType<typeof createSiteRouteDeps>>;
+  const deps = await sqliteRoot(t);
   const version = await seedPage(deps, "p-fail", RAW_PRIOR);
   const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-fail" });
   const refsBefore = await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-fail" });
@@ -279,62 +284,83 @@ test("sqlite root: change-set insert failure leaves the row, version, revisions,
   assert.deepEqual(await drain(), [], "no outbox row survives the rolled-back write");
 });
 
+test("sqlite root: a failure after the HTML write leaves page, revisions, events and change sets unchanged (FIX 11)", async (t) => {
+  const deps = await sqliteRoot(t);
+  const version = await seedPage(deps, "p-sql-after", RAW_PRIOR);
+  const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-sql-after" });
+  const drain = () => deps.outbox.claimPending({ batchSize: 1000, nowIso: "2999-01-01T00:00:00.000Z" });
+  await drain();
+  const realStore = deps.pagesHtmlStore;
+  let landed = false;
+  // The store's write (row, revision, events) completes, then the operation fails inside the transaction.
+  deps.pagesHtmlStore = (scope, options) => {
+    const store = realStore(scope, options);
+    const write = store.write.bind(store);
+    store.write = async (...args: Parameters<typeof write>) => { await write(...args); landed = true; throw new Error("injected failure after the HTML write"); };
+    return store;
+  };
+  t.after(() => { deps.pagesHtmlStore = realStore; });
+
+  await assert.rejects(call(deps, "pages_write_html", { id: "p-sql-after", html: NEXT, expectedVersion: version }), /injected failure after the HTML write/);
+  assert.ok(landed, "the HTML write itself completed before the failure");
+  const after = await row(deps, "p-sql-after");
+  assert.equal(after.bodyHtml, RAW_PRIOR, "rolled back: the post row");
+  assert.equal(after.version, version, "rolled back: the version");
+  assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-sql-after" }), revisionsBefore, "rolled back: revisions");
+  assert.deepEqual(await drain(), [], "rolled back: events");
+  assert.equal((await pageHtmlSets(deps)).length, 0, "no change set recorded");
+});
+
 /**
- * The in-memory root's fault boundary, asserted as it really is (P1-T2.T stop condition, reported,
- * not patched). `InMemoryPostRepo.transaction` is snapshot-and-restore over posts, revisions and
- * autosaves only. The entry-reference index and the outbox are independent in-memory stores, and
- * Jini's `InMemoryChangeSetRepo.insert` pushes its rows before awaiting the outbox, so a failure
- * inside the outer transaction does NOT roll those back here. The sqlite root joins every
- * participant to one transaction (witness above). No compensating write papers over the gap: these
- * tests pin it so a fix (or a regression) shows up as a deliberate diff. Proven below: the
- * outbox-after-insert seam leaves an orphan change set. Not observable with this fixture: a stale
- * entry-reference row, because the form marker it writes indexes no reference in this root.
+ * The in-memory root has no shared rollback boundary between the page write and its change-set
+ * record (`InMemoryPostRepo.transaction` snapshots posts, revisions and autosaves only; Jini's
+ * `InMemoryChangeSetRepo.insert` pushes rows before awaiting the outbox), which once left an orphan
+ * change set. FIX 11: the memory composition binds `recordedHtmlWrites: "disabled"`, so every
+ * recorded HTML write refuses before anything is opened, written or recorded.
  */
-const NEXT_WITH_REF = `<section data-agent-element="hero" data-agent-role="region"><div data-embed-type="form" data-embed-config="{&quot;formDefinitionId&quot;:&quot;form-ref-1&quot;}"></div></section>`;
+async function memoryUnchanged(deps: ReturnType<typeof createRouteDeps>, id: string) {
+  return {
+    row: await row(deps, id),
+    revisions: await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: id }),
+    events: await deps.outbox.claimPending({ batchSize: 1000, nowIso: "2999-01-01T00:00:00.000Z" }),
+    sets: (await pageHtmlSets(deps)).length,
+  };
+}
 
-test("in-memory root: change-set insert failure rolls back the row, version and revisions", async (t) => {
+test("memory root: recorded HTML write is unavailable, page/revisions/events unchanged (FIX 11, M html-record-no-rollback)", async () => {
   const deps = createRouteDeps();
-  const version = await seedPage(deps, "p-mem-fail", RAW_PRIOR);
-  const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-mem-fail" });
-  const refsBefore = await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-mem-fail" });
-  const realInsert = deps.changeSets.insert.bind(deps.changeSets);
-  deps.changeSets.insert = async () => { throw new Error("injected change-set insert failure"); };
-  t.after(() => { deps.changeSets.insert = realInsert; });
-
-  await assert.rejects(call(deps, "pages_write_html", { id: "p-mem-fail", html: NEXT_WITH_REF, expectedVersion: version }));
-  const after = await row(deps, "p-mem-fail");
-  assert.equal(after.bodyHtml, RAW_PRIOR, "rolled back: the post row");
-  assert.equal(after.version, version, "rolled back: the version");
-  assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-mem-fail" }), revisionsBefore, "rolled back: revisions");
-  assert.equal((await pageHtmlSets(deps)).length, 0, "nothing recorded: the insert itself failed");
-  // The entry-reference index is outside the snapshot (see the block comment above), but this
-  // markup indexes no reference in this root even on a committed write, so the fixture cannot
-  // observe that half of the gap; it only pins that the index is not disturbed here.
-  assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-mem-fail" }), refsBefore);
+  const version = await seedPage(deps, "p-mem-off", RAW_PRIOR);
+  const before = await memoryUnchanged(deps, "p-mem-off");
+  await assert.rejects(call(deps, "pages_write_html", { id: "p-mem-off", html: NEXT, expectedVersion: version }), /not available.*Nothing was written/s);
+  const after = await memoryUnchanged(deps, "p-mem-off");
+  assert.equal(after.row.bodyHtml, RAW_PRIOR);
+  assert.equal(after.row.version, version);
+  assert.deepEqual(after.revisions, before.revisions);
+  assert.deepEqual(after.events, [], "no event queued by a refused write");
+  assert.equal(after.sets, 0, "no change set recorded");
 });
 
-test("in-memory root: an outbox failure after the change-set rows are pushed rolls the page back but leaves the change set", async (t) => {
+test("memory root: section writes and moves are unavailable too; nothing is written or recorded (FIX 11)", async () => {
   const deps = createRouteDeps();
-  const version = await seedPage(deps, "p-mem-outbox", RAW_PRIOR);
-  const realEnqueue = deps.outbox.enqueue.bind(deps.outbox);
-  deps.outbox.enqueue = async () => { throw new Error("injected outbox failure"); };
-  t.after(() => { deps.outbox.enqueue = realEnqueue; });
-
-  await assert.rejects(call(deps, "pages_write_html", { id: "p-mem-outbox", html: NEXT, expectedVersion: version }));
-  deps.outbox.enqueue = realEnqueue;
-  const after = await row(deps, "p-mem-outbox");
-  assert.equal(after.bodyHtml, RAW_PRIOR, "rolled back: the post row");
-  assert.equal(after.version, version, "rolled back: the version");
-  assert.equal((await pageHtmlSets(deps)).length, 1, "NOT rolled back (memory gap): the change-set rows pushed before the outbox await");
+  const version = await seedPage(deps, "p-mem-region", TWO);
+  const before = await memoryUnchanged(deps, "p-mem-region");
+  await assert.rejects(call(deps, "pages_write_region", { id: "p-mem-region", regionId: "a", html: "<p>Z</p>", expectedVersion: version }), /not available/);
+  await assert.rejects(call(deps, "pages_move_region", { id: "p-mem-region", regionId: "a", after: "b", expectedVersion: version }), /not available/);
+  const after = await memoryUnchanged(deps, "p-mem-region");
+  assert.equal(after.row.bodyHtml, TWO);
+  assert.equal(after.row.version, version);
+  assert.deepEqual(after.revisions, before.revisions);
+  assert.deepEqual(after.events, []);
+  assert.equal(after.sets, 0);
 });
 
 /**
- * The mounted admin endpoint over the real in-memory root: the outer `changeset.revert` grant is
+ * The mounted admin endpoint over the real sqlite root (FIX 11: memory records no HTML writes): the outer `changeset.revert` grant is
  * not raw-HTML write authority, and an operator force never overwrites a newer save with raw HTML.
  * The policy comes from the registered `page-html` reverter, never from the request body.
  */
 async function mountedRevert(t: TestContext, authorize: Authorize) {
-  const deps = createRouteDeps();
+  const deps = await sqliteRoot(t);
   deps.authorize = authorize;
   const app = express();
   app.use(express.json());

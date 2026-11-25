@@ -89,13 +89,13 @@ test("createSiteRouteDeps: pages_write_html on a doc page appends its html state
   await assertLedgered(deps, "page-w");
 });
 
-test("createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller", async () => {
+test("createRouteDeps (in-memory root): pages_write_html is unavailable and appends nothing to post_revisions (FIX 11)", async () => {
   const deps = createRouteDeps();
 
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-m", title: "Landing", kind: "page", bodyJson: DOC } });
-  await writeThroughTool(deps, "page-m");
-
-  await assertLedgered(deps, "page-m");
+  const before = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "page-m" });
+  await assert.rejects(writeThroughTool(deps, "page-m"), /not available.*Nothing was written/s);
+  assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "page-m" }), before);
 });
 
 /**
@@ -104,12 +104,14 @@ test("createRouteDeps (in-memory root): pages_write_html appends its html state 
  * store the write used. Either half missing leaves a recorded Undo that cannot be resolved, or a
  * reverter nothing ever records for.
  */
-test("both composition roots record and can resolve a page-html change set", async (t) => {
+test("the transactional root records and can resolve a page-html change set; the in-memory root binds recorded writes disabled (FIX 11)", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-pages-html-changeset-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const sqlite = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   await sqlite.identityReady;
-  const roots: Array<[string, RootDeps]> = [["in-memory", createRouteDeps()], ["sqlite", sqlite]];
+  assert.equal(createRouteDeps().recordedHtmlWrites, "disabled", "in-memory: no shared rollback boundary, so no recorded write");
+  assert.equal(sqlite.recordedHtmlWrites, "enabled");
+  const roots: Array<[string, RootDeps]> = [["sqlite", sqlite]];
   for (const [label, deps] of roots) {
     await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-cs", title: "Landing", kind: "page", bodyJson: DOC } });
     const before = (await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: "page-cs" }))!.version;

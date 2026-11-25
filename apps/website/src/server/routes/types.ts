@@ -40,6 +40,7 @@ import type { EntryRepoPort, EntryListPort, EntryPublishReadPort } from "@jini-a
 
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
+import type { RecordedHtmlWrites } from "../../features/pages/html-change-recording.js";
 import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 import type { ChatRunLedger } from "../../assistant/persistence/run-ledger.js";
 import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
@@ -545,6 +546,11 @@ export interface PostDeps {
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
+  /**
+   * FIX 11: `enabled` only where one transaction spans an assistant HTML write and its change-set
+   * record (the kernel-backed roots); the in-memory root binds `disabled`. Required, no default.
+   */
+  recordedHtmlWrites: RecordedHtmlWrites;
   /** Renders a doc Page body as Page HTML, so an assistant edit keeps what the page already holds. */
   docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
   /**

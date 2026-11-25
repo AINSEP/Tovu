@@ -163,6 +163,9 @@ export function memoryPostChatDeps(required: MemoryRootContext, _optional = {}) 
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo }),
+    // FIX 11: no shared rollback boundary over the page write and its change-set record here (the
+    // post snapshot does not cover the change-set repo or the outbox), so recorded HTML writes refuse.
+    recordedHtmlWrites: "disabled",
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because
     // it mirrors `postRepo` rather than maintaining an index; chat history has no such alternate

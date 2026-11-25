@@ -119,7 +119,8 @@ test("SEO entryId uses the same post resolver and retains its SEO authorization 
 test("page writes use the shared root resolver and still validate page kind and version", async () => {
   const { deps, repo } = bareDeps([{ ...barePost, slug: "/" }, { ...barePost, id: "ordinary-post", slug: "news", kind: "post" }]);
   const clock = { nowMs: () => 0 };
-  const site = { ...deps, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }) };
+  // A narrow handler fixture, not a composition: recording is enabled here (the in-memory composition binds it disabled, FIX 11).
+  const site = { ...deps, recordedHtmlWrites: "enabled" as const, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }) };
   const registrations = withContentTargets({ deps: site, registrations: buildPagesRegistrations(site) });
   const registration = registrations.find(tool => tool.descriptor.id === "pages_write_html")!;
   const html = '<main data-agent-element="home">Updated</main>';
