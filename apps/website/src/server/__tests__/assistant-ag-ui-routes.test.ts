@@ -669,8 +669,8 @@ test("an explicit daemon 'error' frame with no message field falls back to a gen
   assert.equal(res.status, 200);
   const events = parseAgUiResponseBody(await res.text());
   const types = events.map((e) => e.type);
-  // The status line carries the host's plain sentence into the saved turn (C131, Jini b18d08d77: the
-  // daemon's own text never reaches the AG-UI wire); RUN_ERROR alone is live-only state.
+  // The status line carries the reason into the saved turn, as the host's plain sentence (C131, Jini
+  // b18d08d77: the daemon's own text never reaches the AG-UI wire); RUN_ERROR alone is live-only state.
   const hostSentence = "The assistant could not finish that request. Send it again, or try a shorter request.";
   assert.deepEqual(types, ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "CUSTOM", "TEXT_MESSAGE_END", "RUN_ERROR"]);
   assert.deepEqual(events[3], { type: "CUSTOM", name: "tovu.status", value: { kind: "status", label: hostSentence } });

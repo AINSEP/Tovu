@@ -3,8 +3,8 @@ import { classifyBundledPluginFile } from '@jini-ai/agent-plugins/lifecycle';
 import { createBundledExportFilePolicy as createPolicy, type BundledExportFilePolicy } from '@jini-ai/devops/backup/site/bundled-export-file-policy';
 
 /**
- * Host binding: the host's selected npm subpaths (`selection`, plugin id -> package, injected by the
- * host composition root), this app's module resolution and Jini's byte comparison.
+ * Host binding: Tovu's selected npm subpaths, its module resolution and Jini's byte comparison.
+ * The selection (`selection`, plugin id -> package) is injected by the host composition root.
  * @returns An export-local policy; no inventory, persistent cache, network or content mutation.
  * @example const policy = createBundledExportFilePolicy({ selection }); await policy({ path, bytes });
  */

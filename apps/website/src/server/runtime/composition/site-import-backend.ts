@@ -74,6 +74,7 @@ export function composeSiteImportBackend(
   const authority = bindSiteImportIndexState({ directory, policy, clock, fs, open, backfill, checkIntegrity,
     log: ({ message }, _optional = {}) => console.warn("[site-backup]", message),
   });
+  // Binds Jini's site import registry to this host's node durable-JSON files and file lock.
   const registry = new SiteImportRegistry({ directory, history: authority.history, payload: {
     fs: payloadFs, clock, lock: { withFileLock },
     // Typed here: the published registry types its `payload` as an index into a private member,

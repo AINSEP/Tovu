@@ -2,9 +2,10 @@ import { explainThemeTree as explain, inspectThemeManifests as inspect, writeExc
 import { validateSharePath } from "./share-file-policy.js";
 
 /**
- * @file Host binding: the theme owner's placement checks (injected by the host composition root)
- * and this feature's share path policy behind the generic import placement rules
- * (`liveThemeTrees`/`restoreDestination` are pure and imported from devops directly).
+ * @file Host binding: Tovu's theme catalog validation and share path policy behind the generic import
+ * placement rules (`liveThemeTrees`/`restoreDestination` are pure and imported from devops directly).
+ * The theme catalog validation is the theme owner's placement checks, injected by the host
+ * composition root.
  */
 
 /**
@@ -14,7 +15,7 @@ import { validateSharePath } from "./share-file-policy.js";
  */
 export type ThemePlacementChecks = Pick<ImportPlacementChecks, "checkSourceDirContainment" | "loadTheme">;
 
-/** The injected theme checks plus the share path policy, as the placement rules need them. */
+/** The theme owner's artifact validation (the injected theme checks) and the share path policy, as the placement rules need them. */
 function placementChecks(required: { themeChecks: ThemePlacementChecks }): ImportPlacementChecks {
   const { themeChecks } = required;
   return {

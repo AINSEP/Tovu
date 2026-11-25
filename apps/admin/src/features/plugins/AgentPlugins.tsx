@@ -358,6 +358,7 @@ function MarketplacePanel({ t }: { t: Translate }) {
 }
 
 export interface AgentPluginsProps extends Pick<AgentPluginDetailsModalProps, "useDetails" | "useAgentPluginMemoryHook" | "useAgentPluginDetailsViewHook" | "useAgentPluginSurfacesHook"> {
+  /** Injection seams for the screen's other hooks (hook-injection gate), each required: no longer defaulted to the real one. */
   useAdminThemeBoundaryHook: typeof useAdminThemeBoundary;
   useAgentPluginTabHook: typeof useAgentPluginTab;
   useAgentPluginInstallHook: typeof useAgentPluginInstall;

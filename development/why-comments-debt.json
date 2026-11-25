@@ -14804,6 +14804,14 @@
     {
       "id": "c4acc9c1a75a",
       "reason": "P11 ST-11b.T: mediaBytesDeps doc rewritten in place: the rendition, forms, transfer and recovery probes are now bound, so 'left unbound on purpose, everything reports unknown' is no longer true; each probe carries its own why-comment."
+    },
+    {
+      "id": "3cebd699be1b",
+      "reason": "e8aa35cc0 (feat-p5) deleted the features/site-backup/import-registry.ts subclass on purpose: the registry is now constructed inline in server/runtime/composition/site-import-backend.ts with history and payload ports, and that construction carries the same 'binds Jini's site import registry to this host's node durable-JSON files and file lock' comment."
+    },
+    {
+      "id": "d96a17ea251f",
+      "reason": "e8aa35cc0 (feat-p5) deleted the Tovu SiteImportRegistry subclass whose constructor shape (`new SiteImportRegistry({ directory }, { log })`) this documented; Jini's class is constructed directly in site-import-backend.ts with a different signature, so the instruction is obsolete."
     }
   ]
 }
