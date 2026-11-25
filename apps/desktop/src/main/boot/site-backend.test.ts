@@ -31,6 +31,7 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
   const spawned = fakeServer();
   const ports: SiteBackendPorts<FakeServer> = {
     partitionFor: ({ siteDir }) => `persist:${siteDir}`,
+    acquirePartition: async () => {},
     attachRunning: () => null,
     rememberOpen: ({ siteDir }) => { calls.push(`remember:${siteDir}`); },
     resolveAdminDevProxyUrl: async () => { calls.push("proxy"); return "https://localhost:5173"; },

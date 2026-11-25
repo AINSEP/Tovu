@@ -10,7 +10,8 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { createSiteShare } from "#src/features/site-backup/share-service";
-import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 /**
  * w4-routes K (RT-K1-adm-system-13): the exact wire of every admin site-share route, captured through
@@ -34,7 +35,7 @@ function normalize(text: string): unknown {
 
 async function serve(t: test.TestContext) {
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-wire-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const state = { principal: true, trusted: false, allowed: true, available: true, failure: undefined as unknown, permissions: [] as string[], tracked: [] as unknown[] };
   const answer = async <T>(value: T): Promise<T> => { if (state.failure) throw state.failure; return value; };
   const backend = {
@@ -175,6 +176,14 @@ test("site-shares wire: download refusals, acknowledgement and the ZIP itself", 
   assert.match(String(got.body), /zip body/);
 });
 
+test("P11 ST-12b: the owner download of an expired export answers the expired message, not the ZIP", async (t) => {
+  const { call, registry } = await serve(t);
+  const row = await createSiteShare({ registry, site: "ws", name: "site", archive: ZIP });
+  await registry.markExpired({ shareId: row.shareId, expiresAt: "2026-11-20T00:00:00.000Z" });
+  await registry.put({ record: { ...row, expiresAt: "2026-11-20T00:00:00.000Z" } });
+  assert.deepEqual(await call("GET", `/${row.shareId}/download`), wire(410, { code: "EXPIRED", message: "This link expired on 2026-11-20 and its file was removed." }));
+});
+
 /** Streams `bytes` bytes (a ZIP signature, then zeros), stopping once the server closes or answers. */
 async function sendAll({ socket, bytes }: { socket: net.Socket; bytes: number }): Promise<void> {
   const chunk = Buffer.alloc(1 << 20);
@@ -240,4 +249,13 @@ test("site-shares wire: artifact deletion answers 404 for an unknown artifact an
   assert.equal((await call("PUT", `/artifacts/${TOKEN}/site.tovu.zip`, uploadInit)).status, 201);
   assert.deepEqual(await call("DELETE", `/artifacts/${TOKEN}/site.tovu.zip`), wire(204, "", null));
   assert.deepEqual(await call("DELETE", `/artifacts/${TOKEN}/site.tovu.zip`), wire(204, "", null), "the row stays listed after disable");
+});
+
+test("P11 ST-12a: the create bodies carry the owner's expiry choice to the backend; other values are refused before it", async t => {
+  const { call } = await serve(t);
+  assert.deepEqual((await call("POST", "", { body: { expiresInDays: 30 } })).body, { status: "active", input: { principalId: "owner", signal: true, expiresInDays: 30 } });
+  assert.deepEqual((await call("POST", "", { body: {} })).body, { status: "active", input: { principalId: "owner", signal: true } }, "no choice stays no choice: Never");
+  const refused = await call("POST", "", { body: { expiresInDays: 14 } });
+  assert.equal(refused.status, 400);
+  assert.equal((refused.body as { message?: string }).message, "Export creation failed: A share link can expire after 7, 30 or 90 days, or never.");
 });

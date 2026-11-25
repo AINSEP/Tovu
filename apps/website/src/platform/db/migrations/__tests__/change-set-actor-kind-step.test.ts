@@ -23,7 +23,7 @@ for (const adapter of eachDialect({ tables: ['change_sets'], make: kernel => ker
       VALUES ('legacy-1', 'workspace-1', 'owner-1', 'applied', 'Before provenance', '2026-01-01T00:00:00.000Z')`));
     const step = CONTENT_MIGRATIONS.find(entry => entry.id === ID);
     assert.ok(step, 'actor kind step must be registered in the content history');
-    assert.equal(CONTENT_MIGRATIONS.at(-1)?.id, ID, 'registered after 0046');
+    assert.equal(CONTENT_MIGRATIONS[CONTENT_MIGRATIONS.findIndex(step => step.id === ID) - 1]?.id, '0046_media_description', 'registered after 0046');
     assert.equal(step.checksum, MIGRATION_CHECKSUMS[ID]);
     const options = { ledgerTable: 'actor_kind_test_migrations' };
     assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [ID]);

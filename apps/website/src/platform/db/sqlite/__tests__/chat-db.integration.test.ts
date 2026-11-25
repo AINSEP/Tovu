@@ -57,6 +57,7 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
           { id: "0001_sqlite_chat_tables" },
           { id: "0002_durable_run_attempts" },
           { id: "0003_active_run_index" },
+          { id: "0004_chat_pinned" },
         ]);
         if (mode === "fresh") seed(db);
         const chats = db.prepare("SELECT * FROM ai_chats ORDER BY id").all();

@@ -11,7 +11,7 @@ import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
-import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
+import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection, siteMigrationCopyPorts } from "../db/sqlite/content-db.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
 import { completeKeyOnlySiteMeta } from "./key-only-site-meta.js";
 import { readSiteDir } from "./read-site-dir.js";
@@ -150,7 +150,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   }
 
   try {
-    await migrateSqliteContentFile({ db, filePath: dbPath });
+    await migrateSqliteContentFile({ db, filePath: dbPath, ...siteMigrationCopyPorts({ filePath: dbPath }) });
 
     // The watermark singleton row every content store carries.
     await prepareContentStore({ kernel: contentKernel({ store: db }) });

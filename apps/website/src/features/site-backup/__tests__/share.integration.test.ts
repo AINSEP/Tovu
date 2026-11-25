@@ -209,7 +209,7 @@ test("credential-shaped bytes stay included with a warning without changing the 
 test("create → anonymous GET with private download headers; revoke → 404 and artifact removed; list retains both statuses", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-share-route-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory: path.join(dir, ".hidden", "shares") });
+  const registry = new SiteShareRegistry({ directory: path.join(dir, ".hidden", "shares"), now: () => Date.now() });
   const app = express();
   registerPublicShareRoutes({ app, registry });
   const server = app.listen(0, "127.0.0.1");

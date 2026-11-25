@@ -12,7 +12,7 @@
  * Tables: 83
  */
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, customType, foreignKey, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 /** Native jsonb column exposed as the same serialised `string` the SQLite schema stores. */
 const jsonText = customType<{ data: string; driverData: unknown }>({
@@ -95,9 +95,24 @@ export const assetBlobs = pgTable("asset_blobs", {
   tombstonedAt: text("tombstoned_at"),
   documentOwned: boolean("document_owned").notNull().default(false),
   contentType: text("content_type"),
+  /** Migration 0046: `manual` or `trash-ttl` once the blob lost its last owner; NULL before the journal. */
+  purgeReason: text("purge_reason"),
 }, (t) => [
     uniqueIndex("idx_asset_blobs_workspace_sha256").on(t.workspaceId, t.sha256),
   ]);
+
+/** Migration 0046: files waiting for their bytes to be unlinked, with exact provenance. */
+export const blobGcJournal = pgTable("blob_gc_journal", {
+  workspaceId: text("workspace_id").notNull(),
+  storageKey: text("storage_key").notNull(),
+  sha256: text("sha256").notNull(),
+  kind: text("kind").notNull(),
+  reason: text("reason").notNull(),
+  journaledAt: text("journaled_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: text("next_attempt_at"),
+  lastError: text("last_error"),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.storageKey] })]);
 
 export const assetRenditions = pgTable("asset_renditions", {
   id: text("id").primaryKey(),

@@ -14780,6 +14780,30 @@
     {
       "id": "383aeccca880",
       "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; createTargetTagRecorder removed by the sheet (no driver, so no marker write)."
+    },
+    {
+      "id": "21ac2821751b",
+      "reason": "P11 ST-6c.T: the boot-time tidyImportDatabases call it explained is deleted; temporary folders are now tidied by the serving retention runner's temp-roots policy, and serve.ts carries a new comment saying so."
+    },
+    {
+      "id": "5fc46848de4b",
+      "reason": "P11 ST-6c.T: doc of the deleted tidyImportDatabases prefix scan; replaced by @jini-ai/platform/fs sweepOwnedTempRoots behind the temp-roots policy (retention-policies/temp-roots.ts documents its rules)."
+    },
+    {
+      "id": "f8c3806d82e6",
+      "reason": "P11 ST-6c.T: doc of the deleted isImportDatabaseLeftover wildcard matcher; owned roots are matched only by exact <prefix><uuid> names in Jini now."
+    },
+    {
+      "id": "885466cdc9c7",
+      "reason": "P11 ST-6c.T: doc of the deleted isLockedByAnotherOwner helper of the old tidier; the Jini sweeper reports busy/owner-alive roots itself."
+    },
+    {
+      "id": "47431b678627",
+      "reason": "P11 ST-6c.T: siteRetentionPolicies doc rewritten in place: it now also registers the temp-roots policy, so 'today only the share expiry pass' is no longer true."
+    },
+    {
+      "id": "c4acc9c1a75a",
+      "reason": "P11 ST-11b.T: mediaBytesDeps doc rewritten in place: the rendition, forms, transfer and recovery probes are now bound, so 'left unbound on purpose, everything reports unknown' is no longer true; each probe carries its own why-comment."
     }
   ]
 }

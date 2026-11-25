@@ -31,6 +31,7 @@ import { getEffective } from "#src/features/settings/index";
 import { isAdminAssistantEnabled } from "../admin-assistant-enabled.js";
 import { captureSqliteBackupBytes } from "@jini-ai/db/transfer";
 import { CHAT_SNAPSHOT_TEMP_PREFIX } from "../database-transfer-adapters.js";
+import { siteTempRoot, SITE_TEMP_PREFIXES } from "#src/platform/temp/site-temp-roots";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
@@ -133,7 +134,7 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     siteAssistantSecretKeyring,
     // Transfer uses this composition's exact chat store, including any TOVU_CHAT_DB override.
     // Online backup includes WAL writes; copying the database file alone would silently omit them.
-    databaseTransferChatSnapshot: () => captureSqliteBackupBytes({ source: chat, tempDirPrefix: CHAT_SNAPSHOT_TEMP_PREFIX }),
+    databaseTransferChatSnapshot: () => captureSqliteBackupBytes({ source: chat, tempDirPrefix: CHAT_SNAPSHOT_TEMP_PREFIX }, { withTempRoot: siteTempRoot({ prefix: SITE_TEMP_PREFIXES.transferChat }) }),
     databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(kernel), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing

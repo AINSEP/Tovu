@@ -33,14 +33,14 @@ import { recordCreatedSite } from "./project-ipc.create.ts";
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
 export async function handleAddSite(
-  deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">,
+  deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">,
   input: { folder?: unknown } = {},
 ) {
   // A dropped folder arrives with its path; everything else goes through main's own dialog.
   const folder = input.folder === undefined ? await pickSiteFolder(deps) : droppedPath({ value: input.folder });
   if (folder === null) return null;
 
-  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath, beforeAddedRows: deps.beforeAddedRows }, { workspace: deps.sharedSites });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   // addSitePointer just tracked this exact siteDir above.
   const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === siteDir);
@@ -113,7 +113,7 @@ async function archiveSource(
  */
 export async function handleImportArchive(
   input: Parameters<typeof archiveSource>[0]["input"],
-  deps: Pick<ProjectIpcDeps, "dialog" | "importSiteArchive" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+  deps: Pick<ProjectIpcDeps, "dialog" | "importSiteArchive" | "cliMode" | "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
 ) {
   const source = await archiveSource({ input }, deps);
   if (source === null) return null;

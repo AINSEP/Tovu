@@ -13,6 +13,7 @@ import { InternalError } from "../../errors.js";
 import { openChatDb } from "../../../db/sqlite/chat-db.js";
 import { initSite } from "#src/server/runtime/composition/site-dir";
 import { duplicateContentDb } from "../../duplicate-content-db.js";
+import { testCopyPorts } from "../../../db/sqlite/__tests__/helpers/copy-ports.js";
 
 /**
  * @file `duplicateContentDb` — TDD certification for the `content.db` half of `duplicateSite`.
@@ -171,7 +172,7 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
     }
     const reopened = openSqliteContentConnection({ filePath: targetDbPath });
     try {
-      const report = await migrateSqliteContentFile({ db: reopened, filePath: targetDbPath });
+      const report = await migrateSqliteContentFile({ db: reopened, filePath: targetDbPath, ...testCopyPorts({ filePath: targetDbPath }) });
       assert.deepEqual(report.applied, [], "production reopen must not replay migrations");
       assert.deepEqual(reopened.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
     } finally {

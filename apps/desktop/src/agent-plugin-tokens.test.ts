@@ -73,6 +73,8 @@ function createDeps(overrides: Record<string, unknown> = {}) {
   return {
     sharedSites: createSitesWorkspace({}, { homeDir: dir, env: { TOVU_SITES_HOME: dir }, cwd: dir, sourceRoots: [], platform: "linux" }),
     projectsPath: sitesFilePath({ userDataDir: dir }),
+    // The tracked-list writer requires its retirement-invalidation effect (ST-2a.T); these tests track no login state.
+    beforeAddedRows: () => {},
     repoRoot: "/repo",
     statePath: path.join(dir, "desktop-state.json"),
     cliMode: "source" as const,

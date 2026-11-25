@@ -82,7 +82,7 @@ test("setup order: create, track, pin title, install the boundary, then load", (
   const fake = fakeWindowFactory();
   const tracked: AppWindow[] = [];
   const window = createAppWindow(
-    { url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/speech.cjs", openExternal: () => {} },
+    { url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/speech.cjs", assertPartitionHeld: () => {}, openExternal: () => {} },
     { title: "Site A", partition: "persist:a", trackWindow: (w) => { tracked.push(w); fake.log.push("track"); } },
   );
   assert.equal(window, fake.window);
@@ -95,7 +95,7 @@ test("setup order: create, track, pin title, install the boundary, then load", (
 
 test("without a tracker the window still opens and loads", () => {
   const fake = fakeWindowFactory();
-  createAppWindow({ url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/p", openExternal: () => {} }, { selftest: true });
+  createAppWindow({ url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/p", assertPartitionHeld: () => {}, openExternal: () => {} }, { selftest: true });
   assert.deepEqual(fake.log, ["create", "page-title-updated", "policy", `load ${APP}/admin`]);
   assert.equal(fake.created[0]?.show, false);
   assert.equal(fake.created[0]?.title, "Tovu");
@@ -103,14 +103,14 @@ test("without a tracker the window still opens and loads", () => {
 
 test("the page may not retitle the window", () => {
   const fake = fakeWindowFactory();
-  createAppWindow({ url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/p", openExternal: () => {} });
+  createAppWindow({ url: `${APP}/admin`, createBrowserWindow: fake.create, preloadPath: "/p", assertPartitionHeld: () => {}, openExternal: () => {} });
   assert.equal(fake.updateTitle(), true);
 });
 
 test("the boundary is the loaded URL's parsed origin, not a string prefix", () => {
   const fake = fakeWindowFactory();
   const opened: string[] = [];
-  createAppWindow({ url: `${APP}/admin/pages?x=1`, createBrowserWindow: fake.create, preloadPath: "/p", openExternal: ({ url }) => opened.push(url) });
+  createAppWindow({ url: `${APP}/admin/pages?x=1`, createBrowserWindow: fake.create, preloadPath: "/p", assertPartitionHeld: () => {}, openExternal: ({ url }) => opened.push(url) });
   assert.equal(fake.navigate(`${APP}/admin/media`), false, "same origin stays in the window");
   assert.equal(fake.navigate(`${APP}@evil.example/admin`), true, "userinfo is not the host");
   assert.equal(fake.navigate("http://127.0.0.1:4568/admin"), true, "another port is another origin");
@@ -122,8 +122,30 @@ test("the boundary is the loaded URL's parsed origin, not a string prefix", () =
 test("an unparseable URL throws before anything loads", () => {
   const fake = fakeWindowFactory();
   assert.throws(
-    () => createAppWindow({ url: "not a url", createBrowserWindow: fake.create, preloadPath: "/p", openExternal: () => {} }),
+    () => createAppWindow({ url: "not a url", createBrowserWindow: fake.create, preloadPath: "/p", assertPartitionHeld: () => {}, openExternal: () => {} }),
     { name: "TypeError" },
   );
   assert.equal(fake.log.some((step) => step.startsWith("load")), false);
+});
+
+test("a site's app window is refused before any BrowserWindow exists when its partition is not held", () => {
+  const fake = fakeWindowFactory();
+  let created = 0;
+  const checked: Array<string | undefined> = [];
+  const refusal = new Error("Partition persist:site-a was used before it was acquired.");
+  assert.throws(() => createAppWindow(
+    { url: `${APP}/admin`, createBrowserWindow: (options) => { created++; return fake.create(options); }, preloadPath: "/p",
+      assertPartitionHeld: ({ partition }) => { checked.push(partition); throw refusal; }, openExternal: () => {} },
+    { partition: "persist:site-a" },
+  ), refusal);
+  assert.equal(created, 0, "Electron would create the partition's session inside `new BrowserWindow`");
+  assert.deepEqual(checked, ["persist:site-a"]);
+  // A held partition opens normally, checked once and before the factory runs.
+  const order: string[] = [];
+  createAppWindow(
+    { url: `${APP}/admin`, createBrowserWindow: (options) => { order.push(`create ${options.webPreferences.partition}`); return fake.create(options); }, preloadPath: "/p",
+      assertPartitionHeld: ({ partition }) => { order.push(`held ${partition}`); }, openExternal: () => {} },
+    { partition: "persist:site-a" },
+  );
+  assert.deepEqual(order, ["held persist:site-a", "create persist:site-a"]);
 });

@@ -58,7 +58,7 @@ test("the dev-fallback rows are settled against the one resolved dev-fallback di
   // One named constant, from the one resolver. Two copies of the same `path.join` would silently
   // diverge the moment either moved; `settleDevFallbackRows` then hands this one dir to both the
   // migration and the seed (boot-steps.test.ts).
-  assert.match(settleCall(), /projectsPath: sitesCtx\.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,/);
+  assert.match(settleCall(), /projectsPath: sitesCtx\.projectsPath, beforeAddedRows: desktopPartitions\.beforeAddedRows, devFallbackDir: DEV_FALLBACK_SITE_DIR,/);
   // The definition moved into `packaged-paths.ts` (2026-09-11) so a packaged app can have NO dev
   // fallback rather than one pointing inside a read-only bundle. Pinned as "main.ts takes it from
   // the one resolver" plus a real-value check on that resolver, instead of re-stating the literal

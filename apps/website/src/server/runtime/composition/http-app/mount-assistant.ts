@@ -26,7 +26,7 @@ import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 /** @param required.reporter The site composition's one reporter (`createApp`'s), so BYOK tool incidents share its records. */
 export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps, reporter }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps; reporter: ErrorReporter },
   options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "onShutdown" | "mountAssistantRoutines"
-    | "routines" | "routinesReleaseEnabled" | "routineApprovalReceiptsFor"> = {}): void {
+    | "routines" | "routinesReleaseEnabled" | "routineApprovalReceiptsFor" | "siteStorage"> = {}): void {
   // Serving composition supplies the bound routine commands (`modules/serving-routine-tools.ts`); absent or flag off, no routine tool exists.
   const routines = (options.routinesReleaseEnabled ?? ROUTINES_RELEASE_ENABLED) ? options.routines : undefined;
   // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
@@ -39,7 +39,7 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule({ routeDeps, reporter }, { toolSurface: options.assistantToolSurface, ...(routines ? { routines } : {}),
+  const byokAssistantModule = createAssistantByokModule({ routeDeps, reporter }, { toolSurface: options.assistantToolSurface, siteStorage: options.siteStorage, ...(routines ? { routines } : {}),
     ...(options.routineApprovalReceiptsFor ? { routineApprovalReceiptsFor: options.routineApprovalReceiptsFor } : {}) });
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.

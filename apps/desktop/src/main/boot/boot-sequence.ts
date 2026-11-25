@@ -30,6 +30,8 @@ export interface DesktopBootPorts extends BootModePorts {
   startUpdaterInBackground: () => void;
   reconcileOrphansOnBoot: () => Promise<void>;
   migrateNestedSitesHome: () => Promise<void>;
+  /** `desktop-partition-pass.ts`'s `runDesktopPartitionPass`, bound to this profile; resolves by its boot wait. */
+  runPartitionPass: () => Promise<void>;
   /** `boot-steps.ts`'s `chooseBootMode`, bound to `process.env`. */
   chooseBootMode: () => BootMode;
 }
@@ -67,6 +69,11 @@ export async function runDesktopBoot({ ports }: { ports: DesktopBootPorts }, _op
 
   // Before any boot mode opens a database: reuse the stopped/verified CLI move owner.
   await ports.migrateNestedSitesHome();
+
+  // Once per profile boot, after the migration has moved the sites home and before any mode can open
+  // a site session: the next-start partition pass (ST-2c). Its UI wait ends at a few seconds; the
+  // pass's writer fence keeps any early open waiting until it settles.
+  await ports.runPartitionPass();
 
   await bootInMode({ mode: ports.chooseBootMode(), ports });
 }

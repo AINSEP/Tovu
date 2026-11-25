@@ -43,7 +43,7 @@ function peerDeps(status = 204) {
 function registryIn(t: TestContext): SiteShareRegistry {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "share-hosting-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  return new SiteShareRegistry({ directory });
+  return new SiteShareRegistry({ directory, now: () => Date.now() });
 }
 function runtime(t: TestContext, options: { site?: string; publicOrigin?: string; registry?: SiteShareRegistry; http?: AnonymousHttpPort } = {}) {
   const registry = options.registry ?? registryIn(t);

@@ -60,7 +60,7 @@ export function planNewSiteDir({ name }: { name: string }, {
  */
 export async function handleCreate(
   input: CreateSiteInput,
-  deps: Pick<ProjectIpcDeps, "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">
+  deps: Pick<ProjectIpcDeps, "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">
 ) {
   const agentPluginTokens = validateCreateInput({ input });
 
@@ -102,7 +102,7 @@ export async function handleCreate(
  */
 export function recordCreatedSite(
   { siteDir, displayName }: { siteDir: string; displayName: string },
-  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
 ) {
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
@@ -110,7 +110,7 @@ export function recordCreatedSite(
   // at a path, and a path is not an identity. See Jini's directory-delete-guard.ts's test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readDirectoryIdentity({ directory: siteDir, ...SITE_IDENTITY_MARKER });
-  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId });
+  trackSite({ projectsPath: deps.projectsPath, siteDir, beforeAddedRows: deps.beforeAddedRows }, { origin: SITE_ORIGIN.created, siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
   // Remember the created site's parent beyond MRU eviction/card
   // removal, so a site created beside it by the CLI or web admin can appear on the next scan.

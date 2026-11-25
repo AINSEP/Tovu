@@ -45,6 +45,7 @@ export const ADMIN_SCREENS: readonly AgentNavigationScreen[] = [
   {"id":"billing","label":"Billing","description":"Review billing settings and payment information.","path":"/billing","routeTemplates":["/billing"],"allowedQueryParams":{},"entityTargets":[]},
   {"id":"database","label":"Database","description":"Inspect database status, migrations and maintenance actions.","path":"/database","routeTemplates":["/database"],"allowedQueryParams":{"tab":null},"entityTargets":[]},
   {"id":"recovery","label":"Recovery","description":"Review restore points and recover site data.","path":"/recovery","routeTemplates":["/recovery"],"allowedQueryParams":{"tab":null},"entityTargets":[]},
+  {"id":"storage","label":"Storage","description":"See what uses disk space and clean up what is safe to remove.","path":"/storage","routeTemplates":["/storage"],"allowedQueryParams":{},"entityTargets":[]},
   {"id":"deployment","label":"Deployment","description":"Configure deployment targets and publish your site.","path":"/deployment","routeTemplates":["/deployment"],"allowedQueryParams":{"tab":null},"entityTargets":[]},
   {"id":"source-control","label":"Source Control","description":"Connect a source repository and manage synchronization.","path":"/source-control","routeTemplates":["/source-control"],"allowedQueryParams":{"tab":null},"entityTargets":[]},
   {"id":"access-tokens","label":"Secrets","description":"Manage secrets, credentials and access tokens.","path":"/access-tokens","routeTemplates":["/access-tokens"],"allowedQueryParams":{"tab":null},"entityTargets":[]},

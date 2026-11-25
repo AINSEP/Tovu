@@ -36,6 +36,7 @@ function desktopPorts(mode: BootMode, overrides: Partial<DesktopBootPorts> = {})
     startUpdaterInBackground: step("startUpdaterInBackground"),
     reconcileOrphansOnBoot: asyncStep("reconcileOrphansOnBoot"),
     migrateNestedSitesHome: asyncStep("migrateNestedSitesHome"),
+    runPartitionPass: asyncStep("runPartitionPass"),
     chooseBootMode: () => { calls.push("chooseBootMode"); return mode; },
     bootSitesHomeMode: step("bootSitesHomeMode"),
     bootAttachMode: ({ url }) => { calls.push(`bootAttachMode:${url}`); },
@@ -47,7 +48,7 @@ function desktopPorts(mode: BootMode, overrides: Partial<DesktopBootPorts> = {})
 
 const SHARED_STEPS = [
   "armQuitSignals", "initializeProductTelemetry", "registerAppWideIpc", "applyDockIcon", "installAppWideMenu",
-  "startUpdaterInBackground", "reconcileOrphansOnBoot", "migrateNestedSitesHome", "chooseBootMode",
+  "startUpdaterInBackground", "reconcileOrphansOnBoot", "migrateNestedSitesHome", "runPartitionPass", "chooseBootMode",
 ];
 
 test("every mode runs the shared steps in launch order, then exactly its own boot", async () => {
@@ -86,6 +87,26 @@ test("the nested-home migration runs after the orphan reap and before the boot m
   reap.resolve();
   await boot;
   assert.ok(calls.indexOf("migrateNestedSitesHome") < calls.indexOf("chooseBootMode"));
+});
+
+test("the partition pass runs once, after the nested-home migration and before the boot mode", async () => {
+  // ST-2c: no mode may open a site session while the pass could still be choosing what to remove,
+  // and the pass sees the sites home only after the migration has moved it.
+  const migration = deferred(), pass = deferred();
+  const { ports, calls } = desktopPorts({ kind: "own-server" }, {
+    migrateNestedSitesHome: () => { calls.push("migrateNestedSitesHome"); return migration.promise; },
+    runPartitionPass: () => { calls.push("runPartitionPass"); return pass.promise; },
+  });
+  const boot = runDesktopBoot({ ports });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(calls.includes("runPartitionPass"), false, "the pass waits for the migration");
+  migration.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(calls.includes("chooseBootMode"), false, "the boot mode waits for the pass's boot wait");
+  pass.resolve();
+  await boot;
+  assert.equal(calls.filter((name) => name === "runPartitionPass").length, 1);
+  assert.ok(calls.indexOf("runPartitionPass") < calls.indexOf("bootOwnServerMode"));
 });
 
 test("the updater is started without awaiting it: the boot goes on while it loads", async () => {

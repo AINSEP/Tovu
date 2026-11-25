@@ -61,7 +61,7 @@ function fixture(t: TestContext, platform: "darwin" | "win32") {
     const db = new Database(path.join(dir, "content.db"));
     db.exec("CREATE TABLE content (value TEXT); INSERT INTO content VALUES ('keep');"); db.close();
     workspace.registry({}).merge({ entries: [{ id: name, name, path: dir, createdBy: "test", lastOpened: "2026-10-12T00:00:00Z" }] });
-    trackSite({ projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
+    trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
     return dir;
   };
   const listed = () => discoverSiteDirs({ scanRoots: workspace.roots({}), knownDirs: workspace.registry({}).list({}).map((row) => row.path),

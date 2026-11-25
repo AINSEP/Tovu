@@ -3,6 +3,7 @@ import { test } from "node:test";
 import Database from "better-sqlite3";
 import { migrateSqliteContentFile, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
 import { openChatDb, openSiteChatDb } from "../chat-db.js";
+import { testCopyPorts } from "./helpers/copy-ports.js";
 
 // hwb: a host opener may map its requested file to an owned handle; no hidden native open is permitted.
 test("content and both chat boot paths honor the host opener and preserve pragmas/schema", async () => {
@@ -35,9 +36,9 @@ test("openContentDb closes the host's handle and rethrows when an existing file 
 test("migrating an in-memory content database applies the chain without taking a file copy", async () => {
   const db = openSqliteContentConnection({ filePath: ":memory:" });
   try {
-    const report = await migrateSqliteContentFile({ db, filePath: ":memory:" });
+    const report = await migrateSqliteContentFile({ db, filePath: ":memory:", ...testCopyPorts({ filePath: ":memory:" }) });
     assert.ok(report.applied.length > 0);
     assert.notEqual(db.$client.prepare("SELECT name FROM sqlite_master WHERE name = 'posts'").get(), undefined);
-    assert.deepEqual((await migrateSqliteContentFile({ db, filePath: ":memory:" })).applied, [], "a database at head is left untouched");
+    assert.deepEqual((await migrateSqliteContentFile({ db, filePath: ":memory:", ...testCopyPorts({ filePath: ":memory:" }) })).applied, [], "a database at head is left untouched");
   } finally { db.$client.close(); }
 });

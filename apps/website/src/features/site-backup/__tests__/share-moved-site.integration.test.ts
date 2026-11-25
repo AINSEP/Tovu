@@ -41,14 +41,14 @@ test("a runtime-delivered share still revokes after its site folder is moved, de
   const before = path.join(root, "sites", "portable"), after = path.join(root, "sites", "renamed");
   const catalog = (siteDir: string) => path.join(siteDir, "data.nosync", "ops", "shares");
   mkdirSync(catalog(before), { recursive: true });
-  let live = new SiteShareRegistry({ directory: realpathSync(catalog(before)) });
+  let live = new SiteShareRegistry({ directory: realpathSync(catalog(before)), now: () => Date.now() });
   const http = anonymousDownloads(() => live);
   const runtime = () => createRuntimeShareDelivery({ registry: live, site: "ws", publicOrigin: "https://share.example.test", http });
   const created = await createSiteShare({ registry: live, site: "ws", name: "portable", archive: Buffer.from("PK moved share") }, { delivery: runtime() });
   assert.equal(created.storage?.binding, realpathSync(catalog(before)), "sanity: the runtime delivery bound the share to its catalog folder");
 
   renameSync(before, after);
-  live = new SiteShareRegistry({ directory: realpathSync(catalog(after)) });
+  live = new SiteShareRegistry({ directory: realpathSync(catalog(after)), now: () => Date.now() });
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: live, site: "ws",
     prepare: async () => assert.fail("revoke never prepares"), zip: async () => assert.fail("revoke never zips"),
     delivery: selection => resolveShareDelivery({ peer: async () => undefined, http, objectStore: async () => undefined, runtime }, selection) });

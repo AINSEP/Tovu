@@ -50,6 +50,7 @@ import { CORE_COMMERCE_ARCHIVE_TABLES } from "../migrations/0011_archive_legacy_
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables, DERIVED_OBJECTS } from "../migration/manifest.js";
+import { testCopyPorts } from "../sqlite/__tests__/helpers/copy-ports.js";
 
 /** `{ sql_table_name -> sorted sql column names }` — the shape both sides of the comparison take. */
 type TableShape = ReadonlyMap<string, readonly string[]>;
@@ -173,7 +174,7 @@ async function migratedDatabase(): Promise<MigratedDatabase> {
     const db = openSqliteContentConnection({ filePath: file });
     const sqlite = db.$client;
     try {
-      await migrateSqliteContentFile({ db, filePath: file });
+      await migrateSqliteContentFile({ db, filePath: file, ...testCopyPorts({ filePath: file }) });
 
       const rows = sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>;
       const allTableNames = rows.map((r) => r.name).sort();

@@ -20,8 +20,9 @@ import { readPickedFolders } from "#src/assistant/run-page-context";
  * router for it by loosening this middleware would be the easiest way to hand a visitor an admin
  * scope, so the two get separate mounts.
  */
-import type { NextFunction, Request, Response } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 import { Readable, pipeline } from "node:stream";
+import { randomBytes } from "node:crypto";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
 import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
@@ -38,6 +39,15 @@ import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import { cancelOwnedRun } from "./assistant-run-acceptance.js";
 import { createRoutineRecoveryAdmission } from "./routine-recovery-admission.js";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
+import type { JsonRouteSpec, Result, RouteHostContext } from "@jini-ai/core/contracts/server";
+import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
+import { createChatCleanupRoutes } from "@jini-ai/chat/server/chat-cleanup-routes";
+import type { ChatOwnerScope, ChatStore } from "@jini-ai/chat/store";
+import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
+import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
+import { adminSameOriginWrites, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import type { ChatBulkDeletion, OpenConversations } from "#src/assistant/persistence/store-factory";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */
@@ -95,6 +105,8 @@ export interface AssistantChatsModuleOptions {
   /** The routine host's boot handoff. Only the current lease owner waits for it; a passive or no-slot boot never does. */
   readonly routineBoot?: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
   readonly onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
+  /** The chat cleanup preview-token store; production builds one per module (tokens are in-memory). */
+  readonly cleanupPreviews?: CleanupPreviewStore;
 }
 
 type ChatsRouteContext = { deps: RouteDeps; finalizer: AssistantRunFinalizer };
@@ -200,29 +212,129 @@ function parseRenameTitle({ body }: { body: Record<string, unknown> }): { title:
   return { title };
 }
 
-function renameChatRoute({ deps }: ChatsRouteContext): ChatRoute {
-  return (req, res, next) => {
-    const id = req.params.id;
-    if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
-    const body = bodyOf(req);
-    const parsed = parseRenameTitle({ body });
-    if ("error" in parsed) {
-      res.status(400).json({ error: parsed.error, code: "VALIDATION_ERROR" });
-      return;
-    }
-    // `source` defaults to `manual` in the store. A caller may pass `generated` for an
-    // agent-produced title, which the store then refuses to apply over a manual rename.
-    const source = body.source === "generated" ? ("generated" as const) : ("manual" as const);
-    storeFor({ deps, res })
-      .rename({ id, title: parsed.title }, { source })
-      .then((conversation) =>
-        // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
-        // purpose: distinguishing them would confirm the existence of another admin's chat.
-        conversation ? res.json({ conversation }) : res.status(404).json({ error: "not found" }),
-      )
-      .catch(next);
+/**
+ * The PATCH body as the Jini chat patch: a rename keeps the hand-written route's validation and
+ * 400 `{ error, code: "VALIDATION_ERROR" }`; a pin-only body (`{ pinned }`) needs no title.
+ * @throws RouteRefusalError 400 for an empty/oversized title or a non-boolean `pinned`.
+ * @complexity O(title length).
+ */
+function readChatPatch({ body }: { body: unknown }, _optional = {}): { title?: string; pinned?: boolean; source?: "manual" | "generated" } {
+  const fields = body !== null && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
+  const { pinned } = fields;
+  if (pinned !== undefined && typeof pinned !== "boolean") rejectRoute({ status: 400, error: "'pinned' must be true or false", code: "VALIDATION_ERROR" });
+  if (typeof pinned === "boolean" && fields.title === undefined) return { pinned };
+  const parsed = parseRenameTitle({ body: fields });
+  if ("error" in parsed) rejectRoute({ status: 400, error: parsed.error, code: "VALIDATION_ERROR" });
+  // `source` defaults to `manual` in the store. A caller may pass `generated` for an
+  // agent-produced title, which the store then refuses to apply over a manual rename.
+  const source = fields.source === "generated" ? ("generated" as const) : ("manual" as const);
+  return { title: parsed.title, source, ...(typeof pinned === "boolean" ? { pinned } : {}) };
+}
+
+/** Who a cleanup/patch request acts for. */
+export interface ChatCleanupOwner { principal: string; scope: ChatOwnerScope }
+
+/**
+ * The owner of a chat cleanup request: the authenticated session principal (the admin ports'
+ * `authenticate` context is a copy of `getAuthedPrincipal(res)`) in this site's workspace. Body
+ * and query `ownerId`/`workspaceId` are never read — a caller cannot name whose chats it touches.
+ * @throws Error when no session principal is present (requireAdminSession did not run).
+ * @complexity O(1).
+ */
+export function ownerFromSession({ context, workspaceId }: { context: OperatorPrincipalRecord | undefined; workspaceId: string }, _optional = {}): ChatCleanupOwner {
+  if (!context?.id) throw new Error("chat cleanup: no session principal — requireAdminSession must run first");
+  return { principal: context.id, scope: { scopeId: workspaceId, ownerKind: "user", ownerId: context.id } };
+}
+
+const CHAT_CLEANUP_COPY = {
+  invalidInput: "This request needs a cut-off date, or the chats to delete and confirm: true.",
+  expired: "This cleanup preview has expired. Choose the chats again to see what would be deleted.",
+  notFound: "not found",
+} as const;
+
+/**
+ * Jini returns plain error results; the admin ports would send `INVALID_INPUT` as a 500 and add a
+ * `code` to the 404. Answer them as this route family always has: an unowned or missing id is the
+ * same bare 404 (distinguishing them would confirm another admin's chat exists), an expired preview
+ * is told apart from a bad request so the dock can return to choosing.
+ * @complexity O(1).
+ */
+function answerAsBefore<T>({ result }: { result: Result<T> }, _optional = {}): Result<T> {
+  if (result.ok) return result;
+  const { code, message } = result.error;
+  // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
+  // purpose: distinguishing them would confirm the existence of another admin's chat.
+  if (code === "NOT_FOUND") rejectRoute({ status: 404, error: message });
+  if (code === "INVALID_INPUT" && message === CHAT_CLEANUP_COPY.expired) rejectRoute({ status: 409, error: message, code: "PREVIEW_EXPIRED" });
+  if (code === "INVALID_INPUT") rejectRoute({ status: 400, error: message, code });
+  return result;
+}
+
+type OwnedDeps<D> = Omit<D, keyof ChatCleanupOwner>;
+
+/** The Jini spec with its owner bound per request from the session, never from the request body. */
+function ownedSpec<I, O, D extends ChatCleanupOwner>(
+  { spec, ownerCheck }: { spec: Omit<JsonRouteSpec<I, O, D>, "ports">; ownerCheck: MountChatCleanupRequired["ownerCheck"] },
+  _optional = {},
+): Omit<JsonRouteSpec<I, O, OwnedDeps<D>, OperatorPrincipalRecord>, "ports"> {
+  return {
+    ...spec,
+    handle: async ({ input, deps, context }, optional = {}) => {
+      const owner = ownerCheck({ context });
+      return answerAsBefore({ result: await spec.handle({ input, deps: { ...deps, ...owner } as D }, optional) });
+    },
   };
 }
+
+/** Required collaborators of {@link mountChatCleanup}. */
+export interface MountChatCleanupRequired {
+  app: Express;
+  /** The owner-scoped store (rename/pin) and bulk deletion for exactly this owner. */
+  ownerStoreFor: (required: ChatCleanupOwner & { openConversations: OpenConversations }) => { store: Pick<ChatStore, "updateConversation">; bulkDeletion: ChatBulkDeletion };
+  /** Resolves the owner from the authenticated context; see {@link ownerFromSession}. */
+  ownerCheck: (required: { context: OperatorPrincipalRecord | undefined }) => ChatCleanupOwner;
+  openConversations: OpenConversations;
+  previewStore: CleanupPreviewStore;
+  /** The admin mount, its port deps, and the same-origin policy every route here requires. */
+  adminPorts: { mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: RouteHostContext };
+}
+
+/**
+ * Mounts Jini's chat cleanup routes — `PATCH /:id` (rename and/or pin in one transaction),
+ * `POST cleanup/preview`, `cleanup/apply` and `delete-selected` — behind the admin ports. Every one
+ * requires same origin. Must be registered after `requireAdminSession` and the reconcile gate.
+ * Nothing here deletes without an explicit preview token or `confirm: true` (owner rule d).
+ * @complexity O(1) setup; per request as the Jini specs.
+ */
+export function mountChatCleanup(required: MountChatCleanupRequired, _optional = {}): void {
+  const { app, ownerStoreFor, ownerCheck, openConversations, previewStore, adminPorts } = required;
+  const forOwner = (owner: ChatCleanupOwner) => ownerStoreFor({ principal: owner.principal, scope: owner.scope, openConversations });
+  const routes = createChatCleanupRoutes({
+    paths: { patch: "/api/assistant/chats/:id", preview: "/api/assistant/chats/cleanup/preview", apply: "/api/assistant/chats/cleanup/apply", deleteSelected: "/api/assistant/chats/delete-selected" },
+    previewStore,
+    store: (owner) => forOwner(owner).store as ChatStore,
+    bulkDeletionFor: (owner) => forOwner(owner).bulkDeletion,
+  }, {});
+  const deps = { ...adminPorts.deps, copy: CHAT_CLEANUP_COPY, readPatchInput: readChatPatch };
+  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.patch, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.preview, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.apply, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.deleteSelected, ownerCheck }), deps, origin: adminPorts.origin });
+}
+
+/** The composition's owner stores: the request's own tenant-scoped chat history for rename/pin,
+ *  and the site's bulk deletion when this composition has a chat kernel to run it on. */
+function ownerStoresFrom({ deps }: { deps: RouteDeps }, _optional = {}): MountChatCleanupRequired["ownerStoreFor"] {
+  return ({ principal, scope, openConversations }) => {
+    const history = deps.chatHistory({ kind: "user", workspaceId: scope.scopeId, userId: principal }) as Partial<ChatStore>;
+    if (typeof history.updateConversation !== "function") throw new Error("chat history store cannot update conversations");
+    const bulkDeletion = deps.chatBulkDeletionFor?.({ scope, openConversations }) ?? UNAVAILABLE_BULK_DELETION;
+    return { store: history as Pick<ChatStore, "updateConversation">, bulkDeletion };
+  };
+}
+
+const refuseUnavailable = (): never => rejectRoute({ status: 503, error: "Chat cleanup is not available on this site.", code: "NOT_CONFIGURED" });
+const UNAVAILABLE_BULK_DELETION: ChatBulkDeletion = { preview: async () => refuseUnavailable(), apply: async () => refuseUnavailable() };
 
 /** Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it. */
 async function cancelUnfinishedRuns({ context, store, id }: { context: ChatsRouteContext; store: ReturnType<typeof storeFor>; id: string }): Promise<void> {
@@ -338,6 +450,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
     name: "assistant-chats",
     registerRoutes: ({ app }, _options = {}) => {
       const reconciled = startBootReconcile({ finalizer: context.finalizer, options });
+      const cleanupPreviews = options.cleanupPreviews ?? createCleanupPreviewStore({ randomToken: ({ bytes }) => randomBytes(bytes).toString("base64url"), mono: () => performance.now() });
 
       app.use("/api/assistant/chats", requireAdminSession(deps));
       // The repair is async now (storage kernel); no chat route answers until it has finished.
@@ -347,7 +460,17 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
 
       app.get("/api/assistant/chats", listChatsRoute(context));
       app.post("/api/assistant/chats", createChatRoute(context));
-      app.patch("/api/assistant/chats/:id", renameChatRoute(context));
+      // Before `/:id` routes so `cleanup/*` and `delete-selected` are never read as a chat id.
+      mountChatCleanup({
+        app,
+        ownerStoreFor: ownerStoresFrom({ deps }),
+        ownerCheck: ({ context }) => ownerFromSession({ context, workspaceId: deps.workspaceId }),
+        // The server has no notion of an open browser tab; conversations with a live or still
+        // recoverable run are kept by the bulk deletion's own run checks, so none are "open" here.
+        openConversations: async () => new Set<string>(),
+        previewStore: cleanupPreviews,
+        adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize }, origin: adminSameOriginWrites },
+      });
       app.delete("/api/assistant/chats/:id", deleteChatRoute(context));
       app.get("/api/assistant/chats/:id/messages", listChatMessagesRoute(context));
       app.put("/api/assistant/chats/:id/messages/:messageId", saveChatMessageRoute(context));

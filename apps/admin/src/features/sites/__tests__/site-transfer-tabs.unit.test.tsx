@@ -372,6 +372,7 @@ function exportController(overrides: Partial<SiteExportController> = {}): SiteEx
     revealedPassword: null, passwordError: null, revealingId: null, passwordCopied: false, revealPassword: vi.fn(async () => {}), copyPassword: vi.fn(async () => {}), hidePassword: vi.fn(),
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
+    shareExpiry: { useShareExpiry: () => ({ expiresInDays: null, change: vi.fn(), acknowledge: vi.fn(), setShowExpired: vi.fn() }), choices: [], expiresInDays: null, showExpired: true, acknowledgedId: null },
     exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
     copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: ({ share }) => `/download/${share.shareId}`,
     credentialGate: () => null, acknowledge: vi.fn(async () => {}), download: vi.fn(async () => {}), ...overrides };

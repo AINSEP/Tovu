@@ -8,12 +8,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites, readProjectsFile } from "./tracked-sites.ts";
+import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites, readProjectsFile, updateProjectsFile } from "./tracked-sites.ts";
 import { classifySiteDir } from "./site-dir-store.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-tracked-sites-"));
 }
+
+test("T-2a.14 the tracked-list writer invalidates added rows before publishing, and a refusal publishes nothing", () => {
+  const projectsPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-tracked-")), "projects.json");
+  trackSite({ projectsPath, siteDir: "/sites/kept", beforeAddedRows: () => {} });
+  const seen: { rows: string[]; onDisk: string[] }[] = [];
+  const beforeAddedRows = ({ rows }: { rows: readonly { siteDir: string }[] }) => {
+    seen.push({ rows: rows.map((row) => row.siteDir), onDisk: readTrackedSites({ projectsPath }).map((row) => row.siteDir) });
+  };
+  updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => ({ rows: [...current.rows, { siteDir: "/sites/new", createdAt: "2026-11-25T00:00:00.000Z", origin: SITE_ORIGIN.adopted }], dismissed: current.dismissed }) });
+  assert.deepEqual(seen, [{ rows: ["/sites/new"], onDisk: ["/sites/kept"] }], "only the added row, and before the durable write");
+
+  assert.throws(() => trackSite({ projectsPath, siteDir: "/sites/refused", beforeAddedRows: () => { throw new Error("ledger busy"); } }), /ledger busy/);
+  assert.deepEqual(readTrackedSites({ projectsPath }).map((row) => row.siteDir), ["/sites/kept", "/sites/new"]);
+});
 
 test("sitesFilePath joins the fixed file name onto the given userData dir", () => {
   assert.equal(sitesFilePath({ userDataDir: "/a/b" }), path.join("/a/b", "desktop-projects.json"));
@@ -46,7 +60,7 @@ test("readTrackedSites drops rows missing a siteDir or createdAt string", () => 
 test("trackSite adds a new row and persists it", () => {
   const dir = tempDir();
   const file = sitesFilePath({ userDataDir: dir });
-  const rows = trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  const rows = trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.siteDir, "/sites/a");
   assert.equal(typeof rows[0]!.createdAt, "string");
@@ -56,9 +70,9 @@ test("trackSite adds a new row and persists it", () => {
 test("trackSite is idempotent — re-tracking the same dir does not duplicate or bump it", () => {
   const dir = tempDir();
   const file = sitesFilePath({ userDataDir: dir });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   const first = readTrackedSites({ projectsPath: file })[0];
-  const rows = trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  const rows = trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0], first);
 });
@@ -66,8 +80,8 @@ test("trackSite is idempotent — re-tracking the same dir does not duplicate or
 test("untrackSite removes only the named row", () => {
   const dir = tempDir();
   const file = sitesFilePath({ userDataDir: dir });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
-  trackSite({ projectsPath: file, siteDir: "/sites/b" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/b" });
   const rows = untrackSite({ projectsPath: file, siteDir: "/sites/a" });
   assert.deepEqual(rows.map((r) => r.siteDir), ["/sites/b"]);
 });
@@ -75,7 +89,7 @@ test("untrackSite removes only the named row", () => {
 test("untrackSite is a no-op, not an error, on a dir that was never tracked", () => {
   const dir = tempDir();
   const file = sitesFilePath({ userDataDir: dir });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   const rows = untrackSite({ projectsPath: file, siteDir: "/sites/never-tracked" });
   assert.deepEqual(rows.map((r) => r.siteDir), ["/sites/a"]);
 });
@@ -84,14 +98,14 @@ test("writeTrackedSites creates the parent directory if it does not exist", () =
   const dir = tempDir();
   const nested = path.join(dir, "nested", "deeper");
   const file = sitesFilePath({ userDataDir: nested });
-  writeTrackedSites({ projectsPath: file, rows: [{ siteDir: "/x", createdAt: "2026-01-01" }] });
+  writeTrackedSites({ beforeAddedRows: () => {}, projectsPath: file, rows: [{ siteDir: "/x", createdAt: "2026-01-01" }] });
   assert.deepEqual(readTrackedSites({ projectsPath: file }), [{ siteDir: "/x", createdAt: "2026-01-01", origin: "adopted" }]);
 });
 
 test("seedDevFallbackSite tracks the fallback dir on a truly fresh install", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
   const classifySiteDir = () => "site" as const;
-  const seeded = seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir });
+  const seeded = seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir });
   assert.equal(seeded, true);
   assert.deepEqual(
     readTrackedSites({ projectsPath: file }).map((r) => r.siteDir),
@@ -102,7 +116,7 @@ test("seedDevFallbackSite tracks the fallback dir on a truly fresh install", () 
 test("seedDevFallbackSite does nothing when the fallback dir does not classify as a site", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
   const classifySiteDir = () => "occupied" as const;
-  const seeded = seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir });
+  const seeded = seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir });
   assert.equal(seeded, false);
   assert.deepEqual(readTrackedSites({ projectsPath: file }), []);
 });
@@ -117,20 +131,20 @@ test("seedDevFallbackSite does nothing when the fallback dir does not classify a
 // `migrateLegacyDismissals` pair below.
 test("seedDevFallbackSite seeds into an empty current-format file — an empty list is not a removal", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  writeTrackedSites({ projectsPath: file, rows: [] });
-  const seeded = seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
+  writeTrackedSites({ beforeAddedRows: () => {}, projectsPath: file, rows: [] });
+  const seeded = seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
   assert.equal(seeded, true);
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((r) => r.siteDir), ["/repo/sites/tovu-com"]);
   // ...and the shape that IS a removal still blocks it, which is the distinction the old
   // file-existence check could not draw.
   untrackSite({ projectsPath: file, siteDir: "/repo/sites/tovu-com" });
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
 });
 
 test("seedDevFallbackSite is not blocked by an unrelated tracked project", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/other" });
-  const seeded = seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/other" });
+  const seeded = seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
   assert.equal(seeded, true);
   assert.deepEqual(
     readTrackedSites({ projectsPath: file }).map((r) => r.siteDir),
@@ -140,15 +154,15 @@ test("seedDevFallbackSite is not blocked by an unrelated tracked project", () =>
 
 test("retireDevFallbackSite drops only the seeded fallback row once it is no longer a site, without dismissing it", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/other" });
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "site" }), true);
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/other" });
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "site" }), true);
   assert.equal(retireDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "site" }), false);
   assert.equal(retireDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "empty" }), true);
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((r) => r.siteDir), ["/sites/other"]);
   assert.deepEqual(readDismissedSites({ projectsPath: file }), []);
   // A site appearing there again is offered again; a created row is never retired.
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "site" }), true);
-  untrackSite({ projectsPath: file, siteDir: "/repo/sites/tovu-dev" }); trackSite({ projectsPath: file, siteDir: "/repo/sites/tovu-dev" }, { origin: SITE_ORIGIN.created });
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "site" }), true);
+  untrackSite({ projectsPath: file, siteDir: "/repo/sites/tovu-dev" }); trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/repo/sites/tovu-dev" }, { origin: SITE_ORIGIN.created });
   assert.equal(retireDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: () => "empty" }), false);
 });
 
@@ -166,26 +180,26 @@ test("normalizeOrigin only ever accepts the literal 'created' — everything els
 
 test("trackSite defaults to adopted when no provenance is stated", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  const rows = trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  const rows = trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   assert.equal(rows[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("trackSite records 'created' only when the caller says so", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.created });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.created });
   assert.equal(readTrackedSites({ projectsPath: file })[0]!.origin, SITE_ORIGIN.created);
 });
 
 test("trackSite never upgrades an existing adopted row to created", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.adopted });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.created });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.created });
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((r) => r.origin), [SITE_ORIGIN.adopted]);
 });
 
 test("seedDevFallbackSite marks its seeded row adopted — it never created that folder", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" as const });
+  seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" as const });
   assert.deepEqual(readTrackedSites({ projectsPath: file }), [
     { siteDir: "/repo/sites/tovu-com", createdAt: readTrackedSites({ projectsPath: file })[0]!.createdAt, origin: SITE_ORIGIN.adopted },
   ]);
@@ -212,7 +226,7 @@ function siteFolder(parent: string, name: string): string {
 
 test("untrackSite records the removal, so the operator's 'no' outlives the row", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
   assert.deepEqual(readDismissedSites({ projectsPath: file }), ["/sites/a"]);
   assert.deepEqual(readTrackedSites({ projectsPath: file }), []);
@@ -220,7 +234,7 @@ test("untrackSite records the removal, so the operator's 'no' outlives the row",
 
 test("untrackSite does not duplicate a dismissal when the same dir is removed twice", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
   assert.deepEqual(readDismissedSites({ projectsPath: file }), ["/sites/a"]);
@@ -228,25 +242,25 @@ test("untrackSite does not duplicate a dismissal when the same dir is removed tw
 
 test("trackSite clears a dismissal — explicitly adding a folder back is the operator asking for it", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   assert.deepEqual(readDismissedSites({ projectsPath: file }), []);
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((r) => r.siteDir), ["/sites/a"]);
 });
 
 test("a plain row write preserves the dismissal list rather than dropping it", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
-  writeTrackedSites({ projectsPath: file, rows: [{ siteDir: "/sites/b", createdAt: "2026-01-01", origin: "adopted" }] });
+  writeTrackedSites({ beforeAddedRows: () => {}, projectsPath: file, rows: [{ siteDir: "/sites/b", createdAt: "2026-01-01", origin: "adopted" }] });
   assert.deepEqual(readDismissedSites({ projectsPath: file }), ["/sites/a"]);
 });
 
 test("isSiteDirKnown is true for a tracked dir, true for a dismissed one, false otherwise", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/tracked" });
-  trackSite({ projectsPath: file, siteDir: "/sites/removed" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/tracked" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/removed" });
   untrackSite({ projectsPath: file, siteDir: "/sites/removed" });
   assert.equal(isSiteDirKnown({ projectsPath: file, siteDir: "/sites/tracked" }), true);
   assert.equal(isSiteDirKnown({ projectsPath: file, siteDir: "/sites/removed" }), true);
@@ -255,23 +269,23 @@ test("isSiteDirKnown is true for a tracked dir, true for a dismissed one, false 
 
 test("seedDevFallbackSite now seeds into an EXISTING registry file that has never tracked the dir", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/something-else" });
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/something-else" });
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
   assert.ok(readTrackedSites({ projectsPath: file }).some((r) => r.siteDir === "/repo/sites/tovu-com"));
 });
 
 test("seedDevFallbackSite never re-seeds a dev fallback the operator removed", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
+  seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
   untrackSite({ projectsPath: file, siteDir: "/repo/sites/tovu-com" });
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
   assert.deepEqual(readTrackedSites({ projectsPath: file }), []);
 });
 
 test("seedDevFallbackSite does not re-seed a dir it already tracks", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
+  seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" });
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
   assert.equal(readTrackedSites({ projectsPath: file }).length, 1);
 });
 
@@ -281,7 +295,7 @@ test("migrateLegacyDismissals reads a pre-dismissals file that dropped the seed 
   fs.writeFileSync(file, JSON.stringify({ projects: [] }));
   assert.deepEqual(migrateLegacyDismissals({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com" }), ["/repo/sites/tovu-com"]);
   // The property the old `fs.existsSync` guard bought, now bought by a recorded fact instead.
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), false);
 });
 
 test("migrateLegacyDismissals leaves a legacy file that DOES track the dev fallback alone", () => {
@@ -298,7 +312,7 @@ test("migrateLegacyDismissals is a no-op with no registry file — a fresh insta
   const file = sitesFilePath({ userDataDir: tempDir() });
   assert.deepEqual(migrateLegacyDismissals({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com" }), []);
   assert.equal(fs.existsSync(file), false);
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
 });
 
 test("migrateLegacyDismissals does not re-fire on an already-migrated file", () => {
@@ -307,7 +321,7 @@ test("migrateLegacyDismissals does not re-fire on an already-migrated file", () 
   assert.deepEqual(migrateLegacyDismissals({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com" }), []);
   assert.deepEqual(readDismissedSites({ projectsPath: file }), []);
   // A second run must not manufacture a tombstone for a dir the operator has simply never seen.
-  assert.equal(seedDevFallbackSite({ projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
+  assert.equal(seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath: file, devFallbackDir: "/repo/sites/tovu-com", classifySiteDir: () => "site" }), true);
 });
 
 test("a file whose projects is not a list is damaged, not empty: no rows, but its dismissals survive", () => {
@@ -420,30 +434,30 @@ test("discoverSiteDirs merges knownDirs, filters non-sites out of them, and dedu
 
 test("adoptDiscoveredSites tracks an untracked site dir and reports it", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  assert.deepEqual(adoptDiscoveredSites({ projectsPath: file, siteDirs: ["/sites/a", "/sites/b"] }), ["/sites/a", "/sites/b"]);
+  assert.deepEqual(adoptDiscoveredSites({ beforeAddedRows: () => {}, projectsPath: file, siteDirs: ["/sites/a", "/sites/b"] }), ["/sites/a", "/sites/b"]);
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((r) => r.siteDir), ["/sites/a", "/sites/b"]);
 });
 
 test("adoptDiscoveredSites records every discovery as ADOPTED — it created none of them", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  adoptDiscoveredSites({ projectsPath: file, siteDirs: ["/sites/a"] });
+  adoptDiscoveredSites({ beforeAddedRows: () => {}, projectsPath: file, siteDirs: ["/sites/a"] });
   assert.equal(readTrackedSites({ projectsPath: file })[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("adoptDiscoveredSites skips a dir the operator removed, and leaves the dismissal in place", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   untrackSite({ projectsPath: file, siteDir: "/sites/a" });
-  assert.deepEqual(adoptDiscoveredSites({ projectsPath: file, siteDirs: ["/sites/a"] }), []);
+  assert.deepEqual(adoptDiscoveredSites({ beforeAddedRows: () => {}, projectsPath: file, siteDirs: ["/sites/a"] }), []);
   assert.deepEqual(readTrackedSites({ projectsPath: file }), []);
   assert.deepEqual(readDismissedSites({ projectsPath: file }), ["/sites/a"]);
 });
 
 test("adoptDiscoveredSites does not duplicate or re-date an already-tracked dir", () => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   const before = readTrackedSites({ projectsPath: file });
-  assert.deepEqual(adoptDiscoveredSites({ projectsPath: file, siteDirs: ["/sites/a"] }), []);
+  assert.deepEqual(adoptDiscoveredSites({ beforeAddedRows: () => {}, projectsPath: file, siteDirs: ["/sites/a"] }), []);
   assert.deepEqual(readTrackedSites({ projectsPath: file }), before);
 });
 
@@ -494,7 +508,7 @@ test("seedDevFallbackSite declines an unreadable fallback instead of aborting bo
   const notADirectory = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-seed-")), "not-a-dir");
   fs.writeFileSync(notADirectory, "x");
 
-  const seeded = seedDevFallbackSite({ projectsPath, devFallbackDir: notADirectory, classifySiteDir: (dir) => {
+  const seeded = seedDevFallbackSite({ beforeAddedRows: () => {}, projectsPath, devFallbackDir: notADirectory, classifySiteDir: (dir) => {
     throw Object.assign(new Error(`ENOTDIR: not a directory, scandir '${dir}'`), { code: "ENOTDIR" });
   } });
 
@@ -546,7 +560,7 @@ test("a torn projects file is not wiped by the next write: every project still r
   fs.writeFileSync(file, torn);
   const errors = t.mock.method(console, "error", () => {});
 
-  const rows = trackSite({ projectsPath: file, siteDir: "/sites/new" });
+  const rows = trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/new" });
   t.mock.restoreAll();
 
   const added = rows.find((row) => row.siteDir === "/sites/new")!;
@@ -576,7 +590,7 @@ test("a projects file torn inside a row keeps every row that ended before the te
   fs.writeFileSync(file, whole.slice(0, whole.indexOf('"2026-01-02')));
   t.mock.method(console, "error", () => {});
 
-  trackSite({ projectsPath: file, siteDir: "/sites/new" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/new" });
 
   // `/sites/b` lost its `createdAt` to the tear, so it is not a usable row; the dismissals came after
   // the tear entirely. Both survive only in the moved-aside copy.
@@ -591,7 +605,7 @@ test("valid JSON that is not a projects list is moved aside too, not overwritten
   fs.writeFileSync(file, wrongShape);
   t.mock.method(console, "error", () => {});
 
-  trackSite({ projectsPath: file, siteDir: "/sites/new" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/new" });
 
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((row) => row.siteDir), ["/sites/new"]);
   assert.deepEqual(readDismissedSites({ projectsPath: file }), ["/sites/gone"]);
@@ -603,7 +617,7 @@ test("a change that changes nothing leaves a torn projects file exactly as it is
   const torn = tornProjectsText();
   fs.writeFileSync(file, torn);
 
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   assert.deepEqual(migrateLegacyDismissals({ projectsPath: file, devFallbackDir: "/sites/dev" }), [], "a damaged file is not a legacy file to migrate");
 
   assert.equal(fs.readFileSync(file, "utf8"), torn);
@@ -619,7 +633,7 @@ test("a torn projects file that cannot be moved aside is never written over, and
     throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
   });
 
-  assert.throws(() => trackSite({ projectsPath: file, siteDir: "/sites/new" }), {
+  assert.throws(() => trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/new" }), {
     message: `The projects list ${file} is damaged and could not be moved aside, so this change was not saved. Nothing was written over it.`,
   });
   t.mock.restoreAll();
@@ -636,7 +650,7 @@ test("a torn projects file that cannot be moved aside is never written over, and
 
 test("a projects write that dies partway leaves the previous file whole", (t) => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   const before = fs.readFileSync(file, "utf8");
   const realWrite = fs.writeFileSync;
   const crash = t.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string) => {
@@ -644,7 +658,7 @@ test("a projects write that dies partway leaves the previous file whole", (t) =>
     throw new Error("simulated crash mid-write");
   });
 
-  assert.throws(() => trackSite({ projectsPath: file, siteDir: "/sites/b" }), /simulated crash mid-write/);
+  assert.throws(() => trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/b" }), /simulated crash mid-write/);
   crash.mock.restore();
 
   assert.equal(crash.mock.callCount(), 1);
@@ -654,13 +668,13 @@ test("a projects write that dies partway leaves the previous file whole", (t) =>
 
 test("a crash between the projects temp write and the rename leaves the previous file whole", (t) => {
   const file = sitesFilePath({ userDataDir: tempDir() });
-  trackSite({ projectsPath: file, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/a" });
   const before = fs.readFileSync(file, "utf8");
   const crash = t.mock.method(fs, "renameSync", () => {
     throw new Error("simulated crash before rename");
   });
 
-  assert.throws(() => trackSite({ projectsPath: file, siteDir: "/sites/b" }), /simulated crash before rename/);
+  assert.throws(() => trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: "/sites/b" }), /simulated crash before rename/);
   crash.mock.restore();
 
   assert.equal(crash.mock.callCount(), 1);
@@ -673,7 +687,7 @@ test("adoptDiscoveredSites checks and adds every discovery inside ONE write, so 
   untrackSite({ projectsPath: file, siteDir: "/sites/dismissed" });
   const renames = t.mock.method(fs, "renameSync");
 
-  const adopted = adoptDiscoveredSites({ projectsPath: file, siteDirs: ["/sites/one", "/sites/dismissed", "/sites/two", "/sites/one"] });
+  const adopted = adoptDiscoveredSites({ beforeAddedRows: () => {}, projectsPath: file, siteDirs: ["/sites/one", "/sites/dismissed", "/sites/two", "/sites/one"] });
   t.mock.restoreAll();
 
   assert.deepEqual(adopted, ["/sites/one", "/sites/two"]);

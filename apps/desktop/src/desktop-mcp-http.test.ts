@@ -22,8 +22,8 @@ async function fixture(t: test.TestContext, revealPath: (target: string) => Prom
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const projectsPath = sitesFilePath({ userDataDir: dir });
   // Use the registry owner, so authorization exercises the actual tool handler.
-  trackSite({ projectsPath, siteDir: '/sites/example' });
-  const server = await startDesktopMcpHttp({ context: { projectsPath, revealPath: ({ target }) => revealPath(target) } });
+  trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir: '/sites/example' });
+  const server = await startDesktopMcpHttp({ context: { beforeAddedRows: () => {}, projectsPath, revealPath: ({ target }) => revealPath(target) } });
   t.after(() => server.close({}));
   const emptySiteDir = path.join(dir, 'empty');
   fs.mkdirSync(emptySiteDir);
@@ -112,12 +112,12 @@ test('queued desktop mutations cannot overtake an unfinished mutation', async (t
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-queue-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const projectsPath = sitesFilePath({ userDataDir: dir });
-  trackSite({ projectsPath, siteDir: '/sites/example' });
+  trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir: '/sites/example' });
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   t.after(() => release());
   const events: string[] = [];
-  const host = createSitesMcpToolHost({ context: { projectsPath, revealPath: async () => {
+  const host = createSitesMcpToolHost({ context: { beforeAddedRows: () => {}, projectsPath, revealPath: async () => {
     events.push('start'); await gate; events.push('finish');
   } } });
   const reveal = host.tools.find(tool => tool.name === 'reveal_site_folder')!;

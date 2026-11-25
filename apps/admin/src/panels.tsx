@@ -65,6 +65,7 @@ import {
   EmailTemplateEditor,
   Database,
   Recovery,
+  Storage,
   Deployment,
   SourceControl,
   Security,
@@ -1001,6 +1002,19 @@ const PANELS: readonly TovuAdminPanel[] = [
       label: "Recovery",
       group: "Operations",
       icon: '<path d="M9 2a7 7 0 107 7"/><path d="M9 5v4l2.5 1.5"/>',
+    },
+  },
+  {
+    id: "storage",
+    description: "See what uses disk space and clean up what is safe to remove.",
+    // Owner-facing maintenance next to Database and Recovery. The website's storage routes check site
+    // ownership themselves (an admin session alone is refused), so this permission only gates the nav.
+    anyOfPermissions: ["system.read"],
+    render: (ctx, _options = {}) => <Storage useAdminLocaleHook={ctx.useAdminLocaleHook} />,
+    nav: {
+      label: "Storage",
+      group: "Operations",
+      icon: '<rect x="2.5" y="3" width="13" height="4.5" rx="1"/><rect x="2.5" y="10.5" width="13" height="4.5" rx="1"/><path d="M5.5 5.25h.01M5.5 12.75h.01"/>',
     },
   },
   {

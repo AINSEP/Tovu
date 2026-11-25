@@ -31,7 +31,7 @@ import { rewriteArchiveMedia } from "#src/server/runtime/composition/site-portab
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { selectArtifactStoreProvider } from "#src/features/object-storage/artifact-provider";
 import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
-import { tmpdir } from "node:os";
+import { SITE_TEMP_PARENT } from "#src/platform/temp/site-temp-roots";
 import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
@@ -75,11 +75,11 @@ export function configureSiteSharing(required: ConfigureSiteSharingRequired, _op
   if (sources) {
     try {
       const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
-      const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }) });
+      const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }), now: () => routeDeps.clock.nowMs() });
       const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
         dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
       routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, createBundledFilePolicy: () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES }), zip: zipFolderFiles, savedKeys, ownerPrincipalId: identity.ownerPrincipalId,
-        prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
+        prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: SITE_TEMP_PARENT, sources, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
         staticSite: {
           render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),
           now: () => new Date(routeDeps.clock.nowMs()),

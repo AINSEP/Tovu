@@ -24,6 +24,7 @@ import { identityServiceDepsFrom } from "../../../inbound/admin-http/routes/user
 import { createFormsAdminModule } from "../modules/forms-admin.js";
 import { createRedirectsModule } from "../modules/redirects.js";
 import { createDatabaseRecoveryModule } from "../modules/database-recovery.js";
+import { createScreenshotStorageModule } from "../modules/screenshot-storage.js";
 import { createMediaConversionPorts } from "../media-video-ports.js";
 import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
 import { mountRoutes } from "./module-handles.js";
@@ -133,4 +134,6 @@ export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { 
   // taxonomy). `registerAdminDatabaseMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
   mountRoutes({ app, mod: createDatabaseRecoveryModule(routeDeps) });
+  // Owner-only manual screenshot cleanup (preview, then confirmed apply); never scheduled.
+  mountRoutes({ app, mod: createScreenshotStorageModule(routeDeps) });
 }

@@ -16,6 +16,7 @@ export interface ContentDatabase {
   api_keys: ApiKeysTable;
   asset_blobs: AssetBlobsTable;
   asset_renditions: AssetRenditionsTable;
+  blob_gc_journal: BlobGcJournalTable;
   change_set_items: ChangeSetItemsTable;
   change_sets: ChangeSetsTable;
   content_type_revisions: ContentTypeRevisionsTable;
@@ -161,6 +162,7 @@ export interface AssetBlobsTable {
   tombstoned_at: string | null;
   document_owned: GeneratedBool;
   content_type: string | null;
+  purge_reason: string | null;
 }
 
 export interface AssetRenditionsTable {
@@ -171,6 +173,18 @@ export interface AssetRenditionsTable {
   version: number;
   storage_key: string;
   created_at: string;
+}
+
+export interface BlobGcJournalTable {
+  workspace_id: string;
+  storage_key: string;
+  sha256: string;
+  kind: string;
+  reason: string;
+  journaled_at: string;
+  attempts: Generated<number>;
+  next_attempt_at: string | null;
+  last_error: string | null;
 }
 
 export interface ChangeSetItemsTable {

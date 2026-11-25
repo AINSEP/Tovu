@@ -14,14 +14,16 @@ export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }, _
 }
 /** Must precede all database reads/writes; a concurrent loser cannot open content.db.
  * Returns an attachment when a live server already owns the database; only a new owner updates it.
+ * @param required.purpose `"serve"` (default) for a server; `"maintenance"` for a stopped-site
+ *   operation (`tovu storage clean`), whose lease has no address — never call `ready` on it.
  * @throws Malformed locks still fail closed because their database owner cannot be established.
  * @complexity O(1) JSON I/O and liveness probe.
  */
 export function claimSiteRunning(
-  { dir, app, scheme = "http" }: { dir: string; app: "Web" | "Desktop"; scheme?: "http" | "https" },
+  { dir, app, scheme = "http", purpose = "serve" }: { dir: string; app: "Web" | "Desktop"; scheme?: "http" | "https"; purpose?: "serve" | "maintenance" },
   { workspace = createSitesWorkspace({}), readSite = readSiteDir, log = (line: string) => console.log(line) }: { workspace?: SitesWorkspace; readSite?: typeof readSiteDir; log?: (line: string) => void } = {},
 ) {
-  const claim = workspace.claim({ path: dir, app, scheme });
+  const claim = workspace.claim({ path: dir, app, scheme, purpose });
   if (!claim.acquired) {
     const url = runningSiteUrl({ record: claim.record });
     log(url ? `Using the site already running in ${claim.record.app}: ${url}` : `Using the site starting in ${claim.record.app}. Its admin URL will be available when that server finishes starting.`);

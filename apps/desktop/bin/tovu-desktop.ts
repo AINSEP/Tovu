@@ -29,7 +29,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AddSitePointerError, addSitePointer } from "../src/add-site-pointer.ts";
+import { randomUUID } from "node:crypto";
 import { sitesFilePath } from "../src/tracked-sites.ts";
+import { sitePartition } from "../src/desktop-auth.ts";
+import { desktopJsonFile } from "../src/durable-json-file.ts";
+import { bindTrackedAgainRetirement } from "../src/site-retirement.ts";
 import { resolveDesktopUserDataDir } from "../src/desktop-user-data-dir.ts";
 
 const EXIT_OK = 0;
@@ -135,7 +139,11 @@ function runAddSite({ positional, userDataDirOverride, io }: { positional: strin
   const userDataDir = resolveAnnouncedUserDataDir({ override: userDataDirOverride, log: io.out });
 
   try {
-    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath({ userDataDir }) });
+    // The app's own writers invalidate through its partition interlock; this process has none, so it
+    // binds the same per-profile ledger file directly. Without it, a website deleted in the app and
+    // added back here would keep a pending retirement record and lose its next sign-in.
+    const beforeAddedRows = bindTrackedAgainRetirement({ userDataDir, partitionFor: sitePartition, fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile });
+    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath({ userDataDir }), beforeAddedRows });
     io.out({ text: describeAddSiteResult(result) });
     return EXIT_OK;
   } catch (err) {

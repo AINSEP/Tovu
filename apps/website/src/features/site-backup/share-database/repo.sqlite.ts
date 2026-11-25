@@ -2,9 +2,9 @@ import { warnCredentialContent, type CredentialWarning } from "@jini-ai/devops/b
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ArchiveMediaCopy } from "@jini-ai/devops/backup/site/archive-media";
 import type { ArchiveMediaSource } from "#src/features/site-backup/share-policy";
-import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
+import { statfs, writeFile } from "node:fs/promises";
+import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import { scheduler } from "node:timers/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { sql } from "kysely";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
@@ -319,41 +319,41 @@ function portableValue(required: { row: Row; schema: SettingValueSchema }, _opti
  * @throws SiteShareRefusal for caps, unknown populated tables, or unsupported schema.
  * @complexity O(snapshot + portable rows) time/space, bounded to the v1 expanded cap.
  */
-export async function sanitizeShareDatabase(required: { snapshot: Buffer; omittedMediaIds?: readonly string[]; modules: readonly DataModuleDecl[]; searchHost: PostSearchHostConfig }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort } = {}): Promise<ShareDatabaseProjection> {
+export async function sanitizeShareDatabase(required: { snapshot: Buffer; omittedMediaIds?: readonly string[]; modules: readonly DataModuleDecl[]; searchHost: PostSearchHostConfig }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort; tempRoot?: OwnedTempRootScope } = {}): Promise<ShareDatabaseProjection> {
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Database exceeds the 300 MiB cap." });
   const credentialWarnings: CredentialWarning[] = [];
-  const staging = await mkdtemp(path.join(tmpdir(), "tovu-share-projection-"));
-  let source: Kernel | undefined;
-  let fresh: ReturnType<typeof openContentDb> | undefined;
-  try {
-    const filePath = path.join(staging, "snapshot.db");
-    const space = await (optional.statfs ?? statfs)(staging);
-    if (space.bavail * space.bsize < required.snapshot.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private staging space for this database share." });
-    await writeFile(filePath, required.snapshot, { flag: "wx", mode: 0o600 });
-    source = openSqliteFileKernel<Tables>({ filePath }, { readOnly: true });
-    fresh = openContentDb({ filePath: ":memory:" });
-    const target = sqliteKernel<Tables>({ source: fresh });
-    const from = source;
-    const present = new Set(await listTables({ kernel: from }));
-    const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
-    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
-    await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
-    await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: fresh }), config: required.searchHost });
-    const documents = await documentReferences({ target });
-    const media = [
-      ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],
-      ...await target.run(db => db.selectFrom("asset_renditions").select("storage_key as storageKey").execute()) as { storageKey: string }[],
-    ];
-    // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
-    // arbitrary unreferenced archive media must refuse rather than be pruned on import.
-    const bytes = sqliteClientOf({ source: fresh }).serialize();
-    return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
-  } finally {
-    await source?.close();
-    if (fresh) closeSqliteConnection({ source: fresh });
-    await rm(staging, { recursive: true, force: true });
-  }
+  return (optional.tempRoot ?? siteTempRoot({ prefix: SITE_TEMP_PREFIXES.shareProjection }))({ work: async ({ root: staging }) => {
+    let source: Kernel | undefined;
+    let fresh: ReturnType<typeof openContentDb> | undefined;
+    try {
+      const filePath = path.join(staging, "snapshot.db");
+      const space = await (optional.statfs ?? statfs)(staging);
+      if (space.bavail * space.bsize < required.snapshot.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private staging space for this database share." });
+      await writeFile(filePath, required.snapshot, { flag: "wx", mode: 0o600 });
+      source = openSqliteFileKernel<Tables>({ filePath }, { readOnly: true });
+      fresh = openContentDb({ filePath: ":memory:" });
+      const target = sqliteKernel<Tables>({ source: fresh });
+      const from = source;
+      const present = new Set(await listTables({ kernel: from }));
+      const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
+      await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
+      await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
+      await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: fresh }), config: required.searchHost });
+      const documents = await documentReferences({ target });
+      const media = [
+        ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],
+        ...await target.run(db => db.selectFrom("asset_renditions").select("storage_key as storageKey").execute()) as { storageKey: string }[],
+      ];
+      // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
+      // arbitrary unreferenced archive media must refuse rather than be pruned on import.
+      const bytes = sqliteClientOf({ source: fresh }).serialize();
+      return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
+    } finally {
+      await source?.close();
+      if (fresh) closeSqliteConnection({ source: fresh });
+    }
+  } });
 }
 
 /** Copy under one fresh-target transaction; private data and source search tables never enter it. */
@@ -396,19 +396,20 @@ async function archiveMediaSources({ target }: { target: Kernel }): Promise<Arch
  * @throws SiteShareRefusal if copies do not cover the sanitized snapshot.
  * @complexity O(media + copies) indexed reads/writes, bounded by the share snapshot cap.
  */
-export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal } = {}): Promise<Buffer> {
-  const staging = await mkdtemp(path.join(tmpdir(), "tovu-archive-media-"));
-  let target: Kernel | undefined;
-  try {
-    const file = path.join(staging, "content.db");
-    await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
-    target = openSqliteFileKernel<Tables>({ filePath: file });
-    await rewriteMediaRows({ target, copies: required.copies }, optional);
-    const connection = sqliteConnectionOf({ kernel: target });
-    if (!connection) throw new Error("Share database has no SQLite connection");
-    const bytes = connection.serialize();
-    return bytes;
-  } finally { await target?.close(); await rm(staging, { recursive: true, force: true }); }
+export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal; tempRoot?: OwnedTempRootScope } = {}): Promise<Buffer> {
+  return (optional.tempRoot ?? siteTempRoot({ prefix: SITE_TEMP_PREFIXES.archiveMedia }))({ work: async ({ root: staging }) => {
+    let target: Kernel | undefined;
+    try {
+      const file = path.join(staging, "content.db");
+      await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
+      target = openSqliteFileKernel<Tables>({ filePath: file });
+      await rewriteMediaRows({ target, copies: required.copies }, optional);
+      const connection = sqliteConnectionOf({ kernel: target });
+      if (!connection) throw new Error("Share database has no SQLite connection");
+      const bytes = connection.serialize();
+      return bytes;
+    } finally { await target?.close(); }
+  } });
 }
 
 async function rewriteMediaRows(required: { target: Kernel; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal }): Promise<void> {

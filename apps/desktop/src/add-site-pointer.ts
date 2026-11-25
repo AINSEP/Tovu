@@ -25,7 +25,7 @@
  */
 import path from "node:path";
 
-import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite } from "./tracked-sites.ts";
+import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite, type BeforeAddedRows } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-directory-identity.ts";
 
@@ -141,6 +141,8 @@ type SiteDirClassifierFn = (input: { dir: string }) => string;
 interface AddSitePointerInput {
   siteDir: string;
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts` `BeforeAddedRows`); every caller binds its profile's ledger. */
+  beforeAddedRows: BeforeAddedRows;
   cwd?: string;
   classifySiteDir?: SiteDirClassifierFn;
 }
@@ -198,7 +200,7 @@ function addSitePointer(input: AddSitePointerInput, options: SiteIdentityOptions
   // folder existed as a site before this app ever saw it — every byte under it is someone else's —
   // and `project-delete-guard.ts` reads exactly this field to decide whether a later delete may
   // reach `fs.rm`. `created` here would hand a stranger's site to a recursive erase.
-  trackSite({ projectsPath: input.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ projectsPath: input.projectsPath, siteDir, beforeAddedRows: input.beforeAddedRows }, { origin: SITE_ORIGIN.adopted });
 
   return { siteDir, alreadyTracked, alreadyDismissed };
 }

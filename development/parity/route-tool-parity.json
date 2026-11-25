@@ -1461,6 +1461,16 @@
       "tools": [
         "widgets_remove_embed"
       ]
+    },
+    "GET /api/admin/storage/report": {
+      "tools": [
+        "site_storage_report"
+      ]
+    },
+    "POST /api/admin/storage/cleanup": {
+      "tools": [
+        "site_storage_cleanup"
+      ]
     }
   }
 }

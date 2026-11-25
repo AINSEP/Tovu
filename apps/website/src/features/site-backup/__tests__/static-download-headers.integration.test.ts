@@ -14,7 +14,7 @@ for (const filename of ["site-static-2026-10-30-1015.zip", "site.tovu.zip"]) {
   test(`authenticated download exposes ${filename} in Content-Disposition`, async t => {
     const directory = await mkdtemp(path.join(tmpdir(), "share-download-name-"));
     t.after(() => rm(directory, { recursive: true, force: true }));
-    const registry = new SiteShareRegistry({ directory });
+    const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
     // This route streams opaque stored bytes. Numeric bytes let the existing in-process
     // JSON request helper verify the response without a socket or another HTTP harness.
     const row = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("123") }, { filename });

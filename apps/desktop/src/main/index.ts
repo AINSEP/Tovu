@@ -104,6 +104,9 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  *   real launch — see the constant's own doc for why this exists instead of scoping `HOME`.
  */
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { bindDesktopRetirement } from "../site-retirement.ts";
+import { desktopJsonFile } from "../durable-json-file.ts";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, powerMonitor, type MenuItemConstructorOptions, type WebContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -147,7 +150,14 @@ import { registerResourcesIpc } from "../resources-ipc.ts";
 import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
-import { totalmem } from "node:os";
+import { totalmem, hostname as osHostname } from "node:os";
+import { randomBytes } from "node:crypto";
+import { withFileLock } from "@jini-ai/platform/fs";
+import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
+import { presenceClaimSource, runPartitionPass, type PartitionMaintenance } from "@jini-ai/desktop-host/electron/partitions";
+import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassRun } from "./boot/desktop-partition-pass.ts";
+import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
+import { bindDesktopCachePolicy, bindDesktopCodeCache, desktopCacheMaintenance, desktopMaintenanceMarker, evidenceForElectron, measureTreeBytes, nodeCacheFs, PACKAGED_CACHE_EVIDENCE } from "./boot/desktop-cache-policy.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
@@ -196,7 +206,7 @@ import { startRoutineSiteInBackground } from "../project-ipc.server.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
 import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
-import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
+import { armFirstProductConsent, createDesktopProductState, desktopLaunchMode, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
@@ -301,6 +311,74 @@ const DESKTOP_BOOT_ENV = readTovuBootEnv({ env: process.env, scope: "desktop", w
 // Must run before `app.whenReady()`; see `applyUserDataDir`'s doc (src/main/boot/boot-steps.ts) for why.
 const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir: DESKTOP_ROOTS.userDataDir, resolvePath: ({ dir }) => path.resolve(dir),
   setUserDataDir: ({ dir }) => app.setPath("userData", dir), getUserDataDir: () => app.getPath("userData") });
+
+// The profile partition interlock, bound to the canonical `userData`/`sessionData` just resolved
+// above and registered synchronously here, before `ready` and before any window, guest or session
+// exists (ALGO §24 ST-2a): an unregistered process never holds a partition, so a sibling's
+// next-start pass cannot miss one. Registration failure is logged; every open is then refused.
+/** Signal-zero liveness; EPERM means alive under another user, so only ESRCH reads as gone. */
+function isPidAlive({ pid }: { pid: number }): boolean {
+  try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
+}
+// One retirement ledger per profile (ST-2b): the erase arm appends to it and the interlock invalidates
+// a pending record when its partition is acquired or tracked again. A second instance over the same
+// file could act on a stale in-memory copy, so both sides share this binding.
+const desktopRetirement = bindDesktopRetirement({ userDataDir: app.getPath("userData"), sessionDataDir: app.getPath("sessionData"),
+  eraseVersion: app.getVersion(), partitionFor: sitePartition, fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile });
+/** Ledger records carry the partition folder name, so the `persist:` scheme is dropped here. */
+const retiredFolder = (partition: string) => partition.replace(/^persist:/, "");
+const desktopPartitions = bindDesktopPartitions<Electron.Session>({
+  app: { getPath: (name) => app.getPath(name) }, session,
+  fs: nodePartitionFs({ fs }), fileLock: { withFileLock },
+  clock: { mono: () => performance.now(), now: () => Date.now() },
+  scheduler: { sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)), every: ({ ms, run }) => { const timer = setInterval(run, ms); timer.unref(); return { cancel: () => clearInterval(timer) }; } },
+  process: { pid: process.pid, bootId: readBootIdentity({})?.id ?? "unknown-boot", hostname: osHostname(),
+    isAlive: isPidAlive,
+    newToken: () => randomBytes(16).toString("hex") },
+  projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
+  catalog: { listSiteDirs: () => sharedSites.registry({}).list({}).map((entry) => entry.path) },
+  instances: [presenceClaimSource({ directory: presenceDirPath({ userDataDir: app.getPath("userData") }),
+    fs: { readdirSync: ({ path: dir }) => fs.readdirSync(dir), readFileSync: ({ path: file, encoding }) => fs.readFileSync(file, encoding) }, liveness: isPidAlive })],
+  retirement: {
+    invalidate: async ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
+    invalidateSync: ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
+  },
+  openMaintenance: (input) => desktopCacheHooks.open(input),
+  log: ({ event, partition, detail }) => console.warn(`[partitions] ${event}${partition ? ` ${partition}` : ""}${detail ? `: ${detail}` : ""}`),
+});
+{ const registered = desktopPartitions.registerHolder(); if (registered.state === "failed") console.error(`[partitions] holder registration failed: ${registered.reason}`); }
+// Cache-only partition maintenance (ST-1/ST-3), per profile, bound before `ready` so the cache switch
+// can apply. Gated on packaged evidence for this exact Electron build; none ships, so it enables nothing.
+const cacheEvidence = evidenceForElectron({ records: PACKAGED_CACHE_EVIDENCE, electronVersion: process.versions.electron, platform: process.platform });
+const cacheMarker = desktopMaintenanceMarker({ userDataDir: app.getPath("userData"), fs });
+const cacheInterlock = { readHoldersStrict: desktopPartitions.readHoldersStrict, newToken: desktopPartitions.newToken, isManaged: desktopPartitions.isManaged,
+  clock: { sleep: ({ ms }: { ms: number }) => new Promise<void>((resolve) => { setTimeout(resolve, ms).unref(); }) } };
+const cacheMeasure = ({ path: dir }: { path: string }) => measureTreeBytes({ fs, path: dir });
+const desktopCacheHooks = desktopCacheMaintenance({
+  cache: bindDesktopCachePolicy({ app, evidenceForBundledElectron: () => cacheEvidence, interlock: cacheInterlock, marker: cacheMarker, fs: nodeCacheFs({ fs }), measure: cacheMeasure }),
+  codeCache: bindDesktopCodeCache({ appVersion: app.getVersion(), argv: process.argv, launchMode: desktopLaunchMode, evidence: cacheEvidence, interlock: cacheInterlock,
+    marker: cacheMarker, fs: nodeCacheFs({ fs }), measure: cacheMeasure, sessionDataDir: app.getPath("sessionData") }),
+});
+
+/**
+ * The boot partition pass's cache hooks (ST-2c seam): the one-time and update cache clears (ST-1.T then
+ * ST-3.T) run per partition inside the pass's writer fence. Packaged evidence gates each one, and with no
+ * GO record for the bundled Electron every entry is a no-op, so this list never touches login state.
+ */
+const bootPartitionMaintenance: readonly PartitionMaintenance[] = [desktopCacheHooks.boot];
+/** This profile boot's partition pass, retained so desktop Storage (ST-18a) can read `lastReport()`. */
+let desktopPartitionPass: DesktopPartitionPassRun | null = null;
+/** The ST-2c next-start pass for this profile — `runDesktopBoot` calls it once. */
+async function runPartitionPassOnBoot(): Promise<void> {
+  desktopPartitionPass = await runDesktopPartitionPass({
+    partitionPass: runPartitionPass, claims: desktopPartitions, ledger: desktopRetirement.ledger,
+    fs: nodePartitionPassFs({ fs }), root: { isManaged: desktopPartitions.isManaged }, maintenance: bootPartitionMaintenance,
+    log: ({ event, detail }) => console.warn(`[partitions] ${event}${detail ? `: ${detail}` : ""}`),
+    mono: () => performance.now(), scheduler: { sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)) },
+    newToken: () => randomBytes(16).toString("hex"),
+  });
+}
+
 
 // The bundled node/npm/npx shims' env, or `undefined` if writing them failed. Written once, after
 // `userData` is set and before any site is served; see `prepareNodeToolchainEnv`'s doc.
@@ -444,7 +522,7 @@ const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
   },
   open: ({ target, getRevision, onFrame }) => openSiteThemePreviewStream({
     target, getRevision, onFrame,
-    fetch: (url, init) => session.fromPartition(target.partition).fetch(String(url), { ...init, credentials: "include" }),
+    fetch: (url, init) => desktopPartitions.siteSession({ partition: target.partition }).fetch(String(url), { ...init, credentials: "include" }),
   }),
 } });
 
@@ -544,7 +622,8 @@ function appWindowCount(): number { return SELFTEST ? BrowserWindow.getAllWindow
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
   return createAppWindow(
-    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target) },
+    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target),
+      assertPartitionHeld: ({ partition: held }) => desktopPartitions.assertPartitionHeld({ partition: held }) },
     { title, partition, selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) },
   );
 }
@@ -555,6 +634,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     rendererPath: SITES_RENDERER_PATH, sitesPreloadPath: SITES_PRELOAD_PATH, guestPreloadPath: SPEECH_PRELOAD_PATH,
     userDataDir: app.getPath("userData"), fileExists: ({ filePath }) => fs.existsSync(filePath),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
+    admitGuestPartition: ({ partition }) => desktopPartitions.admitGuestPartition({ partition }),
     readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: ({ url }) => void shell.openExternal(url),
@@ -568,6 +648,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
  * republished when this instance attaches to another main's server. */
 const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
   projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
+  beforeAddedRows: desktopPartitions.beforeAddedRows,
   revealPath: async ({ target }) => { shell.showItemInFolder(target); },
 }, warn: ({ message }) => console.warn(message) });
 
@@ -580,6 +661,7 @@ const desktopAgentService = createDesktopAgentService({
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   agentService: desktopAgentService,
   partitionFor: ({ siteDir }) => sitePartition({ siteDir }),
+  acquirePartition: ({ siteDir }) => desktopPartitions.acquireSite({ siteDir }),
   attachRunning: ({ siteDir }) => attachRunningSite({ workspace: sharedSites, dir: siteDir }),
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
@@ -591,9 +673,9 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
   recordSiteOpened: ({ registryPath, row }) => siteChildRegistry.recordOpened({ registryDir: registryPath, row }),
   now: Date.now,
-  armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
-  ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
-  redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
+  armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: desktopPartitions.siteSession({ partition }), adminUrl, capability }),
+  ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl, redeem }),
+  redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl, bootToken }),
   log: ({ message }) => console.log(message), warn: ({ message }) => console.warn(message), error: ({ message }) => console.error(message),
   openSites,
   syncThemePreview: ({ siteDir }) => siteThemePreviews.sync({ siteDir }, {}),
@@ -615,7 +697,7 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
     return undefined;
   },
   allowed: ({ owner, guest, target }) => isLivePreviewGuestAllowed({ owner, guest,
-    shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: session.fromPartition(target.partition) }),
+    shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: desktopPartitions.siteSession({ partition: target.partition }) }),
   schedule: ({ siteDir }) => sitePreviewScheduler.schedule({ key: siteDir }, {}),
   cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}),
 });
@@ -636,11 +718,11 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
   return openSiteWindowWith({ siteDir, ctx, ports: {
     openSites,
     startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions = {}) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
-    sitePartition, readSiteName,
+    sitePartition, readSiteName, acquirePartition: ({ siteDir: dir }) => desktopPartitions.acquireSiteWindow({ siteDir: dir }),
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => siteChildRegistry.recordClosed({ registryDir: registryPath, key: dir }, { pid }),
     siteThemePreviews, sitePreviewScheduler: { cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}) },
-    endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
+    endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: desktopPartitions.siteSession({ partition }), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
     platform: process.platform, quitPhase: () => quitPhase, logError: ({ message }) => console.error(message),
@@ -935,6 +1017,8 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     pendingTeardowns,
     serializer,
     projectsPath: sitesCtx.projectsPath,
+    // The tracked-list writer's required effect: every added path invalidates its stale retirement record.
+    beforeAddedRows: desktopPartitions.beforeAddedRows,
     registryPath: sitesCtx.registryPath,
     repoRoot: PAYLOAD_ROOT,
     statePath: sitesCtx.statePath,
@@ -961,6 +1045,8 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
       siteThemePreviews.stop({ siteDir }, {});
     },
     sharedSites,
+    // The erase arm's sign-in removal proof (ST-2b): the profile's one ledger, shared with the interlock.
+    retirement: desktopRetirement.port,
     // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
     // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
     externalSites: createExternalSiteStopper({}),
@@ -1047,7 +1133,7 @@ function stopSiteLifecycle(): void {
 function bootSitesHomeMode(): void {
   const sitesCtx = sitesHomeCtx();
   runSitesHomeBoot({ ports: {
-    settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
+    settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, beforeAddedRows: desktopPartitions.beforeAddedRows, devFallbackDir: DEV_FALLBACK_SITE_DIR,
       classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }),
     buildProjectDeps: () => buildProjectDeps(sitesCtx),
     registerSiteIpcHandlers: ({ deps }) => registerProjectLifecycle(deps),
@@ -1086,6 +1172,7 @@ async function bootDesktop(): Promise<void> {
     startUpdaterInBackground: () => desktopUpdater.startInBackground(),
     reconcileOrphansOnBoot,
     migrateNestedSitesHome: migrateSitesHomeOnBoot,
+    runPartitionPass: runPartitionPassOnBoot,
     chooseBootMode: () => chooseBootMode({ env: process.env }),
     bootSitesHomeMode,
     bootAttachMode,

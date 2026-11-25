@@ -11,6 +11,8 @@ import { runInitCommand } from "./commands/init.js";
 import { runImportSiteCommand } from "./commands/import-site.js";
 import { OWNER_STORE_ACTIONS, runOwnerStoreCommand } from "./commands/owner-store.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
+import { runStorageReportCli } from "./commands/storage-report.js";
+import { runStorageCapabilitiesCommand, runStorageCleanCli } from "./commands/storage-maintenance.js";
 import { runSiteRenameCommand } from "./commands/site-rename.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
@@ -114,9 +116,18 @@ function registerStorageCommands(program: Command): void {
       await runTokenSignInPluginsCommand({});
     });
 
-  program
+  const storage = program
     .command("storage")
-    .description("change where a site keeps its data")
+    .description("see how much disk a site uses, or change where it keeps its data");
+  storage
+    .command("report")
+    .description("show how much disk a website folder uses, by category; read-only, safe while the site runs")
+    .argument("<dir>", "site directory")
+    .option("--json", "print one JSON document")
+    .action(async (dir: string, options: { json?: boolean }) => {
+      await runStorageReportCli({ dir, stdout: process.stdout, env: process.env }, { json: options.json === true });
+    });
+  storage
     .command("move")
     .description("move a stopped PGlite site onto an empty Postgres database (the PGlite data dir is kept)")
     .argument("<dir>", "site directory")
@@ -124,6 +135,26 @@ function registerStorageCommands(program: Command): void {
     .option("--storage-env <name>", "read the connection string from this environment variable, and keep reading it there (default: asked for once and sealed in the site folder)")
     .action(async (dir: string, options: { to?: string; storageEnv?: string }) => {
       await runStorageMoveCommand({ dir, to: options.to, storageEnv: options.storageEnv });
+    });
+  storage
+    .command("clean")
+    .description("remove what a STOPPED website no longer needs (expired share copies); never migrates or boots it")
+    .argument("<dir>", "site directory")
+    .option("--dry-run", "only measure what would be removed; deletes nothing (the default)")
+    .option("--apply", "really delete what the preview lists; without it, clean only previews")
+    .option("--json", "print one JSON document")
+    .action(async (dir: string, options: { dryRun?: boolean; apply?: boolean; json?: boolean }) => {
+      // Preview unless the owner explicitly opts in; `--dry-run` always wins over `--apply`.
+      const result = await runStorageCleanCli({ dir, stdout: process.stdout }, { dryRun: options.apply !== true || options.dryRun === true, json: options.json === true });
+      process.exitCode = result.exitCode;
+    });
+  storage
+    .command("capabilities")
+    .description("list the storage operations this build can run")
+    .option("--json", "print one JSON document")
+    .action((options: { json?: boolean }) => {
+      // `compact` arrives with ST-7b.T; until its port is connected it is not advertised.
+      runStorageCapabilitiesCommand({ stdout: process.stdout, compactStoppedSite: undefined }, { json: options.json === true });
     });
 
   // Registered next to `init` deliberately: the two are the only ways a directory becomes servable,

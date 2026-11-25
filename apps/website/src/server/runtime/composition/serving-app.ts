@@ -1,9 +1,20 @@
+import { createRetentionRunner } from "@jini-ai/platform/retention";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
+import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { createMediaBytesPolicy } from "./retention-policies/media-bytes.js";
+import { mediaBytesDeps, servingRecoveryArtifacts } from "./retention-policies/media-bytes-deps.js";
+import { servingStoragePaths, type SiteStoragePort } from "./modules/storage-routes.js";
+import { measureSiteStorage } from "#src/features/storage/measure";
+import { stat, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
 import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
 import { Router, type Express } from "express";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { ownerAccessFor, startServingRoutines, type ServingRoutines } from "./modules/serving-routines.js";
 import { servingRoutineToolOptions, settingsLocaleFor } from "./modules/serving-routine-tools.js";
 import type { RoutineRunHandler } from "@jini-ai/daemon";
@@ -100,8 +111,24 @@ function outboxQueueMetrics({ routeDeps }: { routeDeps: Pick<NonNullable<Paramet
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
-): { routines: ServingRoutines; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[]; releaseOnShutdown: () => void } {
+  optional: { runningLease?: ReturnType<typeof claimSiteRunning>; stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
+): { routines: ServingRoutines; siteRetention?: ReturnType<typeof startSiteRetention>; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[]; releaseOnShutdown: () => void } {
+  const reportRetentionError = ({ error }: { error: Error }, _optional: Record<string, never>) => console.warn(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+  // Exporter, daemon, attached serve and memory-only roots do not own this runner.
+  const siteRetention = optional.runningLease && !optional.runningLease.attached
+    ? startSiteRetention({
+      createRunner: createRetentionRunner, clock: Date, scheduler: globalThis,
+      policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError, databaseCopies: servingDatabaseCopies({ contentDbPath: routeDeps.siteStoragePaths.contentDbPath }) }),
+      // Report-only (P11 ST-11b.T): the media-bytes policy measures on every pass and has no sweep.
+      reportOnlyForSignal: signal => routeDeps.contentKernel === undefined ? [] : [createMediaBytesPolicy(mediaBytesDeps({ workspaceId: routeDeps.workspaceId, kernel: routeDeps.contentKernel as KyselyKernel<unknown>, mediaRepo: routeDeps.mediaRepo, blobStore: routeDeps.blobStore, clock: routeDeps.clock, signal, shareTransfers: routeDeps.siteShareBackend, recoveryArtifacts: servingRecoveryArtifacts({ restorePoints: routeDeps.restorePointsRepo, contentDbPath: routeDeps.siteStoragePaths.contentDbPath }, {}) }, {}), {})],
+      reportError: reportRetentionError,
+      log: line => console.log(line),
+    }, {})
+    : undefined;
+  const siteStorage: SiteStoragePort | undefined = siteRetention && {
+    measure: () => measureSiteStorage({ siteDir: routeDeps.siteBinding.dir, paths: servingStoragePaths({ siteDir: routeDeps.siteBinding.dir, ...routeDeps.siteStoragePaths, themesDir: routeDeps.themesDir }) }),
+    runOnce: siteRetention.runOnce, lastPass: siteRetention.lastReport,
+  };
   const bootWork: Promise<void>[] = [];
   const shutdownReleases: Array<() => void> = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
@@ -118,6 +145,7 @@ export function createServingApp(
     if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
   } };
   const app = createApp(routeDeps, { assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+    ...(siteStorage ? { siteStorage } : {}),
     onShutdown: ({ shutdown }) => { shutdownReleases.push(shutdown); },
     mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); },
     // Lazy: the handle composes after createApp returns, so the tools resolve it per call (P3-T4.T / T3.T).
@@ -167,6 +195,6 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork,
+  return { app, routines, siteRetention, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork,
     releaseOnShutdown: () => { for (const release of shutdownReleases) release(); } };
 }

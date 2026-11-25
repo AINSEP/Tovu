@@ -7,9 +7,11 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
-import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
+import { expiryNoticeStatus, formatTransferBytes, shareStatusView, shortLink, visibleShares } from "./site-transfer-rules";
+import { ShareExpiryControls } from "@jini-ai/devops/react/site-share-expiry";
+import type { ButtonHTMLAttributes, SelectHTMLAttributes } from "react";
 
-import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { formatTimestamp, interpolate, type Translate } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
@@ -49,11 +51,46 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         </button>
         <StaticExportPicker controller={controller} t={t} />
       </div>
+      <ShareExpiry controller={controller} t={t} />
       <ExportFailureNotice controller={controller} t={t} />
       {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
       <ExportPassword controller={controller} t={t} />
       <ExportList controller={controller} t={t} />
     </section>
+  );
+}
+
+const EXPIRY_KIT = {
+  Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => <button className="btn-secondary" {...props} />,
+  Select: (props: SelectHTMLAttributes<HTMLSelectElement>) => <select className="field-input" {...props} />,
+};
+
+/**
+ * The next export's link expiry (Never by default) and the expired-row filter. The required
+ * `useShareExpiry` comes from the export controller, so the tab gains no second defaulted hook seam;
+ * the day choices are only those the destination honours, and the notice follows the newest backup.
+ */
+function ShareExpiry({ controller, t }: { controller: SiteExportController; t: Translate }) {
+  const { shareExpiry } = controller;
+  const newest = controller.shares?.find(share => share.file.endsWith(".tovu.zip"));
+  return (
+    <div className="site-export-expiry">
+      <ShareExpiryControls
+        useShareExpiry={shareExpiry.useShareExpiry}
+        kit={EXPIRY_KIT}
+        copy={{
+          never: t("Never expires"),
+          days: (days) => interpolate({ template: t("Expires after {days} days"), vars: { days: String(days) } }),
+          expired: t("This export's link has expired."),
+          showExpired: t("Show expired exports"),
+          acknowledge: t("Dismiss"),
+        }}
+        choices={shareExpiry.choices}
+        status={expiryNoticeStatus({ share: newest, acknowledgedId: shareExpiry.acknowledgedId })}
+        expiresAt={newest?.expiresAt ?? null}
+        showExpired={shareExpiry.showExpired}
+      />
+    </div>
   );
 }
 
@@ -88,7 +125,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
   if (!controller.shares) return <div className="notice">{t("Loading exports…")}</div>;
   return (
     <DataTable
-      rows={controller.shares}
+      rows={visibleShares({ shares: controller.shares, showExpired: controller.shareExpiry.showExpired })}
       rowKey={(share) => share.shareId}
       label={t("Exports")}
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}

@@ -1,9 +1,15 @@
 import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
-import { createLastConversationStore, type LastConversationStore } from "@jini-ai/chat/react";
+import { useCallback, useMemo, useState } from "react";
+import { createLastConversationStore, defaultConversationListHooks, type LastConversationStore } from "@jini-ai/chat/react";
+import { Button } from "@jini-ai/ui-kit/react";
 import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 
 import {
+  applyChatCleanup,
+  deleteSelectedConversations,
+  previewChatCleanup,
+  setConversationPinned,
   createConversation,
   deleteConversation,
   HttpError,
@@ -14,12 +20,20 @@ import {
 } from "../lib/assistant-chats";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-chats-port.hooks";
+import {
+  cleanupErrorText, useChatListOverlay, useCleanupPreview, useSelectedDeletion,
+  type ChatCleanupClient, type ChatCleanupKit, type WiredChatCleanup,
+} from "@/components/AssistantDock/hooks/chat-cleanup.hooks";
+import { chatCleanupCopy, type ChatCleanupCopy, type DockTranslate } from "@/components/AssistantDock/chat-cleanup-copy";
+
 
 /**
  * @file The only place the real `/api/assistant/chats` client is reached from the hook layer.
  *
  * Keeping that import in exactly one file is the point of the split — it is what makes "does this
  * hook talk to the network?" answerable by looking at one line rather than by reading the hook.
+ * That includes chat cleanup: {@link defaultChatCleanupClient} (pin, preview, apply,
+ * delete-selected) is bound here and nowhere else; every other cleanup hook takes a client.
  */
 
 /**
@@ -227,4 +241,40 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       };
     },
   };
+}
+
+/** The live cleanup client (`PATCH /:id`, `cleanup/preview`, `cleanup/apply`, `delete-selected`). */
+export const defaultChatCleanupClient: ChatCleanupClient = {
+  setPinned: ({ id, pinned }) => setConversationPinned({ id, pinned }),
+  preview: ({ before }) => previewChatCleanup({ before }),
+  apply: ({ previewToken }) => applyChatCleanup({ previewToken }),
+  deleteSelected: ({ ids, confirm }) => deleteSelectedConversations({ ids, confirm }),
+};
+
+/**
+ * Wires the dock's chat cleanup: the switcher's list hooks, pins, selection, and the age chooser's
+ * server-counted preview. Deletes nothing on its own; see `chat-cleanup.hooks.ts` for why.
+ * @param required.client - The cleanup client; {@link defaultChatCleanupClient} in the app, a fake in tests.
+ * @param required.clock - Epoch-ms now, for the cut-off sent to the preview.
+ * @param options.defaultOlderThanDays - The chooser's starting age (1–365).
+ * @complexity O(c) per render in the number of conversations shown.
+ */
+export function useWiredChatCleanup({ client, kit, copy, clock }: { client: ChatCleanupClient; kit: ChatCleanupKit; copy: ChatCleanupCopy; clock: () => number }, { defaultOlderThanDays = 90 }: { defaultOlderThanDays?: number } = {}): WiredChatCleanup {
+  const [open, setOpen] = useState(false);
+  const [olderThanDays, setOlderThanDays] = useState(defaultOlderThanDays);
+  const [error, setError] = useState<string | null>(null);
+  const onError = useCallback((cause: unknown) => setError(cleanupErrorText({ error: cause, copy })), [copy]);
+  const clearError = useCallback(() => setError(null), []);
+  const { togglePin, hide, visibleConversations } = useChatListOverlay({ client, onError });
+  const useDialog = useCleanupPreview({ client, copy, clock, olderThanDays, hide, onError });
+  const { selectedIds, select, deleteSelected } = useSelectedDeletion({ client, copy, hide, onError, clearError });
+  return { listHooks: defaultConversationListHooks, kit, copy, open, setOpen, olderThanDays, setOlderThanDays, selectedIds, select, togglePin, visibleConversations, useDialog, deleteSelected, error };
+}
+
+const CHAT_CLEANUP_KIT: ChatCleanupKit = { Button };
+
+/** `DockHeader`'s `useChatCleanup`: the real client, the admin kit, the dock's copy and the wall clock. */
+export function useDockChatCleanup({ t, locale, untitled }: { t: DockTranslate; locale: string; untitled: string }, _optional = {}): WiredChatCleanup {
+  const copy = useMemo(() => chatCleanupCopy({ t, locale, untitled }), [t, locale, untitled]);
+  return useWiredChatCleanup({ client: defaultChatCleanupClient, kit: CHAT_CLEANUP_KIT, copy, clock: Date.now });
 }
