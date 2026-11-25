@@ -22,10 +22,11 @@ test("real extracted renderer serves an unpublished bare page and pending body w
 test("extracted rendering is byte-identical to the old route output for the same input", async () => {
   const { deps } = bareDeps();
   let handler: Function | undefined;
-  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, fn: Function) => { handler = fn; }, post: () => {} } as never, deps });
+  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, ...fns: Function[]) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
+  // The raw mount answers a buffered `Response`: headers through `setHeader`, the body as a Buffer through `send`.
   let output = ''; let status = 200; const headers: Record<string, string> = {};
-  const response = { locals: { principal: { id: 'p' } }, status: (value: number) => { status = value; return response; }, set: (key: string, value: string) => { headers[key] = value; return response; }, type: () => response, send: (value: string) => { output = value; return response; } };
-  await handler!({ params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' }, body: {} }, response);
+  const response = { locals: { principal: { id: 'p' } }, statusCode: 200, on: () => response, off: () => response, vary: () => response, append: () => response, setHeader: (key: string, value: string) => { headers[key] = value; return response; }, send: (value: Buffer) => { status = response.statusCode; output = value.toString(); return response; } };
+  await handler!({ method: 'GET', headers: {}, params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' }, body: {} }, response);
   assert.equal(status, 200); assert.equal(headers['Cache-Control'], 'no-store');
   assert.equal(output, '<!doctype html><html><body><p>Saved draft</p></body></html>');
   assert.equal((await renderPostPreview({ deps, input: { post: barePost, templateChoice: '' } })).html, output);
@@ -152,16 +153,21 @@ test("TW2 themed preview preserves saved and pending bodies across format and pu
   }
 });
 
-/** Captures the route's GET handler and a text/html-capable response (the route answers with
- *  `type().send()`, not `json()`), mirroring the byte-identical test above. */
+/** Captures the route's mounted GET handler (the http-kit raw mount registers one `(req, res)` handler) and a response
+ *  double with just what that mount writes through: it answers a buffered `Response`, so the body arrives as a Buffer
+ *  through `send`, and a refusal or failure writer answers with `status().type().send()`. */
 function previewHandler(deps: ReturnType<typeof bareDeps>["deps"]) {
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
-  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, fn: typeof handler) => { handler = fn; }, post: () => {} } as never, deps });
+  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, ...fns: Array<typeof handler>) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
   assert.ok(handler);
   const invoke = async (req: unknown) => {
     const out = { status: 200, text: '' };
-    const response = { locals: { principal: { id: 'p' } }, status: (value: number) => { out.status = value; return response; }, set: () => response, type: () => response, send: (value: string) => { out.text = value; return response; } };
-    await handler!(req, response);
+    const response = {
+      locals: { principal: { id: 'p' } }, statusCode: 200, on: () => response, off: () => response, setHeader: () => response, vary: () => response, append: () => response,
+      status: (value: number) => { response.statusCode = value; return response; }, set: () => response, type: () => response,
+      send: (value: string | Buffer) => { out.status = response.statusCode; out.text = value.toString(); return response; },
+    };
+    await handler!({ method: 'GET', headers: {}, ...(req as object) }, response);
     return out;
   };
   return invoke;
