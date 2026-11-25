@@ -13,7 +13,7 @@ import { captureSqliteBackupBytes } from "@jini-ai/db/transfer";
 import { bindOwnedTempRootScope, siteTempRootLock, SITE_TEMP_PREFIXES, type SiteTempPrefix } from "#src/platform/temp/site-temp-roots";
 import { rebuildImportDatabase } from "#src/features/site-backup/import-database";
 import { rewriteArchiveMedia, sanitizeShareDatabase } from "#src/features/site-backup/share-database/repo.sqlite";
-import { captureStaticSite } from "#src/features/site-backup/static-copy";
+import { captureStaticSite } from "#src/features/site-backup/static-download-host";
 import { captureDatabaseSnapshot } from "#src/features/site-backup/sources";
 import type { DbOpsPort } from "@tovu/contracts/db-ops";
 import { createSiteTempRootPolicy } from "./temp-roots.js";

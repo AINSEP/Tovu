@@ -104,9 +104,9 @@ import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
-import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
+import { mailDeliveryAgentToolCatalog } from "@jini-ai/user-management/mail/status/delivery-agent-tools";
 import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
-import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
 import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";

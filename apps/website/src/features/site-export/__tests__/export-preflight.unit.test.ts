@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { privacyPageTemplate } from "../../consent/privacy-page-template.js";
+import { privacyPageTemplate } from "@jini-ai/cookie-consent/site/privacy-page-template";
 import { createExportPreflight, findContactEmailPlaceholder, findThirdPartyScriptHosts } from "@jini-ai/devops/static-export/site/export-preflight";
 import { CONTACT_EMAIL_PLACEHOLDER, EXPORT_PREFLIGHT_COPY } from "../export-preflight-copy.js";
 

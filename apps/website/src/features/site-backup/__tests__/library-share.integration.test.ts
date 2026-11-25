@@ -36,7 +36,7 @@ import { fixtureManifest } from "./archive.fixture.js";
 import { buildZipFixture } from "../../agent-plugins/__tests__/fixtures/build-zip.js";
 import { MAX_DOCUMENT_BYTES, validateDocumentIngress, registerTransform } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/index.js";
-import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../../members/index.js";
+import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";

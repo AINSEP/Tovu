@@ -8,7 +8,6 @@ import test from "node:test";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
