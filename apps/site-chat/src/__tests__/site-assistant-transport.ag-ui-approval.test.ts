@@ -44,7 +44,7 @@ it("the live approval posts a resume to chat and keeps its nonce out of storage"
 
   const shown: (ToolConfirmationDirective | null)[] = [];
   const finished: { messages?: ChatMessage[] }[] = [];
-  const frontend = { headers: async () => ({}), finish: (args: { navigation: boolean; messages?: ChatMessage[] }) => { finished.push(args); } };
+  const frontend = { headers: async () => ({}), acceptBrowserInvocation: () => {}, finish: (args: { navigation: boolean; messages?: ChatMessage[] }) => { finished.push(args); } };
   const transport = createSiteAssistantTransport({}, { fetch, frontend, onToolConfirmation: ({ directive }) => { shown.push(directive); } });
 
   const events: AgentEvent[] = [];
