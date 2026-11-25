@@ -98,7 +98,7 @@ test("a start's reported site becomes the turn's addressee only when this app tr
   const tracked = path.join(s.dir, "tracked-site");
   trackSite({ projectsPath: s.projectsPath, siteDir: tracked }, { origin: SITE_ORIGIN.adopted });
   const start = s.handlers.get(WORKSPACE_CHAT_IPC.start)!;
-  const event = { sender: { send: () => {}, isDestroyed: () => false } };
+  const event = { sender: { send: () => {}, isDestroyed: () => false }, senderFrame: { parent: null } };
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s1", activeSiteDir: tracked });
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s2", activeSiteDir: path.join(s.dir, "elsewhere") });
   assert.deepEqual(s.turns.map((turn) => turn.addressee), [{ siteDir: tracked, name: "Site tracked-site" }, null]);
