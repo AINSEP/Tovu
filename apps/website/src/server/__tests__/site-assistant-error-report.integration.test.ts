@@ -94,7 +94,7 @@ test("AG-UI provider failure sends the public message and one incident reference
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
   const app = express();
   app.use(parsePublicJsonBody);
-  createSiteAssistantModule(deps, { env: { GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl } }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: { GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream; agui=1" },

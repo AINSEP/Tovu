@@ -1,4 +1,5 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
@@ -49,7 +50,7 @@ async function boot({ t, ask }: { t: TestContext; ask: boolean }) {
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule({ ...deps, siteAssistantErrorLog: () => {} } as typeof deps,
+  createSiteAssistantModule({ deps: { ...deps, siteAssistantErrorLog: () => {} } as typeof deps, reporter: createRouteIncidentReporter().reporter },
     { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   siteOrigin = new URL(baseUrl);

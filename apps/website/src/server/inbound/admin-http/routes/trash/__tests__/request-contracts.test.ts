@@ -39,6 +39,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   };
 }
 // F2.5/F3.6: port calls are the route contract; exact args reject ignored query/cursor/clock inputs.
+// Trash d2 (de82d1bff): every list page also echoes the host-injected retention window the header copy interpolates.
 test("trash list normalizes filters and cursor and clamps/defaults limits without changing pagination", async () => {
   for (const [query, expected] of [
     [{}, { entityTypes: undefined, limit: 50, cursor: null }],
@@ -53,7 +54,7 @@ test("trash list normalizes filters and cursor and clamps/defaults limits withou
       reads++; assert.deepEqual({ ...input, ...optional }, { workspaceId: "ws-7", now, ...expected });
       return { items: [], nextCursor: "continue-after-hidden-rows" };
     } }, userRepo: { list: async () => { throw new Error("empty pages must not query usernames"); } } });
-    assert.deepEqual(await invoke("get", "", undefined, query), { statusCode: 200, jsonBody: { items: [], nextCursor: "continue-after-hidden-rows" } });
+    assert.deepEqual(await invoke("get", "", undefined, query), { statusCode: 200, jsonBody: { items: [], nextCursor: "continue-after-hidden-rows", retentionDays: TRASH_RETENTION_DAYS } });
     assert.equal(reads, 1);
   }
 });
@@ -69,7 +70,7 @@ test("trash list projects exact snapshot fields, actor lookup, and rounded days 
   assert.deepEqual(await invoke("get", ""), { statusCode: 200, jsonBody: { items: [{
     id: "trash-9", entityType: "post", entityId: "post-8", title: "Deleted title", subtitle: "deleted-slug", trashedAt: "2026-09-01T00:00:00.000Z",
     purgeAfter: "2026-10-03T13:00:00.000Z", daysRemaining: 3, actorPrincipalId: "principal-7", actorPluginId: "plugin-3", actorUsername: "ada", actorIsSystem: false,
-  }], nextCursor: "next-9" } });
+  }], nextCursor: "next-9", retentionDays: TRASH_RETENTION_DAYS } });
 });
 // F4.4: each malformed selection breaks only the named input contract, after an allowed entry gate.
 test("purge and restore reject oversized or malformed selections before any mutations", async () => {

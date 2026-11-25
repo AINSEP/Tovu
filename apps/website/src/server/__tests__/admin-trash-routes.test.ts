@@ -68,7 +68,8 @@ test("createApp() actually mounts all four trash routes, including the generic m
 
   const listRes = await fetch(root, { headers: { cookie } });
   assert.equal(listRes.status, 200);
-  assert.deepEqual(await listRes.json(), { items: [], nextCursor: null });
+  // Trash d2 (de82d1bff): the composed list echoes the host-injected retention window.
+  assert.deepEqual(await listRes.json(), { items: [], nextCursor: null, retentionDays: TRASH_RETENTION_DAYS });
 
   const restoreRes = await fetch(`${root}/restore`, {
     method: "POST",
