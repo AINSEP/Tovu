@@ -1,3 +1,4 @@
+import { AttachmentRejectedError } from "@jini-ai/daemon/http";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -18,7 +19,7 @@ import { InMemoryBlobStore, InMemoryTransformDefinitionRepo, registerTransform, 
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { buildMediaGenerationRegistrations } from "../../media-generation/tool-registrations.js";
 import { buildMediaImportRegistrations } from "../../media-import/tool-registrations.js";
-import { buildPromoteChatAttachmentTool } from "../promote-chat-attachment.js";
+import { buildPromoteChatAttachmentTool } from "@jini-ai/cms/media/site/promote-chat-attachment";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
@@ -61,10 +62,7 @@ test("every registered media-producing tool returns the same inline image previe
     ...buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }),
   ];
   const upload = registrations.find(tool => tool.descriptor.id === "media_upload_asset")!;
-  registrations.push(buildPromoteChatAttachmentTool({
-    getStore: () => ({ resolveForRun: async () => ({ path: path.join(root, "preview.png"), name: "preview.png", kind: "file" as const }) }),
-    readFile: async () => bytes, mediaUploadHandler: upload.handler,
-  }));
+  registrations.push(buildPromoteChatAttachmentTool({ getStore: () => ({ resolveForRun: async () => ({ path: path.join(root, "preview.png"), name: "preview.png", kind: "file" as const }) }), readFile: async () => bytes, mediaUploadHandler: upload.handler, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") }));
   const values: Record<string, unknown> = {
     prompt: "preview", model: "gpt-image-2", filename: "preview.png", contentType: "image/png", dataBase64: bytes.toString("base64"),
     url: "https://example.com/preview.png", root: "site", path: "preview.png", mediaId: media.id,

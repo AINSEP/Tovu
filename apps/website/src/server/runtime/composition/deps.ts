@@ -27,7 +27,7 @@ import { createAgentPluginStateStore } from "#src/features/api-connections/plugi
 import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createTelemetryConsent } from "./telemetry-consent.js";
 
-import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
+import { publishTrustRevocationStoreFor } from "@jini-ai/cms/publish/trust/revocations.sql";
 import { contentKernel } from "#src/platform/db/content-kernel";
 
 import { loadMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";

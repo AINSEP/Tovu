@@ -1,3 +1,4 @@
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 /** @file t02: filtering must precede the limit; projection and defaults are public contracts. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,7 +11,7 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { InMemoryPostSearchIndex } from "../search-index.memory.js";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRegistrations } from "../tool-registrations.js";
@@ -58,7 +59,7 @@ function fixture({ rows = [record()] }: { rows?: PostRecord[] }, { allow = true 
     outbox: new InMemoryOutbox(),
     bus: new InMemoryEventBus(),
     postRepo,
-    postSearch: new InMemoryPostSearchIndex(postRepo),
+    postSearch: new InMemoryPostSearchIndex({ repo: postRepo, openScratch: openPostSearchScratch }),
     pluginBeforeSaveHook: async () => ({}),
     slugChangeCapture: () => undefined,
     removePost: removeVia(postRepo),

@@ -1,3 +1,5 @@
+import { AttachmentRejectedError } from "@jini-ai/daemon/http";
+import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 /** L1 step 4. RED originally: library tools absent; staged files had no private document promotion. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -6,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDiskAttachmentStore } from '@jini-ai/daemon/http';
 import { buildMediaRegistrations, uploadMedia } from '@jini-ai/cms/media';
-import { buildLibrarySaveAttachmentTool } from '../library-save-attachment.js';
+import { buildLibrarySaveAttachmentTool } from '@jini-ai/cms/media/site/library-save-attachment';
 import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
 import * as yauzl from 'yauzl';
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
@@ -25,8 +27,7 @@ test('Library save survives cleanupRun; ordinary attachments remain temporary; l
   const saved = await store.register({ input: { batchId: 'batch-aaa', path: savedPath, name: 'saved.md', kind: 'file', size: 9, ownerId: 'owner' } });
   const temp = await store.register({ input: { batchId: 'batch-aaa', path: tempPath, name: 'temporary.txt', kind: 'file', size: 9, ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [saved, temp] });
-  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, readFile: ({ path }) => readFile(path),
-    getMessageAttachmentRefs: () => [saved.path, temp.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore: () => store, readFile: ({ path }) => readFile(path), getMessageAttachmentRefs: () => [saved.path, temp.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
   const result = await tool.handler(libraryContext({ attachmentRef: saved.path })) as { document: { id: string } };
   await store.cleanupRun({ runId: 'run-a' });
   await assert.rejects(access(savedPath)); await assert.rejects(access(tempPath));
@@ -41,8 +42,7 @@ test('Library save survives cleanupRun; ordinary attachments remain temporary; l
 
 test('Library save refuses foreign/stale/current-message-missing refs before resolving or reading bytes', async () => {
   const { deps, deny } = libraryFixture(); let reads = 0; let resolves = 0;
-  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => ({ resolveForRun: async () => { resolves++; return undefined; } }),
-    readFile: async () => { reads++; return Buffer.from('secret'); }, getMessageAttachmentRefs: () => ['attachment:current'], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore: () => ({ resolveForRun: async () => { resolves++; return undefined; } }), readFile: async () => { reads++; return Buffer.from('secret'); }, getMessageAttachmentRefs: () => ['attachment:current'], archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
   for (const ref of ['attachment:foreign', 'attachment:old-message', '/tmp/known-path']) await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref })));
   assert.equal(resolves, 0); assert.equal(reads, 0);
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: 'attachment:current' })));
@@ -97,8 +97,7 @@ test('Library save retains the existing resolver\'s run and integrity rejection 
   const ref = await store.register({ input: { batchId: 'isolated', path, name: 'guide.md', size: 10, kind: 'file', ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [ref] });
   const { deps } = libraryFixture(); let reads = 0;
-  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, getMessageAttachmentRefs: () => [ref.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps),
-    readFile: async ({ path }) => { reads++; return readFile(path); } });
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore: () => store, getMessageAttachmentRefs: () => [ref.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps), readFile: async ({ path }) => { reads++; return readFile(path); }, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref.path }, 'foreign-run')));
   // The resolver's integrity check compares dev/inode/size/path, so the tamper must change size.
   await writeFile(path, '# Tampered and grown', { mode: 0o600 });
@@ -134,8 +133,7 @@ test('Library save allows by policy, refuses before the store is ready, reports 
   const md = await store.register({ input: { batchId: 'batch-bbb', path: mdPath, name: 'notes.md', kind: 'file', size: 7, ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [exe, md] });
   const { deps } = libraryFixture();
-  const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps, getStore, readFile: ({ path }) => readFile(path),
-    getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps) });
+  const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore, readFile: ({ path }) => readFile(path), getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
   const tool = build(() => store);
   assert.equal(tool.policy?.authorize?.({} as never), 'allow');
   await assert.rejects(build(() => undefined).handler(libraryContext({ attachmentRef: md.path })), { message: 'attachment store is not ready' });
@@ -144,4 +142,19 @@ test('Library save allows by policy, refuses before the store is ready, reports 
   deps.blobStore.put = async () => { throw fault; };
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: md.path })), (error: unknown) => error === fault);
   assert.deepEqual(await deps.mediaRepo.list({ workspaceId: deps.workspaceId }), []);
+});
+
+
+test('cross-message promotion stays unavailable while the accepted same-message save stays private', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'library-message-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const store = await createDiskAttachmentStore({ uploadDirectory: dir }); t.after(() => store.dispose());
+  const batch = await store.createBatchDirectory({ batchId: 'batch-message' });
+  const path = join(batch, 'guide.md'); await writeFile(path, '# Private');
+  const ref = await store.register({ input: { batchId: 'batch-message', path, name: 'guide.md', kind: 'file', size: 9, ownerId: 'owner' } });
+  const { deps } = libraryFixture();
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore: () => store, readFile: ({ path }) => readFile(path), getMessageAttachmentRefs: ({ runId }) => runId === 'run-a' ? [ref.path] : [], archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
+  await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref.path }, 'other-message')), /not bound/);
+  assert.deepEqual(await deps.mediaRepo.list({ workspaceId: deps.workspaceId }), []);
+  const saved = await tool.handler(libraryContext({ attachmentRef: ref.path })) as { document: { publicUrl: null } };
+  assert.equal(saved.document.publicUrl, null);
 });

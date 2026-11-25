@@ -5,7 +5,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
-import { POST_ENTITY_TYPE } from "../adapters/post.js";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

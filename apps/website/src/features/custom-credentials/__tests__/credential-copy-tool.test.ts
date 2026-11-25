@@ -5,7 +5,7 @@ import { createFakeClock } from '#src/__tests__/support/fake-clock';
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { fakeAttachments, vaultRow } from '#src/features/project-keys/__tests__/helpers';
-import { createProjectKeys } from '#src/features/project-keys/service';
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { buildCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID } from '../credential-copy-tool.js';
 
 async function fixture({ saved = { normalCard: true } }: { saved?: unknown } = {}) {

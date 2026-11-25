@@ -22,8 +22,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { PluginManifest } from "@jini-ai/plugins/host";
-import { countWords } from "@jini-ai/plugins/runtime/built-ins/word-count/count-words";
-import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
+import { createWordCountPlugin } from "@jini-ai/plugins/runtime/built-ins/word-count/plugin";
+import { pluginHostBinding } from "../../host-binding.js";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
 export const WORD_COUNT_MANIFEST: PluginManifest = {
@@ -52,11 +52,7 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
 /** The executable half of the bundled artifact. Registration occurs only inside `setup()` so the
  * end-to-end enable test proves `loadPlugin()` reached BR-01 step (4), not merely that the module
  * happened to be statically imported by the server bundle. */
-export const WORD_COUNT_PLUGIN = definePlugin({
-  setup(sdk) {
-    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async (entry) => ({ count: countWords({ bodyJson: entry.bodyJson }) }));
-  },
-});
+const WORD_COUNT_PLUGIN = createWordCountPlugin(pluginHostBinding.pluginSdkBinding);
 
 /** Load metadata consumed by the server composition root. The built-in has no on-disk artifact,
  * so its dynamic-import seam returns the already-bundled module namespace after the loader's

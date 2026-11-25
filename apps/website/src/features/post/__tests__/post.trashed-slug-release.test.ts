@@ -1,3 +1,4 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
@@ -7,7 +8,7 @@ import type Database from "better-sqlite3";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { bindRemoveEntity, createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPostTrashAdapter, POST_ENTITY_TYPE } from "#src/features/trash/adapters/post";
+import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createPost } from "../post-create.js";
@@ -177,7 +178,7 @@ function openRealTrash() {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })]]);
   let seq = 0;
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: client }),

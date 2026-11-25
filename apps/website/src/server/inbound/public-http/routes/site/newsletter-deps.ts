@@ -16,7 +16,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
+import type { ConfirmationDeps } from "@jini-ai/user-management/newsletter/confirmation";
 import { buildConfirmationDeps } from "#src/features/newsletter/deps-builders";
 import type {
   MembersConsentCapability,

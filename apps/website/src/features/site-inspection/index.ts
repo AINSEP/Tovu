@@ -22,11 +22,6 @@ export {
   type SiteProfileSourceDeps,
 } from "./deps.js";
 
-export {
-  SITE_CAPABILITIES_VISIBILITY_PERMISSION,
-  SITE_INSPECTION_READ_PERMISSION,
-  siteInspectionAgentToolCatalog,
-} from "./agent-tools.js";
 
 export {
   buildSiteInspectionRegistrations,

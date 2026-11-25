@@ -11,7 +11,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 
-import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
+import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "#src/features/site-inspection/catalog-host";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
 import { fetchPublishedPage, type FetchPublishedPageDeps } from "@jini-ai/diagnostics/web-evidence/published-page";

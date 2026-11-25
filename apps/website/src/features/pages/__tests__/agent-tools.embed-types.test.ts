@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "@jini-ai/cms/widgets/markers";
-import { otherEmbedTypesText, pagesAgentToolCatalog } from "../agent-tools.js";
+import { otherEmbedTypesText } from "#src/contracts/core/page-html";
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 
 test("every registered embed marker type except collection reaches the page writers' contract", () => {
   const text = otherEmbedTypesText({ targetKeys: EMBED_MARKER_TARGET_KEYS });

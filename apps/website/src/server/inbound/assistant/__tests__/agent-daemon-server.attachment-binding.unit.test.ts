@@ -1,3 +1,5 @@
+import { prepareByokMessageAttachments, AttachmentUnavailableError } from "../byok-message-attachments.js";
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import ts from "typescript";
 import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
@@ -14,7 +16,6 @@ import { createDiskAttachmentStore, stageAttachmentClaim, delegatedToolExecuteRo
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
 import { runWithDaemonCallContext, type DaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { buildDaemonAttachmentTools } from "#src/server/runtime/composition/modules/assistant-tool-exec";
-import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import { waitForStoppingRuns } from "../../../../assistant/agent-session-preset.js";
 import { createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "@jini-ai/daemon/session-coordination";
 import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
@@ -104,10 +105,10 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     if (!result.ok) assert.fail(result.error.message);
     const output = result.value.result.output as { attachments: { attachmentRef: string }[] };
     assert.deepEqual(output.attachments.map(item => item.attachmentRef), [video.path]);
-    const read = await readChatAttachmentForOwner({ uploadDirectory: root }, { ref: output.attachments[0]!.attachmentRef, ownerId: context.principalId });
+    const read = await readChatAttachmentForOwner({ uploadDirectory: root, ref: output.attachments[0]!.attachmentRef, ownerId: context.principalId }, {  });
     assert.deepEqual(read, { ok: true, bytes: Buffer.from(bytes) },
       "the discovered opaque ref must pass the video tool's actual owner-scoped reader and return the accepted bytes");
-    assert.equal((await readChatAttachmentForOwner({ uploadDirectory: root }, { ref: otherOwner.path, ownerId: context.principalId })).ok, false);
+    assert.equal((await readChatAttachmentForOwner({ uploadDirectory: root, ref: otherOwner.path, ownerId: context.principalId }, {  })).ok, false);
 
     // Unknown bindings fail closed even while this owner has other pending uploads.
     assert.deepEqual(await registration.handler({ executionId: "unbound", principal: { id: context.principalId },
@@ -125,4 +126,11 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     await new Promise<void>(resolve => setImmediate(resolve));
     await rm(root, { recursive: true, force: true });
   }
+});
+
+
+test("unavailable bytes keep the same public refusal", async () => {
+  await assert.rejects(prepareByokMessageAttachments({ refs: ["attachment:11111111-2222-3333-4444-555555555555"], principalId: "owner", uploadDirectory: "/unused" }, {
+    read: async () => ({ ok: false, refusal: "not-owner" }),
+  }), error => error instanceof AttachmentUnavailableError && error.message === "Attachment is unavailable. Reattach it before sending.");
 });

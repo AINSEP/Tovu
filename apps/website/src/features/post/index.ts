@@ -8,6 +8,4 @@ export { updatePost, type UpdatePostInput } from "./post-update.js";
 // should be re-exported from this barrel.
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";
-export { InMemoryPostSearchIndex } from "./search-index.memory.js";
-export { CONTENT_POST_DELETE_TOOL_ID } from "./agent-tools.js";
 export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters.js";

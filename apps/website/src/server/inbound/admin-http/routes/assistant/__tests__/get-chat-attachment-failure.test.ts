@@ -24,8 +24,8 @@ test("chat attachment handler redacts unexpected read errors while passing the a
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/api/attachments/${encodeURIComponent("attachment:11111111-2222-3333-4444-555555555555")}`);
   assert.deepEqual(calls, [{
-    deps: { uploadDirectory: "/test-owned/uploads" },
-    input: { ref: "attachment:11111111-2222-3333-4444-555555555555", ownerId: "uploader-7" },
+    deps: { uploadDirectory: "/test-owned/uploads", ref: "attachment:11111111-2222-3333-4444-555555555555", ownerId: "uploader-7" },
+    input: {},
   }]);
   assert.equal(response.headers.get("content-type"), "application/json; charset=utf-8");
   assertAdminResponse({ actual: { statusCode: response.status, jsonBody: await response.json() }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The requested information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load information"} });

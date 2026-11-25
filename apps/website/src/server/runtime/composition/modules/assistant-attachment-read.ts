@@ -1,3 +1,4 @@
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import { createHash } from "node:crypto";
 import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import {
@@ -6,7 +7,7 @@ import {
 import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { Express, Response as ExpressResponse } from "express";
 
-import { readChatAttachmentForOwner, sniffContentType } from "#src/features/media/index";
+import { sniffContentType } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DISALLOWED_INLINE_CONTENT_TYPES, SVG_CONTENT_SECURITY_POLICY } from "@jini-ai/cms/media";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
@@ -100,7 +101,7 @@ export function registerAdminChatAttachmentReadRoute(
   _optional: Record<string, never> = {}
 ): void {
   const route = createChatAttachmentReadRoute({ deps: {
-    readAttachment: (input) => (deps.readChatAttachmentForOwner ?? readChatAttachmentForOwner)({ uploadDirectory: deps.uploadDirectory }, input),
+    readAttachment: (input) => (deps.readChatAttachmentForOwner ?? readChatAttachmentForOwner)({ uploadDirectory: deps.uploadDirectory, ...input }, {}),
     // `getAuthedPrincipal` reads only `locals`; the bridge hands the Express `res.locals` through.
     ownerIdOf: ({ locals }) => getAuthedPrincipal({ locals } as Pick<ExpressResponse, "locals"> as ExpressResponse).id,
     sniffContentType,

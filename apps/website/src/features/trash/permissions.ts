@@ -19,8 +19,8 @@
  *    `widget` later) needs no second entry here. `trashPermissionFor` is the merge point.
  */
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
-import { POST_ENTITY_TYPE } from "./adapters/post.js";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";

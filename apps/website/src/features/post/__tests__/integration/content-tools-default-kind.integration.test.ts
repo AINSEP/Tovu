@@ -13,7 +13,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { postAgentToolCatalog } from "../../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { TIPTAP_DOC_SCHEMA } from "../../tiptap-doc-schema.js";
 import { InMemoryPostRepo } from "../../repo.memory.js";
 import { contributePostTools } from "../../tool-registrations.js";

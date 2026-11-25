@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { postAgentToolCatalog } from '#src/features/post/agent-tools';
-import { pagesAgentToolCatalog } from '#src/features/pages/agent-tools';
+import { postAgentToolCatalog } from '#src/features/post/post-catalog-host';
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 import { SYSTEM_PREAMBLE } from '#src/server/runtime/composition/modules/assistant-byok';
 import { assistantCliPermissions, TOOLS_FIRST_RULE } from "@tovu/contracts/assistant-native-fallbacks";
 

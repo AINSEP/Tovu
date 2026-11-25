@@ -1,7 +1,8 @@
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { InMemoryPostSearchIndex } from "../search-index.memory.js";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { sqlitePostSearch } from "@jini-ai/cms/posts/sql";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 
@@ -13,7 +14,7 @@ const query = { workspaceId: "ws", terms: ["findable"], limit: 10 };
 
 test("a hard deletion removes old FTS entries on the very next search without hiding surviving neighbors", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [post("removed"), post("kept")] });
-  const search = new InMemoryPostSearchIndex(repo);
+  const search = new InMemoryPostSearchIndex({ repo: repo, openScratch: openPostSearchScratch });
   assert.deepEqual((await search.search(query)).map((h) => h.id).sort(), ["kept", "removed"]);
   await repo.hardDelete({ workspaceId: "ws", id: "removed" });
   assert.deepEqual((await search.search(query)).map((h) => h.id), ["kept"]);
@@ -23,7 +24,7 @@ test("a hard deletion removes old FTS entries on the very next search without hi
 
 test("one search index can alternate workspaces and handle concurrent calls without swapping their hits", { timeout: 10000 }, async (t) => {
   const repo = new InMemoryPostRepo({}, { initialRows: [post("own"), post("foreign", "other")] });
-  const search = new InMemoryPostSearchIndex(repo);
+  const search = new InMemoryPostSearchIndex({ repo: repo, openScratch: openPostSearchScratch });
   for (const workspaceId of ["ws", "other", "ws"]) {
     assert.deepEqual((await search.search({ ...query, workspaceId })).map((h) => h.id), [workspaceId === "ws" ? "own" : "foreign"]);
   }
@@ -58,7 +59,7 @@ test("one search index can alternate workspaces and handle concurrent calls with
 
 test("a repository read failure propagates instead of returning stale hits, and a retry reads fresh state", async (t) => {
   const repo = new InMemoryPostRepo({}, { initialRows: [post("first")] });
-  const search = new InMemoryPostSearchIndex(repo);
+  const search = new InMemoryPostSearchIndex({ repo: repo, openScratch: openPostSearchScratch });
   assert.deepEqual((await search.search(query)).map((h) => h.id), ["first"]);
   const failure = new Error("post read failed");
   const stub = t.mock.method(repo, "list", async () => { throw failure; });
@@ -73,7 +74,18 @@ test("a repository read failure propagates instead of returning stale hits, and 
 test("BUG: the memory index finds HTML page body prose instead of indexing only its empty doc placeholder", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [{ ...post("html-page"), kind: "page", title: "Studio", slug: "studio",
     bodyFormat: "html", bodyHtml: "<p>Needleword lives in the page body.</p>" }] });
-  const search = new InMemoryPostSearchIndex(repo);
+  const search = new InMemoryPostSearchIndex({ repo: repo, openScratch: openPostSearchScratch });
   assert.deepEqual((await search.search({ ...query, terms: ["studio"] })).map((hit) => hit.id), ["html-page"]);
   assert.deepEqual((await search.search({ ...query, terms: ["needleword"] })).map((hit) => hit.id), ["html-page"]);
+});
+
+
+test("renaming a row removes its old FTS match through the real scratch adapter", async () => {
+  const original = { ...post("renamed"), title: "Oldneedle" };
+  const repo = new InMemoryPostRepo({}, { initialRows: [original] });
+  const search = new InMemoryPostSearchIndex({ repo: repo, openScratch: openPostSearchScratch });
+  assert.equal((await search.search({ ...query, terms: ["oldneedle"] })).length, 1);
+  await repo.save({ ...original, title: "Newneedle", version: 2 });
+  assert.deepEqual(await search.search({ ...query, terms: ["oldneedle"] }), []);
+  assert.equal((await search.search({ ...query, terms: ["newneedle"] })).length, 1);
 });

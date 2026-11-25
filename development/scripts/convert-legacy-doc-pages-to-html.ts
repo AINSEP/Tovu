@@ -68,7 +68,7 @@ import path from "node:path";
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
-import { PagesHtmlDocumentStore } from "../../apps/website/src/features/pages/html-document-store.sqlite.js";
+import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 import { renderDocNode } from "../../apps/website/src/server/inbound/public-http/http/site/render/content-html.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { pagesAgentToolCatalog } from "../agent-tools.js";
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
 
 /**

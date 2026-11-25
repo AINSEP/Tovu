@@ -1,10 +1,12 @@
+import { mailSenderIdentityFor } from "#src/platform/mail/index";
+import { createHash } from "node:crypto";
 /**
  * @file T025 — failing-first tests for `subscriptions.ts` (REQ-10/31, AC-12/13/40, EC-07/08).
  */
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions.js";
+import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "@jini-ai/user-management/newsletter/subscriptions";
 import {
   NewsletterListNotFoundError,
   NewsletterSubscriberNotFoundError,
@@ -13,7 +15,7 @@ import {
 } from "@jini-ai/user-management/newsletter/errors";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "@jini-ai/user-management/newsletter/ports";
-import { consumeConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
+import { consumeConfirmationToken, type ConfirmationDeps } from "@jini-ai/user-management/newsletter/confirmation";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 const WS = "ws-1";
@@ -36,6 +38,9 @@ function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
   counter = 0;
   const sentEmails: OutboundEmail[] = [];
   const confirmationDeps: ConfirmationDeps = {
+    resolveFrom: ({ workspaceId }) => mailSenderIdentityFor({ mailer: confirmationDeps.mailer }).resolve({ workspaceId, fallback: { email: "no-reply@newsletter.local", name: "Newsletter" } }),
+    mintRawToken: () => (++counter).toString(16).padStart(64, "0"),
+    hashToken: ({ raw }) => createHash("sha256").update(raw).digest("hex"),
     tokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     subscriptionRepo: new InMemoryNewsletterSubscriptionRepo(),
     mailer: {

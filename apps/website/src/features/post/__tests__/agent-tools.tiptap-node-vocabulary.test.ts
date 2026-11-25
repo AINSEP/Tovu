@@ -7,7 +7,7 @@ import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-medi
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { DOC_NODE_HANDLERS } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
 import { MARK_RENDERERS } from "@jini-ai/cms/html/document-marks";
-import { postAgentToolCatalog } from "../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { TIPTAP_DOC_SCHEMA } from "../tiptap-doc-schema.js";
 
 /**

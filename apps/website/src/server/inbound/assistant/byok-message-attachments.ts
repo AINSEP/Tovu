@@ -1,6 +1,7 @@
+import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import { prepareMessageAttachments } from "@jini-ai/daemon";
 import type { ChatAttachmentReadResult } from "@jini-ai/core/contracts/headless/chat-attachment";
-import { readChatAttachmentForOwner, sniffContentType } from "#src/features/media/index";
+import { sniffContentType } from "#src/features/media/index";
 
 export class AttachmentUnavailableError extends Error {}
 
@@ -10,7 +11,7 @@ export class AttachmentUnavailableError extends Error {}
  * rather than resolved here from env/`siteDir()`, which can name a different site (hardwiring audit #19). */
 export function prepareByokMessageAttachments(
   { refs, principalId, uploadDirectory }: { refs: readonly string[]; principalId: string; uploadDirectory: string },
-  { read = input => readChatAttachmentForOwner({ uploadDirectory }, input) }: {
+  { read = input => readChatAttachmentForOwner({ uploadDirectory, ...input }, {}) }: {
     read?: (required: { ref: string; ownerId: string }) => Promise<ChatAttachmentReadResult>;
   } = {},
 ) {

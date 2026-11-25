@@ -1,7 +1,9 @@
+import { tableExists } from "@jini-ai/db/kernel";
+import { MediaStillReferencedError } from "@jini-ai/cms/media";
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
-import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
-import { POST_ENTITY_TYPE } from "#src/features/trash/index";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -10,11 +12,11 @@ import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
 import { createCommentTrashAdapter } from "#src/features/trash/index";
 import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
-import { createMediaTrashAdapter } from "#src/features/trash/index";
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { createMediaSearchChangeSink } from "#src/features/media/media-search-source";
-import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
-import { createPostTrashAdapter } from "#src/features/trash/index";
+import { createMemberTrashAdapter } from "#src/features/trash/member-credential-ports";
+import { createPostTrashAdapter } from "@jini-ai/cms/trash/site/adapters/post";
 import { createRedirectTrashAdapter } from "#src/features/trash/index";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { createUserTrashAdapter } from "#src/features/trash/index";
@@ -66,13 +68,13 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
   const { pluginRuntime, pluginActivationRepo, kernel, mediaRepo, entryRefsRepo, postRepo, assetBlobRepo, assetRenditionRepo, blobStore, clock, identity, idGen, trashRegistry, sqliteTrashDb, trashFollowUpHooks } = required;
   const pluginTrashAdapter = pluginTrashAdapterFor({ pluginRuntime, pluginActivationRepo });
   const trashAdapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(kernel)],
+    [POST_ENTITY_TYPE, createPostTrashAdapter({ store: kernel, tableExists })],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(kernel)],
     [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(kernel)],
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
       MEDIA_ENTITY_TYPE,
-      createMediaTrashAdapter({
+      createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,
         db: kernel,
         // Trash and restore here flip `media.status` in SQL, not through the media repo, so they
         // report to the same site-search change sink, inside the marker flip's transaction.

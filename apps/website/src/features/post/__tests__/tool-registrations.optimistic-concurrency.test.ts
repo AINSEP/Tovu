@@ -9,7 +9,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { postAgentToolCatalog } from "../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";

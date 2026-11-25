@@ -21,7 +21,7 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import { runOwnerStoreCommand, type OwnerStoreAction, type OwnerStoreEntry } from "../../commands/owner-store.js";
 import { openProjectStore } from '#src/server/runtime/composition/project-store';
-import { createProjectKeys } from '#src/features/project-keys/service';
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 
 /** S2 boundary integration: a real project.db and, where a test needs one, a real legacy owner.db
  * at ledger 0000 written the way published 0.6.12 wrote it. Scoped to the CLI adapter; Jini owns

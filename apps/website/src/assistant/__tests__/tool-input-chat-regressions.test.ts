@@ -1,3 +1,4 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
 /** @file Real 2026-10-19..21 chat inputs: keep normalization ahead of policy and I/O. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -7,8 +8,8 @@ import { applyBatchInputs } from '../batch-tool-inputs.js';
 import { type BatchResult } from '@jini-ai/core';
 import { getThemesAgentToolCatalog } from '../../features/theme/agent-tools.js';
 import { buildThemesRegistrations } from '../../features/theme/tool-registrations.js';
-import { siteInspectionAgentToolCatalog } from '../../features/site-inspection/agent-tools.js';
-import { buildPagesRegistrations } from '../../features/pages/tool-registrations.js';
+import { siteInspectionAgentToolCatalog } from '#src/features/site-inspection/catalog-host';
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 import { InMemoryPostRepo } from '../../features/post/repo.memory.js';
 import { buildFsFilesRegistrations } from '../../features/fs-files/tool-registrations.js';
 import { executeRegisteredTool } from './fixtures/execute-registered-tool.js';
@@ -121,10 +122,10 @@ test('chat-input regression: media lookup retains the peer site selector and ref
 
 test('raw page writers leave slug resolution to the shared host adapter', async () => {
   let reads = 0;
-  const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
+  const registrations = buildPagesRegistrations({ deps: { workspaceId: 'ws', postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     authorize: async () => ({ allowed: true, reason: 'test' }),
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
-  });
+  }, host: bindPagesToolHost({}) });
   for (const registration of registrations.filter(tool => tool.descriptor.id !== 'pages_read_html')) {
     const result = await executeRegisteredTool({ registration, input: { slug: '/', regionId: 'hero' } });
     assert.equal(result.errorKind, 'validation');

@@ -1,3 +1,4 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +7,7 @@ import type Database from "better-sqlite3";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 
-import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
+import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "../adapters/redirect.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "@jini-ai/cms/trash";
@@ -58,7 +59,7 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))],
+    [POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
   ]);
   const repo = new SqliteTrashRepo({ store: client });
@@ -283,7 +284,7 @@ test("adapters resolve at CALL time, not at registration time", async () => {
   );
 
   // Registered AFTER the service was built — a registration-time snapshot would miss this.
-  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: h.client })));
+  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: h.client }), tableExists }));
   const result = await h.trash.trash({
     workspaceId: WS,
     entityType: POST_ENTITY_TYPE,

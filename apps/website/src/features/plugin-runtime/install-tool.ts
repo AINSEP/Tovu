@@ -1,6 +1,7 @@
 import type { ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { PluginsToolDeps } from './tool-registrations.js';
-import { type InstallAttachmentReader } from '#src/contracts/headless/index';
+import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/plugin-install-source";
+
 import { buildPluginInstallRegistrations, pluginInstallDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginInstallTools } from './install-tool-binding.js';
 import { PLUGINS_INSTALL_TOOL_ID } from '@jini-ai/plugins/runtime/install-tool-catalog';

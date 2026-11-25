@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 /**
  * @file `content-analyzer` — the bundled Tier-2 sample plugin: SEO / readability analysis on save
  * (AW-7 Tier 2; ADR-024 §3/§4).
@@ -88,8 +89,7 @@ export const CONTENT_ANALYZER_MANIFEST: PluginManifest = {
 
 export const CONTENT_ANALYZER_BUILT_IN: BuiltInPluginSource = { manifest: CONTENT_ANALYZER_MANIFEST };
 
-const SOURCE_FILE = fileURLToPath(import.meta.url);
-const SOURCE_DIR = path.dirname(SOURCE_FILE);
+const ENTRY = realpathSync(fileURLToPath(import.meta.resolve("@jini-ai/cms/seo/content-analyzer-plugin/plugin")));
 
 /** Load metadata consumed by the server composition root. `entryPath` is the worker entry module
  * next to this file — `plugin.ts` under `tsx`, `plugin.js` in the compiled `dist/` twin — taken from
@@ -97,11 +97,11 @@ const SOURCE_DIR = path.dirname(SOURCE_FILE);
 export const CONTENT_ANALYZER_RUNTIME_SOURCE = {
   manifest: CONTENT_ANALYZER_MANIFEST,
   source: "built-in" as const,
-  entryPath: path.join(SOURCE_DIR, `plugin${path.extname(SOURCE_FILE)}`),
+  entryPath: ENTRY,
   // Tier-2 code runs only inside the Tier-2 host's worker; the host injects its own seam that
   // loads `entryPath` there. Reaching this default means something tried to import it in-process.
   importModule: (): Promise<never> => Promise.reject(new Error("tier-2 plugin code never runs in the server process")),
   // Shown read-only by the admin Plugins screen's package-files viewer: this folder under `tsx`,
   // its compiled `dist/` twin in a production build.
-  sourceDir: SOURCE_DIR,
+  sourceDir: path.dirname(ENTRY),
 };

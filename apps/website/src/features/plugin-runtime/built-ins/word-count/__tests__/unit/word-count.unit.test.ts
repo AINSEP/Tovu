@@ -23,13 +23,13 @@ test("REQ-09: WORD_COUNT_MANIFEST declares exactly the three v1 capabilities, on
 
 test("the runtime source imports the plugin whose beforeSave filter stores the entry's word count", async () => {
   const { HOOK_CONTENT_ENTRY_BEFORE_SAVE } = await import("@tovu/sdk");
-  const { WORD_COUNT_PLUGIN, WORD_COUNT_RUNTIME_SOURCE } = await import("../../index.js");
+  const { WORD_COUNT_RUNTIME_SOURCE } = await import("../../index.js");
   assert.equal(WORD_COUNT_RUNTIME_SOURCE.entryPath, "built-in:word-count");
   assert.equal(WORD_COUNT_RUNTIME_SOURCE.source, "built-in");
   assert.equal(WORD_COUNT_RUNTIME_SOURCE.manifest, WORD_COUNT_MANIFEST);
   assert.equal(WORD_COUNT_RUNTIME_SOURCE.sourceDir, path.resolve(import.meta.dirname, "../.."));
   const imported = await WORD_COUNT_RUNTIME_SOURCE.importModule();
-  assert.equal(imported.default, WORD_COUNT_PLUGIN);
+  assert.equal(imported.default, (await WORD_COUNT_RUNTIME_SOURCE.importModule()).default);
 
   const filters: { hook: string; filter: (entry: { bodyJson: unknown }) => Promise<unknown> }[] = [];
   const sdk = { addFilter: (hook: string, filter: (entry: { bodyJson: unknown }) => Promise<unknown>) => { filters.push({ hook, filter }); } };
@@ -41,4 +41,13 @@ test("the runtime source imports the plugin whose beforeSave filter stores the e
   // "two" + "words" with no trailing space still counts 2 through the hook, not 1.
   const adjacent = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "two" }, { type: "text", text: "words" }] }] };
   assert.deepEqual(await filters[0]!.filter({ bodyJson: adjacent }), { count: 2 });
+});
+
+
+test("registered source imports one stable plugin and exposes the same manifest to package inspection", async () => {
+  const { WORD_COUNT_RUNTIME_SOURCE } = await import("../../index.js");
+  const first = await WORD_COUNT_RUNTIME_SOURCE.importModule();
+  assert.equal((await WORD_COUNT_RUNTIME_SOURCE.importModule()).default, first.default);
+  assert.equal(WORD_COUNT_RUNTIME_SOURCE.manifest, WORD_COUNT_MANIFEST);
+  assert.equal(typeof first.default.definition.setup, "function");
 });

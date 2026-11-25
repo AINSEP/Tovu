@@ -11,7 +11,7 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import { MediaStillReferencedError } from "#src/features/media/index";
@@ -113,7 +113,7 @@ test("purge returns 200 for referenced media and continues purging later selecte
     client.prepare(`INSERT INTO media (id, workspace_id, title, alt, caption, credit, source_sha256, status, created_at, updated_at, version)
       VALUES (?, 'ws-7', ?, '', '', '', ?, 'active', ?, ?, 1)`).run(id, id, "0".repeat(64), now, now);
   }
-  const adapter = createMediaTrashAdapter({ db: contentKernel({ store: client }), purgeAsset: async ({ entityId }) => {
+  const adapter = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: contentKernel({ store: client }), purgeAsset: async ({ entityId }) => {
     if (entityId === "media-used") throw new MediaStillReferencedError({ message: "still used by a post", referencing: ["post-8:bodyHtml"] });
     client.prepare("DELETE FROM media WHERE workspace_id = ? AND id = ?").run("ws-7", entityId);
   } });

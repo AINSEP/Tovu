@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { readPluginInstallRequest, readPluginInstallArchive } from '../../../features/plugin-runtime/install-source.js';
+import { createHostPluginInstallSource } from "#src/features/plugin-runtime/host-install-source";
+const { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive } = createHostPluginInstallSource({});
 import { CHAT_ATTACHMENT_REF_PATTERN } from '@jini-ai/core/contracts/headless/chat-attachment';
 
 /** `plugin-host`, `plugin-export-catalog` and `chat-attachment` moved to `@jini-ai/core/contracts/headless/*`, where the
@@ -121,4 +122,18 @@ test('L079: oversized stat prevents allocation and read failures propagate uncha
   await assert.rejects(readPluginInstallArchive(required, { files: {
     stat: async () => ({ size: 3 }), read: async () => { throw failure; },
   } }), error => error === failure);
+});
+
+
+test('both bindings accept the same guarded source but neither treats denied attachment custody as a file read', async () => {
+  const source = createHostPluginInstallSource({});
+  const request = source.readRequest({ input: { source: { kind: 'zip', attachmentRef: 'attachment:11111111-2222-3333-4444-555555555555' } } });
+  let reads = 0;
+  for (const readArchive of [source.readArchive, readPluginInstallArchive]) {
+    await assert.rejects(readArchive({ request, ownerId: 'owner', runId: 'run', maxBytes: 32 }, {
+      files: { stat: async () => { reads++; return { size: 1 }; }, read: async () => { reads++; return Uint8Array.of(1); } },
+      readAttachment: async () => ({ ok: false, refusal: 'not-owner' }),
+    }), /Chat ZIP attachment is unavailable/);
+  }
+  assert.equal(reads, 0);
 });

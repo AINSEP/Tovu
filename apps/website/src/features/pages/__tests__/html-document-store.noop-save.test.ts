@@ -1,3 +1,6 @@
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
@@ -10,8 +13,9 @@ import { createPost } from "../../post/post-create.js";
 import { updatePost } from "../../post/post-update.js";
 import { postRepoFor } from "../../post/repo.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { PageConcurrentEditError, SqlPagesHtmlDocumentStore, type PagesHtmlDocumentStorePort } from "../html-document-store.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
+import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
+import { type PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
 
 const clock = { nowMs: () => Date.parse("2026-10-10T12:00:00Z") };
 const key = { workspaceId: "ws-html-noopsave", id: "page-1" };
@@ -113,7 +117,7 @@ function saveContract(make: () => Harness): void {
 describe("HTML no-op saves: memory", () => saveContract(() => {
   const repo = new InMemoryPostRepo({});
   const refs = new CountingEntryRefs();
-  return { repo, refs, store: () => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock, entryRefsRepo: refs }) };
+  return { repo, refs, store: () => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, entryRefsRepo: refs, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) };
 }));
 
 describeEachDialect("HTML no-op saves: SQL", {
@@ -122,13 +126,13 @@ describeEachDialect("HTML no-op saves: SQL", {
   saveContract(() => {
     const { kernel, repo } = make();
     const refs = new CountingEntryRefs();
-    return { repo, refs, store: () => new SqlPagesHtmlDocumentStore(scope, { kernel, clock, revisions: repo, entryRefsRepo: refs }) };
+    return { repo, refs, store: () => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, revisions: repo, entryRefsRepo: refs, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) };
   });
 
   test("identical HTML without the optional revision port also preserves the row version", async () => {
     const { kernel, repo } = make();
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
-    const store = new SqlPagesHtmlDocumentStore(scope, { kernel, clock });
+    const store = new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.ensureHtmlFormat({ seedHtml: "<p>original</p>" });
     const before = await repo.findById(key);
     await store.write({ html: "<p>original</p>" });

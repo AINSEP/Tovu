@@ -39,7 +39,7 @@ import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } f
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { formatCustomInstructionsOverlay } from "@jini-ai/agent-runtime/custom-instructions";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { POST_ENTITY_TYPE } from "../../features/trash/adapters/post.js";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";

@@ -21,7 +21,7 @@ import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
-import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
+import { createMemberTrashAdapter } from "#src/features/trash/member-credential-ports";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";

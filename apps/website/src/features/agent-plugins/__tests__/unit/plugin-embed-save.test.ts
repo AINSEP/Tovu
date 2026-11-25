@@ -1,10 +1,12 @@
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 /** OPUS-REVIEW T1: both seed and CAS writes validate before any mutation. */
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createPost, InMemoryPostRepo } from "#src/features/post/index";
-import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/html-document-store.memory";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { PluginEmbedValidationError } from "../../exports/diagnostics.js";
 import { config, definition, harness, owner, workspaceId } from "../fixtures/plugin-exports.js";
 const clock = { nowMs: () => Date.parse("2026-10-24T00:00:00.000Z") };
@@ -13,7 +15,7 @@ test("T1: invalid known props reject seed/save with a typed editor error and pre
   const { runtime } = harness();
   const repo = new InMemoryPostRepo({});
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "page", title: "Page", kind: "page" } });
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: "page" }, { repo, clock, validatePluginEmbeds: runtime.validateHtml });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: "page" }, deps: { repo, clock, validatePluginEmbeds: runtime.validateHtml, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   const invalid = embedMarkerSnippetFromConfig({ config: { ...config, props: { label: 42 } } });
   const beforeSeed = await repo.findById({ workspaceId, id: "page" });
   await assert.rejects(store.ensureHtmlFormat({ seedHtml: invalid }), PluginEmbedValidationError);
@@ -63,8 +65,8 @@ test("T1: asynchronous validation cannot recapture a newer write's concurrency b
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "page", title: "Page", kind: "page" } });
   let release!: () => void;
   const secondGate = new Promise<void>(resolve => { release = resolve; });
-  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: "page" }, { repo, clock,
-    validatePluginEmbeds: async ({ html }) => { if (html.includes("second")) await secondGate; return []; } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: "page" }, deps: { repo, clock,
+    validatePluginEmbeds: async ({ html }) => { if (html.includes("second")) await secondGate; return []; }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: "<p>Original</p>" });
   await store.read();
   const first = store.write({ html: "<p>first</p>" });

@@ -43,3 +43,9 @@ test("the exported landing page keeps its legacy bytes through the composed host
   assert.equal(createHash("sha256").update(landing).digest("hex"), LEGACY_LANDING_SHA256);
   assert.match(landing.toString(), /<article class="card active"><div class="card-head"><h2>summer<\/h2><span class="badge">Active theme<\/span>/);
 });
+
+
+test("host chooses the same byte-pinned landing", () => {
+  assert.equal(STATIC_DOWNLOAD_HOST.renderLanding, staticLandingPage);
+  assert.equal(createHash("sha256").update(exportedLanding()).digest("hex"), LEGACY_LANDING_SHA256);
+});

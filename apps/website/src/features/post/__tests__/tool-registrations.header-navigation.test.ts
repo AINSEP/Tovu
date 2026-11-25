@@ -10,7 +10,7 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { postAgentToolCatalog } from "../agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { PAGE_HEADER_NAVIGATION } from "../post-tool-view-deps.js";
 import { type PostToolDeps } from "../post-tool-deps.js";

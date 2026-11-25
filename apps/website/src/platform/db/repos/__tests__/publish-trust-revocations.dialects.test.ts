@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "../../../../features/publish-trust/publish-trust-revocations.js";
+import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "@jini-ai/cms/publish/trust/revocations.sql";
 import { MAX_REVOCATIONS } from "@jini-ai/cms/publish/trust/revocations";
 import { sql } from "kysely";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
@@ -70,7 +70,7 @@ describeEachDialect("publish trust revocation failures", {
     const kernel = make();
     await kernel.execute(sql`ALTER TABLE publish_trust_revocations RENAME TO revocations_aside`);
     try {
-      const store = new SqlPublishTrustRevocationStore(kernel);
+      const store = new SqlPublishTrustRevocationStore({ kernel });
       await assert.rejects(publishTrustRevocationStoreFor({ kernel }), /publish trust revocation store is unavailable at boot/);
       for (const result of [await store.list(), await store.revoke({ sourceInstallationId: "new", nowIso: "2026-09-01T00:00:00.000Z" }),
         await store.restore({ sourceInstallationId: "existing" })]) {
@@ -151,19 +151,19 @@ test("a driver rejecting with a non-Error value is reported as an unknown error 
     await kernel.execute(sql`INSERT INTO publish_trust_revocations VALUES ('keep-disconnected', '2026-09-01T00:00:00.000Z', null)`);
     const always = kernelThrowingNonErrors({ kernel, failRuns: new Set([1, 2]) });
     await assert.rejects(publishTrustRevocationStoreFor({ kernel: always }), { message: "publish trust revocation store is unavailable at boot: unknown error" });
-    assert.deepEqual(await new SqlPublishTrustRevocationStore(always).list(), {
+    assert.deepEqual(await new SqlPublishTrustRevocationStore({ kernel: always }).list(), {
       ok: false, reason: "the list of disconnected computers could not be read: unknown error",
     });
 
-    const failedInsert = new SqlPublishTrustRevocationStore(kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }));
+    const failedInsert = new SqlPublishTrustRevocationStore({ kernel: kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }) });
     assert.deepEqual(await failedInsert.revoke({ sourceInstallationId: "new", nowIso: "2026-09-02T00:00:00.000Z" }), {
       ok: false, reason: "the disconnected-computer list could not be updated: unknown error",
     });
-    const failedDelete = new SqlPublishTrustRevocationStore(kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }));
+    const failedDelete = new SqlPublishTrustRevocationStore({ kernel: kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }) });
     assert.deepEqual(await failedDelete.restore({ sourceInstallationId: "keep-disconnected" }), {
       ok: false, reason: "the disconnected-computer list could not be updated: unknown error",
     });
-    assert.deepEqual(await new SqlPublishTrustRevocationStore(kernel).list(), {
+    assert.deepEqual(await new SqlPublishTrustRevocationStore({ kernel }).list(), {
       ok: true, revocations: [{ sourceInstallationId: "keep-disconnected", revokedAt: "2026-09-01T00:00:00.000Z", note: null }],
     });
   } finally { await kernel.close(); }

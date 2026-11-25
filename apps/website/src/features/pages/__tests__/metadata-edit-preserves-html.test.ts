@@ -1,13 +1,16 @@
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost, updatePost, InMemoryPostRepo } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
 
 /**
@@ -49,10 +52,7 @@ async function seedHtmlPage(repo: InMemoryPostRepo, html: string) {
     deps: { repo, clock },
     input: { workspaceId: "ws-1", id: "page-1", title: "Pricing", kind: "page" },
   });
-  const store = new InMemoryPagesHtmlDocumentStore(
-    { workspaceId: "ws-1", postId: "page-1" },
-    { repo, clock }
-  );
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
   await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
   await store.write({ html });
@@ -145,7 +145,7 @@ describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revi
     const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: "ws-1", postId: "page-sql" }, { kernel, clock });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-sql" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.ensureHtmlFormat({ seedHtml: html });
     const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
     assert.ok(original);

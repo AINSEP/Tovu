@@ -1,3 +1,6 @@
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -6,7 +9,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "#src/features/pages/html-document-store";
+import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "../operations.js";
 
@@ -30,12 +33,12 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
       postRepo,
       clock,
       idGen: { newId: () => `tpl-${++n}` },
-      pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
+      pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
     };
     const a = await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "A", html: HTML }, actorId: "u1" });
     await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "B", fields: ["code"] }, actorId: "u1" });
     assert.equal(a.subject, "Hi {{name}}");
-    const pagesSurface = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: a.id }, { kernel, clock, revisions: postRepo });
+    const pagesSurface = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: a.id }, deps: { statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await assert.rejects(pagesSurface.read(), PageNotFoundError);
     await assert.rejects(pagesSurface.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
     await assert.rejects(pagesSurface.write({ html: "<p>bypass</p>" }), /before read/);

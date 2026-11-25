@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { postAgentToolCatalog } from '../agent-tools.js';
+import { postAgentToolCatalog } from '#src/features/post/post-catalog-host';
 
 test('post creation and editing teach cover-only requests without a second copy in the body', () => {
   for (const name of ['content_post_create', 'content_post_update']) {

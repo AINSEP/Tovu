@@ -17,7 +17,7 @@ import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "#src/features/publish-trust/publish-trust-revocations";
+import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "@jini-ai/cms/publish/trust/revocations.sql";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
@@ -156,7 +156,7 @@ async function stop(server: Server): Promise<void> {
   delete process.env[PUBLISH_TRUST_ENV_VAR];
 }
 
-test("a database disconnect refuses the next real publish request even with its already-minted valid token", async () => {
+test("restart keeps a disconnected publisher denied on its original grant", async () => {
   const { dir, db } = await freshContentDb();
   let server: Server | undefined;
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
@@ -186,6 +186,15 @@ test("a database disconnect refuses the next real publish request even with its 
     const after = await probe(socketPath, token);
     assert.equal(after.status, 401, after.body);
     assert.deepEqual(JSON.parse(after.body), { error: "unauthenticated", code: "UNAUTHENTICATED" });
+    await stop(server);
+    deps = await createSiteRouteDeps({}, { dbPath: join(dir, "content.db"), overrides: { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") } });
+    deps.siteAssistantSecretKeyring = testKeyring(SOURCE_ROOT);
+    server = createServer(createApp(deps));
+    server.listen(socketPath);
+    await once(server, "listening");
+    const restarted = await probe(socketPath, token);
+    assert.equal(restarted.status, 401, restarted.body);
+
   } finally {
     if (server) await stop(server);
     if (deps) {

@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -26,8 +27,8 @@ import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlit
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
-import { createMemberTrashAdapter } from "../adapters/member.js";
-import { moveToTrash } from "../move-to-trash.js";
+import { createMemberTrashAdapter } from "#src/features/trash/member-credential-ports";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
 import { trashToolEntityTypes } from "../tool-kinds.js";
@@ -68,7 +69,7 @@ function harness() {
   }
   const move = (id = "member-1", workspaceId = WS, expectedVersion = 1) => moveToTrash({
     workspaceId, entityType: "member", entityId: id, expectedVersion, actor: { principalId: "operator", pluginId: "assistant" },
-  }, { registry, db: kernel, trash, clock: { nowIso: () => AT }, authorize });
+  }, { registry, trash, clock: { nowIso: () => AT }, authorize, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: kernel, registry: registry }) });
   const tools = buildTrashRegistrations({ registry, trash, authorize, workspaceId: WS, clock: { nowIso: () => LATER },
     userRepo: { findByPrincipalId: async () => null, findByUsername: async () => null, list: async () => [], save: async () => {} },
   });
@@ -369,4 +370,21 @@ test("member DELETE maps stale writes and unavailable runtime, and keeps store f
     assert.equal(capture.statusCode, entry.status);
     assert.ok(!JSON.stringify(capture.jsonBody).includes("private database failure"));
   }
+});
+
+
+test("credential revocation failure rolls back the marker and trash index", async t => {
+  const h = harness(); t.after(() => h.client.close()); h.seed();
+  h.client.exec("CREATE TRIGGER refuse_sessions BEFORE UPDATE ON member_sessions BEGIN SELECT RAISE(ABORT, 'revocation failed'); END");
+  await assert.rejects(h.move(), /revocation failed/);
+  assert.equal((await h.members.findById({ workspaceId: WS, id: "member-1" }))?.status, "active");
+  assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
+  assert.equal((h.client.prepare("SELECT consumed_at FROM member_magic_tokens WHERE member_id='member-1'").get() as { consumed_at: string | null }).consumed_at, null);
+});
+
+test("a real hide revokes sessions and consumes sign-in links in the marker transaction", async t => {
+  const h = harness(); t.after(() => h.client.close()); h.seed();
+  assert.deepEqual(await h.move(), { ok: true, version: 2 });
+  assert.equal((h.client.prepare("SELECT revoked_at FROM member_sessions WHERE member_id='member-1'").get() as { revoked_at: string }).revoked_at, AT);
+  assert.equal((h.client.prepare("SELECT consumed_at FROM member_magic_tokens WHERE member_id='member-1'").get() as { consumed_at: string }).consumed_at, AT);
 });

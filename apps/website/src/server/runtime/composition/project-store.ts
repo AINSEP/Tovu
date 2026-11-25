@@ -1,4 +1,4 @@
-import { providerKeyId } from "#src/features/project-keys/service";
+import { providerKeyId } from "@jini-ai/user-management/project-keys/service";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { sql } from "kysely";
 import { openSqliteConnection } from "@jini-ai/db/sqlite";

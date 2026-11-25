@@ -1,6 +1,6 @@
 import type { MutationActor } from "@jini-ai/core/contracts/events";
 import { indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId } from "@jini-ai/core";
-import { postAgentToolCatalog } from "./agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 /**

@@ -14,7 +14,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { SqliteTrashRepo, TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
+import { createMemberTrashAdapter } from "#src/features/trash/member-credential-ports";
 import { composeTrashService } from "../site-deps/trash-service.js";
 import { TRASH_RETENTION_DAYS } from "../trash-retention.js";
 

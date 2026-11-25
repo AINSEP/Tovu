@@ -1,3 +1,4 @@
+import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import { createContributionRegistry, batchDescriptorFor } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -10,9 +11,10 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
+import { InMemoryPostRepo } from "../../features/post/index.js";
+import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
-import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
+import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resolveBatchableTools } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -73,7 +75,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     // The REAL search adapter, not a stub: `InMemoryPostSearchIndex` runs the same FTS5/BM25 query
     // the durable one does (see its own header), so `content_post_search`'s wiring is certified
     // against real ranking rather than against a hand-fed result list.
-    postSearch: new InMemoryPostSearchIndex(postRepo),
+    postSearch: new InMemoryPostSearchIndex({ repo: postRepo, openScratch: openPostSearchScratch }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

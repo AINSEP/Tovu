@@ -1,3 +1,6 @@
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
@@ -9,8 +12,8 @@ import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management
 
 import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { buildPagesRegistrations } from "../tool-registrations.js";
+import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
+import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
@@ -344,16 +347,16 @@ async function toolHarness() {
   const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const storeCalls: string[] = [];
 
-  const registrations = buildPagesRegistrations({
+  const registrations = buildPagesRegistrations({ deps: {
     workspaceId: WORKSPACE,
     authorize: (params) =>
       chain.can(params.principalId, params.permission) as ReturnType<
-        Parameters<typeof buildPagesRegistrations>[0]["authorize"]
+        Parameters<typeof buildPagesRegistrations>[0]["deps"]["authorize"]
       >,
     postRepo,
     ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => {
-      const real = new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock });
+      const real = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
       return {
         ensureHtmlFormat: async ({ seedHtml }: { seedHtml: string }) => {
           storeCalls.push("ensureHtmlFormat");
@@ -373,7 +376,7 @@ async function toolHarness() {
         capturedVersion: () => real.capturedVersion(),
       };
     },
-  });
+  }, host: bindPagesToolHost({}) });
 
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
   const call = async (name: string, principalId: string, input: Record<string, unknown>) => {
@@ -456,4 +459,22 @@ test("pages_write_region refuses an editor through the real identity chain and p
   const result = await call("pages_write_region", chain.principals.admin, { id: "page-1", regionId: "hero", html: "<h1>Admin edit</h1>" }) as { written: boolean };
   assert.equal(result.written, true);
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" }))?.bodyHtml, '<section data-agent-element="hero" data-agent-role="region"><h1>Admin edit</h1></section>');
+});
+
+
+test("changing host permission does not leave a different implicit permission on any writer", async () => {
+  const host = bindPagesToolHost({});
+  assert.equal(host.editHtmlPermission, "pages.edit_html");
+  const asked: string[] = [];
+  const deps = { ...pageHtmlChangeTestDeps(), workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
+    authorize: async ({ permission }: { permission: string }) => { asked.push(permission); return { allowed: false, reason: "no_grant" }; },
+    pagesHtmlStore: () => assert.fail("denied writer must not open a store") };
+  const tools = buildPagesRegistrations({ deps, host: { ...host, editHtmlPermission: "host.html.edit" } });
+  for (const name of ["pages_write_html", "pages_write_region", "pages_move_region"]) {
+    const tool = tools.find(tool => tool.descriptor.id === name);
+    assert.ok(tool);
+    await assert.rejects(tool.handler({ principal: { id: "editor" }, signal: new AbortController().signal,
+      input: { id: "page", expectedVersion: 1, html: "<section></section>", regionId: "hero", before: "body" } } as never));
+  }
+  assert.deepEqual(asked, ["host.html.edit", "host.html.edit", "host.html.edit"]);
 });

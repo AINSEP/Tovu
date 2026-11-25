@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
@@ -19,7 +20,8 @@ import { type PostRecord } from "@jini-ai/cms/posts/post";
 
 
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
-import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
+import { type MoveToTrashOutcome } from "@jini-ai/core/contracts/site/cms-trash";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -195,16 +197,7 @@ const noopOutbox: OutboxPort = {
 };
 
 async function trashItem(h: Harness, entityType: TrashEntityType, entityId: string): Promise<MoveToTrashOutcome> {
-  return moveToTrash(
-    { workspaceId: WS, entityType, entityId, actor: ACTOR },
-    {
-      registry: h.registry,
-      trash: h.trash,
-      db: contentKernel({ store: h.db }),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: createFakeClock({ startIso: AT }),
-    }
-  );
+  return moveToTrash({ workspaceId: WS, entityType, entityId, actor: ACTOR }, { registry: h.registry, trash: h.trash, authorize: async () => ({ allowed: true, reason: "matched" }), clock: createFakeClock({ startIso: AT }), readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
 }
 
 async function trashItemId(h: Harness, entityId: string): Promise<string> {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pagesAgentToolCatalog } from "../agent-tools.js";
+import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 
 /**
  * Owner decision P10 G7-13: the admin agent adds WebMCP tags (`data-toolname`, `toolname`, ...) to

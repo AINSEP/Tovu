@@ -7,7 +7,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { configureSiteSharing } from "../site-deps/site-sharing.js";
-import type { ArtifactStoreCapable } from "#src/features/object-storage/artifact-provider";
+import type { ArtifactStoreCapable } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "../deps.js";

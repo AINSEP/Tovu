@@ -7,13 +7,8 @@ import { pageUpdateHtmlRoute } from "@jini-ai/cms/admin-http/routes/pages/update
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { createPost, getAdminPostByIdOrSlug, listAdminPages } from "#src/features/post/index";
 import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
-import {
-  DEFAULT_PAGE_SKELETON,
-  PAGES_EDIT_HTML_PERMISSION,
-  PageConcurrentEditError,
-  PageKindMismatchError,
-  PageNotFoundError,
-} from "#src/features/pages/index";
+import { DEFAULT_PAGE_SKELETON, PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
+import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError } from "@jini-ai/cms/pages/html-document-store";
 import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";

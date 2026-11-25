@@ -1,6 +1,6 @@
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
-import { POST_ENTITY_TYPE } from "./adapters/post.js";
+import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "./permissions.js";
 import type { TrashEntityType, TrashRegistry } from "@jini-ai/cms/trash";

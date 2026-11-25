@@ -3,7 +3,8 @@ import { RevertConflictError, RevertNotPossibleError } from "@jini-ai/cms/core/c
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 
-import { PageConcurrentEditError, PageNotFoundError, type PagesHtmlDocumentStoreFactory } from "./html-document-store.js";
+import { PageConcurrentEditError, PageNotFoundError } from "@jini-ai/cms/pages/html-document-store";
+import { type PagesHtmlDocumentStoreFactory } from "@jini-ai/core/contracts/site/page-html-store";
 import { PAGE_HTML_ENTITY_TYPE, parsePageHtmlInverse } from "./html-inverse.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 

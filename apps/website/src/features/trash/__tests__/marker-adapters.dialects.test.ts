@@ -1,12 +1,13 @@
+import { tableExists } from "@jini-ai/db/kernel";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
-import { createMediaTrashAdapter } from "../adapters/media.js";
+import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import { MediaStillReferencedError } from "../../media/index.js";
-import { createPostTrashAdapter } from "../adapters/post.js";
+import { createPostTrashAdapter } from "@jini-ai/cms/trash/site/adapters/post";
 import { createRedirectTrashAdapter } from "../adapters/redirect.js";
 
 /**
@@ -95,7 +96,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
   test("post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions", async () => {
     const kernel = make();
     await seedPost(kernel, "p-1");
-    const post = createPostTrashAdapter(kernel);
+    const post = createPostTrashAdapter({ store: kernel, tableExists });
 
     assert.deepEqual(await post.hide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
     assert.deepEqual(await post.hide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: null }), { ok: true, version: 2 });
@@ -129,7 +130,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
         return kernel.query(...args);
       } },
     });
-    const post = createPostTrashAdapter(flaky);
+    const post = createPostTrashAdapter({ store: flaky, tableExists });
 
     await assert.rejects(post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), (caught) => caught === probeError);
     assert.equal(await post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), "purged", "the failed probe was not cached as an answer");
@@ -167,7 +168,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
         return result;
       }) as ContentKernel["run"],
     };
-    await assert.rejects(() => createPostTrashAdapter(failing).purge({ workspaceId: WS, entityId: "p-1", expectedVersion: 1 }), /cascade failed/);
+    await assert.rejects(() => createPostTrashAdapter({ store: failing, tableExists }).purge({ workspaceId: WS, entityId: "p-1", expectedVersion: 1 }), /cascade failed/);
     assert.equal(await count(kernel, "posts"), 1, "the row delete rolled back with the failed cascade");
     assert.equal(await count(kernel, "post_revisions"), 1);
   });
@@ -176,7 +177,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     const kernel = make();
     await seedMedia(kernel, "m-1");
     const purged: string[] = [];
-    const media = createMediaTrashAdapter({
+    const media = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,
       db: kernel,
       purgeAsset: async ({ entityId }) => {
         purged.push(entityId);
@@ -195,7 +196,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
   test("media: unhide restores persisted active status and advances the version", async () => {
     const kernel = make();
     await seedMedia(kernel, "m-restore");
-    const media = createMediaTrashAdapter({ db: kernel, purgeAsset: async () => assert.fail("restore must not purge") });
+    const media = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: kernel, purgeAsset: async () => assert.fail("restore must not purge") });
     assert.deepEqual(await media.hide({ workspaceId: WS, entityId: "m-restore", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
     assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "trashed", version: 2 });
     assert.deepEqual(await media.unhide({ workspaceId: WS, entityId: "m-restore", at: AT, expectedVersion: 2 }), { ok: true, version: 3 });
@@ -206,7 +207,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     const kernel = make();
     await seedMedia(kernel, "m-referenced");
     let error: Error = new MediaStillReferencedError({ message: "media is still used", referencing: ["post-1:bodyHtml"] });
-    const media = createMediaTrashAdapter({ db: kernel, purgeAsset: async () => { throw error; } });
+    const media = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: kernel, purgeAsset: async () => { throw error; } });
     await media.hide({ workspaceId: WS, entityId: "m-referenced", at: AT, expectedVersion: 1 });
     const input = { workspaceId: WS, entityId: "m-referenced", expectedVersion: 2 };
 
@@ -221,7 +222,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     await seedMedia(kernel, "m-kept");
     await seedMedia(kernel, "m-forced");
     const purged: string[] = [];
-    const media = createMediaTrashAdapter({
+    const media = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,
       db: kernel,
       purgeAsset: async ({ entityId }) => {
         purged.push(entityId);

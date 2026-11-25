@@ -24,7 +24,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createPageHtmlReverter } from "../html-reverter.js";
-import type { PagesHtmlDocumentStorePort } from "../html-document-store.js";
+import type { PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
 
 /**
  * @file P1-T2.T — every real assistant HTML write earns exactly one scoped `page-html` change set,
@@ -401,4 +401,25 @@ test("mounted admin revert: force on a stale page-html change is 403 with plain 
   assert.match(body.error, /edit it again/);
   assert.equal((await row(deps, "p-http-force")).bodyHtml, NEWER);
   assert.equal((await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string }))?.changeSet.status, "applied");
+});
+
+test("change-set failure rolls the real writer and revisions back together", async (t) => {
+  const deps = await sqliteRoot(t);
+  const version = await seedPage(deps, "p-fail", RAW_PRIOR);
+  const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-fail" });
+  const refsBefore = await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-fail" });
+  // Drain what seeding queued, so anything pending afterwards could only have come from the failed write.
+  const drain = () => deps.outbox.claimPending({ batchSize: 1000, nowIso: "2999-01-01T00:00:00.000Z" });
+  await drain();
+  const realInsert = deps.changeSets.insert.bind(deps.changeSets);
+  deps.changeSets.insert = async () => { throw new Error("injected change-set insert failure"); };
+  t.after(() => { deps.changeSets.insert = realInsert; });
+
+  await assert.rejects(call(deps, "pages_write_html", { id: "p-fail", html: NEXT, expectedVersion: version }));
+  const after = await row(deps, "p-fail");
+  assert.equal(after.bodyHtml, RAW_PRIOR);
+  assert.equal(after.version, version);
+  assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-fail" }), revisionsBefore);
+  assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: deps.workspaceId, sourceEntryId: "p-fail" }), refsBefore);
+  assert.deepEqual(await drain(), [], "no outbox row survives the rolled-back write");
 });

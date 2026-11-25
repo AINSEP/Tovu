@@ -1,16 +1,21 @@
+import { createHash, randomBytes } from "node:crypto";
+import { mailSenderIdentityFor } from "../../platform/mail/index.js";
 import { orFallback } from "@jini-ai/core/errors/idioms";
-import type { ConfirmationDeps } from "./confirmation.js";
+import type { ConfirmationDeps } from "@jini-ai/user-management/newsletter/confirmation";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
-import type { SubscriptionsDeps } from "./subscriptions.js";
+import type { SubscriptionsDeps } from "@jini-ai/user-management/newsletter/subscriptions";
 import type { NewsletterToolDeps } from "./tool-registrations.js";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 export type ConfirmationSourceDeps = Pick<NewsletterToolDeps, "newsletterConfirmationTokenRepo" | "newsletterSubscriptionRepo" | "mailer" | "membersConsentCapability" | "originRegistry" | "clock" | "idGen" | "mailSenderIdentity">;
 export type SubscriptionsSourceDeps = ConfirmationSourceDeps & Pick<NewsletterToolDeps, "newsletterListRepo" | "newsletterSubscriberDirectory">;
 export type SendPipelineSourceDeps = Pick<NewsletterToolDeps, "newsletterCampaignRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterSubscriberDirectory" | "newsletterHooks" | "mailer" | "membersConsentCapability" | "originRegistry" | "outbox" | "bus" | "clock" | "idGen">;
+
+/** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
+const NEWSLETTER_FALLBACK_SENDER = { email: "no-reply@newsletter.local", name: "Newsletter" } as const;
 
 /** Assemble the confirmation service's ports from the feature or route deps. @complexity O(1). */
 export function buildConfirmationDeps(
@@ -25,7 +30,10 @@ export function buildConfirmationDeps(
     originRegistry: deps.originRegistry,
     clock: deps.clock,
     ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
+    resolveFrom: ({ workspaceId }, _optional = {}) => mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.mailSenderIdentity })
+      .resolve({ workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER }),
+    mintRawToken: ({}, _optional = {}) => randomBytes(32).toString("hex"),
+    hashToken: ({ raw }, _optional = {}) => createHash("sha256").update(raw).digest("hex"),
   };
 }
 

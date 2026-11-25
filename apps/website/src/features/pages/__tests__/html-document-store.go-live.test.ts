@@ -1,3 +1,6 @@
+import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
+import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -7,7 +10,7 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
-import { SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 
 /**
  * @file HTML page writes and the go-live sweep (review fix, 2026-10-21). A write moves `updated_at`
@@ -86,7 +89,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const { db, repo } = harness();
     await insertScheduledPage(db, { html: "<p>v1</p>" });
     const outbox = recordingOutbox();
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock: clockAt(LATER), revisions: repo, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.read();
     await store.write({ html: "<p>v2</p>" });
     await sweep(repo, outbox, LATER);
@@ -97,7 +100,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const { db, repo } = harness();
     await insertScheduledPage(db, { html: "<p>v1</p>" });
     const outbox = recordingOutbox();
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt("2026-10-21T11:00:00.000Z"), revisions: repo, outbox });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock: clockAt("2026-10-21T11:00:00.000Z"), revisions: repo, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.read();
     await store.write({ html: "<p>v2</p>" });
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID]);
@@ -109,7 +112,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const { db, repo } = harness();
     await insertScheduledPage(db);
     const outbox = recordingOutbox();
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock: clockAt(LATER), revisions: repo, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" });
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID, GO_LIVE_ID]);
   });
@@ -119,7 +122,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     await insertScheduledPage(db, { html: "<p>v1</p>" });
     const outbox = recordingOutbox();
     outbox.failing = true;
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock: clockAt(LATER), revisions: repo, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.read();
     await assert.rejects(store.write({ html: "<p>v2</p>" }), /outbox unavailable/);
     assert.equal(await bodyHtml(db), "<p>v1</p>", "rolled back");
@@ -133,7 +136,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     await insertScheduledPage(db, { html: "<p>v1</p>" });
     const outbox = recordingOutbox();
     outbox.failing = true;
-    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), outbox });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock: clockAt(LATER), outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
     await store.read();
     await assert.rejects(store.write({ html: "<p>v2</p>" }), /outbox unavailable/);
     assert.equal(await bodyHtml(db), "<p>v1</p>");

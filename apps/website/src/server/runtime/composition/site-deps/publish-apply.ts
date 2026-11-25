@@ -12,7 +12,7 @@ import type { startBootData } from "./boot-data.js";
 import type { composeContentRepos } from "./content-repos.js";
 import type { composeContentResolversComments } from "./content-resolvers-comments.js";
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
-import { POST_ENTITY_TYPE } from "#src/features/trash/index";
+import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";

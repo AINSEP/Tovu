@@ -14,7 +14,7 @@ import { composeCommerce } from "../commerce.js";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createSharedOAuthOwnerStorage } from "#src/features/api-connections/shared-owner";
-import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
+import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { dirname } from "node:path";
 
 interface CompositionSharedOAuthRequired {

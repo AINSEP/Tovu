@@ -5,7 +5,7 @@
 import type { AssetHostPort, AssetToolDeps } from "#src/features/asset-transfer/asset-destinations";
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, resolveThemeFilePath, sniffThemeImportType, THEME_IMPORT_ACCEPT, THEME_IMPORT_POLICY, THEME_WRITE_PERMISSION, writeThemeBinaryFile, type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { saveLibraryDocument } from "#src/features/media/index";
+import { saveLibraryDocument } from "@jini-ai/cms/media/site/library-save-attachment";
 
 /** What the host binding reads: the asset tools' own deps plus the theme roster they write into. */
 export type AssetHostDeps = Omit<AssetToolDeps, "resolveImportedMediaUrls" | "assetHost"> & ThemeToolDeps;

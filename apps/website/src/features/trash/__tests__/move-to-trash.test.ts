@@ -1,3 +1,4 @@
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +7,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import * as schema from "#src/platform/db/schema.sqlite";
 
 
-import { moveToTrash } from "../move-to-trash.js";
+import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -94,14 +95,9 @@ function seedForm(h: Harness, id: string, overrides: { deletedAt?: string | null
 
 test("an unregistered kind is refused before any read or authorize call", async () => {
   const h = harness();
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "gizmo", entityId: "g-1", actor: { principalId: "p-1" } },
-    {
-      registry: h.registry, trash: h.trash, db: new Proxy(contentKernel({ store: h.db }), {
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "gizmo", entityId: "g-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: async () => { throw new Error("unknown kinds must not authorize"); }, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: new Proxy(contentKernel({ store: h.db }), {
         get() { throw new Error("unknown kinds must not read the database"); },
-      }), authorize: async () => { throw new Error("unknown kinds must not authorize"); }, clock: { nowIso: () => AT }
-    }
-  );
+      }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "unknown-type" });
 });
 
@@ -114,10 +110,7 @@ test("a principal without the kind's own permission is forbidden, and the row is
     get() { throw new Error("denied requests must not read the database"); },
   });
   for (const entityId of ["form-1", "does-not-exist"]) {
-    const outcome = await moveToTrash(
-      { workspaceId: WS, entityType: "form", entityId, actor: { principalId: "p-1" } },
-      { registry: h.registry, trash: h.trash, db: unreadableDb, authorize: h.authorize, clock: { nowIso: () => AT } }
-    );
+    const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId, actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: unreadableDb, registry: h.registry }) });
     assert.deepEqual(outcome, { ok: false, reason: "forbidden", permission: "admin.forms.manage" });
   }
 
@@ -127,20 +120,14 @@ test("a principal without the kind's own permission is forbidden, and the row is
 
 test("a missing row reports not-found", async () => {
   const h = harness();
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "does-not-exist", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "does-not-exist", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });
 });
 
 test("an already-trashed row reads as not-found — moveToTrash never re-trashes", async () => {
   const h = harness();
   seedForm(h, "form-1", { deletedAt: AT, version: 2 });
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });
 });
 
@@ -148,10 +135,7 @@ test("a live, permitted row is trashed through the real service, with its own di
   const h = harness();
   seedForm(h, "form-1", { version: 1 });
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: true, version: 2 });
 
   const row = h.db.$client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get("form-1") as { deleted_at: string | null };
@@ -166,10 +150,7 @@ test("a stale confirmation version leaves the newer row and the Trash index unch
   const h = harness();
   seedForm(h, "form-1", { version: 2 });
   const before = h.db.$client.prepare("SELECT * FROM form_definitions WHERE id = ?").get("form-1");
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" }, expectedVersion: 1 },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" }, expectedVersion: 1 }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
   assert.deepEqual(h.db.$client.prepare("SELECT * FROM form_definitions WHERE id = ?").get("form-1"), before);
   assert.deepEqual(await h.trash.list({ workspaceId: WS, now: AT, limit: 10 }), { items: [], nextCursor: null });
@@ -182,10 +163,7 @@ test("a not-found race from TrashPort.trash itself surfaces as not-found, not th
     ...h.trash,
     trash: async () => ({ ok: false, reason: "not-found" }),
   };
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: racingTrash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: racingTrash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });
 });
 
@@ -196,10 +174,7 @@ test("a version-changed race from TrashPort.trash itself surfaces as version-cha
     ...h.trash,
     trash: async () => ({ ok: false, reason: "version-changed" }),
   };
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: racingTrash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: racingTrash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
 });
 
@@ -210,10 +185,7 @@ test("a blocked race from TrashPort.trash itself passes the code and count strai
     ...h.trash,
     trash: async () => ({ ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 }),
   };
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: racingTrash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: racingTrash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 });
 });
 
@@ -231,10 +203,7 @@ test("a live term whose taxonomy is trashed reads as not-found — hiddenWithPar
   seedTaxonomy(h, "tax-1", { status: "trash", version: 1 });
   seedTerm(h, "term-1", "tax-1", { status: "active", version: 1 });
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });
 
   const row = h.db.$client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get("term-1") as { status: string; version: number };
@@ -247,10 +216,7 @@ test("a live term whose taxonomy is LIVE trashes normally — hiddenWithParent o
   seedTaxonomy(h, "tax-1", { status: "active", version: 1 });
   seedTerm(h, "term-1", "tax-1", { status: "active", version: 1 });
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
+  const outcome = await moveToTrash({ workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } }, { registry: h.registry, trash: h.trash, authorize: h.authorize, clock: { nowIso: () => AT }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
   assert.deepEqual(outcome, { ok: true, version: 2 });
 
   const row = h.db.$client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get("term-1") as { status: string; version: number };
@@ -264,13 +230,10 @@ for (const expectedVersion of [undefined, null, 4, 3]) {
     const calls: Parameters<TrashPort["trash"]>[0][] = [];
     const outcome = await moveToTrash({
       workspaceId: WS, entityType: "form", entityId: "l128-form", actor: { principalId: "l128-actor" }, expectedVersion,
-    }, {
-      registry: h.registry, db: contentKernel({ store: h.db }), authorize: h.authorize,
-      clock: { nowIso: () => AT }, trash: { ...h.trash, trash: async (args) => {
+    }, { registry: h.registry, authorize: h.authorize, clock: { nowIso: () => AT }, trash: { ...h.trash, trash: async (args) => {
         calls.push(args);
         return { ok: true, version: 5, noop: true, priorMarker: "ignored" };
-      } },
-    });
+      } }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: h.registry }) });
     if (expectedVersion === null || expectedVersion === 3) {
       assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
       assert.deepEqual(calls, []);
@@ -294,14 +257,11 @@ for (const marker of l128Markers) {
     const entry = { ...h.registry.get("form")!, versionColumn: undefined, display: { title: "form_definitions.name" } };
     const registry = new Map([["form", entry]]);
     const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "l128-unversioned",
-      actor: { principalId: "actor" }, expectedVersion: 999 }, {
-      registry, db: contentKernel({ store: h.db }), authorize: h.authorize, clock: { nowIso: () => AT },
-      trash: { ...h.trash, trash: async (args) => {
+      actor: { principalId: "actor" }, expectedVersion: 999 }, { registry, authorize: h.authorize, clock: { nowIso: () => AT }, trash: { ...h.trash, trash: async (args) => {
         assert.deepEqual(args.display, { title: "Form l128-unversioned", subtitle: null });
         assert.equal(args.expectedVersion, null);
         return marker;
-      } },
-    });
+      } }, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: contentKernel({ store: h.db }), registry: registry }) });
     assert.deepEqual(outcome, marker);
   });
 }

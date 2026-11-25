@@ -42,7 +42,7 @@ import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { postSearchIndexFor } from "@jini-ai/cms/posts/sql";
-import { PagesHtmlDocumentStore } from "#src/features/pages/index";
+import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { LocalFsBlobStore } from "#src/features/media/index";

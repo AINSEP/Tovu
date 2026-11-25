@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express } from "express";
 
-import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
+import { consumeConfirmationToken } from "@jini-ai/user-management/newsletter/confirmation";
 import { newsletterConfirmRoute } from "@jini-ai/user-management/public-http/routes/newsletter/confirm";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
