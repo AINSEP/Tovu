@@ -25,6 +25,7 @@ const requireFromTest = createRequire(import.meta.url);
 /** Selectors allowed above the FAB, each with the reason it may cover it. */
 const ABOVE_FAB = new Map<string, string>([
   [".settings-dialog-backdrop", "shared blocking-modal backdrop (confirm dialogs, pickers)"],
+  [".jini-settings-dialog-backdrop", "the same blocking-modal backdrop under its package class (one rule with `.settings-dialog-backdrop`)"],
   [".jini-agent-plugin-source-modal", "blocking package-files modal with a backdrop"],
   [".template-source-modal", "blocking template-source modal with a backdrop"],
   [".select-panel.select-panel", "portaled panel opened from WidgetPickerDialog's modal; must clear its backdrop"],
