@@ -11,7 +11,7 @@ import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
 import { createSiteShare, acknowledgeSiteShare, revokeSiteShare, shareExpiredMessage, type ShareDelivery } from "./share-service.js";
 import { isOwnShareFolder } from "./share-own-folder.js";
-import { SHARE_EXPIRY_COPY, isShareExpiryChoice, shareExpiresAt } from "./share-expiry.js";
+import { SHARE_EXPIRY_COPY, SHARE_EXPIRY_DAYS, isShareExpiryChoice, shareExpiresAt, type ShareExpiryDays } from "./share-expiry.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput } from "./static-export-selection.js";
 import type { StaticExportOptions } from "@jini-ai/devops/backup/site/static-export-selection";
@@ -30,6 +30,8 @@ export interface SiteShareBackend {
   revealPassword(required: { principalId: string; shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly SiteShareView[]>;
   revoke(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
+  /** Day choices a new export may ask for besides Never; the list route puts Never first. */
+  expiryChoices(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly ShareExpiryDays[]>;
 }
 export type SiteShareView = Omit<SiteShareRecord, "token" | "storage" | "sealedPassword"> & { downloadUrl: string; credentialWarnings: readonly CredentialWarning[]; needsAcknowledgement: boolean };
 /** A finished export, with what was left out of it (the share's scope notes) for the exporter only. */
@@ -281,6 +283,20 @@ async function revokeShare({ ctx, shareId }: { ctx: ShareBackendContext; shareId
   return view(await revokeSiteShare({ registry: required.registry, site: required.site, shareId }, { delivery }));
 }
 
+/**
+ * The day choices the admin may offer for the next export: all of them while new exports land in this
+ * server's own share folder (the only place a date is enforced), none otherwise.
+ * Why a failed destination lookup answers none instead of failing: this rides on the export-history
+ * list, and Never is accepted everywhere, so a broken destination only hides the day choices; create
+ * still resolves the destination itself and refuses a date in plain words. @complexity One delivery lookup.
+ */
+async function currentExpiryChoices({ ctx }: { ctx: ShareBackendContext }, _optional = {}): Promise<readonly ShareExpiryDays[]> {
+  let destination: ShareDelivery | undefined;
+  try { destination = await ctx.required.delivery({}); }
+  catch { return []; }
+  return destination && isOwnShareFolder({ storage: destination }) ? SHARE_EXPIRY_DAYS : [];
+}
+
 /** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time.
  * Optional host clock/build versions stamp failures when they occur, before a later poll collects them.
  * @complexity The existing bounded export work; diagnostics add only job-local metadata, with no I/O.
@@ -296,5 +312,6 @@ export function createSiteShareBackend(required: ShareBackendRequired, { now = D
     revealPassword: (input) => revealSharePassword({ ctx, input }),
     list: async () => (await required.registry.list({ site: required.site })).map(view),
     revoke: (input) => revokeShare({ ctx, shareId: input.shareId }),
+    expiryChoices: () => currentExpiryChoices({ ctx }),
   };
 }

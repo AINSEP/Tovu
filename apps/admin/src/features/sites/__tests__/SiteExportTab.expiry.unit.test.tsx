@@ -94,6 +94,22 @@ describe("share expiry controls on the Export tab (P11 ST-12b.T)", () => {
     expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Never expires", "Expires after 7 days", "Expires after 30 days", "Expires after 90 days"]);
   });
 
+  it("shows the server's expiryChoices from the live list response and still defaults to Never", async () => {
+    // The wire body the list route answers: Never (null) first, then the days this destination honours.
+    const posts: Array<string | undefined> = [];
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") { posts.push(init.body as string | undefined); return Response.json(base); }
+      return Response.json({ shares: [base], expiryChoices: [null, 30] });
+    });
+    render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port: defaultSiteTransferPort, t })} /></FetchQueryProvider>);
+    await screen.findByRole("option", { name: "Expires after 30 days" });
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Never expires", "Expires after 30 days"]);
+    expect((screen.getByRole("combobox", { name: "Never expires" }) as HTMLSelectElement).value).toBe("never");
+    fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
+    await waitFor(() => expect(posts).toEqual(["{}"]));
+    vi.unstubAllGlobals();
+  });
+
   it("acknowledge after expiry keeps it expired: the notice goes, the row stays Expired with no link actions", async () => {
     renderTab(async () => ({ shares: [{ ...base, status: "expired", expiresAt: "2026-11-06T17:15:00.000Z" }], expiryChoices: [7, 30, 90] }));
     expect(await screen.findByText("This export's link has expired.")).toBeVisible();
