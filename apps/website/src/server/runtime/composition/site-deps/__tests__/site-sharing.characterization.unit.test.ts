@@ -42,3 +42,18 @@ test("H3: getter inputs are only read lazily", () => {
   const getters: readonly string[] = [];
   for (const [name, url] of Object.entries(FILES)) assert.deepEqual(eagerReads(bodyOf(parse(new URL(url, import.meta.url)), name), getters), [], name);
 });
+
+test("a newly configured store cannot revoke a share saved on another binding: host hands the recorded provider to selection", () => {
+  const file = parse(new URL("../site-sharing.ts", import.meta.url));
+  const calls: ts.CallExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "selectArtifactStoreProvider") calls.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  assert.equal(calls.length, 1);
+  const second = calls[0]?.arguments[1];
+  assert.ok(second !== undefined && ts.isConditionalExpression(second), "the saved-provider argument is conditional on the recorded selection");
+  assert.equal(second.condition.getText(), "selection.provider === undefined");
+  assert.equal(second.whenFalse.getText(), "{ savedProvider: selection.provider }");
+});
