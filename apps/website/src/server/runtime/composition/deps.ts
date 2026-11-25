@@ -1,4 +1,5 @@
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
+import { registerSiteStoreHooks } from "./site-deps/store-close-hooks.js";
 import { composeStoragePhase, composeSiteServicesPhase, composeProviderLifecyclePhase, composeInstrumentedContentPhase, composePublishingPhase } from "./site-deps/boot-phases.js";
 import { assembleRouteDepsPhase, finishRouteDepsPhase } from "./site-deps/assembly-phases.js";
 
@@ -171,6 +172,8 @@ async function composeSiteRouteDeps(
   // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
   // (including vault normalization) must never race this pass. Boot awaits this before serving.
   finishRouteDepsPhase({ dbPath, opened, agentPluginLayout, resolvedSiteBinding, resolvedThemesDir, skillLayout, blobStore, mediaStorePorts, provideMediaCredentials, resolvedUploadsDir, workspaceId, postSearchBackfillReady, pluginRuntime, adminPasswordResetReady, identity, settingsRepo, blobHydrationReady, originReady, siteAssistantSecretKeyring, siteAssistantSecretSealer, observability, tracker, publishContentPeerHttpClient, guardedOutboundHttpClient, adminSurfaceHandlersReady, siteAppBootWork, routeDeps, widgetAdoptionReady });
+  // The serving routine host (P3-T1a.T) closes its sidecar through these hooks, after this store drains.
+  registerSiteStoreHooks({ routeDeps, hooks: { dbPath, beforeStoreClose: opened.beforeStoreClose, onStoreClose: opened.onStoreClose } });
   await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
   return routeDeps;
 }

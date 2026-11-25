@@ -8,6 +8,8 @@ import { createServer as createHttpsServer } from "node:https";
 import { resolve as resolvePath } from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
+import { bootLocalOwnerSignIn } from "./server/runtime/boot/local-owner-signin.js";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./platform/dev-host/dev-tls.js";
 import { createSiteRouteDeps } from "./server/runtime/composition/deps.js";
 import { defaultContentDbPath, siteDir } from "./server/runtime/composition/site-paths.js";
@@ -324,14 +326,16 @@ async function main(): Promise<void> {
       const stop = requestStop;
       setImmediate(() => stop(input));
     },
+    // Routines (P3-T1a.T): the boot policy is read once, here; the module never rereads the scrubbed env.
+    routines: { desktopEligible: bootLocalOwnerSignIn.routineDesktopEligible, releaseEnabled: ROUTINES_RELEASE_ENABLED },
   };
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps, servingOptions);
+  const { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps, servingOptions);
   bootWork.push(...servingBootWork);
   const daemonCallback = await startSiteDaemonListener({
     publicOrigin: pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port }), handler: app,
   });
   server.once("close", () => { void daemonCallback.close(); });
-  stopServing = () => stopServingWithinGrace({ server, workers: [{ stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
+  stopServing = () => stopServingWithinGrace({ server, workers: [routines, { stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so

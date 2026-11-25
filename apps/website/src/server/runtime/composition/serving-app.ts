@@ -3,7 +3,9 @@ import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
 import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
-import type { Express } from "express";
+import { Router, type Express } from "express";
+import { startServingRoutines, type ServingRoutines } from "./modules/serving-routines.js";
+import type { RoutineRunHandler } from "@jini-ai/daemon";
 
 import { startOutboxDrainer } from "#src/contracts/core/events/outbox-drainer";
 import { type OutboxDrainer } from "@jini-ai/infra/events/outbox";
@@ -79,11 +81,17 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+  optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
+): { routines: ServingRoutines; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
-  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn });
+  // Routines (P3-T1a.T): the slot is placed inside createApp's admin routes; the host composes into it
+  // after createApp returns. Absent `optional.routines` (tests, hermetic roots) means ineligible and dark.
+  const routineRouter = Router();
+  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+    mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); } });
+  const routines = startServingRoutines({ routeDeps, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
+    releaseEnabled: optional.routines?.releaseEnabled ?? false }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : {});
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }
@@ -124,5 +132,5 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
+  return { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
 }

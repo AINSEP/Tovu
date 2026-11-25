@@ -560,6 +560,12 @@ function setCookieValues(res: Response): readonly string[] {
   return header === undefined ? [] : Array.isArray(header) ? header.map(String) : [String(header)];
 }
 
+/** Live owner authority for the routine host (P3-T1a.T): the identity `*` holder only, re-read on every
+ * call so a demoted owner loses routines at once. A session alone never counts. */
+export async function holdsSiteOwnerAuthority({ deps, workspaceId, principalId }: { deps: SessionAuthDeps; workspaceId: string; principalId: string }, _optional: Record<string, never> = {}): Promise<boolean> {
+  return principalHoldsOwnerWildcard({ deps: authServiceDepsFrom(deps), workspaceId, principalId });
+}
+
 /** Told after an owner or admin signs in. Only the serving app passes one (its automatic form pull);
  * `signedIn` must return at once: it runs after the session cookie is set and is never awaited. */
 export interface AdminSignInPort {

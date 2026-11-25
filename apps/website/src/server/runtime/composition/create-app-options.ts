@@ -40,4 +40,7 @@ export interface CreateAppOptions {
   /** The dev-only CORS policy `createApp` installs on its express app; defaults to the admin-dev-server allow-list in
    *  `inbound/shared/dev-cors.ts`. A host or test hands in its own so the middleware never hard-codes one. */
   applyDevCors?: (app: Express) => void;
+  /** Serving boot only: mounts the routine routes' slot (P3-T1a.T) at its place among the admin assistant
+   *  routes. Exporter and eager apps never pass it, so they expose no routine endpoint at all. */
+  mountAssistantRoutines?: (required: { app: Express }, optional?: Record<string, never>) => void;
 }
