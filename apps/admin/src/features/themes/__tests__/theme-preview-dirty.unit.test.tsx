@@ -43,7 +43,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
   });
   render(
     <FetchQueryProvider>
-      <PageEditor slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
+      <PageEditor usePreviewEmbedIds={() => []} slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(screen.getByTitle("Page preview")).toBeTruthy());

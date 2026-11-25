@@ -148,7 +148,7 @@ describe("PageEditor — Interactive flush ref wiring", () => {
   it("attaches usePageEditor's interactiveEditorRef onto the real InteractiveHtmlEditor", () => {
     const ctrl = controller();
     const usePageEditorHook = () => ctrl;
-    render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
+    render(<PageEditor usePreviewEmbedIds={() => []} slug="pg1" usePageEditorHook={usePageEditorHook} />);
 
     expect(captured).toBe(ctrl.interactiveEditorRef);
   });
@@ -158,7 +158,7 @@ describe("PageEditor — Interactive flush ref wiring", () => {
 describe("PageEditor — scroll event routing", () => {
   it("passes the rendered HTML textarea's scroll position to its controller", () => {
     const ctrl = controller({ view: "html" });
-    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    render(<PageEditor usePreviewEmbedIds={() => []} slug="about" usePageEditorHook={() => ctrl} />);
     const textarea = screen.getByRole("textbox", { name: "Page HTML" });
     expect(ctrl.htmlTextareaRef).toHaveBeenCalledWith(textarea);
     textarea.scrollTop = 220;
@@ -169,7 +169,7 @@ describe("PageEditor — scroll event routing", () => {
 
   it.each(["draft", "published"] as const)("passes the %s preview iframe's load to its controller", (status) => {
     const ctrl = controller({ view: "preview", page: { ...BASE_PAGE, status }, status });
-    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    render(<PageEditor usePreviewEmbedIds={() => []} slug="about" usePageEditorHook={() => ctrl} />);
     const iframe = screen.getByTitle("Page preview");
     fireEvent.load(iframe);
     expect(ctrl.onPreviewFrameLoad).toHaveBeenCalledExactlyOnceWith(iframe);
@@ -193,7 +193,7 @@ describe("PageEditor — recovered content remount", () => {
     });
     const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
     const usePageEditorHook = ({ routeSlug }: { routeSlug: string }) => usePageEditor({ routeSlug, deps });
-    const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
+    const view = render(<PageEditor usePreviewEmbedIds={() => []} slug="about" usePageEditorHook={usePageEditorHook} />);
     try {
       await screen.findByRole("button", { name: "Restore" });
       fireEvent.click(screen.getByRole("tab", { name: "Interactive" }));

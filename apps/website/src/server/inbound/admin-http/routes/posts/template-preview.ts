@@ -172,6 +172,48 @@ function resolveOverrideTemplateChoice({ rawTemplateChoice }: { rawTemplateChoic
   return rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
 }
 
+/** What {@link renderAuthorizedTemplatePreview} needs: the raw request values, never the request. */
+export interface AuthorizedTemplatePreviewInput {
+  deps: Parameters<ContentRouteRegistrar>[0]["deps"];
+  postId: string;
+  rawTemplateChoice: unknown;
+  body: unknown;
+}
+
+/**
+ * The one draft render both preview surfaces share: the HTML preview below and the JSON embed
+ * inspection route (`modules/content.ts`), so the inspection sees exactly the document the sandboxed
+ * iframe shows — same id-or-slug lookup, template tri-state and pending body — and never a second,
+ * approximated renderer. **It does not authorize**: every caller must already have passed the
+ * type-free, id-free `content.read` check (the HTML handler's own, the Jini embeds spec's own).
+ * @throws PostNotFoundError, TemplatePreviewRenderError — each caller maps them to its own reply.
+ * @complexity One post lookup plus one template render.
+ */
+export async function renderAuthorizedTemplatePreview(
+  { deps, postId, rawTemplateChoice, body }: AuthorizedTemplatePreviewInput,
+  _optional: Record<string, never> = {},
+): Promise<{ html: string }> {
+  const { post } = await getAdminPostByIdOrSlug({
+    deps: { repo: deps.postRepo },
+    input: { workspaceId: deps.workspaceId, idOrSlug: postId },
+  });
+
+  const overrideTemplateChoice = resolveOverrideTemplateChoice({ rawTemplateChoice });
+
+  // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
+  // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
+  // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
+  // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
+  // existed" behavior this file's header promises for `GET`.
+  const pendingBodyJson = extractPendingBodyJson({ body });
+  const pendingBodyHtml = extractPendingBodyHtml({ body });
+  const { html } = await renderPostPreview({ deps, input: {
+    post, templateChoice: overrideTemplateChoice,
+    bodyJson: pendingBodyJson, bodyHtml: pendingBodyHtml,
+  } });
+  return { html };
+}
+
 /** The preview is author-controlled HTML served from the admin origin. The editors' iframe already
  *  sandboxes it (`PAGE_PREVIEW_IFRAME_SANDBOX`, `apps/admin/src/features/pages/rules.ts`); this header
  *  applies the same flags when the URL is opened on its own, as a top-level tab. Never
@@ -197,24 +239,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ a
         return;
       }
 
-      const { post } = await getAdminPostByIdOrSlug({
-        deps: { repo: deps.postRepo },
-        input: { workspaceId: deps.workspaceId, idOrSlug: String(req.params.postId ?? "") },
-      });
-
-      const overrideTemplateChoice = resolveOverrideTemplateChoice({ rawTemplateChoice: req.query.templateChoice });
-
-      // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
-      // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
-      // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
-      // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
-      // existed" behavior this file's header promises for `GET`.
-      const pendingBodyJson = extractPendingBodyJson({ body: req.body });
-      const pendingBodyHtml = extractPendingBodyHtml({ body: req.body });
-      const { html } = await renderPostPreview({ deps, input: {
-        post, templateChoice: overrideTemplateChoice,
-        bodyJson: pendingBodyJson, bodyHtml: pendingBodyHtml,
-      } });
+      const { html } = await renderAuthorizedTemplatePreview({ deps, postId: String(req.params.postId ?? ""), rawTemplateChoice: req.query.templateChoice, body: req.body });
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this

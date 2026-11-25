@@ -55,7 +55,7 @@ afterEach(() => {
 function renderDraftEditor() {
   const port = createFakePageEditorPort({ page: DRAFT_PAGE, activeThemeTemplates: ["pages-default.html"] });
   const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
-  return render(<PageEditor slug="html-form-demo" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />);
+  return render(<PageEditor usePreviewEmbedIds={() => []} slug="html-form-demo" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />);
 }
 
 /** The hidden form currently in the document, and whether the iframe it targets has been filled. */

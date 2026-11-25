@@ -62,6 +62,7 @@ import {
 import { commentsMount, formsMount, widgetsMount } from "./integrations/jini-admin/panel-mounts";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { t as tApp } from "./app-i18n";
+import { useLivePreviewEmbedIds } from "./features/pages/hooks/page-editor-dependencies.hooks";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -225,7 +226,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
         // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
         // real id, so an old id-based bookmark still resolves — see that function's own doc.
-        return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} />;
+        return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} usePreviewEmbedIds={useLivePreviewEmbedIds} />;
       }
       return <Pages />;
     },
