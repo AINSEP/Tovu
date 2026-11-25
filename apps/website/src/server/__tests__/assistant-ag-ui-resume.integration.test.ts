@@ -16,6 +16,12 @@ import { createAdminAgUiApprovals } from "../../assistant/admin-ag-ui-approvals.
 import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "../runtime/lifecycle/daemon-supervisor.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
+import { startStubProviderServer } from "./helpers/stub-provider-server.js";
+import { set as setLegacySetting } from "@jini-ai/core/settings";
+import { writeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-write";
+import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
+import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
+import { VISITOR_APPROVAL_EXPIRED } from "#src/assistant/site/visitor-ag-ui-resume";
 
 /**
  * @file P6-T2.T step 4: the admin AG-UI approval handoff end to end. A stand-in daemon plays the
@@ -324,4 +330,73 @@ test("Stop before the resume settles the parked admin approval: the late resume 
   assert.equal(stop.status, 200);
   const late = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId: first.finished.outcome!.interrupts[0]!.id }) });
   assert.deepEqual([late.status, late.text, answers.length], [400, REFUSAL, 0], "a stopped run's approval cannot be answered afterwards");
+});
+
+/** The visitor assistant's Ask-mode tool and a stub provider, on the deps `createApp` composes. */
+async function enableVisitorAsk({ t, deps, siteOrigin }: { t: import("node:test").TestContext; deps: RouteDeps; siteOrigin: () => URL }) {
+  const allow = async () => ({ allowed: true, reason: "test" });
+  const providerRequests: unknown[] = [];
+  await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
+    clock: deps.clock, ids: deps.idGen, authorize: allow, principals: deps.principalRepo },
+  { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+  await writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: allow, principals: deps.principalRepo },
+    workspaceId: deps.workspaceId, callerPrincipalId: "test-caller", value: { version: 1, tools: { list_categories: { mode: "ask" } } } });
+  deps.originRegistry.canonicalOrigin = async () => ({ scheme: "http", host: siteOrigin().hostname, port: Number(siteOrigin().port), source: "dev-capability", verifiedAt: deps.clock.nowIso() });
+  const chunk = (payload: Record<string, unknown>) => `data: ${JSON.stringify(payload)}\n\n`;
+  const providerUrl = await startStubProviderServer(t, (count: number, body: Record<string, unknown>) => {
+    providerRequests.push(body);
+    return count === 1
+      ? { status: 200, body: chunk({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "list_categories", args: {}, id: "ask-call" } }] }, index: 0 }] }) }
+      : { status: 200, body: chunk({ candidates: [{ content: { role: "model", parts: [{ text: "Finished." }] }, finishReason: "STOP", index: 0 }] }) };
+  });
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
+  const env = { GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" };
+  const saved = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, env);
+  t.after(() => { for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+  return { providerRequests };
+}
+
+/** Parks one visitor approval over the real `/chat` route and returns what a later resume needs. */
+async function parkVisitorApproval({ baseUrl }: { baseUrl: string }) {
+  const origin = { origin: baseUrl, "sec-fetch-site": "same-origin" };
+  const issued = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/credentials`, { method: "POST", headers: origin });
+  assert.equal(issued.status, 200);
+  const { tabCredential } = await issued.json() as { tabCredential: string };
+  const headers = { ...origin, cookie: issued.headers.get("set-cookie")!.split(";")[0]!, "x-frontend-tab": tabCredential, "content-type": "application/json", accept: "text/event-stream; agui=1" };
+  const post = (body: Record<string, unknown>) => fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST", headers, body: JSON.stringify({ tools: [], context: [], state: {}, forwardedProps: {}, ...body }) });
+  const started = parse((await (await post({ threadId: "thread-1", runId: "run-1", messages: [{ id: "m1", role: "user", content: "List the categories." }] })).text()).replace(/^:.*$/gm, ""));
+  const interruptId = (started.at(-1) as { outcome?: { interrupts?: Array<{ id: string }> } }).outcome!.interrupts![0]!.id;
+  return { lateAllow: () => post({ threadId: "thread-1", runId: "run-2", parentRunId: "run-1", messages: [], resume: [{ interruptId, status: "resolved", payload: "allow" }] }) };
+}
+
+test("server shutdown abandons every parked visitor and admin approval once", { timeout: 60_000 }, async (t) => {
+  await boot(t);
+  const { createApp, createRouteDeps } = await import("../runtime/composition/app.js");
+  const deps = Object.assign(createRouteDeps(), { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }) as RouteDeps;
+  await deps.siteTitleReady;
+  let siteOrigin: URL | undefined;
+  const { providerRequests } = await enableVisitorAsk({ t, deps, siteOrigin: () => siteOrigin! });
+  const shutdowns: Array<() => void> = [];
+  // The serving process's shutdown path: createApp hands each process-local release to its host.
+  const app = createApp(deps, { onShutdown: ({ shutdown }) => { shutdowns.push(shutdown); } });
+  const baseUrl = await startTestServer(app, t);
+  siteOrigin = new URL(baseUrl);
+  const cookie = await loginAsOwner(baseUrl);
+  const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
+  const conversationId = `conv-${randomUUID()}`;
+  await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: me.user.id }).create({ id: conversationId });
+
+  const admin = await startTurn({ baseUrl, cookie, conversationId });
+  const visitor = await parkVisitorApproval({ baseUrl });
+  assert.equal(providerRequests.length, 1, "the visitor's tool is held, the model waits");
+  for (const shutdown of [...shutdowns, ...shutdowns]) shutdown();
+
+  const adminLate = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: admin.runId, interruptId: admin.finished.outcome!.interrupts[0]!.id }) });
+  assert.deepEqual([adminLate.status, adminLate.text, answers.length], [400, REFUSAL, 0], "the admin approval is gone after shutdown");
+  const visitorLate = await visitor.lateAllow();
+  assert.deepEqual([visitorLate.status, (await visitorLate.json() as { error: string }).error], [400, VISITOR_APPROVAL_EXPIRED], "the visitor approval is gone after shutdown");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(providerRequests.length, 1, "the held visitor call ended: no continuation ran");
 });

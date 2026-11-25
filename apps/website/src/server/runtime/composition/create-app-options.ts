@@ -24,6 +24,13 @@ export interface CreateAppOptions {
    * close does not land under those reads. Never rejects (the pass is fail-open).
    */
   onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
+  /**
+   * Serving boot only: receives each process-local release `createApp` composes — today the parked
+   * AG-UI approvals of the visitor and admin assistants. The host calls every one when it stops, so
+   * a parked approval is denied and cleaned up at shutdown instead of waiting out its expiry under a
+   * closing store. Each release is idempotent.
+   */
+  onShutdown?: ({ shutdown }: { shutdown: () => void }, optional?: Record<string, never>) => void;
   /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
    *  apps never pass it, so signing in to them pulls nothing. */
   onAdminSignIn?: AdminSignInPort;

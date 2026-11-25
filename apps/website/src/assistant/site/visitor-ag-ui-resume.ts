@@ -53,13 +53,14 @@ function ownerKey({ owner }: { owner: FrontendSessionOwner }): string {
 }
 
 /** Pulls only the addressing fields out of an untrusted body; the decision is read later by Jini. */
-function addressedResume({ input }: { input: unknown }): { interruptId: string; runId: string } | undefined {
+function addressedResume({ input }: { input: unknown }): { interruptId: string; runId: string; cancelled: boolean } | undefined {
   if (!input || typeof input !== "object") return undefined;
   const { resume, runId } = input as { resume?: unknown; runId?: unknown };
   if (!Array.isArray(resume) || resume.length !== 1) return undefined;
-  const interruptId = (resume[0] as { interruptId?: unknown } | null)?.interruptId;
+  const entry = resume[0] as { interruptId?: unknown; status?: unknown } | null;
+  const interruptId = entry?.interruptId;
   const bounded = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= MAX_WIRE_ID_CHARS;
-  return bounded(interruptId) && bounded(runId) ? { interruptId, runId } : undefined;
+  return bounded(interruptId) && bounded(runId) ? { interruptId, runId, cancelled: entry?.status === "cancelled" } : undefined;
 }
 
 /**
@@ -85,15 +86,19 @@ export function createVisitorAgUiResume<Segment>(
     return entry;
   };
 
+  /** Deny the exact challenge once and end the held call: nobody will ever answer it now. */
+  const denyAndEnd = ({ interruptId, entry, reason }: { interruptId: string; entry: Parked<Segment>; reason: VisitorApprovalEnd }): void => {
+    void confirm({ challengeId: interruptId, allow: false, owner: entry.owner }).catch((error: unknown) => { reportError({ error }); });
+    entry.held.cleanup({ reason });
+  };
+
   const abandonVisitorApproval = ({ interruptId, reason }: { interruptId: string; reason: VisitorApprovalEnd }, _optional = {}): void => {
     // Stop and Allow race on this one entry; whoever loses it does nothing at all. A resume releases
     // the entry in the same synchronous step as its store claim, so a present entry means nobody
     // claimed it — even when the store already dropped the record on a late claim attempt.
     store.remove({ interruptId });
     const entry = release({ interruptId });
-    if (!entry) return;
-    void confirm({ challengeId: interruptId, allow: false, owner: entry.owner }).catch((error: unknown) => { reportError({ error }); });
-    entry.held.cleanup({ reason });
+    if (entry) denyAndEnd({ interruptId, entry, reason });
   };
 
   return {
@@ -123,7 +128,7 @@ export function createVisitorAgUiResume<Segment>(
         attachResponse: (required: { threadId: string; parentRunId: string; runId: string }) => Segment;
       },
       _optional = {},
-    ): Promise<"resumed" | "expired"> {
+    ): Promise<"resumed" | "stopped" | "expired"> {
       // No authenticated owner means no claim attempt at all — not an ownerless confirmation.
       if (!owner) return "expired";
       const addressed = addressedResume({ input });
@@ -134,6 +139,10 @@ export function createVisitorAgUiResume<Segment>(
       const claimed = store.claim({ owner: ownerKey({ owner }), threadId: entry.threadId, runId: entry.runId, interruptId: addressed.interruptId });
       if (!claimed) return "expired";
       release({ interruptId: addressed.interruptId });
+      // Stop is the owner's answer: deny, never a silent leak until expiry. It is claimed like any
+      // answer (same owner, thread and parent run), but it ends the held call instead of continuing
+      // it, so no writer is attached and the model gets no turn to act on the refusal.
+      if (addressed.cancelled) { denyAndEnd({ interruptId: addressed.interruptId, entry, reason: "stopped" }); return "stopped"; }
       entry.held.attach({ segment: attachResponse({ threadId: entry.threadId, parentRunId: entry.runId, runId: addressed.runId }) });
       const settled = await confirm({ challengeId: addressed.interruptId, allow: answer.decision === "allow", owner: entry.owner });
       // The underlying exchange already ended (its own deadline): the attached segment would never

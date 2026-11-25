@@ -609,7 +609,7 @@ async function runSiteAssistantPreflight(
 /** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
  *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
  *  ending without waiting out the 60 s the visitor is given. */
-export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle {
+export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle & { shutdown: () => void } {
   const context = createSiteAssistantContext(deps, env);
   const { resolution } = context;
   return {
@@ -630,6 +630,9 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
     },
 
     registerRoutes: ({ app }, _options = {}) => registerSiteAssistantRoutes(app, context),
+
+    /** Process shutdown: every parked visitor approval is denied and its held call ended. */
+    shutdown: () => context.approvalResume.shutdownVisitorApprovals(),
   };
 }
 

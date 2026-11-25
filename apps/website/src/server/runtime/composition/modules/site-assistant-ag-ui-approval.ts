@@ -116,5 +116,7 @@ export async function handleVisitorAgUiResume({ req, res, ports }: { req: Reques
   const owner = await ports.resolveApprovalOwner(requestHookInput({ req }));
   const result = await ports.resume.resumeVisitorApproval({ input: req.body, owner,
     attachResponse: ({ threadId, runId }) => ports.openSegment({ req, res, threadId, runId }) });
+  // A Stop ended the held call: there is no segment to stream, only the acknowledgement.
+  if (result === "stopped" && !res.headersSent) { res.status(204).end(); return; }
   if (result === "expired" && !res.headersSent) res.status(400).json({ error: VISITOR_APPROVAL_EXPIRED });
 }

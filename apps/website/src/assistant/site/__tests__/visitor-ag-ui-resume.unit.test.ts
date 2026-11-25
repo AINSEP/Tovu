@@ -52,7 +52,8 @@ test("accept resumes the parked call exactly once", async () => {
 });
 
 test("decline runs nothing", async () => {
-  for (const answer of [{ payload: "deny" }, { payload: "dismissed" }, { status: "cancelled", payload: undefined }]) {
+  // `cancelled` is a deny too, but it ends the held call instead of continuing it: see the Stop test below.
+  for (const answer of [{ payload: "deny" }, { payload: "dismissed" }]) {
     const h = harness();
     h.park();
     assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(answer), owner: OWNER, attachResponse }), "resumed");
@@ -145,4 +146,27 @@ test("park keeps the twenty-held and two-per-address caps", () => {
   assert.equal(h.park({ interruptId: id(21), held: h.held("192.0.2.1") }), false, "the twenty-first held");
   h.coordinator.shutdownVisitorApprovals();
   assert.equal(h.events.filter((e) => e === "cleanup:shutdown").length, 20);
+});
+
+test("visitor Stop while an approval is parked sends one cancelled resume and runs nothing", async () => {
+  const h = harness();
+  h.park();
+  const cancelled = resumeInput({ status: "cancelled", payload: undefined });
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: cancelled, owner: OWNER, attachResponse }), "stopped");
+  // Deny once, then end the held execution: no writer is attached, so no continuation can run.
+  assert.deepEqual(h.events, ["settle:false", "cleanup:stopped"]);
+  assert.deepEqual(h.confirms, [{ challengeId: CHALLENGE, allow: false, owner: OWNER }]);
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "expired");
+  h.clock.now += 120_000;
+  h.fireDue();
+  assert.deepEqual(h.events, ["settle:false", "cleanup:stopped"], "the expiry timer was cleared: nothing ends twice");
+});
+
+test("a cancelled resume from another owner stops nothing", async () => {
+  const h = harness();
+  h.park();
+  const cancelled = resumeInput({ status: "cancelled", payload: undefined });
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: cancelled, owner: { ...OWNER, tabId: "tab-2" }, attachResponse }), "expired");
+  assert.deepEqual(h.events, []);
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "resumed");
 });
