@@ -13,6 +13,7 @@ import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file The `form` `TRASHABLE` entry against real SQLite (originally Batch B1, plan §B; rewritten
@@ -218,7 +219,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,
@@ -238,7 +239,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
     entityType: "form",
     entityId: "form-1",
     trashedAt: AT,
-    purgeAfter: "2026-11-20T12:00:00.000Z",
+    purgeAfter: "2026-10-21T12:00:00.000Z",
     actorPrincipalId: "principal-1",
     actorPluginId: null,
     displayTitle: "Form form-1",
@@ -248,10 +249,10 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   });
 
   assert.deepEqual(
-    (await trash.list({ workspaceId: WS, now: "2026-11-20T11:59:59.999Z", limit: 10 })).items.map((row) => row.id),
+    (await trash.list({ workspaceId: WS, now: "2026-10-21T11:59:59.999Z", limit: 10 })).items.map((row) => row.id),
     ["trash-1"]
   );
-  assert.deepEqual((await trash.list({ workspaceId: WS, now: "2026-11-20T12:00:00.000Z", limit: 10 })).items, []);
+  assert.deepEqual((await trash.list({ workspaceId: WS, now: "2026-10-21T12:00:00.000Z", limit: 10 })).items, []);
 
   const restored = await trash.restore({ workspaceId: WS, entityType: "form", entityId: "form-1", at: AT });
   assert.equal(restored, "restored");

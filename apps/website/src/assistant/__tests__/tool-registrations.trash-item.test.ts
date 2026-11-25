@@ -37,6 +37,7 @@ import { trashThemeAgentToolCatalog } from "#src/features/theme/trash-theme-tool
 import { createRedirect } from "@jini-ai/cms/redirects";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 
 const contributions = {
@@ -148,7 +149,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
 
   const authorizeCalls: Array<{ permission: string }> = [];
   const routeDeps = testSiteLayoutContext({

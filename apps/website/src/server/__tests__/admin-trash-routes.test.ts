@@ -30,6 +30,7 @@ import { createTrashModule } from "../runtime/composition/modules/trash.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import type { RouteDeps } from "../routes/types.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file Route-level tests for the local admin Trash HTTP surface (list / restore / purge). Design
@@ -207,7 +208,7 @@ function buildTrashHarness(): TrashHarness {
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
 
   const trashDeps: TrashRouteDeps = {
     workspaceId: base.workspaceId,

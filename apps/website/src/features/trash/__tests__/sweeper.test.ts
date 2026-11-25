@@ -14,6 +14,7 @@ import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 // Pure claim/compare/delete and restore-race cases moved to Jini trash/__tests__/sweeper.decision.test.ts.
 const ACTOR = { principalId: "principal-1" };
@@ -264,7 +265,7 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
     transaction: ({ work }) => (transaction)(work),
     idGen: { newId: () => `error-trash-${++seq}` },
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   for (const [entityId, at] of [["menu-throw", REAL_AT], ["menu-later", "2026-07-02T00:00:00.000Z"]]) {
     assert.deepEqual(await trash.trash({ workspaceId: REAL_WS, entityType: "menu", entityId: entityId!, at: at!, expectedVersion: 1, display: { title: entityId! }, actor: ACTOR }), { ok: true, version: 2, priorMarker: "published" });
   }

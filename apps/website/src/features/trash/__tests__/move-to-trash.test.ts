@@ -14,6 +14,7 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { createTrashService, type TrashRegistry } from "@jini-ai/cms/trash";
 import type { TrashAuthorizeFn } from "../index.js";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file `moveToTrash` (plan §3) — the generic entry point every `POST /trash/items` call resolves
@@ -53,7 +54,7 @@ function harness(): Harness {
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const granted = new Set<string>(["admin.forms.manage"]);
   const authorize: TrashAuthorizeFn = async (params) =>

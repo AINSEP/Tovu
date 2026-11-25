@@ -17,6 +17,7 @@ import { buildTrashRegistry } from "../registry.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashSweep, type TrashRegistry } from "@jini-ai/cms/trash";
 import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -83,7 +84,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     idGen: { newId: () => (idGen).next() },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return { db, wiring, identity, registry, trash, ownerPrincipalId };
 }
@@ -286,7 +287,7 @@ test("sweeper: purges a user past its retention window and records identity.user
     at: AT,
     expectedVersion: null,
   });
-  const purgeAfter = computePurgeAfter({ at: AT });
+  const purgeAfter = computePurgeAfter({ at: AT }, { retentionDays: TRASH_RETENTION_DAYS });
 
   // A distinctly-prefixed id generator: `f`'s own adapter (used above for `trash()`) already
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
@@ -322,7 +323,7 @@ test("purge: an active principal (a forged/stale index row) is refused as versio
     entityType: USER_ENTITY_TYPE,
     entityId: targetId,
     trashedAt: AT,
-    purgeAfter: computePurgeAfter({ at: AT }),
+    purgeAfter: computePurgeAfter({ at: AT }, { retentionDays: TRASH_RETENTION_DAYS }),
     actorPrincipalId: f.ownerPrincipalId,
     actorPluginId: null,
     displayTitle: "still-active",

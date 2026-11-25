@@ -19,6 +19,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
 import { buildPostRecord } from "./post-record.fixture.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file Owner order 2026-10-08: an item in the Trash never blocks a slug for new content.
@@ -184,7 +185,7 @@ function openRealTrash() {
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: POST_ENTITY_TYPE }) });
   return { client, repo, trash, remove };
 }

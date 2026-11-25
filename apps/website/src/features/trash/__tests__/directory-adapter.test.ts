@@ -13,6 +13,7 @@ import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { createTrashService } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /** The host binding of the rollback reporter, exactly as the composition sites bind it. */
 
@@ -226,7 +227,7 @@ test("directory adapter works through trash, list, restore, re-trash, and purge"
     idGen: { newId: () => `trash-${(sequence += 1)}` },
     transaction: ({ work }) => (<T>(fn: () => Promise<T>) => fn())(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const required = {
     workspaceId: WS,
     entityType: ENTITY,

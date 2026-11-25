@@ -36,6 +36,7 @@ import { OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser } from "#src/features/identity/trash-user-binding";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
@@ -98,7 +99,7 @@ async function buildApp(
     idGen: { newId: counterTrashIdGen().next },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
 
   const deps: UsersRouteDeps = {
     workspaceId: WORKSPACE_ID,

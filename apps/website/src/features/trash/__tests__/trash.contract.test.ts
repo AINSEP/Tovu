@@ -11,6 +11,7 @@ import { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "../adapters/re
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file The two contract clauses the trash design (§2.1) names, plus the atomicity clause the owner
@@ -75,7 +76,7 @@ function harness(): Harness {
       idGen: { newId: () => (ids).next() },
       transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
       entityPolicy: ({ entityType }) => (adapters).has(entityType)
-    }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) }),
+    }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) }),
   };
 }
 
@@ -212,7 +213,7 @@ test("if the index insert fails, the marker flip rolls back — never hidden-but
     idGen: { newId: () => (h.ids).next() },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (h.adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   await assert.rejects(
     exploding.trash({

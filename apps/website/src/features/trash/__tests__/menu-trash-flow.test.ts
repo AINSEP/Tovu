@@ -22,6 +22,7 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file A `menu` moved to the Trash through the generic path (`moveToTrash`), seen from every
@@ -93,7 +94,7 @@ function harness(): Harness {
     idGen: { newId: () => `trash-${randomUUID()}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const readModel = createNavMenuReadModel({ menuRepo, bindingRepo });
   return { db, registry, trash, menuRepo, bindingRepo, readModel, events };

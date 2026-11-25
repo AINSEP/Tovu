@@ -15,6 +15,7 @@ import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-witho
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import { registerAdminTrashListRoute } from "#src/server/runtime/composition/modules/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 const WS = "workspace-1";
 const AT = "2026-11-01T12:00:00.000Z";
@@ -37,7 +38,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
     idGen: { newId: () => `trash-${++seq}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db })(work),
     entityPolicy: ({ entityType }) => entityType === "post",
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: "post" }) });
   const app = express();
   const deps: TrashRouteDeps = {
