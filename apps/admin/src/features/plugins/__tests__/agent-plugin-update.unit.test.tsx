@@ -13,6 +13,7 @@ import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
 import { pluginRules } from "../rules";
 
 /**
@@ -42,8 +43,8 @@ function controllerFor(agentPlugins: AgentPluginListRow[], onInstalled = vi.fn()
 }
 
 function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
-  render(<ul><AgentPluginRow usePluginRulesHook={() => pluginRules} plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
-    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul>);
+  render(<PluginRulesProvider rules={pluginRules}><ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
+    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul></PluginRulesProvider>);
   return screen.getByRole("listitem", { name: plugin.displayName! });
 }
 

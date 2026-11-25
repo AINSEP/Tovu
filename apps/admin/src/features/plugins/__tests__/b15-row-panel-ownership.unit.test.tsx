@@ -32,10 +32,10 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
         skills: [{ name: "image-resize", summary: "Image resizing" }], keywords: ["photography"], mcpServerIds: ["image-api"],
       },
     ];
-    return <><p id="uninstall-note">Bundled packages can be turned off.</p><ul>{plugins.map((plugin) => <AgentPluginRow usePluginRulesHook={() => pluginRules} key={plugin.pluginId} plugin={plugin}
+    return <PluginRulesProvider rules={pluginRules}><p id="uninstall-note">Bundled packages can be turned off.</p><ul>{plugins.map((plugin) => <AgentPluginRow key={plugin.pluginId} plugin={plugin}
       t={(key) => key} locale="en" expanded={expanded.has(plugin.pluginId)} busy={false}
       onToggleExpanded={() => toggle(plugin.pluginId)} stateControl={{ kind: "toggle", onToggleEnabled: unexpectedAction }}
-      onInspect={unexpectedAction} uninstallNoteId="uninstall-note" agentHandleBase={`agent-${plugin.pluginId}`} />)}</ul></>;
+      onInspect={unexpectedAction} uninstallNoteId="uninstall-note" agentHandleBase={`agent-${plugin.pluginId}`} />)}</ul></PluginRulesProvider>;
   }
 
   const plugins: AdminPluginDto[] = [
