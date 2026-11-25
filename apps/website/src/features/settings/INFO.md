@@ -19,8 +19,9 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   (`readFormsAutoPull`, `readFormDeliveryBindings`, `readFormDestinationSetting`,
   `readMailSenderSetting`, `readSearchProviderSetting`, and `resolveSiteTimeZone` /
   `createSiteTimeZonePort` through `ResolveSiteTimeZoneDeps`).
-- `site-timezone-fallback.ts` binds the `reportFallback` sink for `resolveSiteTimeZone`: fixed text plus
-  `workspaceId` and `errorClass`, never the error's message.
+- `@jini-ai/cms/settings/site/site-timezone-fallback` builds the `reportFallback` sink for
+  `resolveSiteTimeZone`: fixed text plus `workspaceId` and `errorClass`, never the error's message. The
+  host binds it at each call site with `{ logger: createConsoleLogger({ prefix: "" }) }`.
 - `site-title-legacy.ts` owns `LEGACY_SITE_TITLE` ("Tovu Demo Site"), the product copy the engine's
   `@jini-ai/cms/settings/site/site-title` takes as `legacySiteTitle`: on the registrar's and the
   pin's input in both composition roots (`site-deps/identity-settings.ts`,
@@ -30,9 +31,11 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   context, `llms.ts`, `feed.ts`, the templated preview, site consent). Both composition roots also spread
   `siteTitlePreservationHostBindings` (`reportSiteTitleFailure`, `reportPreservationSummary`) into
   `preserveLegacySiteTitles`' deps.
-- `site-title-reporter.ts` builds those two sinks: a failed pin or render read logs the engine's fixed
-  text plus `workspaceId` and `errorClass`, never the error's message (the same rule as
-  `site-timezone-fallback.ts`); a preservation run logs its pinned/skipped/failed counts.
+- `@jini-ai/cms/settings/site/site-title-reporter` builds those two sinks (`site-title-legacy.ts` binds
+  them with the host's console logger): a failed pin or render read logs the engine's fixed text plus
+  `workspaceId` and `errorClass`, never the error's message (the same rule as
+  `@jini-ai/cms/settings/site/site-timezone-fallback`); a preservation run logs its pinned/skipped/failed
+  counts.
 - `settings-write-policies.ts` owns the visitor-tools dedicated writer (`VISITOR_TOOLS_*` and
   `parseVisitorToolPolicy` from `contracts/site-assistant/visitor-tools.ts`) and binds it once as
   `SETTINGS_WRITE_POLICIES` into the package chokepoint. The barrel's `set`/`clear`/`resetNamespace`/

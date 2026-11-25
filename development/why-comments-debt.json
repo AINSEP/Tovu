@@ -14284,6 +14284,18 @@
     {
       "id": "c87e40383e1b",
       "reason": "http.memory.ts moved to Jini @jini-ai/integrations/webhooks/site/http.memory (x9 small SM-J02); @file header carried verbatim except its two path references, updated to the new module location."
+    },
+    {
+      "id": "35aa3824fd7f",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-timezone-fallback (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "51b55d477d5c",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "82e5cc11b6f7",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
     }
   ]
 }

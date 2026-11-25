@@ -1,6 +1,7 @@
 import { getEffective } from "@jini-ai/core/settings";
 
-import { createSiteTitleFailureReporter, createSiteTitlePreservationSummaryReporter } from "./site-title-reporter.js";
+import { createSiteTitleFailureReporter, createSiteTitlePreservationSummaryReporter } from "@jini-ai/cms/settings/site/site-title-reporter";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 
 /**
  * @file SPEC-050 (`core.site.title`): this product's legacy site title, the one value the engine's
@@ -13,7 +14,7 @@ import { createSiteTitleFailureReporter, createSiteTitlePreservationSummaryRepor
 /** The title every site rendered before this setting existed (formerly `pages.ts`'s `SITE_TITLE`). */
 export const LEGACY_SITE_TITLE = "Tovu Demo Site";
 
-const reportSiteTitleFailure = createSiteTitleFailureReporter();
+const reportSiteTitleFailure = createSiteTitleFailureReporter({ logger: createConsoleLogger({ prefix: "" }) });
 
 /**
  * The host-bound part of `ResolveSiteTitleDeps` every render call site spreads in: the legacy title
@@ -27,5 +28,5 @@ export const siteTitleHostBindings = { legacySiteTitle: LEGACY_SITE_TITLE, getEf
  */
 export const siteTitlePreservationHostBindings = {
   reportSiteTitleFailure,
-  reportPreservationSummary: createSiteTitlePreservationSummaryReporter(),
+  reportPreservationSummary: createSiteTitlePreservationSummaryReporter({ logger: createConsoleLogger({ prefix: "" }) }),
 };
