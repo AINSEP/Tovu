@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/hosted-mcp";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ExternalMcpToolPicker } from "../ExternalMcpToolPicker";
-import { useToolPickerFilter, useToolRowHandles } from "../ExternalMcpToolPicker.hooks";
-import { ExternalMcpToolsModal } from "../ExternalMcpToolsModal";
+import { ExternalMcpToolPicker } from "@jini-ai/admin/screens/settings/ExternalMcpToolPicker";
+import { useToolPickerFilter, useToolRowHandles } from "@jini-ai/admin/screens/settings/ExternalMcpToolPicker.hooks";
+import { ExternalMcpToolsModal } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal";
 import type { ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
@@ -156,10 +156,10 @@ it("shows each tool's own description, strips the model-facing warning, and pres
   render(<ExternalMcpToolPicker {...pickerProps} />, { wrapper });
   await screen.findByRole("checkbox", { name: "read" });
   const row = (name: string) => screen.getByRole("checkbox", { name }).closest("li")!;
-  expect(row("read").querySelector(".external-mcp-tool-description")?.textContent).toBe("Fetch the current project.");
-  expect(row("write").querySelector(".external-mcp-tool-description")?.textContent).toBe("Update <script>project</script> settings.");
+  expect(row("read").querySelector(".jini-external-mcp-tool-description")?.textContent).toBe("Fetch the current project.");
+  expect(row("write").querySelector(".jini-external-mcp-tool-description")?.textContent).toBe("Update <script>project</script> settings.");
   expect(row("write").querySelector("script")).toBeNull();
-  expect(row("silent").querySelector(".external-mcp-tool-description")).toBeNull();
+  expect(row("silent").querySelector(".jini-external-mcp-tool-description")).toBeNull();
 });
 
 it("keeps Cancel enabled while the probe loads and after it, and closes without saving", async () => {

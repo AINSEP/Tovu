@@ -79,19 +79,19 @@ describe("styles/external-mcp-tool-picker.css", () => {
   // Selectors the global `button` reset would otherwise win `color` on if any of these declared
   // `background`/`border` without it — see this file's header.
   const CONTROL_SELECTORS = [
-    [".external-mcp-tool-actions button", "var(--primary-ink)"],
-    [".external-mcp-tool-actions .btn-secondary", "var(--fg-2)"],
-    [".external-mcp-tool-enable", "var(--fg)"],
-    [".external-mcp-tool-row[data-locked] .external-mcp-tool-enable", "var(--faint)"],
-    [".external-mcp-tool-write", "var(--fg)"],
+    [".jini-external-mcp-tool-actions button", "var(--primary-ink)"],
+    [".jini-external-mcp-tool-actions .btn-secondary", "var(--fg-2)"],
+    [".jini-external-mcp-tool-enable", "var(--fg)"],
+    [".jini-external-mcp-tool-row[data-locked] .jini-external-mcp-tool-enable", "var(--faint)"],
+    [".jini-external-mcp-tool-write", "var(--fg)"],
     // `ExternalMcpSourceRow`'s own per-server "Tools" trigger (2026-09-10) — a bare `<button>`,
     // subject to the same global reset as every other control pinned above.
     [".external-mcp-source-tools-open", "var(--fg-2)"],
     // The 2026-10-13 redesign's own bare/ghost buttons: the × close and the toolbar's
     // select all / none / Refresh.
-    [".external-mcp-tools-modal-close", "var(--muted)"],
-    [".external-mcp-tool-toolbar .btn-ghost", "var(--fg-2)"],
-    [".external-mcp-tool-row .see-more .external-mcp-tool-description-toggle", "var(--link)"],
+    [".jini-external-mcp-tools-modal-close", "var(--muted)"],
+    [".jini-external-mcp-tool-toolbar .btn-ghost", "var(--fg-2)"],
+    [".jini-external-mcp-tool-row .see-more .jini-external-mcp-tool-description-toggle", "var(--link)"],
   ];
 
   it.each(CONTROL_SELECTORS)("%s declares its legible color explicitly", (selector, color) => {
@@ -104,13 +104,13 @@ describe("styles/external-mcp-tool-picker.css", () => {
   it("keeps warning badges, locked rows and zero grants visually distinct", () => {
     for (const [selector, expected] of [
       // "Writes" is a quiet neutral badge since the 2026-10-13 redesign; Destructive keeps danger.
-      [".external-mcp-tool-badge", { color: "var(--muted)", background: "var(--surface-2)" }],
-      ['.external-mcp-tool-badge[data-tone="danger"]', { color: "var(--danger)", background: "var(--danger-bg)" }],
-      ['.external-mcp-tool-badge[data-tone="warning"]', { color: "var(--warning)", background: "var(--warning-bg)" }],
-      [".external-mcp-tool-lock", { color: "var(--danger)" }],
-      [".external-mcp-tool-count[data-zero]", { color: "var(--danger)", "font-weight": "600" }],
-      [".external-mcp-tool-row", { color: "var(--fg)" }],
-      [".external-mcp-tool-row[data-locked]", { background: "var(--surface-2)" }],
+      [".jini-external-mcp-tool-badge", { color: "var(--muted)", background: "var(--surface-2)" }],
+      ['.jini-external-mcp-tool-badge[data-tone="danger"]', { color: "var(--danger)", background: "var(--danger-bg)" }],
+      ['.jini-external-mcp-tool-badge[data-tone="warning"]', { color: "var(--warning)", background: "var(--warning-bg)" }],
+      [".jini-external-mcp-tool-lock", { color: "var(--danger)" }],
+      [".jini-external-mcp-tool-count[data-zero]", { color: "var(--danger)", "font-weight": "600" }],
+      [".jini-external-mcp-tool-row", { color: "var(--fg)" }],
+      [".jini-external-mcp-tool-row[data-locked]", { background: "var(--surface-2)" }],
     ] as const) {
       const block = findRule(blocks, selector);
       expect(block, selector).toBeDefined();
@@ -123,7 +123,7 @@ describe("styles/external-mcp-tool-picker.css", () => {
     const primary = globalBlocks.find((block) => block.selector.split(",").some((selector) => selector.trim() === "button"));
     expect(primary).toBeDefined();
     expect(declarations(primary!)).toMatchObject({ background: "var(--primary)", color: "var(--primary-ink)" });
-    const action = findRule(blocks, ".external-mcp-tool-actions button")!;
+    const action = findRule(blocks, ".jini-external-mcp-tool-actions button")!;
     expect(declarations(action).background ?? declarations(primary!).background).toBe("var(--primary)");
     // The shared `.btn-secondary, .jini-btn-secondary, .btn-ghost, …` base rule comes first; the
     // fill and text colour are set by the later rule scoped to the secondary pair, which wins the cascade.
@@ -131,19 +131,19 @@ describe("styles/external-mcp-tool-picker.css", () => {
     expect(secondary).toBeDefined();
     // Classic maps --jini-theme-control-bg to var(--surface), so the rendered fill is unchanged.
     expect(declarations(secondary!)).toMatchObject({ background: "var(--jini-control-bg)", color: "var(--fg-2)" });
-    const secondaryAction = findRule(blocks, ".external-mcp-tool-actions .btn-secondary")!;
+    const secondaryAction = findRule(blocks, ".jini-external-mcp-tool-actions .btn-secondary")!;
     expect(declarations(secondaryAction).background ?? declarations(action).background ?? declarations(secondary!).background).toBe("var(--jini-control-bg)");
   });
 
   it("the tool list is the dialog's one scroller, bounded by a fixed-height flex column — the live higgsfield connection advertises 157 tools", () => {
-    expect(declarations(findRule(blocks, ".external-mcp-tool-list")!)).toMatchObject({ flex: "1 1 auto", "min-height": "0", "overflow-y": "auto" });
+    expect(declarations(findRule(blocks, ".jini-external-mcp-tool-list")!)).toMatchObject({ flex: "1 1 auto", "min-height": "0", "overflow-y": "auto" });
     expect(declarations(findRule(blocks, ".external-mcp-tool-picker")!)).toMatchObject({ display: "flex", "flex-direction": "column", "min-height": "0" });
-    expect(declarations(findRule(blocks, ".external-mcp-tools-modal-body")!)).toMatchObject({ display: "flex", "min-height": "0" });
-    expect(declarations(findRule(blocks, ".external-mcp-tools-modal")!)).toMatchObject({ height: "min(46rem, 85vh)", overflow: "hidden" });
+    expect(declarations(findRule(blocks, ".jini-external-mcp-tools-modal-body")!)).toMatchObject({ display: "flex", "min-height": "0" });
+    expect(declarations(findRule(blocks, ".jini-external-mcp-tools-modal")!)).toMatchObject({ height: "min(46rem, 85vh)", overflow: "hidden" });
   });
 
   it("long tool names and descriptions wrap instead of clipping or truncating", () => {
-    for (const selector of [".external-mcp-tool-name", ".external-mcp-tool-description"]) {
+    for (const selector of [".jini-external-mcp-tool-name", ".jini-external-mcp-tool-description"]) {
       const block = findRule(blocks, selector);
       expect(block, `no rule found for selector: ${selector}`).toBeDefined();
       expect(block!.body).toMatch(/overflow-wrap\s*:\s*anywhere/);
