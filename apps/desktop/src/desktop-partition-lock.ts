@@ -182,6 +182,8 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
   };
   return {
     automaticMaintenance,
+    /** Whether a `Partitions` child is a site partition this app manages (the pass's root predicate). */
+    isManaged,
     registerHolder: () => interlock.registerHolder(),
     unregisterHolder: () => interlock.unregisterHolder(),
     acquireSite: ({ siteDir }: { siteDir: string }, _opt: Record<string, never> = {}): Promise<SiteSessionAcquired> =>
@@ -202,6 +204,8 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
       for (const { siteDir } of rows) retirement.invalidateSync({ partition: partitionDirName(sitePartition({ siteDir })), subjectDir: siteDir, reason: "tracked-again" });
     },
     withPartitionWriter: <T>({ run }: { run: (context: PartitionWriterContext) => Promise<T> }) => interlock.withPartitionWriter({ run }),
+    /** The strict holder read the boot partition pass rechecks under the writer fence (ST-2c). */
+    readHoldersStrict: () => interlock.readHoldersStrict(),
   };
 }
 export type DesktopPartitions<S> = ReturnType<typeof bindDesktopPartitions<S>>;
