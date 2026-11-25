@@ -43,7 +43,7 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
     const actorFor = (changeSetId: string) => events.find(event => event.changeSetId === changeSetId)?.actor;
     assert.deepEqual(actorFor(admin.changeSetId), { id: 'owner-1', kind: 'user' });
     assert.deepEqual(actorFor(assistant.changeSetId), { id: 'owner-1', kind: 'agent' });
-    assert.deepEqual((await stores.changeSets.findById({ workspaceId: 'workspace-1', id: assistant.changeSetId }))?.actor, { id: 'owner-1', kind: 'agent' });
+    assert.deepEqual((await stores.changeSets.findById({ workspaceId: 'workspace-1', id: assistant.changeSetId }))?.changeSet.actor, { id: 'owner-1', kind: 'agent' });
   });
 
   test(`[${adapter.name}] a legacy change set with no recorded kind reads back as unknown, not guessed`, async t => {
@@ -51,7 +51,7 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
     if (adapter.dialect === 'sqlite') t.after(() => (stores.kernel as unknown as { close(): Promise<void> }).close());
     await stores.kernel.execute(sql`INSERT INTO change_sets (id, workspace_id, actor_id, status, summary, created_at)
       VALUES ('legacy-1', 'workspace-1', 'owner-1', 'applied', 'Before provenance', '2026-01-01T00:00:00.000Z')`);
-    const legacy = await stores.changeSets.findById({ workspaceId: 'workspace-1', id: 'legacy-1' });
+    const legacy = (await stores.changeSets.findById({ workspaceId: 'workspace-1', id: 'legacy-1' }))?.changeSet;
     assert.equal(legacy?.actorId, 'owner-1');
     assert.equal(legacy && 'actor' in legacy, false, 'no fabricated actor kind');
   });
@@ -73,8 +73,8 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
 
 test('origins map to kinds from the trusted call site, never from the id', () => {
   assert.deepEqual(actorForMutation({ principalId: 'owner-1', origin: 'admin' }), { id: 'owner-1', kind: 'user' });
-  // CLI and BYOK executors run the same assistant tool registrations, so both bind the assistant origin.
   assert.deepEqual(actorForMutation({ principalId: 'agent-looking-user', origin: 'admin' }), { id: 'agent-looking-user', kind: 'user' });
+  // CLI and BYOK executors run the same assistant tool registrations, so both bind the assistant origin.
   assert.deepEqual(actorForMutation({ principalId: 'owner-1', origin: 'assistant' }), { id: 'owner-1', kind: 'agent' });
   assert.deepEqual(actorForMutation({ origin: 'worker' }), { id: WORKER_SYSTEM_ACTOR_ID, kind: 'system' });
 });

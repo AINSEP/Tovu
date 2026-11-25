@@ -181,3 +181,27 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));
   });
 });
+
+describe("Chrome playback note", () => {
+  it("only a confirmed small HEVC video shows the Chrome note", async () => {
+    const MiB = 1024 * 1024;
+    const items = [
+      { ...item("m-hevc", "Small HEVC", "video/quicktime"), videoCodec: "hevc", byteSize: 10 * MiB },
+      { ...item("m-big", "Big HEVC", "video/quicktime"), videoCodec: "hevc", byteSize: 60 * MiB },
+      { ...item("m-mov", "Unprobed MOV", "video/quicktime"), byteSize: 10 * MiB },
+      { ...item("m-h264", "Small H264", "video/quicktime"), videoCodec: "h264", byteSize: 10 * MiB },
+      { ...item("m-nosize", "Sizeless HEVC", "video/mp4"), videoCodec: "hevc", byteSize: null },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const body = String(url).includes("/settings/effective") ? { data: [] } : { media: items };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    const card = async (title: string) => (await screen.findByRole("button", { name: new RegExp(`^${title}`) })).closest(".media-card") as HTMLElement;
+    expect(within(await card("Small HEVC")).getByText("This video may not play in Chrome.")).toBeInTheDocument();
+    // A QuickTime container or .mov name is not a codec; only the probed answer counts, and only under the base limit.
+    for (const title of ["Big HEVC", "Unprobed MOV", "Small H264", "Sizeless HEVC"]) {
+      expect(within(await card(title)).queryByText("This video may not play in Chrome.")).toBeNull();
+    }
+  });
+});

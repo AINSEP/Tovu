@@ -190,6 +190,7 @@ export interface ChangeSetsTable {
   id: string;
   workspace_id: string;
   actor_id: string | null;
+  actor_kind: string | null;
   status: string;
   summary: string;
   idempotency_key: string | null;

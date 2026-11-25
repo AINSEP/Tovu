@@ -1,4 +1,5 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import { MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
@@ -1020,13 +1021,27 @@ function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: Med
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
   const date = metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null;
-  if (parts.length === 0 && !date) return null;
+  const note = showsChromePlaybackNote({ item: props.item }) ? <p className="media-card-note">{props.t(CHROME_PLAYBACK_NOTE)}</p> : null;
+  if (parts.length === 0 && !date) return note;
   return (
-    <p className="media-card-size">
-      <span className="media-card-specs">{parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}</span>
-      {date}
-    </p>
+    <>
+      <p className="media-card-size">
+        <span className="media-card-specs">{parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}</span>
+        {date}
+      </p>
+      {note}
+    </>
   );
+}
+
+/** The card note for a video Chrome may refuse to play (its key is the English text). */
+const CHROME_PLAYBACK_NOTE = "This video may not play in Chrome.";
+
+/** Whether a card shows {@link CHROME_PLAYBACK_NOTE}: a probed HEVC video at or under the ordinary limit,
+ *  which is stored as-is (a larger one is converted). @complexity O(1). */
+export function showsChromePlaybackNote({ item }: { item: Pick<AdminMedia, "videoCodec" | "byteSize"> }, _optional: Record<string, never> = {}): boolean {
+  // Compatibility depends on the codec, not the filename or container.
+  return item.videoCodec === "hevc" && typeof item.byteSize === "number" && item.byteSize <= MAX_UPLOAD_BYTES;
 }
 
 interface MediaCardMenuProps {

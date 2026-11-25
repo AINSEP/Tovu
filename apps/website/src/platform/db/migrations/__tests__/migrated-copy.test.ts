@@ -26,11 +26,11 @@ test("a copied current DB rejects an old history without losing data and reopens
   const copy = openSqliteFileKernel<unknown>({ filePath: copyPath });
   try {
     const ledger = await copy.query<{ id: string; checksum: string; applied_at: string }>(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`);
-    assert.equal(ledger.length, 48);
-    assert.equal(ledger.at(-1)!.id, "0046_media_description");
+    assert.equal(ledger.length, 49);
+    assert.equal(ledger.at(-1)!.id, "0047_change_set_actor_kind");
     assert.deepEqual((await migrateContentDatabase({ kernel: copy })).applied, []);
     await assert.rejects(runMigrations({ kernel: copy, steps: CONTENT_MIGRATIONS.slice(0, -1) }),
-      error => error instanceof UnknownAppliedMigrationError && error.ids.includes("0046_media_description"));
+      error => error instanceof UnknownAppliedMigrationError && error.ids.includes("0047_change_set_actor_kind"));
     assert.deepEqual(await copy.query(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`), ledger);
     assert.deepEqual(await copy.query(sql`SELECT * FROM fixture_content`),
       [{ id: "draft", body: "keep this disposable content" }]);
